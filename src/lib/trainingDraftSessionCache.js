@@ -127,23 +127,47 @@ export function putTrainingDraftSession(trainingId, snapshot) {
   return true
 }
 
-/** LRU bump; наружу — копия, чтобы UI не мутировал кэш. */
-export function takeTrainingDraftSession(trainingId) {
+/**
+ * @param {string | null | undefined} trainingId
+ * @returns {{ at: number, snapshot: object } | null}
+ */
+export function takeTrainingDraftSessionEntry(trainingId) {
   const key = normalizeKey(trainingId)
   if (!key) return null
   const hit = cache.get(key)
   if (!hit) return null
   cache.delete(key)
   cache.set(key, hit)
-  return cloneTrainingDraftSessionValue(hit.snapshot)
+  return {
+    at: hit.at,
+    snapshot: cloneTrainingDraftSessionValue(hit.snapshot),
+  }
+}
+
+/** LRU bump; наружу — копия, чтобы UI не мутировал кэш. */
+export function takeTrainingDraftSession(trainingId) {
+  const entry = takeTrainingDraftSessionEntry(trainingId)
+  return entry?.snapshot ?? null
+}
+
+/**
+ * @param {string | null | undefined} trainingId
+ * @returns {{ at: number, snapshot: object } | null}
+ */
+export function peekTrainingDraftSessionEntry(trainingId) {
+  const key = normalizeKey(trainingId)
+  if (!key) return null
+  const hit = cache.get(key)
+  if (!hit) return null
+  return {
+    at: hit.at,
+    snapshot: cloneTrainingDraftSessionValue(hit.snapshot),
+  }
 }
 
 /** @param {string | null | undefined} trainingId */
 export function peekTrainingDraftSession(trainingId) {
-  const key = normalizeKey(trainingId)
-  if (!key) return null
-  const snap = cache.get(key)?.snapshot
-  return snap ? cloneTrainingDraftSessionValue(snap) : null
+  return peekTrainingDraftSessionEntry(trainingId)?.snapshot ?? null
 }
 
 export function dropTrainingDraftSession(trainingId) {

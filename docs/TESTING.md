@@ -77,6 +77,7 @@
 | Изоляция load/persist при смене вкладки черновика | `verify-training-draft-page-epoch.mjs` |
 | Сессионный кэш вкладок черновика (без «Загрузка…») | `verify-training-draft-session-cache.mjs` |
 | Durable черновик после блокировки экрана / kill вкладки / PWA-обновления | `verify-training-draft-durable.mjs`, `verify-app-stability.mjs` |
+| Восстановление черновика (IDB / durable / session, уход на главную) | `verify-training-draft-restore.mjs` |
 | Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
 | Статус тренировки: completed не откатывается в draft | `verify-training-persist-status.mjs` |
 | Pull/push merge: draft, completed `updated_at`, prune | `verify-sync-pull-merge.mjs` |

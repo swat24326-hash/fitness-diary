@@ -34,12 +34,13 @@ import {
   isTrainingDraftUiAligned,
   putTrainingDraftSession,
   shouldBlockMismatchedDraftPersist,
-  takeTrainingDraftSession,
+  takeTrainingDraftSessionEntry,
+  peekTrainingDraftSessionEntry,
 } from '../../lib/trainingDraftSessionCache.js'
 import {
   shouldClearDurableAfterIdbSave,
-  shouldPreferDurableDraftOverIdb,
 } from '../../lib/trainingDraftDurableCore.js'
+import { pickTrainingDraftRestore, workoutDraftContentScore } from '../../lib/trainingDraftRestoreCore.js'
 import {
   clearTrainingDraftDurable,
   migrateTrainingDraftDurableNewToId,
@@ -252,14 +253,30 @@ export function TrainingPage() {
     )
   }, [user?.id, user?.club_id])
 
-  const onHideFlush = useCallback((live) => {
-    writeDurableFromLive(live)
+  /** Синхронно в ref — переживает уход на главную до re-render (последний символ в textarea). */
+  const applyWorkoutState = useCallback((updater) => {
+    const prev = liveDraftRef.current.workoutState ?? emptyTrainingData()
+    const next = typeof updater === 'function' ? updater(prev) : updater
+    liveDraftRef.current = { ...liveDraftRef.current, workoutState: next }
+    setWorkoutState(next)
+  }, [])
+
+  const flushDraftSnapshotOnLeave = useCallback(() => {
+    const outgoing = draftSessionGateRef.current
+    if (outgoing?.id && isTrainingDraftSessionSnapshotReady(outgoing.snap, outgoing.id)) {
+      putTrainingDraftSession(outgoing.id, outgoing.snap)
+    }
+    writeDurableFromLive(liveDraftRef.current)
+  }, [writeDurableFromLive])
+
+  const onHideFlush = useCallback((_live) => {
+    flushDraftSnapshotOnLeave()
     userEditedRef.current = true
     const persistFn = persistRef.current
     if (typeof persistFn === 'function') {
       void persistFn('draft', { silent: true, skipNavigate: true, fromHide: true })
     }
-  }, [writeDurableFromLive])
+  }, [flushDraftSnapshotOnLeave])
 
   useTrainingDraftHideFlush({
     enabled: loadState === 'ok' && Boolean(user?.id) && !isTrainingStatusCompleted(meta.status),
@@ -321,7 +338,8 @@ export function TrainingPage() {
       return
     }
 
-    const cached = takeTrainingDraftSession(id)
+    const cachedEntry = takeTrainingDraftSessionEntry(id)
+    const cached = cachedEntry?.snapshot
     if (!isTrainingDraftSessionSnapshotReady(cached, { trainingId: id })) {
       sessionCacheHitRef.current = null
       setLoadState('loading')
@@ -340,6 +358,8 @@ export function TrainingPage() {
       clubId: String(cached.client?.club_id ?? ''),
       status: String(cached.meta?.status ?? 'draft'),
       trainingDate: String(cached.trainingDate ?? ''),
+      trainingType: String(cached.trainingType ?? 'Силовая'),
+      sessionAt: cachedEntry?.at ?? 0,
     }
     applyDraftSessionSnapshot(cached)
     bumpHydrateVersion((v) => v + 1)
@@ -390,6 +410,12 @@ export function TrainingPage() {
     otherCompletedTrainings,
     lateBlockedNotice,
   ])
+
+  useEffect(() => {
+    return () => {
+      flushDraftSnapshotOnLeave()
+    }
+  }, [flushDraftSnapshotOnLeave])
 
   const load = useCallback(async () => {
     if (!user?.id) return
@@ -443,6 +469,48 @@ export function TrainingPage() {
           trainerId: isAdmin ? '' : user.id,
           clubId: cacheHit.clubId || '',
         })
+        const dbCached = await getDb()
+        if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+        const idbRowCached = await dbCached.get('trainings', String(id ?? ''))
+        const durableCached = readTrainingDraftDurable({ trainingId: id, clientId: cid })
+        const sessionEntry = peekTrainingDraftSessionEntry(id)
+        const sessionSnap = sessionEntry?.snapshot
+        const pickedCached = pickTrainingDraftRestore({
+          idbRow: idbRowCached,
+          durable: durableCached,
+          session: sessionSnap
+            ? {
+                workoutState: sessionSnap.workoutState,
+                trainingType: sessionSnap.trainingType,
+                trainingDate: sessionSnap.trainingDate,
+                revisionMs: sessionEntry?.at ?? cacheHit.sessionAt ?? 0,
+              }
+            : null,
+        })
+        const cacheWs = sessionSnap?.workoutState ?? {}
+        const idbWs = idbRowCached?.data && typeof idbRowCached.data === 'object' ? idbRowCached.data : {}
+        const shownScore = workoutDraftContentScore(cacheWs)
+        const pickedScore = workoutDraftContentScore(pickedCached.workoutState)
+        if (pickedCached.source !== 'empty' && pickedScore > shownScore && pickedScore >= workoutDraftContentScore(idbWs)) {
+          const fallbackType = pickedCached.trainingType || cacheHit.trainingType || 'Силовая'
+          setWorkoutState({
+            ...emptyTrainingData(),
+            ...sanitizeWorkoutData(pickedCached.workoutState, { sessionFallback: fallbackType }),
+          })
+          if (pickedCached.trainingType) setTrainingType(pickedCached.trainingType)
+          if (pickedCached.trainingDate) {
+            setTrainingDate(
+              canEditTrainingDate(isAdmin, 'draft')
+                ? String(pickedCached.trainingDate)
+                : clampIsoDateToToday(String(pickedCached.trainingDate)),
+            )
+          }
+          userEditedRef.current = true
+          window.setTimeout(() => {
+            if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+            void persistRef.current?.('draft', { silent: true, skipNavigate: true })
+          }, 80)
+        }
       } catch {
         /* экран уже из кэша */
       }
@@ -504,25 +572,20 @@ export function TrainingPage() {
         }
         migrateTrainingDraftDurableNewToId(clientIdParam, durableTid)
       }
-      if (
-        shouldPreferDurableDraftOverIdb({
-          idbRow: null,
-          durable: durableNew,
-          expectClientId: clientIdParam,
-        })
-      ) {
-        const dw =
-          durableNew.workoutState && typeof durableNew.workoutState === 'object'
-            ? durableNew.workoutState
-            : {}
+      const pickedNew = pickTrainingDraftRestore({ durable: durableNew })
+      if (pickedNew.source === 'durable') {
         workoutNew = {
           ...emptyTrainingData(),
-          ...sanitizeWorkoutData(dw, {
-            sessionFallback: durableNew.trainingType || 'Силовая',
+          ...sanitizeWorkoutData(pickedNew.workoutState, {
+            sessionFallback: pickedNew.trainingType || durableNew?.trainingType || 'Силовая',
           }),
         }
-        if (durableNew.trainingType) typeNew = durableNew.trainingType
-        if (durableNew.trainingDate) dateNew = String(durableNew.trainingDate).slice(0, 10)
+        if (pickedNew.trainingType || durableNew?.trainingType) {
+          typeNew = pickedNew.trainingType || durableNew.trainingType
+        }
+        if (pickedNew.trainingDate || durableNew?.trainingDate) {
+          dateNew = String(pickedNew.trainingDate || durableNew.trainingDate).slice(0, 10)
+        }
       }
       setWorkoutState(workoutNew)
       setTrainingType(typeNew)
@@ -651,32 +714,43 @@ export function TrainingPage() {
     let sessionTypeNext = sessionType
     let workoutNext = { ...emptyTrainingData(), ...w }
     let statusNext = t.status
-    let restoredFromDurable = false
-    // После kill вкладки / блокировки экрана: durable (localStorage) новее IDB — восстановить.
+    let restoredFromBestDraft = false
     if (String(t.status ?? '') === 'draft') {
       const durable = readTrainingDraftDurable({ trainingId: t.id, clientId: t.client_id })
-      if (
-        shouldPreferDurableDraftOverIdb({
-          idbRow: t,
-          durable,
-          expectClientId: t.client_id,
-          expectTrainingId: t.id,
-        })
+      const sessionEntry = peekTrainingDraftSessionEntry(t.id)
+      const sessionSnap = sessionEntry?.snapshot
+      const picked = pickTrainingDraftRestore({
+        idbRow: t,
+        durable,
+        session: sessionSnap
+          ? {
+              workoutState: sessionSnap.workoutState,
+              trainingType: sessionSnap.trainingType,
+              trainingDate: sessionSnap.trainingDate,
+              revisionMs: sessionEntry?.at ?? 0,
+            }
+          : null,
+      })
+      if (picked.source !== 'empty' && picked.source !== 'idb') {
+        restoredFromBestDraft = true
+      } else if (
+        picked.source === 'idb' &&
+        workoutDraftContentScore(picked.workoutState) > workoutDraftContentScore(w)
       ) {
-        restoredFromDurable = true
-        const dw =
-          durable.workoutState && typeof durable.workoutState === 'object' ? durable.workoutState : {}
+        restoredFromBestDraft = true
+      }
+      if (picked.source !== 'empty') {
         workoutNext = {
           ...emptyTrainingData(),
-          ...sanitizeWorkoutData(dw, {
-            sessionFallback: durable.trainingType || sessionType,
+          ...sanitizeWorkoutData(picked.workoutState, {
+            sessionFallback: picked.trainingType || sessionType,
           }),
         }
-        if (durable.trainingType) sessionTypeNext = durable.trainingType
-        if (durable.trainingDate) {
+        if (picked.trainingType) sessionTypeNext = picked.trainingType
+        if (picked.trainingDate) {
           trainingDateNext = canEditTrainingDate(isAdmin, 'draft')
-            ? String(durable.trainingDate)
-            : clampIsoDateToToday(String(durable.trainingDate))
+            ? String(picked.trainingDate)
+            : clampIsoDateToToday(String(picked.trainingDate))
         }
         statusNext = 'draft'
       }
@@ -727,7 +801,7 @@ export function TrainingPage() {
       }),
     )
 
-    if (restoredFromDurable) {
+    if (restoredFromBestDraft) {
       window.setTimeout(() => {
         if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
         userEditedRef.current = true
@@ -1378,7 +1452,13 @@ export function TrainingPage() {
       writeDurableFromLive(liveDraftRef.current)
     }, 280)
     return () => {
-      if (durableWriteTimerRef.current) clearTimeout(durableWriteTimerRef.current)
+      if (durableWriteTimerRef.current) {
+        clearTimeout(durableWriteTimerRef.current)
+        durableWriteTimerRef.current = null
+      }
+      if (loadState === 'ok' && !isTrainingStatusCompleted(meta.status)) {
+        writeDurableFromLive(liveDraftRef.current)
+      }
     }
   }, [contentFingerprint, loadState, meta.status, writeDurableFromLive])
 
@@ -1930,7 +2010,7 @@ export function TrainingPage() {
           clientId: client?.id ?? clientIdParam,
         })}
         value={workoutState}
-        onChange={setWorkoutState}
+        onChange={applyWorkoutState}
         trainingType={trainingType}
         clientId={client?.id ?? clientIdParam ?? ''}
         currentTrainingId={resolveTrainingFormPlaceKey({
