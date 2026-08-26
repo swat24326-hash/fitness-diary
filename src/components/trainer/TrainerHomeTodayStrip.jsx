@@ -185,6 +185,7 @@ export function TrainerHomeTodayStrip({
                     <div className="muted">
                       {c.clip_date ? `${formatDateRu(c.clip_date)} · ` : ''}
                       Ждём вас{hours ? ` · уже ${hours} ч` : ''}
+                      {!c.client_id ? ' · нет карточки в базе — кнопку нельзя' : ''}
                       {href ? (
                         <>
                           {' · '}

@@ -36,7 +36,7 @@ export function planTrainerSaleClipsPrune(localClips, remoteAwaitingClips, train
 }
 
 /**
- * Абон уже создали вручную после клипа (без clip_id) → заявка «мёртвая».
+ * Абон уже создали вручную после клипа (без clip_id) → заявка исполнена вне кнопки.
  * @param {object} clip
  * @param {object[]} membershipsForClient
  */
@@ -81,19 +81,49 @@ export function findLinkedMembershipForAwaitingClip(clip, membershipsForClient) 
 }
 
 /**
- * План закрытия «живых» awaiting, которые уже не нужны на планшете.
+ * Waiting без client_id, но карта однозначно есть в клубе → привязать.
+ * @param {object} clip
+ * @param {Map<string, object>|Record<string, object>} clientsByCard
+ * @returns {string|null} client_id
+ */
+export function resolveAwaitingSaleClipClientId(clip, clientsByCard) {
+  if (normalizeSaleClipStatus(clip?.status) !== 'awaiting') return null
+  if (String(clip?.client_id ?? '').trim()) return null
+  const card = String(clip?.card_number ?? '').trim()
+  if (!card) return null
+  const map =
+    clientsByCard instanceof Map
+      ? clientsByCard
+      : new Map(Object.entries(clientsByCard ?? {}).map(([k, v]) => [String(k), v]))
+  const hit = map.get(card)
+  const id = String(hit?.id ?? '').trim()
+  return id || null
+}
+
+/**
+ * План закрытия / дозаполнения awaiting.
  * @param {object[]} awaitingClips
  * @param {Record<string, object[]>} membershipsByClientId
- * @returns {{ clipId: string, action: 'cancel'|'done', membershipId: string|null, reason: string }[]}
+ * @param {{ clientsByCard?: Map<string, object>|Record<string, object> }} [opts]
+ * @returns {{
+ *   clipId: string,
+ *   action: 'cancel'|'done'|'bind_client',
+ *   membershipId: string|null,
+ *   clientId: string|null,
+ *   reason: string,
+ * }[]}
  */
-export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClientId) {
+export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClientId, opts = {}) {
   const by = membershipsByClientId && typeof membershipsByClientId === 'object' ? membershipsByClientId : {}
+  const clientsByCard = opts.clientsByCard
   const out = []
   for (const clip of awaitingClips ?? []) {
     if (normalizeSaleClipStatus(clip?.status) !== 'awaiting') continue
     const clipId = String(clip?.id ?? '').trim()
     if (!clipId) continue
-    const cid = String(clip?.client_id ?? '').trim()
+
+    const bindId = clientsByCard ? resolveAwaitingSaleClipClientId(clip, clientsByCard) : null
+    const cid = String(clip?.client_id ?? bindId ?? '').trim()
     const mems = cid ? by[cid] ?? [] : []
     const linked = findLinkedMembershipForAwaitingClip(clip, mems)
     if (linked) {
@@ -101,17 +131,32 @@ export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClie
         clipId,
         action: 'done',
         membershipId: String(linked.id ?? '').trim() || null,
+        clientId: cid || null,
         reason: 'Абон уже с clip_id — закрываем заявку',
       })
       continue
     }
-    const superseding = findSupersedingMembership(clip, mems)
+    const superseding = findSupersedingMembership(
+      cid ? { ...clip, client_id: cid } : clip,
+      mems,
+    )
     if (superseding) {
       out.push({
         clipId,
-        action: 'cancel',
+        action: 'done',
         membershipId: String(superseding.id ?? '').trim() || null,
-        reason: 'Абон создан вручную после заявки — клип больше не нужен',
+        clientId: cid || null,
+        reason: 'Абон уже создан — заявку закрыли как выполненную',
+      })
+      continue
+    }
+    if (bindId) {
+      out.push({
+        clipId,
+        action: 'bind_client',
+        membershipId: null,
+        clientId: bindId,
+        reason: 'Привязали клиента по номеру карты',
       })
     }
   }

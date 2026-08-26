@@ -65,6 +65,7 @@ export function TrainerSaleClipsPanel({ clientId, clubId, mode = 'client', onCre
                 <div className="muted">
                   {c.clip_date ? `${formatDateRu(c.clip_date)} · ` : ''}
                   Ждём вас{hours ? ` · уже ${hours} ч` : ''}
+                  {!(clientId || c.client_id) ? ' · нет карточки в базе — кнопку нельзя' : ''}
                   {href && mode === 'trainer' ? (
                     <>
                       {' · '}

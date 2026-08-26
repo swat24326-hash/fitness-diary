@@ -208,9 +208,27 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
       c3: [{ id: 'm3', client_id: 'c3', created_at: '2026-08-01T11:00:00.000Z', clip_id: 'clip-linked' }],
     },
   )
-  ok(plan.some((p) => p.clipId === 'clip-old' && p.action === 'cancel'), 'manual membership → cancel')
+  ok(plan.some((p) => p.clipId === 'clip-old' && p.action === 'done'), 'manual membership → done (не cancel)')
   ok(plan.some((p) => p.clipId === 'clip-linked' && p.action === 'done'), 'clip_id link → done')
   ok(!plan.some((p) => p.clipId === 'clip-live'), 'live awaiting stays')
+
+  const bindPlan = planSupersededAwaitingSaleClips(
+    [
+      {
+        id: 'clip-orphan',
+        status: 'awaiting',
+        client_id: null,
+        card_number: '5827',
+        created_at: '2026-08-19T10:00:00.000Z',
+      },
+    ],
+    {},
+    { clientsByCard: new Map([['5827', { id: 'c-tsar' }]]) },
+  )
+  ok(
+    bindPlan.some((p) => p.clipId === 'clip-orphan' && p.action === 'bind_client' && p.clientId === 'c-tsar'),
+    'orphan clip binds client by card',
+  )
 }
 
 if (failed) {
