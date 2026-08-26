@@ -57,6 +57,7 @@ import {
 import {
   buildTrainerClientsBrowseCounts,
   filterTrainerClientsByBrowseMode,
+  TRAINER_CLIENTS_BROWSE_KEYS,
 } from '../../lib/trainer/trainerClientsBrowseFilterCore.js'
 import {
   buildOutreachScenarioHint,
@@ -344,7 +345,7 @@ export function TrainerClients() {
   }, [nextOutreachClient, scrollToOutreachClient, showToast])
 
   const applyFilter = (id) => {
-    if (id === 'all') {
+    if (id === 'all' || !TRAINER_CLIENTS_BROWSE_KEYS.includes(id)) {
       setQuickFilter('all')
       return
     }
@@ -491,9 +492,6 @@ export function TrainerClients() {
     }
     if (quickFilter === 'stale') {
       return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад.`
-    }
-    if (quickFilter === 'attendance_slip') {
-      return 'Нет клиентов с активным абонементом, которые выпали из ритма (≥14 дней без визита).'
     }
     if (quickFilter === 'inactive') {
       return `Нет клиентов в финале воронки (>${STALE_MAX_DAYS} дн. после конца или странный/пустой абон).`

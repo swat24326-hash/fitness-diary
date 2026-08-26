@@ -1,6 +1,7 @@
 /**
  * Фильтры списка клиентов тренера: chip = list (без поиска).
  * Исключение ДР: плитка = сегодня, список = browse-окно (сегодня + ближайшие).
+ * Чип «Ритм / attendance_slip» убран из UI (как у админа) — посещаемость в карточке.
  */
 
 import { membershipSignal } from '../clientListSignals.js'
@@ -12,7 +13,6 @@ import {
   STALE_MAX_DAYS,
   STALE_TRAINING_DAYS,
 } from './trainerClientOutreachCore.js'
-import { isClientAttendanceSlip } from '../clientAttendanceGlanceCore.js'
 
 export const TRAINER_CLIENTS_BROWSE_KEYS = [
   'all',
@@ -21,7 +21,6 @@ export const TRAINER_CLIENTS_BROWSE_KEYS = [
   'expiring',
   'expired_recent',
   'stale',
-  'attendance_slip',
   'inactive',
 ]
 
@@ -32,7 +31,7 @@ export const TRAINER_CLIENTS_BROWSE_KEYS = [
  * @param {string} today
  * @param {{ lastTrainingIso?: string | null, trainings?: object[] }} [extra]
  */
-export function clientMatchesTrainerBrowseFilter(client, filterId, memList, today, extra = {}) {
+export function clientMatchesTrainerBrowseFilter(client, filterId, memList, today, _extra = {}) {
   const mode = String(filterId ?? '').trim()
   if (!mode || mode === 'all') return true
   if (mode === 'pnk') return String(client?.lifecycle ?? '') === 'pnk'
@@ -58,18 +57,6 @@ export function clientMatchesTrainerBrowseFilter(client, filterId, memList, toda
       today,
       staleDays: STALE_TRAINING_DAYS,
       staleMaxDays: STALE_MAX_DAYS,
-    })
-  }
-  if (mode === 'attendance_slip') {
-    return isClientAttendanceSlip({
-      client,
-      memList: list,
-      today,
-      hallMode: 'pz',
-      ...(Object.prototype.hasOwnProperty.call(extra, 'lastTrainingIso')
-        ? { lastTrainingIso: extra.lastTrainingIso }
-        : {}),
-      ...(Array.isArray(extra.trainings) ? { trainings: extra.trainings } : {}),
     })
   }
   if (mode === 'inactive') return isTrainerClientInactiveToday(client, list, today)
@@ -110,7 +97,6 @@ export function buildTrainerClientsBrowseCounts(clients, memByClient, today, ext
   let expired_recent = 0
   let birthdays = 0
   let stale = 0
-  let attendance_slip = 0
   let inactive = 0
   let pnk = 0
   for (const c of base) {
@@ -126,7 +112,6 @@ export function buildTrainerClientsBrowseCounts(clients, memByClient, today, ext
     if (clientMatchesTrainerBrowseFilter(c, 'expired_recent', memList, today, rowExtra)) expired_recent++
     if (isBirthdayToday(c?.birth_date, today)) birthdays++
     if (clientMatchesTrainerBrowseFilter(c, 'stale', memList, today, rowExtra)) stale++
-    if (clientMatchesTrainerBrowseFilter(c, 'attendance_slip', memList, today, rowExtra)) attendance_slip++
     if (clientMatchesTrainerBrowseFilter(c, 'inactive', memList, today, rowExtra)) inactive++
     if (clientMatchesTrainerBrowseFilter(c, 'pnk', memList, today, rowExtra)) pnk++
   }
@@ -136,7 +121,6 @@ export function buildTrainerClientsBrowseCounts(clients, memByClient, today, ext
     expired_recent,
     birthdays,
     stale,
-    attendance_slip,
     inactive,
     pnk,
   }
