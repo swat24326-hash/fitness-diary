@@ -73,6 +73,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 **Pull → IndexedDB:** `fetchTrainerPullViaApi` обязан прокидывать `sale_clips`, `pnk_funnel_events`, `client_hall_lifecycle`, `club_id`, `outreach_templates` (`normalizeTrainerPullPayload`). Иначе Sync «успешен», а на главной тренера заявки на абон = 0. Verify: `verify-trainer-pull-response.mjs`.
 
+**Хвост sale_clips:** remote pull отдаёт только `awaiting`. После reconcile (абоны уже созданы вручную → cancel/done) локальные «лишние» awaiting снимаются (`planTrainerSaleClipsPrune`). Иначе на планшете висят заявки, которых в облаке уже нет.
+
 ---
 
 ## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)

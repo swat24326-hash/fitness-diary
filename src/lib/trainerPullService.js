@@ -8,6 +8,8 @@ import { normalizeBodyMeasurementRow } from './bodyMeasures'
 import { normalizeWeightEntryRow } from './clientWeightCore'
 import {
   buildPendingSyncKeysByTable,
+  deleteFromStore,
+  getAllStore,
   getMeta,
   listSyncQueue,
   putStoreUnlessPendingSync,
@@ -30,6 +32,7 @@ import {
   planTrainerOrphanClientPrune,
   shouldPruneTrainerPullSideEffects,
 } from './trainerPullClientPruneCore'
+import { planTrainerSaleClipsPrune } from './admin/saleClipPullPruneCore.js'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
 const META_TRAINER_PULL_AT = 'trainer_pull_at'
@@ -121,6 +124,13 @@ async function cacheTrainerPull(
   }
   for (const row of pnk_funnel_events ?? []) await putStoreUnlessPendingSync('pnk_funnel_events', row, pending)
   for (const row of sale_clips ?? []) await putStoreUnlessPendingSync('sale_clips', row, pending)
+  try {
+    const localClips = await getAllStore('sale_clips')
+    const pruneIds = planTrainerSaleClipsPrune(localClips, sale_clips, trainerId, pending?.sale_clips)
+    for (const id of pruneIds) await deleteFromStore('sale_clips', id)
+  } catch {
+    /* store ещё не создан */
+  }
   for (const row of client_hall_lifecycle ?? []) {
     try {
       await putStoreUnlessPendingSync('client_hall_lifecycle', row, pending)

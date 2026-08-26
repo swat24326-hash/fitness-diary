@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Ticket } from 'lucide-react'
 import { saleClipAwaitingHours } from '../../lib/admin/saleClipLocalService.js'
+import { formatDateRu } from '../../lib/dateRu.js'
 import { useAuth } from '../../context/AuthContext'
 import { useAwaitingSaleClips } from '../../hooks/useAwaitingSaleClips.js'
 import { SalesVisualAlert } from '../sales/SalesVisualAlert.jsx'
@@ -62,6 +63,7 @@ export function TrainerSaleClipsPanel({ clientId, clubId, mode = 'client', onCre
                 {c.membership_type_label ? ` · ${c.membership_type_label}` : ''}
                 {c.total_trainings != null ? ` · ${c.total_trainings} тр.` : ''}
                 <div className="muted">
+                  {c.clip_date ? `${formatDateRu(c.clip_date)} · ` : ''}
                   Ждём вас{hours ? ` · уже ${hours} ч` : ''}
                   {href && mode === 'trainer' ? (
                     <>

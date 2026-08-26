@@ -37,6 +37,7 @@ export function SalesClipCreateSection({
 }) {
   const day = String(reportDate || todayLocalIso()).slice(0, 10)
   const [clips, setClips] = useState([])
+  const [overdueAwaiting, setOverdueAwaiting] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [okMsg, setOkMsg] = useState('')
@@ -70,8 +71,15 @@ export function SalesClipCreateSection({
   const reload = async () => {
     if (!clubId) return
     try {
-      const data = await fetchSaleClips({ clubId, clipDate: day })
-      setClips(data.clips ?? [])
+      const [dayData, awaitingData] = await Promise.all([
+        fetchSaleClips({ clubId, clipDate: day }),
+        fetchSaleClips({ clubId, status: 'awaiting' }),
+      ])
+      setClips(dayData.clips ?? [])
+      const overdue = (awaitingData.clips ?? []).filter(
+        (c) => String(c?.clip_date ?? '').slice(0, 10) !== day,
+      ).length
+      setOverdueAwaiting(overdue)
     } catch (e) {
       setError(e?.message || 'Не удалось загрузить клипы')
     }
@@ -85,7 +93,10 @@ export function SalesClipCreateSection({
     setForm((f) => ({ ...f, start_date: day }))
   }, [day])
 
-  const checklist = useMemo(() => buildSaleDayChecklist({ clips, asOf: day }), [clips, day])
+  const checklist = useMemo(
+    () => buildSaleDayChecklist({ clips, asOf: day, overdueAwaiting }),
+    [clips, day, overdueAwaiting],
+  )
 
   /** Живые подсказки: программа сразу пишет, чего не хватает (без звука). */
   const formHints = useMemo(() => {

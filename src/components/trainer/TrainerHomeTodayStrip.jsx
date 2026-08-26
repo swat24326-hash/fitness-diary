@@ -7,6 +7,7 @@ import {
   groupTrainerAttentionItems,
 } from '../../lib/trainer/trainerAttentionUiCore.js'
 import { saleClipAwaitingHours } from '../../lib/admin/saleClipLocalService.js'
+import { formatDateRu } from '../../lib/dateRu.js'
 import { SalesVisualAlert } from '../sales/SalesVisualAlert.jsx'
 
 const ICONS = {
@@ -182,6 +183,7 @@ export function TrainerHomeTodayStrip({
                     {c.membership_type_label ? ` · ${c.membership_type_label}` : ''}
                     {c.total_trainings != null ? ` · ${c.total_trainings} тр.` : ''}
                     <div className="muted">
+                      {c.clip_date ? `${formatDateRu(c.clip_date)} · ` : ''}
                       Ждём вас{hours ? ` · уже ${hours} ч` : ''}
                       {href ? (
                         <>

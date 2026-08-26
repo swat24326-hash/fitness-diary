@@ -204,6 +204,7 @@ export function canMarkSaleClipDone(clip, membershipId) {
  *   clips?: object[],
  *   importErrors?: string[],
  *   asOf?: string,
+ *   overdueAwaiting?: number,
  * }} input
  */
 export function buildSaleDayChecklist(input) {
@@ -212,6 +213,7 @@ export function buildSaleDayChecklist(input) {
   const awaiting = clips.filter((c) => normalizeSaleClipStatus(c.status) === 'awaiting')
   const withoutMatch = awaiting.filter((c) => !c?.client_id)
   const importErrors = (input.importErrors ?? []).filter(Boolean)
+  const overdueAwaiting = Math.max(0, Number(input.overdueAwaiting) || 0)
   const items = []
 
   if (awaiting.length) {
@@ -219,6 +221,13 @@ export function buildSaleDayChecklist(input) {
       key: 'awaiting',
       level: 'warn',
       text: `Висят ${awaiting.length} клип(ов) «ждём планшет» — продажа ещё не подтверждена`,
+    })
+  }
+  if (overdueAwaiting > 0) {
+    items.push({
+      key: 'overdue_awaiting',
+      level: 'warn',
+      text: `Ещё ${overdueAwaiting} заявок «ждём планшет» за другие дни — у тренера на Sync виден весь хвост`,
     })
   }
   if (withoutMatch.length) {
@@ -243,6 +252,7 @@ export function buildSaleDayChecklist(input) {
     counts: {
       clipsToday: clips.length,
       awaiting: awaiting.length,
+      overdueAwaiting,
       done: clips.filter((c) => normalizeSaleClipStatus(c.status) === 'done').length,
       withoutMatch: withoutMatch.length,
       importErrors: importErrors.length,

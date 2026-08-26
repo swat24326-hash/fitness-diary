@@ -60,7 +60,19 @@ export async function handleSaleClipsGet(ctx, req, res) {
     sendJson(res, 400, { error: error.message || 'Не удалось загрузить клипы' })
     return
   }
-  sendJson(res, 200, { clips: data ?? [] })
+  let clips = data ?? []
+  if (!status || status === 'awaiting') {
+    try {
+      const { reconcileAndFilterAwaitingSaleClips } = await import('../saleClipsReconcile.js')
+      const awaiting = clips.filter((c) => normalizeSaleClipStatus(c?.status) === 'awaiting')
+      const others = clips.filter((c) => normalizeSaleClipStatus(c?.status) !== 'awaiting')
+      const kept = await reconcileAndFilterAwaitingSaleClips(ctx.supabaseAdmin, awaiting)
+      clips = status === 'awaiting' ? kept : [...kept, ...others]
+    } catch {
+      /* reconcile best-effort */
+    }
+  }
+  sendJson(res, 200, { clips })
 }
 
 /**

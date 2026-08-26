@@ -19,6 +19,10 @@ import {
   isClientOnHoldingTrainer,
 } from '../src/lib/admin/holdingClientsCore.js'
 import { isHoldingTrainerUser } from '../src/lib/admin/deskClosingImportCore.js'
+import {
+  planTrainerSaleClipsPrune,
+  planSupersededAwaitingSaleClips,
+} from '../src/lib/admin/saleClipPullPruneCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -140,9 +144,74 @@ const check = buildSaleDayChecklist({
 })
 ok(!check.closedSoft && check.items.length >= 1 && check.items.every((i) => i.text), 'soft checklist reasons')
 
+const overdueCheck = buildSaleDayChecklist({
+  clips: [{ clip_date: '2026-08-01', status: 'done', client_id: 'c1' }],
+  asOf: '2026-08-01',
+  overdueAwaiting: 3,
+})
+ok(
+  overdueCheck.items.some((i) => i.key === 'overdue_awaiting' && /3/.test(i.text)),
+  'checklist flags overdue awaiting other days',
+)
+
 const parsed = parseEveningInboundText('Карта 5426\nИванов Иван\n89001112233')
 ok(parsed.cardNumber === '5426' && parsed.phone, 'evening parse card+phone')
 ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
+
+{
+  const prune = planTrainerSaleClipsPrune(
+    [
+      { id: 'a', trainer_id: 't1', status: 'awaiting' },
+      { id: 'b', trainer_id: 't1', status: 'awaiting' },
+      { id: 'c', trainer_id: 't2', status: 'awaiting' },
+    ],
+    [{ id: 'a' }],
+    't1',
+    new Set(['b']),
+  )
+  ok(prune.length === 0, 'pending awaiting not pruned')
+  const prune2 = planTrainerSaleClipsPrune(
+    [
+      { id: 'a', trainer_id: 't1', status: 'awaiting' },
+      { id: 'b', trainer_id: 't1', status: 'awaiting' },
+    ],
+    [{ id: 'a' }],
+    't1',
+    new Set(),
+  )
+  ok(prune2.length === 1 && prune2[0] === 'b', 'orphan awaiting pruned')
+
+  const plan = planSupersededAwaitingSaleClips(
+    [
+      {
+        id: 'clip-old',
+        status: 'awaiting',
+        client_id: 'c1',
+        created_at: '2026-08-01T10:00:00.000Z',
+      },
+      {
+        id: 'clip-live',
+        status: 'awaiting',
+        client_id: 'c2',
+        created_at: '2026-08-20T10:00:00.000Z',
+      },
+      {
+        id: 'clip-linked',
+        status: 'awaiting',
+        client_id: 'c3',
+        created_at: '2026-08-01T10:00:00.000Z',
+      },
+    ],
+    {
+      c1: [{ id: 'm1', client_id: 'c1', created_at: '2026-08-02T10:00:00.000Z', clip_id: null }],
+      c2: [],
+      c3: [{ id: 'm3', client_id: 'c3', created_at: '2026-08-01T11:00:00.000Z', clip_id: 'clip-linked' }],
+    },
+  )
+  ok(plan.some((p) => p.clipId === 'clip-old' && p.action === 'cancel'), 'manual membership → cancel')
+  ok(plan.some((p) => p.clipId === 'clip-linked' && p.action === 'done'), 'clip_id link → done')
+  ok(!plan.some((p) => p.clipId === 'clip-live'), 'live awaiting stays')
+}
 
 if (failed) {
   console.error(`\n${failed} failed`)

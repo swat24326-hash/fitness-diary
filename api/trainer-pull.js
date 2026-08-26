@@ -326,7 +326,10 @@ async function handler(req, res) {
       .eq('status', 'awaiting')
       .order('created_at', { ascending: false })
       .limit(100)
-    if (!clipErr) sale_clips = clipRows ?? []
+    if (!clipErr) {
+      const { reconcileAndFilterAwaitingSaleClips } = await import('./_lib/saleClipsReconcile.js')
+      sale_clips = await reconcileAndFilterAwaitingSaleClips(supabaseAdmin, clipRows ?? [])
+    }
   } catch {
     sale_clips = []
   }

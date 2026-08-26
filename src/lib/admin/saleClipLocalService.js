@@ -8,6 +8,10 @@ import {
   membershipFieldsFromSaleClip,
   normalizeSaleClipStatus,
 } from './saleClipCore.js'
+import {
+  findLinkedMembershipForAwaitingClip,
+  isAwaitingSaleClipSupersededByMembership,
+} from './saleClipPullPruneCore.js'
 import { todayLocalIso } from '../dateRu.js'
 import {
   normalizeMembershipTotalTrainings,
@@ -30,8 +34,26 @@ export async function listAwaitingSaleClipsForTrainer(trainerId) {
   } catch {
     rows = []
   }
-  return (rows ?? [])
-    .filter((c) => normalizeSaleClipStatus(c?.status) === 'awaiting')
+  const awaiting = (rows ?? []).filter((c) => normalizeSaleClipStatus(c?.status) === 'awaiting')
+  /** @type {Record<string, object[]>} */
+  const membershipsByClientId = {}
+  for (const c of awaiting) {
+    const cid = String(c?.client_id ?? '').trim()
+    if (!cid || membershipsByClientId[cid]) continue
+    try {
+      membershipsByClientId[cid] = await db.getAllFromIndex('memberships', 'by_client_id', cid)
+    } catch {
+      membershipsByClientId[cid] = []
+    }
+  }
+  return awaiting
+    .filter((c) => {
+      const cid = String(c?.client_id ?? '').trim()
+      const mems = membershipsByClientId[cid] ?? []
+      if (findLinkedMembershipForAwaitingClip(c, mems)) return false
+      if (isAwaitingSaleClipSupersededByMembership(c, mems)) return false
+      return true
+    })
     .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
 }
 
