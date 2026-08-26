@@ -104,7 +104,7 @@
 | Привязка `membership_id` к тренировке | `verify-training-membership-link.mjs` |
 | Archive-pull не стирает активных | `verify-trainer-archive-pull-prune.mjs` |
 | Паритет agg клиент ↔ сервер | `verify-stats-agg-parity.mjs` |
-| Debit абонемента при first complete | `verify-training-membership-debit.mjs` |
+| Debit абонемента при first complete | `verify-training-membership-debit.mjs` (в т.ч. перекрытие: сначала старый) |
 | Плитка «Трен. n/m» при редактировании завершённой | `verify-training-membership-tile.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Прогноз ЗП месяца для чистой (уровни к концу + adj) | `verify-trainer-month-payroll-forecast.mjs` |

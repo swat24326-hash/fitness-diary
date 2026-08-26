@@ -59,6 +59,37 @@ const overlap = planMembershipFirstCompletionDebit([elPaid, bzDepleted], '2026-0
 ok(overlap.ok === true, 'CRITICAL: El с остатком + БЗ 1/1 — debit ok')
 ok(overlap.membershipId === 'el-paid', 'CRITICAL: списываем El, не исчерпанный БЗ')
 
+// Два живых с перекрытием дат — сначала добиваем более ранний старт.
+const olderLive = {
+  id: 'old',
+  start_date: '2026-08-01',
+  end_date: '2026-09-20',
+  total_trainings: 8,
+  used_trainings: 6,
+}
+const newerLive = {
+  id: 'new',
+  start_date: '2026-09-09',
+  end_date: '2026-10-09',
+  total_trainings: 12,
+  used_trainings: 0,
+}
+const stack = planMembershipFirstCompletionDebit([newerLive, olderLive], '2026-09-10')
+ok(stack.ok === true && stack.membershipId === 'old', 'перекрытие: сначала старый с остатком')
+const afterOldDone = planMembershipFirstCompletionDebit(
+  [{ ...olderLive, used_trainings: 8 }, newerLive],
+  '2026-09-10',
+)
+ok(
+  afterOldDone.ok === true && afterOldDone.membershipId === 'new',
+  'старый исчерпан — берём новый',
+)
+const beforeNewStarts = planMembershipFirstCompletionDebit([olderLive, newerLive], '2026-09-01')
+ok(
+  beforeNewStarts.ok === true && beforeNewStarts.membershipId === 'old',
+  'до старта нового — только старый',
+)
+
 const onlyBz = planMembershipFirstCompletionDebit([bzDepleted], '2026-08-24')
 ok(onlyBz.ok === false && onlyBz.code === MEMBERSHIP_DEBIT_BLOCK.LIMIT, 'только БЗ 1/1 — LIMIT')
 

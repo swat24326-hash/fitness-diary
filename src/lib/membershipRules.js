@@ -80,11 +80,20 @@ export function membershipIsUsableOn(m, dateIso) {
   return membershipCoversDate(m, dateIso) && membershipHasRemaining(m)
 }
 
+/**
+ * Абон для тренировки / списания на дату.
+ * Если два+ живых перекрываются сроками — сначала добиваем более ранний старт
+ * (пока есть остаток и дата ещё кроет), потом берём следующий.
+ */
 export function pickUsableMembershipForDate(memberships, dateIso) {
   if (!dateIso || !memberships?.length) return null
   return memberships
     .filter((m) => membershipIsUsableOn(m, dateIso))
-    .sort((a, b) => String(b.start_date ?? '').localeCompare(String(a.start_date ?? '')))[0]
+    .sort((a, b) => {
+      const byStart = String(a.start_date ?? '').localeCompare(String(b.start_date ?? ''))
+      if (byStart) return byStart
+      return String(a.id ?? '').localeCompare(String(b.id ?? ''))
+    })[0]
 }
 
 /** Абон с типом карты (не «личные» тренировки без membership_type_id). */
