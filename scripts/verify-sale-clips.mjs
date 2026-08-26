@@ -12,6 +12,8 @@ import {
   membershipFieldsFromSaleClip,
   buildSaleDayChecklist,
   parseEveningInboundText,
+  parseSaleClipNoteHints,
+  findMembershipFulfillingSaleClip,
 } from '../src/lib/admin/saleClipCore.js'
 import {
   collectHoldingTrainerIds,
@@ -130,6 +132,23 @@ const fields = membershipFieldsFromSaleClip({
   membership_type_id: 'mt1',
 })
 ok(fields.clip_id === 'clip1' && fields.total_trainings === 8, 'membership fields from clip')
+
+const emptyTotal = membershipFieldsFromSaleClip({
+  id: 'clip2',
+  note: 'Оплата 6151 ₽ · 8/1 Brilliant утро',
+})
+ok(emptyTotal.total_trainings === 8, 'total from note 8/1')
+ok(emptyTotal.paid_amount_hint === 6151, 'paid from note')
+ok(membershipFieldsFromSaleClip({ id: 'x' }).total_trainings == null, 'null total stays null (не 0)')
+
+const hints = parseSaleClipNoteHints('Оплата 6 151 ₽ · 8/1 Brilliant')
+ok(hints.paidAmount === 6151 && hints.totalFromNote === 8, 'parse note hints')
+
+const fulfill = findMembershipFulfillingSaleClip(
+  { id: 'c1', note: 'Оплата 6151 ₽ · 8/1', clip_date: '2026-08-19', created_at: '2026-08-20T10:00:00Z' },
+  [{ id: 'm-real', paid_amount: 6151, total_trainings: 8, start_date: '2026-08-24', created_at: '2026-08-19T09:00:00Z' }],
+)
+ok(fulfill?.id === 'm-real', 'fulfilling by paid_amount')
 
 const doneOk = canMarkSaleClipDone({ status: 'awaiting' }, 'm1')
 ok(doneOk.ok, 'can mark done')

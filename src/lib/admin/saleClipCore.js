@@ -161,16 +161,86 @@ export function membershipFieldsFromSaleClip(clip, asOf = todayLocalIso()) {
     d.setMonth(d.getMonth() + 1)
     end = d.toISOString().slice(0, 10)
   }
+  const rawTotal = clip?.total_trainings
+  const hasExplicitTotal = rawTotal != null && String(rawTotal).trim() !== ''
+  const noteHints = parseSaleClipNoteHints(clip?.note)
+  const total_trainings = hasExplicitTotal
+    ? normalizeMembershipTotalTrainings(rawTotal)
+    : noteHints.totalFromNote != null
+      ? noteHints.totalFromNote
+      : null
   return {
     start_date: start,
     end_date: end,
-    total_trainings:
-      Number(clip?.total_trainings) >= 0
-        ? normalizeMembershipTotalTrainings(clip.total_trainings)
-        : 12,
+    total_trainings,
     membership_type_id: clip?.membership_type_id ? String(clip.membership_type_id) : '',
     clip_id: clip?.id ? String(clip.id) : null,
+    paid_amount_hint: noteHints.paidAmount,
   }
+}
+
+/**
+ * Подсказки из заметки клипа: «Оплата 6151 ₽ · 8/1 Brilliant утро».
+ * @param {unknown} note
+ * @returns {{ paidAmount: number|null, totalFromNote: number|null }}
+ */
+export function parseSaleClipNoteHints(note) {
+  const text = String(note ?? '')
+  const paidMatch = text.match(/Оплата\s+([\d\s\u00a0]+)\s*₽/i)
+  let paidAmount = null
+  if (paidMatch) {
+    const n = Number(String(paidMatch[1]).replace(/[\s\u00a0]/g, ''))
+    if (Number.isFinite(n) && n > 0) paidAmount = n
+  }
+  const packMatch = text.match(/(\d+)\s*\/\s*\d+/)
+  let totalFromNote = null
+  if (packMatch) {
+    const n = Number(packMatch[1])
+    if (Number.isFinite(n) && n > 0) totalFromNote = Math.trunc(n)
+  }
+  return { paidAmount, totalFromNote }
+}
+
+/**
+ * Абон, которым уже закрыта продажа по клипу (не создавать второй).
+ * @param {object} clip
+ * @param {object[]} membershipsForClient
+ * @returns {object|null}
+ */
+export function findMembershipFulfillingSaleClip(clip, membershipsForClient) {
+  const clipId = String(clip?.id ?? '').trim()
+  const list = membershipsForClient ?? []
+  if (clipId) {
+    const byClip = list.find((m) => String(m?.clip_id ?? '').trim() === clipId)
+    if (byClip) return byClip
+  }
+  const hints = parseSaleClipNoteHints(clip?.note)
+  const clipDay = String(clip?.clip_date ?? clip?.start_date ?? '').slice(0, 10)
+  const clipAt = Date.parse(String(clip?.created_at ?? ''))
+
+  if (hints.paidAmount != null) {
+    const byPay = list.find((m) => Number(m?.paid_amount) === hints.paidAmount)
+    if (byPay) return byPay
+  }
+
+  const scored = []
+  for (const m of list) {
+    const total = Number(m?.total_trainings ?? 0)
+    if (!(total > 0)) continue
+    const start = String(m?.start_date ?? '').slice(0, 10)
+    let score = 0
+    if (hints.totalFromNote != null && total === hints.totalFromNote) score += 2
+    if (clipDay && start && Math.abs(Date.parse(`${start}T12:00:00`) - Date.parse(`${clipDay}T12:00:00`)) <= 14 * 86400000) {
+      score += 2
+    }
+    const mAt = Date.parse(String(m?.created_at ?? ''))
+    if (Number.isFinite(clipAt) && Number.isFinite(mAt) && Math.abs(mAt - clipAt) <= 14 * 86400000) {
+      score += 1
+    }
+    if (score >= 2) scored.push({ m, score })
+  }
+  scored.sort((a, b) => b.score - a.score)
+  return scored[0]?.m ?? null
 }
 
 /**

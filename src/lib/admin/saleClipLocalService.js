@@ -5,6 +5,7 @@ import { getDb } from '../localDb.js'
 import { saveLocalWithSync } from '../syncService.js'
 import {
   canMarkSaleClipDone,
+  findMembershipFulfillingSaleClip,
   membershipFieldsFromSaleClip,
   normalizeSaleClipStatus,
 } from './saleClipCore.js'
@@ -96,7 +97,55 @@ export async function createMembershipFromSaleClip(input) {
   }
 
   const fields = membershipFieldsFromSaleClip(clip)
+  if (fields.total_trainings == null || !(Number(fields.total_trainings) > 0)) {
+    return {
+      ok: false,
+      reason:
+        'В заявке не указано число занятий — попросите менеджера исправить клип. Иначе получится абон 0/0.',
+    }
+  }
   const totalTrainings = normalizeMembershipTotalTrainings(fields.total_trainings)
+
+  try {
+    const db = await getDb()
+    let mems = []
+    if (db.objectStoreNames.contains('memberships')) {
+      mems = await db.getAllFromIndex('memberships', 'by_client_id', clientId)
+    }
+    const existing = findMembershipFulfillingSaleClip(clip, mems)
+    if (existing?.id) {
+      const now = new Date().toISOString()
+      const mid = String(existing.id)
+      const patched = { ...existing, clip_id: String(clip.id), updated_at: now }
+      await saveLocalWithSync('memberships', patched, {
+        table_name: 'memberships',
+        operation: 'update',
+        remote_id: mid,
+      })
+      const clipNext = {
+        ...clip,
+        status: 'done',
+        membership_id: mid,
+        client_id: clientId,
+        done_at: now,
+        updated_at: now,
+      }
+      await saveLocalWithSync('sale_clips', clipNext, {
+        table_name: 'sale_clips',
+        operation: 'update',
+        remote_id: clip.id,
+      })
+      return {
+        ok: true,
+        reason: 'Абон по этой продаже уже был — заявку закрыли без дубля',
+        membershipId: mid,
+        already: true,
+      }
+    }
+  } catch (e) {
+    console.warn('[saleClip] existing membership check', e?.message ?? e)
+  }
+
   if (
     shouldConfirmSuspiciousLowTotal({ totalTrainings, isPnkTrialType: false }) &&
     !input.confirmedLowTotal

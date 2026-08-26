@@ -3,7 +3,7 @@
  * Чистая логика без IDB.
  */
 
-import { normalizeSaleClipStatus } from './saleClipCore.js'
+import { normalizeSaleClipStatus, findMembershipFulfillingSaleClip } from './saleClipCore.js'
 
 /**
  * Локальные awaiting, которых нет в remote awaiting → убрать с планшета
@@ -125,6 +125,17 @@ export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClie
     const bindId = clientsByCard ? resolveAwaitingSaleClipClientId(clip, clientsByCard) : null
     const cid = String(clip?.client_id ?? bindId ?? '').trim()
     const mems = cid ? by[cid] ?? [] : []
+    const fulfilling = findMembershipFulfillingSaleClip(clip, mems)
+    if (fulfilling) {
+      out.push({
+        clipId,
+        action: 'done',
+        membershipId: String(fulfilling.id ?? '').trim() || null,
+        clientId: cid || null,
+        reason: 'Абон по этой продаже уже есть — заявку закрыли',
+      })
+      continue
+    }
     const linked = findLinkedMembershipForAwaitingClip(clip, mems)
     if (linked) {
       out.push({

@@ -50,7 +50,7 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
   if (clientIds.length) {
     const { data: mems, error } = await supabaseAdmin
       .from('memberships')
-      .select('id, client_id, clip_id, created_at')
+      .select('id, client_id, clip_id, created_at, paid_amount, total_trainings, start_date')
       .in('client_id', clientIds.slice(0, 800))
     if (!error) {
       for (const m of mems ?? []) {
