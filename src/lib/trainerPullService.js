@@ -130,7 +130,9 @@ async function cacheTrainerPull(
   }
   const pruned_trainings =
     !skipTrainings && side.pruneTrainings
-      ? await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
+      ? await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null, {
+          truncated: opts?.trainingsTruncated === true,
+        })
       : 0
   const pruned = await pruneOrphanTrainerClients(trainerId, clients, { mode })
   if (side.purgeSyncQueue) {

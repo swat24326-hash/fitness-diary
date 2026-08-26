@@ -475,6 +475,15 @@ ok(pruneMixed.includes('ghost-done'), 'F19 prune ghost completed')
 ok(!pruneMixed.includes('open-draft'), 'F19b never prune draft')
 ok(!pruneMixed.includes('unsynced-done'), 'F19c never prune pending completed')
 ok(!pruneMixed.includes('keep-remote'), 'F19d keep remote row')
+ok(
+  !trainingIdsToPruneForClient(
+    'c9',
+    [{ id: 'only-local', client_id: 'c9', status: 'completed', synced: false }],
+    [],
+    new Set(),
+  ).includes('only-local'),
+  'F19e never prune synced:false even if not in queue and remote empty',
+)
 
 if (failed) process.exit(1)
 console.log('\nverify-sync-pull-merge: all ok')

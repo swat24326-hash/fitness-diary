@@ -4,11 +4,17 @@
 
 import { getDb } from './localDb'
 import { listTrainingsByClientId } from './localDbClubQuery'
-import { trainingIdsToPruneForClient } from './clientTrainingsPrune'
+import {
+  shouldSkipClientTrainingsOrphanPrune,
+  trainingIdsToPruneForClient,
+} from './clientTrainingsPrune'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 
-export { trainingIdsToPruneForClient } from './clientTrainingsPrune'
+export {
+  trainingIdsToPruneForClient,
+  shouldSkipClientTrainingsOrphanPrune,
+} from './clientTrainingsPrune'
 
 function notifyTrainingsCachePruned(pruned) {
   if (!pruned) return
@@ -20,11 +26,21 @@ function notifyTrainingsCachePruned(pruned) {
  * @param {string} clientId
  * @param {object[]} remoteTrainings — ответ сервера по этому клиенту
  * @param {Set<string>|null} [pendingTrainingIds]
+ * @param {{ truncated?: boolean }} [opts]
  * @returns {Promise<number>} сколько записей удалено из IndexedDB
  */
-export async function pruneOrphanTrainingsForClient(clientId, remoteTrainings, pendingTrainingIds = null) {
+export async function pruneOrphanTrainingsForClient(clientId, remoteTrainings, pendingTrainingIds = null, opts = {}) {
   const db = await getDb()
   const local = await listTrainingsByClientId(clientId)
+  if (
+    shouldSkipClientTrainingsOrphanPrune({
+      remoteTrainings,
+      localTrainings: local,
+      truncated: opts.truncated === true,
+    })
+  ) {
+    return 0
+  }
   const ids = trainingIdsToPruneForClient(clientId, local, remoteTrainings, pendingTrainingIds)
   for (const id of ids) {
     await db.delete('trainings', id)
@@ -35,8 +51,18 @@ export async function pruneOrphanTrainingsForClient(clientId, remoteTrainings, p
 
 /**
  * После trainer-pull: для каждого клиента из облака убрать локальные тренировки, которых нет в pull.
+ * @param {object[]} clients
+ * @param {object[]} remoteTrainings
+ * @param {Set<string>|null} [pendingTrainingIds]
+ * @param {{ truncated?: boolean }} [opts]
  */
-export async function pruneOrphanTrainingsForTrainerClients(clients, remoteTrainings, pendingTrainingIds = null) {
+export async function pruneOrphanTrainingsForTrainerClients(
+  clients,
+  remoteTrainings,
+  pendingTrainingIds = null,
+  opts = {},
+) {
+  if (opts.truncated === true) return 0
   const clientIds = (clients ?? [])
     .map((c) => String(c?.id ?? '').trim())
     .filter(Boolean)
@@ -54,7 +80,17 @@ export async function pruneOrphanTrainingsForTrainerClients(clients, remoteTrain
   let pruned = 0
   for (const cid of clientIds) {
     const local = await listTrainingsByClientId(cid)
-    const ids = trainingIdsToPruneForClient(cid, local, remoteByClient.get(cid) ?? [], pendingTrainingIds)
+    const remoteForClient = remoteByClient.get(cid) ?? []
+    if (
+      shouldSkipClientTrainingsOrphanPrune({
+        remoteTrainings: remoteForClient,
+        localTrainings: local,
+        truncated: false,
+      })
+    ) {
+      continue
+    }
+    const ids = trainingIdsToPruneForClient(cid, local, remoteForClient, pendingTrainingIds)
     for (const id of ids) {
       await db.delete('trainings', id)
       pruned++

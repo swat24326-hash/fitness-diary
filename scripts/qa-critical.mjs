@@ -34,6 +34,8 @@ const BLOCKS = [
   // A2 — Sync
   { id: 'A2a', label: 'sync offline-first', script: 'scripts/verify-sync-offline.mjs' },
   { id: 'A2b', label: 'sync pull merge', script: 'scripts/verify-sync-pull-merge.mjs' },
+  { id: 'A2c', label: 'client trainings orphan prune', script: 'scripts/verify-client-trainings-prune.mjs' },
+  { id: 'A2d', label: 'training draft delete', script: 'scripts/verify-training-draft-delete.mjs' },
   // A3 — security
   { id: 'A3', label: 'security L1 audit', script: 'scripts/verify-security-l1-audit.mjs' },
   // A4 — даты МСК
