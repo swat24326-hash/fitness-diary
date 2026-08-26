@@ -184,6 +184,7 @@
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |
 | Клип-карта: match / holding / checklist | `verify-sale-clips.mjs` |
+| Клип → планшет после Sync (`sale_clips` в теле pull) | `verify-trainer-pull-response.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 

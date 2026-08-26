@@ -57,7 +57,7 @@
 
 - UI: плитка / вкладка **«Заявка тренеру»** — `/sales?tab=clips` (менеджер) или `/admin/sales`.
 - API: `admin-data?action=sale-clips` (GET список / POST create|cancel|match).
-- Тренер после Sync видит awaiting на главной (пустое состояние: «заявок нет» + Sync) и в карточке клиента → **«Создать по заявке»** (`memberships.clip_id`, статус `done`).
+- Тренер после Sync видит awaiting на главной (пустое состояние: «заявок нет» + Sync) и в карточке клиента → **«Создать по заявке»** (`memberships.clip_id`, статус `done`). Pull обязан класть `sale_clips` в IndexedDB (`normalizeTrainerPullPayload` / `verify-trainer-pull-response.mjs`).
 - Мягкий чеклист дня: висящие awaiting — без блокировки отчёта.
 - Verify: `node scripts/verify-sale-clips.mjs`.
 

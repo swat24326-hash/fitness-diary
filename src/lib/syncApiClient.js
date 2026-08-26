@@ -6,6 +6,7 @@ import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrpha
 import { applyPushRecordToLocal } from './syncLocalRecords'
 import { mapWithConcurrency } from './syncConcurrency'
 import { collapseMemoryPushBatch } from './syncFlushResult'
+import { normalizeTrainerPullPayload } from './trainerPullResponseCore.js'
 
 /** Меньшие пачки — иначе serverless (10–60 с) обрывает запрос, клиент уходит в медленный retry. */
 export const PUSH_BATCH_SIZE = 12
@@ -399,17 +400,7 @@ export async function fetchTrainerPullViaApi(opts = {}) {
   if (!res.ok) return null
   if (ct.includes('text/html')) return null
 
-  return {
-    clients: Array.isArray(data.clients) ? data.clients : [],
-    memberships: Array.isArray(data.memberships) ? data.memberships : [],
-    health_cards: Array.isArray(data.health_cards) ? data.health_cards : [],
-    body_measurements: Array.isArray(data.body_measurements) ? data.body_measurements : [],
-    client_weight_entries: Array.isArray(data.client_weight_entries) ? data.client_weight_entries : [],
-    trainings: Array.isArray(data.trainings) ? data.trainings : [],
-    trainings_truncated: data.trainings_truncated === true,
-    trainings_since: data.trainings_since ?? null,
-    incremental: data.incremental === true,
-  }
+  return normalizeTrainerPullPayload(data)
 }
 
 export async function fetchHealthCardsForClubViaApi(clubId) {

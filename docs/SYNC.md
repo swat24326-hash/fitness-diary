@@ -71,6 +71,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 Создание клипа менеджером — через **`admin-data?action=sale-clips`**; тренер закрывает клип (`done` + `memberships.clip_id`) через очередь push.
 
+**Pull → IndexedDB:** `fetchTrainerPullViaApi` обязан прокидывать `sale_clips`, `pnk_funnel_events`, `client_hall_lifecycle`, `club_id`, `outreach_templates` (`normalizeTrainerPullPayload`). Иначе Sync «успешен», а на главной тренера заявки на абон = 0. Verify: `verify-trainer-pull-response.mjs`.
+
 ---
 
 ## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)
