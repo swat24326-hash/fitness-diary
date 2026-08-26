@@ -8,6 +8,7 @@ import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
 import { todayLocalIso } from '../dateRu.js'
 import { buildCoachQualityForScope } from '../admin/coachQualityService.js'
 import { fetchTrainerSelfStatsViaApi } from './trainerSelfStatsApi.js'
+import { isExpectedAuthSessionError } from '../authSessionErrorCore.js'
 import {
   readTrainerSelfStatsLastGood,
   writeTrainerSelfStatsLastGood,
@@ -77,7 +78,7 @@ export async function ensureTrainerPeriodCoachQuality(period, { trainerId, clubI
         return { ...period, coachQuality: api.coachQuality }
       }
     } catch (e) {
-      console.warn('[trainer-stats] coachQuality api', e)
+      if (!isExpectedAuthSessionError(e)) console.warn('[trainer-stats] coachQuality api', e)
     }
   }
 
@@ -288,7 +289,7 @@ export async function loadTrainerPeriodStats(p) {
       }
       throw new Error('Пустой ответ статистики')
     } catch (e) {
-      console.warn('[trainer-stats] api', e)
+      if (!isExpectedAuthSessionError(e)) console.warn('[trainer-stats] api', e)
       const today = todayLocalIso()
       const dayIso = today >= dateFrom && today <= dateTo ? today : dateTo
       const lastGood = readTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso)

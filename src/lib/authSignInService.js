@@ -141,7 +141,7 @@ export async function signInViaServerApi({ login, password }) {
 const DIRECT_AUTH_TIMEOUT_MS = 10_000
 
 /** Прямой Auth из браузера (с таймаутом на зависший Supabase). */
-export async function signInWithPasswordDirect(email, password, attempts = 2) {
+export async function signInWithPasswordDirect(email, password, attempts = 1) {
   const pwd = normalizePasswordInput(password)
   let lastError = null
   for (let i = 0; i < attempts; i++) {
@@ -153,6 +153,8 @@ export async function signInWithPasswordDirect(email, password, attempts = 2) {
       if (!error) return { data, error: null }
       lastError = error
       if (!isInvalidCredentialsMessage(error.message)) break
+      // Неверный пароль — не долбим Auth ещё раз (в консоли 400).
+      break
     } catch (e) {
       lastError = e
     }
@@ -200,7 +202,8 @@ export async function raceSignInAttempts({ login, password }) {
     },
   ]
 
-  for (const email of directEmails) {
+  // Один прямой Auth-кандидат: сервер уже перебирает email; иначе при ошибке пароля — пачка 400 в консоли.
+  for (const email of directEmails.slice(0, 1)) {
     tasks.push(async () => {
       const { data, error } = await signInWithPasswordDirect(email, pwd)
       if (error || !data?.user) throw error ?? new Error('direct auth failed')

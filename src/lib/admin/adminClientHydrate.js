@@ -9,6 +9,7 @@ import { markRecordFromCloud } from '../syncLocalRecords'
 import { normalizeBodyMeasurementRow } from '../bodyMeasures'
 import { normalizeWeightEntryRow } from '../clientWeightCore'
 import { pruneOrphanTrainingsForClient } from '../clientTrainingsCache'
+import { pruneOrphanMembershipsForClient } from '../clientMembershipsCache'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { fetchClientWorkspaceViaAdminApi } from './adminApiClient'
 import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
@@ -35,10 +36,21 @@ async function cacheWorkspace({ client, memberships, health_card, body_measureme
   if (client) await save('clients', client)
   for (const m of memberships ?? []) await save('memberships', m)
 
+  const cid = String(client?.id ?? '').trim()
+  // get-client всегда отдаёт полный список абонов клиента — prune безопасен и в glance.
+  let pruned_memberships = 0
+  if (cid && Array.isArray(memberships)) {
+    pruned_memberships = await pruneOrphanMembershipsForClient(
+      cid,
+      memberships,
+      pending?.memberships ?? null,
+    )
+  }
+
   // glance: не трогаем дневник в IDB и не prune-им тренировки (пустой список = «всё удалить»).
   if (glance) {
     notifyHydrated(client?.id, 0, client?.club_id)
-    return { pruned_trainings: 0 }
+    return { pruned_trainings: 0, pruned_memberships }
   }
 
   if (health_card) await save('health_cards', health_card)
@@ -46,14 +58,13 @@ async function cacheWorkspace({ client, memberships, health_card, body_measureme
   for (const row of client_weight_entries ?? []) await save('client_weight_entries', normalizeWeightEntryRow(row))
   for (const t of trainings ?? []) await save('trainings', t)
 
-  const cid = String(client?.id ?? '').trim()
   let pruned_trainings = 0
   if (cid) {
     pruned_trainings = await pruneOrphanTrainingsForClient(cid, trainings ?? [], pending?.trainings ?? null)
   }
 
   notifyHydrated(client?.id, pruned_trainings, client?.club_id)
-  return { pruned_trainings }
+  return { pruned_trainings, pruned_memberships }
 }
 
 async function hydrateViaBrowserSupabase(clientId) {

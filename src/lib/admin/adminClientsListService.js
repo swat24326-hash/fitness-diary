@@ -17,6 +17,7 @@ import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } fr
 import { mergeClientHallLifecycleIntoCache } from './clientHallLifecycleAdminCache.js'
 import { purgeSyncQueueForMissingClients } from '../syncQueueOrphans'
 import { listClientsByClubId, listTrainingsByClubIdInRange } from '../localDbClubQuery.js'
+import { pruneOrphanMembershipsForClients } from '../clientMembershipsCache'
 import { ADMIN_CLIENTS_REMOTE_LIMIT, ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 
 async function pullClientsForClubIntoCache(clubId) {
@@ -100,19 +101,33 @@ export async function reconcileAdminClubCache(clubId, remoteClients, opts = {}) 
 
 async function mergeMembershipsIntoCache(rows) {
   const pending = await buildPendingSyncKeysByTable()
-  for (const row of rows) {
+  for (const row of rows ?? []) {
     await putStoreUnlessPendingSync('memberships', row, pending)
   }
+  return pending
 }
 
-/** Абоны + lifecycle из одного list-memberships. */
-async function mergeMembershipsAndLifecycleFromApi(viaMem) {
+/** Абоны + lifecycle из одного list-memberships. Prune только если remote полный (!truncated). */
+async function mergeMembershipsAndLifecycleFromApi(viaMem, clubId) {
   if (!viaMem) return
-  if (viaMem.memberships?.length) {
-    await mergeMembershipsIntoCache(viaMem.memberships)
-  }
+  const pending = Array.isArray(viaMem.memberships)
+    ? await mergeMembershipsIntoCache(viaMem.memberships)
+    : await buildPendingSyncKeysByTable()
   if (viaMem.client_hall_lifecycle?.length) {
     await mergeClientHallLifecycleIntoCache(viaMem.client_hall_lifecycle)
+  }
+  const cid = String(clubId ?? '').trim()
+  if (!cid || viaMem.truncated === true) return
+  try {
+    const clients = await listClientsByClubId(cid)
+    await pruneOrphanMembershipsForClients(
+      clients,
+      viaMem.memberships ?? [],
+      pending?.memberships ?? null,
+      { truncated: false },
+    )
+  } catch {
+    /* IDB / индекс */
   }
 }
 
@@ -171,7 +186,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
     if (merged) {
       try {
         const viaMem = await fetchMembershipsForClubViaAdminApi(cid)
-        await mergeMembershipsAndLifecycleFromApi(viaMem)
+        await mergeMembershipsAndLifecycleFromApi(viaMem, cid)
       } catch (memErr) {
         console.warn('[admin] list-memberships', memErr)
       }
@@ -194,7 +209,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
     await mergeClientsIntoCache(viaApi.clients)
     try {
       const viaMem = await fetchMembershipsForClubViaAdminApi(cid)
-      await mergeMembershipsAndLifecycleFromApi(viaMem)
+      await mergeMembershipsAndLifecycleFromApi(viaMem, cid)
     } catch (memErr) {
       console.warn('[admin] list-memberships', memErr)
     }
@@ -281,7 +296,7 @@ export async function listAdminClientsForClub(p) {
       if (merged) {
         try {
           const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
-          await mergeMembershipsAndLifecycleFromApi(viaMem)
+          await mergeMembershipsAndLifecycleFromApi(viaMem, clubId)
         } catch (memErr) {
           console.warn('[admin] list-memberships', memErr)
         }

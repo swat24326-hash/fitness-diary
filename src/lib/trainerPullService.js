@@ -26,6 +26,7 @@ import {
 import { pruneRedundantSyncQueue, purgeSyncQueueForMissingClients } from './syncQueueOrphans'
 import { pruneLocalTrainingsForTrainer } from './idbRetention'
 import { pruneOrphanTrainingsForTrainerClients } from './clientTrainingsCache'
+import { pruneOrphanMembershipsForClients } from './clientMembershipsCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { cacheClubOutreachTemplates } from './trainer/trainerOutreachLogService'
 import {
@@ -112,6 +113,11 @@ async function cacheTrainerPull(
   const pending = await buildPendingSyncKeysByTable()
   for (const row of clients ?? []) await putStoreUnlessPendingSync('clients', row, pending)
   for (const row of memberships ?? []) await putStoreUnlessPendingSync('memberships', row, pending)
+  const pruned_memberships = await pruneOrphanMembershipsForClients(
+    clients,
+    memberships ?? [],
+    pending?.memberships ?? null,
+  )
   for (const row of health_cards ?? []) await putStoreUnlessPendingSync('health_cards', row, pending)
   for (const row of body_measurements ?? []) {
     await putStoreUnlessPendingSync('body_measurements', normalizeBodyMeasurementRow(row), pending)
@@ -154,7 +160,7 @@ async function cacheTrainerPull(
   }
   invalidateTrainerWorkspaceCache()
   notifyLocalDataChanged()
-  return { pruned, pruned_trainings }
+  return { pruned, pruned_trainings, pruned_memberships }
 }
 
 async function fetchTrainerPullWithIncremental(tid, mode, pullOpts = {}) {
@@ -223,6 +229,7 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
           incremental: viaApi.incremental === true,
           pruned_clients: pruned.pruned,
           pruned_trainings: pruned.pruned_trainings,
+          pruned_memberships: pruned.pruned_memberships,
         }
       }
     } catch (e) {

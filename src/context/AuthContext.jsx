@@ -33,6 +33,11 @@ import {
   writeIdentityCache,
 } from '../lib/userIdentityCache'
 import { initAppLifecycle, requestPersistentStorageOnce, APP_WAKE_EVENT } from '../lib/appLifecycle'
+import { isExpectedAuthSessionError } from '../lib/authSessionErrorCore'
+import {
+  planAuthInitWhenStoredEmpty,
+  shouldClearGhostSessionAfterFailedRefresh,
+} from '../lib/authSessionRecoverCore'
 
 const STORAGE_KEY = 'fitness-diary-auth-fallback'
 const ROLE_CACHE_KEY = 'fitness-diary-role-cache'
@@ -331,22 +336,58 @@ export function AuthProvider({ children }) {
     [refreshProfile],
   )
 
+  const clearGhostSession = useCallback(() => {
+    clearPersistedSupabaseSession(SUPABASE_URL)
+    clearIdentityCache()
+    clearRoleCache()
+    setHasStoredSession(false)
+    setUser(null)
+    setRole(null)
+    setSessionRecovering(false)
+  }, [])
+
   const refreshSessionOnWake = useCallback(async () => {
-    if (!isSupabaseConfigured() || signingOutRef.current) return
+    if (!isSupabaseConfigured() || signingOutRef.current) return false
     try {
       const { data, error } = await withTimeout(supabase.auth.refreshSession(), 12_000, 'refreshSession')
       if (error) {
-        console.warn('[auth] wake refreshSession', error.message)
-        return
+        if (!isExpectedAuthSessionError(error)) {
+          console.warn('[auth] wake refreshSession', error.message)
+        }
+        if (
+          shouldClearGhostSessionAfterFailedRefresh({
+            hasLiveSessionUser: false,
+            refreshError: true,
+          })
+        ) {
+          const again = await supabase.auth.getSession()
+          if (!again.data?.session?.user && !signingOutRef.current) {
+            clearGhostSession()
+          }
+        }
+        return false
       }
-      if (signingOutRef.current) return
+      if (signingOutRef.current) return false
       if (data?.session?.user) {
         await applySession(data.session, { fromWake: true })
+        return true
       }
+      const again = await supabase.auth.getSession()
+      if (!again.data?.session?.user && hasPersistedSupabaseSession(SUPABASE_URL) && !signingOutRef.current) {
+        clearGhostSession()
+      }
+      return false
     } catch (e) {
-      console.warn('[auth] wake refreshSession failed', e)
+      if (!isExpectedAuthSessionError(e)) {
+        console.warn('[auth] wake refreshSession failed', e)
+      }
+      const again = await supabase.auth.getSession().catch(() => ({ data: { session: null } }))
+      if (!again.data?.session?.user && hasPersistedSupabaseSession(SUPABASE_URL) && !signingOutRef.current) {
+        clearGhostSession()
+      }
+      return false
     }
-  }, [applySession])
+  }, [applySession, clearGhostSession])
 
   const refreshUserProfile = useCallback(async () => {
     const {
@@ -377,6 +418,7 @@ export function AuthProvider({ children }) {
     }, updatingFlight ? 12_000 : 2_000)
 
     ;(async () => {
+      let keepRecovering = false
       try {
         if (!isSupabaseConfigured()) {
           const fb = readFallback()
@@ -437,24 +479,33 @@ export function AuthProvider({ children }) {
           setUser(null)
           setRole(null)
           clearPwaUpdateInFlight()
-        } else if (updatingFlight) {
-          // Токены есть, сессия ещё не поднялась после reload — не сбрасываем в login.
+        } else {
+          // Токены в storage, getSession пустой — refresh; иначе «главная без JWT» и шум «Нет сессии».
+          keepRecovering = true
           setSessionRecovering(true)
-          void refreshSessionOnWake().finally(() => {
+          void (async () => {
+            const restored = await refreshSessionOnWake()
+            if (cancelled || signingOutRef.current) return
+            const plan = planAuthInitWhenStoredEmpty({
+              hasStoredSession: hasPersistedSupabaseSession(SUPABASE_URL),
+              hasLiveSessionUser: false,
+              refreshRestoredUser: restored === true,
+            })
+            if (plan === 'clear') {
+              clearGhostSession()
+            }
             if (!cancelled) {
               setSessionRecovering(false)
               clearPwaUpdateInFlight()
             }
-          })
+          })()
         }
       } catch (e) {
         console.warn('[auth] init failed', e)
       } finally {
         if (!cancelled) {
           setLoading(false)
-          if (!(updatingFlight && hasPersistedSupabaseSession(SUPABASE_URL))) {
-            setSessionRecovering(false)
-          }
+          if (!keepRecovering) setSessionRecovering(false)
         }
         window.clearTimeout(loadGuard)
       }
@@ -510,7 +561,7 @@ export function AuthProvider({ children }) {
       offLifecycle()
       authUnsub?.()
     }
-  }, [applySession, refreshSessionOnWake])
+  }, [applySession, refreshSessionOnWake, clearGhostSession])
 
   useEffect(() => {
     const onWake = (ev) => {

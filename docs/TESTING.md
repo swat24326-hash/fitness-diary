@@ -87,6 +87,7 @@
 | Журнал тренировок: ФИО архивных клиентов (не UUID) | `verify-trainer-journal-clients.mjs` |
 | Журнал тренера: фильтр completed за период | `verify-trainer-journal-filter.mjs` |
 | Pull: orphan-prune / synced:false / grace после flush | `verify-client-trainings-prune.mjs` |
+| Pull: orphan-prune абонементов (ghost после delete в облаке) | `verify-client-memberships-prune.mjs` |
 | Pull: orphan-prune опасен при неполном remote | `verify-client-trainings-prune-truncated.mjs` |
 | Карточка: полный дневник с сервера (не только если IDB пуст) | `verify-client-trainings-ensure.mjs` |
 | Журнал удалений клиентов (снимок + роль) | `verify-deletion-audit.mjs` |

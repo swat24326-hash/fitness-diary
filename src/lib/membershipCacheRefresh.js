@@ -13,6 +13,8 @@ import { fetchTrainerPullViaApi } from './syncApiClient'
 import { clearTrainerWorkspaceSnapshotSync } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 import { invalidateAdminClientsBrowseGlanceCaches } from './admin/adminClientsListReloadCore.js'
+import { listClientsByClubId } from './localDbClubQuery'
+import { pruneOrphanMembershipsForClients } from './clientMembershipsCache'
 
 const REFRESH_COOLDOWN_MS = 60_000
 
@@ -38,7 +40,7 @@ async function mergeMembershipRows(rows) {
     await putStoreUnlessPendingSync('memberships', markRecordFromCloud(row), pending)
     n++
   }
-  return n
+  return { count: n, pending }
 }
 
 function bumpCaches() {
@@ -89,7 +91,12 @@ export async function refreshMembershipsForStats(p = {}) {
       if (trainerId) {
         const via = await fetchTrainerPullViaApi({ skipTrainings: true })
         if (!via?.memberships) return { ok: false, reason: 'no_api' }
-        const count = await mergeMembershipRows(via.memberships)
+        const { count, pending } = await mergeMembershipRows(via.memberships)
+        await pruneOrphanMembershipsForClients(
+          via.clients ?? [],
+          via.memberships,
+          pending?.memberships ?? null,
+        )
         bumpCaches()
         if (p.notify !== false) notifyRefreshed(trainerId ? '' : clubId)
         return { ok: true, count, source: 'trainer-pull' }
@@ -101,9 +108,17 @@ export async function refreshMembershipsForStats(p = {}) {
 
       const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
       if (!viaMem?.memberships) return { ok: false, reason: 'no_api' }
-      const count = await mergeMembershipRows(viaMem.memberships)
+      const { count, pending } = await mergeMembershipRows(viaMem.memberships)
       if (viaMem.client_hall_lifecycle?.length) {
         await mergeClientHallLifecycleIntoCache(viaMem.client_hall_lifecycle)
+      }
+      if (viaMem.truncated !== true) {
+        const clients = await listClientsByClubId(clubId)
+        await pruneOrphanMembershipsForClients(
+          clients,
+          viaMem.memberships,
+          pending?.memberships ?? null,
+        )
       }
       bumpCaches()
       if (p.notify !== false) notifyRefreshed(clubId)
