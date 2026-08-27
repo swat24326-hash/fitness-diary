@@ -4,7 +4,7 @@ export const APP_ERRORS_CHANGED = 'fitness-diary-app-errors'
 export const SYNC_ATTENTION_CHANGED = 'fitness-diary-sync-attention'
 
 const RECOVERABLE_TEXT =
-  /нет сети|нет связи|показаны данные с устройства|синхронизац\w* отложен|failed to fetch|fetch failed|network|offline|недоступн|timeout|timed out|aborted|lock broken|steal option|в очереди осталось/i
+  /нет сети|нет связи|показаны данные с устройства|синхронизац\w* отложен|failed to fetch|fetch failed|network|offline|недоступн|timeout|timed out|таймаут|aborted|lock broken|steal option|в очереди осталось/i
 
 let syncNeedsAttention = false
 
@@ -139,15 +139,16 @@ export function initSyncAttentionFromJournal() {
  * Итог попытки синхронизации: при успехе (очередь 0, без замечаний) убираем транзиентные записи журнала.
  * @param {{ queueCount: number, hadError?: boolean }} outcome
  */
-export function reportSyncOutcome({ queueCount, hadError: _hadError = false }) {
+export function reportSyncOutcome({ queueCount, hadError = false }) {
   const queue = Math.max(0, Number(queueCount) || 0)
 
-  if (queue === 0) {
+  if (queue === 0 && !hadError) {
     const list = readRaw()
     const kept = list.filter((r) => !isRecoverableTransientError(r))
     if (kept.length !== list.length) writeRaw(kept)
     syncNeedsAttention = getPersistentErrorCount() > 0
   } else {
+    // Очередь не пуста или были замечания pull — внимание; транзиентные в журнале не чистим.
     syncNeedsAttention = true
   }
 

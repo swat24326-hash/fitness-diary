@@ -73,8 +73,20 @@ recordAppError({
 })
 assert.ok(isRecoverableTransientError(getAppErrors(1)[0]), 'pull offline fallback is recoverable')
 reportSyncOutcome({ queueCount: 0, hadError: true })
-assert.equal(getAppErrorCount(), 0, 'recoverable pull cleared when queue empty even with hadError')
+assert.equal(getAppErrorCount(), 1, 'recoverable pull stays while Sync had remarks')
+assert.equal(computeNeedsUserAttention(0), true)
+
+reportSyncOutcome({ queueCount: 0, hadError: false })
+assert.equal(getAppErrorCount(), 0, 'recoverable pull cleared after clean Sync')
 assert.equal(computeNeedsUserAttention(0), false)
+
+recordAppError({
+  source: 'pull',
+  error: 'челленджи: Таймаут связи с сервером',
+})
+assert.ok(isRecoverableTransientError(getAppErrors(1)[0]), 'russian timeout is recoverable')
+reportSyncOutcome({ queueCount: 0, hadError: false })
+assert.equal(getAppErrorCount(), 0, 'таймаут cleared after successful sync')
 
 recordSyncError({ status: 400, error: 'HTTP fail', table_name: 'trainings', operation: 'insert' })
 reportSyncOutcome({ queueCount: 0, hadError: false })

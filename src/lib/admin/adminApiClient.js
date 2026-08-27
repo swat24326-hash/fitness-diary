@@ -597,8 +597,8 @@ export async function fetchChallengeTrainingsViaApi(clubId, dateFrom, dateTo) {
   }
 }
 
-/** GET /api/list-challenges */
-export async function fetchChallengesForClubViaApi(clubId) {
+/** GET /api/admin-data?action=challenges — opts.timeoutMs для Sync (cold start). */
+export async function fetchChallengesForClubViaApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
 
@@ -607,9 +607,11 @@ export async function fetchChallengesForClubViaApi(clubId) {
     throw new Error('Нет сессии — выйдите и войдите снова, затем нажмите Sync.')
   }
 
+  const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : undefined
   const { data, routeMissing } = await adminApiGet(
     `/api/admin-data?action=challenges&club_id=${encodeURIComponent(cid)}`,
     token,
+    timeoutMs,
   )
   if (routeMissing) return null
   return {
@@ -635,7 +637,7 @@ export async function fetchClubsViaAdminApi() {
   }
 }
 
-export async function fetchMembershipTypesForClubViaApi(clubId) {
+export async function fetchMembershipTypesForClubViaApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
 
@@ -644,9 +646,11 @@ export async function fetchMembershipTypesForClubViaApi(clubId) {
     throw new Error('Нет сессии — выйдите и войдите снова, затем нажмите Sync.')
   }
 
+  const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : undefined
   const { data, routeMissing } = await adminApiGet(
     `/api/admin-data?action=membership-types&club_id=${encodeURIComponent(cid)}`,
     token,
+    timeoutMs,
   )
   if (routeMissing) return null
   return {
@@ -656,7 +660,7 @@ export async function fetchMembershipTypesForClubViaApi(clubId) {
 }
 
 /** GET /api/admin-data?action=nutrition-products&club_id=… */
-export async function fetchNutritionProductsForClubViaApi(clubId) {
+export async function fetchNutritionProductsForClubViaApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
 
@@ -665,9 +669,11 @@ export async function fetchNutritionProductsForClubViaApi(clubId) {
     throw new Error('Нет сессии — выйдите и войдите снова, затем нажмите Sync.')
   }
 
+  const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : undefined
   const { data, routeMissing } = await adminApiGet(
     `/api/admin-data?action=nutrition-products&club_id=${encodeURIComponent(cid)}`,
     token,
+    timeoutMs,
   )
   if (routeMissing) return null
   return {
@@ -677,7 +683,7 @@ export async function fetchNutritionProductsForClubViaApi(clubId) {
 }
 
 /** GET /api/admin-data?action=homework-presets&club_id=… */
-export async function fetchHomeworkPresetsForClubViaApi(clubId) {
+export async function fetchHomeworkPresetsForClubViaApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
 
@@ -686,9 +692,11 @@ export async function fetchHomeworkPresetsForClubViaApi(clubId) {
     throw new Error('Нет сессии — выйдите и войдите снова, затем нажмите Sync.')
   }
 
+  const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : undefined
   const { data, routeMissing } = await adminApiGet(
     `/api/admin-data?action=homework-presets&club_id=${encodeURIComponent(cid)}`,
     token,
+    timeoutMs,
   )
   if (routeMissing) return null
   return {

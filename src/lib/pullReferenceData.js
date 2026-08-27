@@ -6,10 +6,13 @@ import { buildPendingSyncKeysByTable, getDb, listSyncQueue, putStore } from './l
 import { listChallengesByClubId } from './localDbClubQuery'
 import { shouldPreserveLocalRowOnPull } from './syncFlushResult'
 import { isSupabaseConfigured } from './supabase'
+import { SYNC_PULL_FETCH_TIMEOUT_MS } from './networkReachability'
 import { fetchChallengesForClubViaApi } from './admin/adminApiClient'
 import { pullExercisesFromCloud } from './exerciseCatalog'
 
 export { pullExercisesFromCloud }
+
+const REF_API_TIMEOUT = { timeoutMs: SYNC_PULL_FETCH_TIMEOUT_MS }
 
 export async function pullMembershipTypesForClubFromCloud(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
@@ -24,7 +27,7 @@ export async function pullMembershipTypesForClubFromCloud(clubId, opts = {}) {
 
   try {
     const { fetchMembershipTypesForClubViaApi } = await import('./admin/adminApiClient')
-    const viaApi = await fetchMembershipTypesForClubViaApi(cid)
+    const viaApi = await fetchMembershipTypesForClubViaApi(cid, REF_API_TIMEOUT)
     if (viaApi) {
       return mergeRows(viaApi.membership_types ?? [], 'api')
     }
@@ -64,7 +67,7 @@ export async function pullNutritionProductsForClubFromCloud(clubId, opts = {}) {
 
   try {
     const { fetchNutritionProductsForClubViaApi } = await import('./admin/adminApiClient.js')
-    const viaApi = await fetchNutritionProductsForClubViaApi(cid)
+    const viaApi = await fetchNutritionProductsForClubViaApi(cid, REF_API_TIMEOUT)
     if (viaApi) {
       return mergeRows(viaApi.nutrition_products ?? [], 'api')
     }
@@ -100,7 +103,7 @@ export async function pullHomeworkPresetsForClubFromCloud(clubId, opts = {}) {
 
   try {
     const { fetchHomeworkPresetsForClubViaApi } = await import('./admin/adminApiClient.js')
-    const viaApi = await fetchHomeworkPresetsForClubViaApi(cid)
+    const viaApi = await fetchHomeworkPresetsForClubViaApi(cid, REF_API_TIMEOUT)
     if (viaApi) {
       return mergeRows(viaApi.homework_presets ?? [], 'api')
     }
@@ -149,35 +152,47 @@ export async function reconcileChallengesForClub(clubId, remoteChallenges) {
   return { pruned }
 }
 
+async function mergeChallengesFromRemote(cid, rows, source) {
+  const pending = await buildPendingSyncKeysByTable()
+  const db = await getDb()
+  for (const row of rows) {
+    const id = String(row?.id ?? '').trim()
+    const existing = id ? await db.get('challenges', id) : null
+    if (shouldPreserveLocalRowOnPull(pending.challenges, id, existing)) continue
+    await putStore('challenges', row)
+  }
+  const { pruned } = await reconcileChallengesForClub(cid, rows)
+  if (pruned > 0 && typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('fitness-diary-storage', { detail: { reason: 'challenge-deleted' } }),
+    )
+  }
+  return { ok: true, count: rows.length, source, pruned }
+}
+
 export async function pullChallengesForClubFromCloud(clubId) {
   const cid = String(clubId ?? '').trim()
   if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club_or_supabase' }
 
   try {
-    const viaApi = await fetchChallengesForClubViaApi(cid)
-    if (!viaApi) {
-      return {
-        ok: false,
-        reason: 'no_api',
-        error: 'Сервер челленджей недоступен — обновите страницу (Ctrl+F5) и повторите Sync.',
-      }
+    const viaApi = await fetchChallengesForClubViaApi(cid, REF_API_TIMEOUT)
+    if (viaApi) {
+      return mergeChallengesFromRemote(cid, viaApi.challenges ?? [], 'api')
     }
-    const rows = viaApi.challenges ?? []
-    const pending = await buildPendingSyncKeysByTable()
-    const db = await getDb()
-    for (const row of rows) {
-      const id = String(row?.id ?? '').trim()
-      const existing = id ? await db.get('challenges', id) : null
-      if (shouldPreserveLocalRowOnPull(pending.challenges, id, existing)) continue
-      await putStore('challenges', row)
+  } catch (e) {
+    if (!/failed to fetch|connection|timeout|таймаут|сеть/i.test(String(e?.message ?? ''))) {
+      return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки челленджей') }
     }
-    const { pruned } = await reconcileChallengesForClub(cid, rows)
-    if (pruned > 0 && typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('fitness-diary-storage', { detail: { reason: 'challenge-deleted' } }),
-      )
-    }
-    return { ok: true, count: viaApi.count, source: 'api', pruned }
+  }
+
+  try {
+    const { supabase } = await import('./supabase')
+    const { withSupabaseRetry } = await import('./supabaseRetry')
+    const { data, error } = await withSupabaseRetry(() =>
+      supabase.from('challenges').select('*').eq('club_id', cid).order('created_at', { ascending: false }),
+    )
+    if (error) throw error
+    return mergeChallengesFromRemote(cid, data ?? [], 'supabase')
   } catch (e) {
     return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки челленджей') }
   }

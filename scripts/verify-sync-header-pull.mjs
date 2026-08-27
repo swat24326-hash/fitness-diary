@@ -55,6 +55,10 @@ ok(/recordSyncPullIssue\('челленджи'/.test(admin), '3e сбой чел�
 ok(/pullTrainerWorkspaceFromCloud/.test(trainer), '4 тренер — рабочая область')
 ok(/fetchWithAppTimeout/.test(read('src/lib/syncApiClient.js')), '4a trainer-pull через fetchWithAppTimeout')
 ok(/SYNC_PULL_FETCH_TIMEOUT_MS/.test(read('src/lib/networkReachability.js')), '4b константа таймаута pull')
+ok(/SYNC_PULL_FETCH_TIMEOUT_MS/.test(read('src/lib/pullReferenceData.js')), '4b2 справочники Sync — длинный таймаут')
+ok(/timeoutMs: SYNC_PULL_FETCH_TIMEOUT_MS/.test(read('src/lib/pullReferenceData.js')), '4b3 REF_API_TIMEOUT для челленджей/типов')
+ok(/fetchChallengesForClubViaApi\(cid, REF_API_TIMEOUT\)/.test(read('src/lib/pullReferenceData.js')), '4b4 челленджи не на 5 с')
+ok(/from\('challenges'\)/.test(read('src/lib/pullReferenceData.js')), '4b5 челленджи: fallback Supabase')
 ok(/void import\('\.\/loyalty\/loyaltyGlanceService\.js'\)/.test(trainer), '4b glance фоном')
 ok(!/await refreshLoyaltyGlanceAfterTrainerPull/.test(trainer), '4c glance не блокирует')
 {
