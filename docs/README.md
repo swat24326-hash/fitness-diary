@@ -90,7 +90,7 @@
 | [COACH_QUALITY.md](./COACH_QUALITY.md) | ✅ MVP | Качество ведения тренера: care / depth / хвосты базы |
 | [CLIENT_RETENTION.md](./CLIENT_RETENTION.md) | 📋 фаза 0 | Удержание и жизнь клиента: cohort M+3, renewal, archive, reactivation |
 | [TRAINING_HR.md](./TRAINING_HR.md) | ✅ MVP | Пульс BLE в шапке (зоны/reconnect) + сводка на Итоге |
-| [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) | ✅ MVP | Ежедневник тренера: месяц → день по часам, sync |
+| [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) | ✅ MVP | Ежедневник: вход с главной/меню, месяц → день, sync |
 | [LOYALTY.md](./LOYALTY.md) | фазы A–G ✅ | Лояльность ПЗ: цикл, вкладка, списание, журнал, архив/переезд, тумблер клуба |
 | [PRODUCT_MODULES.md](./PRODUCT_MODULES.md) | карта | Питание, ДЗ, outreach, ИСКРА — куда код и docs |
 | [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md) | 📋 ориентир | Чеклист vs DDX: есть / частично / позже (в т.ч. турникет) |
