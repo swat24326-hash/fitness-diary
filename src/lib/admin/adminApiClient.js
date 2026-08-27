@@ -434,6 +434,34 @@ export async function fetchClubTrainingStatsViaApi({
 }
 
 /**
+ * GET /api/admin-data?action=trainer-schedule
+ * @returns {Promise<object | null>}
+ */
+export async function fetchClubTrainerScheduleViaApi({
+  clubId,
+  dayFrom,
+  dayTo,
+  trainerId = '',
+}) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии')
+
+  const params = new URLSearchParams({
+    club_id: clubId,
+    day_from: dayFrom,
+    day_to: dayTo,
+  })
+  if (trainerId) params.set('trainer_id', String(trainerId))
+  const { data, routeMissing } = await adminApiGet(
+    `/api/admin-data?action=trainer-schedule&${params}`,
+    token,
+    CLUB_STATS_FETCH_TIMEOUT_MS,
+  )
+  if (routeMissing) return null
+  return data
+}
+
+/**
  * GET /api/admin-data?action=coach-quality
  * @returns {Promise<{ coachQuality?: object, glance?: object } | null>}
  */

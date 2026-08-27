@@ -23,6 +23,10 @@ ok(
   Array.isArray(empty.client_hall_lifecycle) && empty.client_hall_lifecycle.length === 0,
   'missing lifecycle → []',
 )
+ok(
+  Array.isArray(empty.trainer_schedule_entries) && empty.trainer_schedule_entries.length === 0,
+  'missing schedule → []',
+)
 ok(empty.club_id === null, 'missing club_id → null')
 ok(empty.outreach_templates === undefined, 'missing outreach → undefined (не затирать кэш)')
 
@@ -42,6 +46,7 @@ const full = normalizeTrainerPullPayload({
   pnk_funnel_events: [{ id: 'e1' }],
   sale_clips: [clip],
   client_hall_lifecycle: [{ id: 'l1', client_id: 'c1' }],
+  trainer_schedule_entries: [{ id: 's1', day_date: '2026-08-27' }],
   club_id: ' club-x ',
   outreach_templates: { sms: 'hi' },
   trainings_truncated: true,
@@ -52,6 +57,7 @@ const full = normalizeTrainerPullPayload({
 ok(full.sale_clips.length === 1 && full.sale_clips[0].id === 'clip-1', 'sale_clips прокидываются')
 ok(full.pnk_funnel_events.length === 1, 'pnk_funnel_events прокидываются')
 ok(full.client_hall_lifecycle.length === 1, 'client_hall_lifecycle прокидывается')
+ok(full.trainer_schedule_entries.length === 1, 'trainer_schedule_entries прокидывается')
 ok(full.club_id === 'club-x', 'club_id trim')
 ok(full.outreach_templates?.sms === 'hi', 'outreach_templates прокидываются')
 ok(full.trainings_truncated === true && full.incremental === true, 'flags')

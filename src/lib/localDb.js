@@ -3,7 +3,7 @@ import { cloudPutAllowedOnPull, isPullMergeGuardedStore, shouldApplyCloudRowOnPu
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 18
+const DB_VERSION = 19
 
 /** @type {Promise<import('idb').IDBPDatabase> | null} */
 let dbPromise = null
@@ -173,6 +173,14 @@ function upgradeFitnessDb(db, oldVersion, _newVersion, transaction) {
       life.createIndex('by_club_id', 'club_id', { unique: false })
     }
   }
+
+  if (oldVersion < 19) {
+    if (!db.objectStoreNames.contains('trainer_schedule_entries')) {
+      const schedule = db.createObjectStore('trainer_schedule_entries', { keyPath: 'id' })
+      schedule.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+      schedule.createIndex('by_trainer_day', ['trainer_id', 'day_date'], { unique: false })
+    }
+  }
 }
 
 function openFitnessDb() {
@@ -298,6 +306,7 @@ export async function buildPendingSyncKeysByTable() {
     pnk_funnel_events: new Set(),
     sale_clips: new Set(),
     client_hall_lifecycle: new Set(),
+    trainer_schedule_entries: new Set(),
   }
   for (const item of queue) {
     const op = item.operation

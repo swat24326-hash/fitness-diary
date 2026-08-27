@@ -186,6 +186,10 @@
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |
 | Клип-карта: match / holding / checklist | `verify-sale-clips.mjs` |
 | Клип → планшет после Sync (`sale_clips` в теле pull) | `verify-trainer-pull-response.mjs` |
+| Ежедневник тренера (сетка, слоты, pull/push allowlist) | `verify-trainer-schedule-core.mjs` |
+| Слот → тренировка (маршрут, linked_training_id) | `verify-trainer-schedule-training-core.mjs` |
+| Ежедневники: доступ admin/supervisor, окно месяца | `verify-trainer-schedule-admin-core.mjs` |
+| Push auth ежедневника (только тренер, linked_training) | `verify-trainer-schedule-push-auth.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 

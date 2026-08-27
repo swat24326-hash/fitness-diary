@@ -15,6 +15,7 @@
  *   pnk_funnel_events: object[],
  *   sale_clips: object[],
  *   client_hall_lifecycle: object[],
+ *   trainer_schedule_entries: object[],
  *   club_id: string|null,
  *   outreach_templates: unknown,
  *   trainings_truncated: boolean,
@@ -39,6 +40,7 @@ export function normalizeTrainerPullPayload(data) {
     pnk_funnel_events: Array.isArray(d.pnk_funnel_events) ? d.pnk_funnel_events : [],
     sale_clips: Array.isArray(d.sale_clips) ? d.sale_clips : [],
     client_hall_lifecycle: Array.isArray(d.client_hall_lifecycle) ? d.client_hall_lifecycle : [],
+    trainer_schedule_entries: Array.isArray(d.trainer_schedule_entries) ? d.trainer_schedule_entries : [],
     club_id: d.club_id != null && String(d.club_id).trim() ? String(d.club_id).trim() : null,
     outreach_templates: Object.prototype.hasOwnProperty.call(d, 'outreach_templates')
       ? d.outreach_templates

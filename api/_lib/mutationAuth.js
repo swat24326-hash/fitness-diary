@@ -7,6 +7,12 @@ import {
   isSalesManagerDeskDeleteExtraTable,
 } from '../../src/lib/admin/salesManagerClientsAccessCore.js'
 import { isSupervisorDeniedPushTable } from '../../src/lib/admin/supervisorAccessCore.js'
+import {
+  assertTrainerScheduleLinkedTraining,
+  assertTrainerSchedulePushOwnership,
+  canRolePushTrainerSchedule,
+  listTrainerScheduleClientIds,
+} from '../../src/lib/trainer/trainerSchedulePushAuthCore.js'
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -247,6 +253,9 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
   if (!profileClub) {
     return { ok: false, error: 'У управляющего не задан club_id' }
   }
+  if (table_name === 'trainer_schedule_entries') {
+    return { ok: false, error: 'Ежедневник меняет только тренер на планшете' }
+  }
   if (isSupervisorDeniedPushTable(table_name)) {
     return { ok: false, error: 'Справочник может менять только администратор сети' }
   }
@@ -443,10 +452,60 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'homework_presets',
     'pnk_funnel_events',
     'sale_clips',
-    'client_hall_lifecycle',
-  ])
+  'client_hall_lifecycle',
+  'trainer_schedule_entries',
+])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
+  }
+
+  if (table_name === 'trainer_schedule_entries') {
+    if (!canRolePushTrainerSchedule({ isTrainer })) {
+      return { ok: false, error: 'Ежедневник меняет только тренер на планшете' }
+    }
+    try {
+      const { data: prof } = await supabaseAdmin.from('users').select('club_id').eq('id', user.id).maybeSingle()
+      const profileClub = String(prof?.club_id ?? '')
+      let existingRow = null
+      if (op === 'delete' || op === 'update') {
+        const id = remote_id || payload.id
+        const { data: row } = await supabaseAdmin
+          .from('trainer_schedule_entries')
+          .select('id, trainer_id, club_id')
+          .eq('id', id)
+          .maybeSingle()
+        existingRow = row
+        if (!row && op === 'update') {
+          return { ok: false, error: 'Запись расписания не найдена' }
+        }
+      }
+      const own = assertTrainerSchedulePushOwnership(user.id, profileClub, op, payload, existingRow)
+      if (!own.ok) return own
+
+      if (op === 'insert' || op === 'update') {
+        for (const cid of listTrainerScheduleClientIds(payload.client_ids)) {
+          if (!(await canAccessClient(ctx, cid))) {
+            return { ok: false, error: 'Нет доступа к клиенту в расписании' }
+          }
+        }
+        const linkedId = String(payload.linked_training_id ?? '').trim()
+        if (linkedId) {
+          const { data: training } = await supabaseAdmin
+            .from('trainings')
+            .select('id, trainer_id, club_id')
+            .eq('id', linkedId)
+            .maybeSingle()
+          if (!training) {
+            return { ok: false, error: 'Связанная тренировка не найдена' }
+          }
+          const linkCheck = assertTrainerScheduleLinkedTraining(training, user.id, profileClub)
+          if (!linkCheck.ok) return linkCheck
+        }
+      }
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e?.message ? String(e.message) : 'Ошибка проверки доступа' }
+    }
   }
 
   if (isAdmin) return { ok: true }

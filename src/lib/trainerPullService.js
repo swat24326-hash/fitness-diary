@@ -34,6 +34,12 @@ import {
   shouldPruneTrainerPullSideEffects,
 } from './trainerPullClientPruneCore'
 import { planTrainerSaleClipsPrune } from './admin/saleClipPullPruneCore.js'
+import {
+  normalizeTrainerScheduleEntry,
+  planTrainerSchedulePrune,
+  resolveTrainerSchedulePullWindow,
+} from './trainer/trainerScheduleCore.js'
+import { todayInTimeZoneIso } from './dateRu.js'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
 const META_TRAINER_PULL_AT = 'trainer_pull_at'
@@ -100,6 +106,7 @@ async function cacheTrainerPull(
     pnk_funnel_events,
     sale_clips,
     client_hall_lifecycle,
+    trainer_schedule_entries,
     club_id,
     outreach_templates,
   },
@@ -143,6 +150,29 @@ async function cacheTrainerPull(
     } catch {
       /* store ещё не создан до reload */
     }
+  }
+  for (const row of trainer_schedule_entries ?? []) {
+    const normalized = normalizeTrainerScheduleEntry(row)
+    if (!normalized) continue
+    try {
+      await putStoreUnlessPendingSync('trainer_schedule_entries', normalized, pending)
+    } catch {
+      /* store ещё не создан до reload */
+    }
+  }
+  try {
+    const localSchedule = await getAllStore('trainer_schedule_entries')
+    const { dayFrom, dayTo } = resolveTrainerSchedulePullWindow(todayInTimeZoneIso())
+    const pruneScheduleIds = planTrainerSchedulePrune(
+      localSchedule,
+      trainer_schedule_entries,
+      trainerId,
+      pending?.trainer_schedule_entries ?? new Set(),
+      { dayFrom, dayTo },
+    )
+    for (const id of pruneScheduleIds) await deleteFromStore('trainer_schedule_entries', id)
+  } catch {
+    /* store ещё не создан */
   }
   const pruned_trainings =
     !skipTrainings && side.pruneTrainings

@@ -123,10 +123,10 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 | Роль | Пути |
 |------|------|
-| trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
+| trainer | `/trainer`, `/trainer/calendar`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
 | sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log`, `/sales/call-log` |
-| supervisor | `/club`, `/club/clients`, `/club/call-log`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
-| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| supervisor | `/club`, `/club/clients`, `/club/call-log`, `/club/trainer-schedule`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
+| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **trainer-schedule**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 **Multi-hall (фаза 1):** один `client` — абоны ПЗ/ТЗ/АЗ (`memberships.hall`); вкладки списков и карточки; статистика `hall=`. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md).
 
@@ -142,7 +142,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 Полнее: [DATA_MODEL.md](./DATA_MODEL.md), [SYNC.md](./SYNC.md).
 
-**IDB stores (v16):** `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`, `challenges`, `membership_types`, `nutrition_products`, `homework_presets`, `client_weight_entries`, `outreach_log`, `club_iskra_settings` (кэш шаблонов outreach; **не** полный `moizvonki` с ключом), `pnk_funnel_events`, `sale_clips`.
+**IDB stores (v19):** `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`, `challenges`, `membership_types`, `nutrition_products`, `homework_presets`, `client_weight_entries`, `outreach_log`, `club_iskra_settings` (кэш шаблонов outreach; **не** полный `moizvonki` с ключом), `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, `loyalty_glance`, **`trainer_schedule_entries`** (ежедневник — [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md)).
 
 Настройки **качества ведения** и **плана ЗП** — Postgres + `admin-data`, **без** offline-store в IDB. Полнее: [DATA_MODEL.md](./DATA_MODEL.md).
 

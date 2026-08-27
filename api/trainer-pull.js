@@ -12,6 +12,12 @@ import {
   buildTrainerPayRateMap,
 } from '../src/lib/admin/trainerPayrollCore.js'
 import { membershipTypeCountsTowardPayPlan } from '../src/lib/admin/trainerPayTiersCore.js'
+import { todayInTimeZoneIso } from '../src/lib/dateRu.js'
+import {
+  resolveTrainerSchedulePullWindow,
+  SCHEDULE_PULL_DAYS_BACK,
+  SCHEDULE_PULL_DAYS_FORWARD,
+} from '../src/lib/trainer/trainerScheduleCore.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -349,6 +355,27 @@ async function handler(req, res) {
     }
   }
 
+  let trainer_schedule_entries = []
+  try {
+    const todayMsk = todayInTimeZoneIso()
+    const { dayFrom, dayTo } = resolveTrainerSchedulePullWindow(todayMsk)
+    let schedQuery = supabaseAdmin
+      .from('trainer_schedule_entries')
+      .select('*')
+      .eq('trainer_id', trainerId)
+      .gte('day_date', dayFrom)
+      .lte('day_date', dayTo)
+      .order('day_date', { ascending: true })
+      .order('start_minutes', { ascending: true })
+    if (trainerClubId) {
+      schedQuery = schedQuery.eq('club_id', trainerClubId)
+    }
+    const { data: schedRows, error: schedErr } = await schedQuery
+    if (!schedErr) trainer_schedule_entries = schedRows ?? []
+  } catch {
+    trainer_schedule_entries = []
+  }
+
   sendJson(res, 200, {
     clients,
     memberships,
@@ -359,6 +386,7 @@ async function handler(req, res) {
     pnk_funnel_events,
     sale_clips,
     client_hall_lifecycle,
+    trainer_schedule_entries,
     club_id: trainerClubId || null,
     outreach_templates,
     trainings_truncated: trainingsTruncated,
@@ -377,6 +405,13 @@ async function handler(req, res) {
       trainings: trainings.length,
       pnk_funnel_events: pnk_funnel_events.length,
       sale_clips: sale_clips.length,
+      trainer_schedule_entries: trainer_schedule_entries.length,
+    },
+    schedule_pull_window: {
+      day_from: resolveTrainerSchedulePullWindow(todayInTimeZoneIso()).dayFrom,
+      day_to: resolveTrainerSchedulePullWindow(todayInTimeZoneIso()).dayTo,
+      days_back: SCHEDULE_PULL_DAYS_BACK,
+      days_forward: SCHEDULE_PULL_DAYS_FORWARD,
     },
   })
 }

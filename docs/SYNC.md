@@ -66,13 +66,13 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Allowlist push (`PUSH_ALLOWED_TABLES`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**.
 
 `club_loyalty_settings` и `loyalty_ledger` **не** в allowlist (только `admin-data?action=loyalty-*`). Архив клуба и смена `club_id` пишут `burn_archive` / `club_move` **на сервере** после успешного push `clients`; закрытие **ПЗ** без архива клуба — `burn_archive` после push `client_hall_lifecycle` (`source: pz_hall_close`). Store `loyalty_glance` — кэш GET, не очередь. После ручного Sync тренера: flush → `trainer-pull` → GET `loyalty-glance` пачками ≤80 (не в теле pull).
 
 Создание клипа менеджером — через **`admin-data?action=sale-clips`**; тренер закрывает клип (`done` + `memberships.clip_id`) через очередь push.
 
-**Pull → IndexedDB:** `fetchTrainerPullViaApi` обязан прокидывать `sale_clips`, `pnk_funnel_events`, `client_hall_lifecycle`, `club_id`, `outreach_templates` (`normalizeTrainerPullPayload`). Иначе Sync «успешен», а на главной тренера заявки на абон = 0. Verify: `verify-trainer-pull-response.mjs`.
+**Pull → IndexedDB:** `fetchTrainerPullViaApi` обязан прокидывать `sale_clips`, `pnk_funnel_events`, `client_hall_lifecycle`, **`trainer_schedule_entries`**, `club_id`, `outreach_templates` (`normalizeTrainerPullPayload`). Иначе Sync «успешен», а на главной тренера заявки на абон = 0. Verify: `verify-trainer-pull-response.mjs`, `verify-trainer-schedule-core.mjs`.
 
 **Хвост sale_clips:** remote pull отдаёт только `awaiting`. После reconcile (абоны уже созданы вручную → cancel/done) локальные «лишние» awaiting снимаются (`planTrainerSaleClipsPrune`). Иначе на планшете висят заявки, которых в облаке уже нет.
 
@@ -80,7 +80,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**.
 
 `health_cards` в IDB ключуется по **`client_id`**, не по `id` записи — учитывать в ключах очереди.
 

@@ -87,6 +87,11 @@ import { LOYALTY_COMPLETE_SETTINGS_WAIT_MS } from '../../lib/loyalty/loyaltyTime
 import { isLoyaltyProgramClient } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
 import { recordAppError } from '../../lib/appErrorJournal.js'
 import { runTrainingCompleteFollowUp } from '../../lib/trainer/trainingCompleteFollowUp.js'
+import { linkScheduleEntryToTraining } from '../../lib/trainer/trainerScheduleTrainingService.js'
+import {
+  parseScheduleEntryDayIso,
+  shouldLinkScheduleEntryOnTrainingSave,
+} from '../../lib/trainer/trainerScheduleTrainingCore.js'
 import { prefetchTrainerClientWorkspace } from '../../lib/trainer/trainingClientPrefetch.js'
 import { ensureTrainingDataMembershipId } from '../../lib/trainingMembershipLinkCore.js'
 import {
@@ -143,6 +148,8 @@ export function TrainingPage() {
   const { id } = useParams()
   const [search] = useSearchParams()
   const clientIdParam = search.get('clientId')
+  const scheduleEntryParam = search.get('scheduleEntry')
+  const dateParam = search.get('date')
   const { user, isAdmin } = useAuth()
   const nav = useNavigate()
   const clientsBase = isAdmin ? '/admin/clients' : '/trainer/clients'
@@ -567,6 +574,10 @@ export function TrainingPage() {
       let workoutNew = prefilled
       let typeNew = 'Силовая'
       let dateNew = todayLocalIso()
+      const scheduleDay = parseScheduleEntryDayIso(dateParam)
+      if (scheduleDay) {
+        dateNew = isAdmin ? scheduleDay : clampIsoDateToToday(scheduleDay)
+      }
       const durableNew = readTrainingDraftDurable({ clientId: clientIdParam, isNew: true })
       const durableTid = String(durableNew?.trainingId ?? '').trim()
       let deletedOrPending = false
@@ -1241,6 +1252,9 @@ export function TrainingPage() {
           operation: prev ? 'update' : 'insert',
           remote_id: prev ? row.id : null,
         })
+        if (shouldLinkScheduleEntryOnTrainingSave(scheduleEntryParam, row.id)) {
+          void linkScheduleEntryToTraining(scheduleEntryParam, row.id)
+        }
       } catch (e) {
         if (applyUi) {
           if (!silent) setSaveError(e?.message ?? 'Ошибка сохранения')

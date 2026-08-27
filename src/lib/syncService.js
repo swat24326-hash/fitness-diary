@@ -39,6 +39,7 @@ const TRAINER_CACHE_STORES = new Set([
   'body_measurements',
   'client_weight_entries',
   'client_hall_lifecycle',
+  'trainer_schedule_entries',
 ])
 
 const AUTO_PUSH_TABLES = new Set([
@@ -56,6 +57,7 @@ const AUTO_PUSH_TABLES = new Set([
   'pnk_funnel_events',
   'sale_clips',
   'client_hall_lifecycle',
+  'trainer_schedule_entries',
 ])
 
 /** Порядок отправки: сначала сущности, от которых зависят остальные. */
@@ -68,6 +70,7 @@ const SYNC_TABLE_PRIORITY = {
   homework_presets: 17,
   memberships: 20,
   client_hall_lifecycle: 22,
+  trainer_schedule_entries: 25,
   trainings: 30,
   health_cards: 40,
   body_measurements: 50,

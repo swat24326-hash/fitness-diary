@@ -11,6 +11,7 @@ import { normalizeMembershipPushPayload } from '../../src/lib/membershipPushPayl
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
 import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
 import { normalizeHomeworkPresetPushPayload } from '../../src/lib/admin/homeworkPresetPushPayload.js'
+import { normalizeTrainerSchedulePushPayload } from '../../src/lib/trainer/trainerSchedulePushPayload.js'
 import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
 import { normalizePnkFunnelEventPushPayload } from '../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { recordClientDeletionAudit } from './deletionAuditWrite.js'
@@ -37,6 +38,7 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'pnk_funnel_events',
   'sale_clips',
   'client_hall_lifecycle',
+  'trainer_schedule_entries',
 ])
 
 function friendlyExerciseDbError(error, operation) {
@@ -273,6 +275,10 @@ export async function executePushRecord(ctx, item) {
         payload = normalizeHomeworkPresetPushPayload(payload)
         if (!payload) return { ok: false, status: 400, error: 'Некорректный шаблон ДЗ' }
       }
+      if (table_name === 'trainer_schedule_entries') {
+        payload = normalizeTrainerSchedulePushPayload(payload)
+        if (!payload) return { ok: false, status: 400, error: 'Некорректная запись расписания' }
+      }
       if (table_name === 'health_cards') {
         payload = normalizeHealthCardPushPayload(payload)
       }
@@ -401,6 +407,10 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'homework_presets') {
         payload = normalizeHomeworkPresetPushPayload(payload)
         if (!payload) return { ok: false, status: 400, error: 'Некорректный шаблон ДЗ' }
+      }
+      if (table_name === 'trainer_schedule_entries') {
+        payload = normalizeTrainerSchedulePushPayload(payload)
+        if (!payload) return { ok: false, status: 400, error: 'Некорректная запись расписания' }
       }
       if (table_name === 'health_cards') {
         payload = normalizeHealthCardPushPayload(payload)

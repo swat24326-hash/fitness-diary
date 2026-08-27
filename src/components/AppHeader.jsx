@@ -5,7 +5,7 @@ import { resolveAdminClubId, readLastAdminClub, writeLastAdminClub } from '../li
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
-import { AlertTriangle, BarChart3, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, CalendarDays, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
 import { OsMark } from './brand/OsMark.jsx'
 import { IskraOrb } from './iskra/IskraOrb.jsx'
 import { PRODUCT_BRAND_NAME, productBrandAriaOnline, productBrandDocumentTitle } from '../lib/productBrand.js'
@@ -513,6 +513,12 @@ export function AppHeader() {
             <NavLink to="/trainer" end className={headerNavClass}>
               Главная
             </NavLink>
+            <NavLink to="/trainer/calendar" className={headerNavClass}>
+              <span className="app-header__nav-with-icon">
+                <CalendarDays size={18} aria-hidden />
+                Ежедневник
+              </span>
+            </NavLink>
             <NavLink to="/trainer/profile" className={headerNavClass}>
               Профиль
             </NavLink>
@@ -691,6 +697,9 @@ export function AppHeader() {
                 <>
                   <NavLink to="/trainer" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Главная
+                  </NavLink>
+                  <NavLink to="/trainer/calendar" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Ежедневник
                   </NavLink>
                   <NavLink to="/trainer/profile" className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Профиль

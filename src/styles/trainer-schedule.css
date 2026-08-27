@@ -1,0 +1,541 @@
+/**
+ * Ежедневник тренера — месяц и день по часам.
+ */
+
+.trainer-schedule-page {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+  padding-bottom: 24px;
+}
+
+.trainer-schedule-page__hero {
+  margin-bottom: 16px;
+}
+
+.trainer-schedule-page__title {
+  margin: 0 0 6px;
+  font-size: clamp(1.2rem, 3vw, 1.45rem);
+  font-weight: 650;
+}
+
+.trainer-schedule-page__subtitle {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.trainer-schedule-page__loading {
+  margin: 0 0 12px;
+}
+
+/* --- Month --- */
+.trainer-schedule-month {
+  padding: 14px 12px 16px;
+}
+
+.trainer-schedule-month__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.trainer-schedule-month__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  text-align: center;
+  flex: 1;
+}
+
+.trainer-schedule-month__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.trainer-schedule-month__weekday {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.trainer-schedule-month__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.trainer-schedule-month__cell {
+  position: relative;
+  min-height: 52px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.trainer-schedule-month__cell--empty {
+  background: transparent;
+  pointer-events: none;
+}
+
+.trainer-schedule-month__cell--today {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.trainer-schedule-month__cell--selected {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.trainer-schedule-month__cell--busy .trainer-schedule-month__day {
+  font-weight: 700;
+}
+
+.trainer-schedule-month__day {
+  font-size: 0.95rem;
+}
+
+.trainer-schedule-month__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* --- Day agenda --- */
+.trainer-schedule-day {
+  padding: 12px 12px 16px;
+}
+
+.trainer-schedule-day__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.trainer-schedule-day__title {
+  margin: 0;
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.trainer-schedule-day__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trainer-schedule-day__board {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  overflow: auto;
+  max-height: min(68vh, 720px);
+}
+
+.trainer-schedule-day__hours {
+  padding-top: 0;
+}
+
+.trainer-schedule-day__hour-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+
+.trainer-schedule-day__track {
+  position: relative;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+}
+
+.trainer-schedule-day__hour-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border: 0;
+  background: transparent;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.trainer-schedule-day__entry-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+  min-height: 44px;
+}
+
+.trainer-schedule-day__entry-wrap .trainer-schedule-day__entry {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.trainer-schedule-day__entry-start {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.trainer-schedule-day__entry-chip {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.trainer-schedule-day__entry {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.trainer-schedule-day__entry--clients {
+  background: color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, 0.06));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.trainer-schedule-day__entry--note {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.trainer-schedule-day__entry-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.trainer-schedule-day__entry-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.trainer-schedule-day__empty {
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+}
+
+/* --- Modal --- */
+.trainer-schedule-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+}
+
+@media (min-width: 640px) {
+  .trainer-schedule-modal {
+    align-items: center;
+  }
+}
+
+.trainer-schedule-modal__panel {
+  width: min(100%, 520px);
+  max-height: min(92vh, 760px);
+  overflow: auto;
+  padding: 14px 14px 16px;
+}
+
+.trainer-schedule-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.trainer-schedule-modal__title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 650;
+}
+
+.trainer-schedule-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trainer-schedule-modal__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.trainer-schedule-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.trainer-schedule-modal__field--wide textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.trainer-schedule-modal__field input,
+.trainer-schedule-modal__field select,
+.trainer-schedule-modal__field textarea {
+  width: 100%;
+}
+
+.trainer-schedule-modal__modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.trainer-schedule-modal__mode {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font-weight: 600;
+}
+
+.trainer-schedule-modal__mode--active {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.trainer-schedule-modal__clients-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trainer-schedule-modal__search {
+  width: 100%;
+}
+
+.trainer-schedule-modal__clients {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.trainer-schedule-modal__client-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trainer-schedule-modal__client-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.trainer-schedule-modal__clients-empty {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+}
+
+.trainer-schedule-modal__hint,
+.trainer-schedule-modal__preview {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.trainer-schedule-modal__link-row {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.trainer-schedule-modal__chip {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.trainer-schedule-modal__start {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+.trainer-schedule-modal__pick-clients {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.trainer-schedule-modal__pick-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trainer-schedule-modal__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+.trainer-schedule-modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trainer-schedule-modal__actions-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.btn-danger-outline {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.trainer-schedule-day__readonly-badge {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.trainer-schedule-day__hour-slot--readonly {
+  pointer-events: none;
+  cursor: default;
+}
+
+.trainer-schedule-day__entry-trainer {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+
+.admin-trainer-schedule-page__head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-trainer-schedule-page__title-icon {
+  vertical-align: -4px;
+  margin-right: 6px;
+}
+
+.admin-trainer-schedule-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.admin-trainer-schedule-page__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+}
+
+.admin-trainer-schedule-page__filter select {
+  min-height: 40px;
+}
+
+.admin-trainer-schedule-page__warn {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.admin-trainer-schedule-page__empty {
+  margin: 16px 0;
+}
+
+.trainer-schedule-page__error {
+  color: var(--danger);
+  margin: 8px 0;
+}
+
+.trainer-schedule-modal__readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trainer-schedule-modal__readonly-row {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trainer-schedule-modal__readonly-note {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.trainer-schedule-modal__readonly-clients {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+

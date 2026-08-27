@@ -34,6 +34,7 @@ import {
 } from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
 import { handleTrainerSelfJournalGet } from './_lib/adminData/trainerSelfJournalHandler.js'
+import { handleTrainerScheduleGet } from './_lib/adminData/trainerScheduleHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
 import { handleDeletionAuditLogGet } from './_lib/adminData/deletionAuditLogHandler.js'
 import { handleClubStats, handleCoachQuality, handleClientRetention, handleClientAttendance, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
@@ -340,6 +341,16 @@ async function handler(req, res) {
       sendJson(res, 403, { error: 'Нет доступа' })
       return
     }
+    if (action === 'trainer-schedule') {
+      const clubId = String(req.query?.club_id ?? '').trim()
+      const ctx = await requireAdminOrSupervisor(req, res, clubId)
+      if (!ctx) return
+      if (ctx.isSupervisor && !clubId) {
+        sendJson(res, 400, { error: 'Укажите club_id' })
+        return
+      }
+      return handleTrainerScheduleGet(ctx, req, res)
+    }
     if (action === 'client-retention') {
       if (authCtx.isAdmin || authCtx.isTrainer || authCtx.isSupervisor) {
         return handleClientRetention(authCtx, req, res)
@@ -576,7 +587,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, clients-last-trainings, deletion-audit-log, club-stats, club-monthly, coach-quality, client-retention, client-attendance, health-cards, sales, price-list, tz-price-list, az-price-list, loyalty-settings, loyalty-account, loyalty-glance, loyalty-journal, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs, create-supervisor',
+          'Укажите action: search, journal, clients-last-trainings, deletion-audit-log, club-stats, club-monthly, coach-quality, trainer-schedule, client-retention, client-attendance, health-cards, sales, price-list, tz-price-list, az-price-list, loyalty-settings, loyalty-account, loyalty-glance, loyalty-journal, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs, create-supervisor',
       })
   }
 }

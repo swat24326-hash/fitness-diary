@@ -6,7 +6,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 
 ---
 
-## IndexedDB (`fitness-diary`, version **18**)
+## IndexedDB (`fitness-diary`, version **19**)
 
 | Store | keyPath | Заметки |
 |-------|---------|---------|
@@ -29,7 +29,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `pnk_funnel_events` | `id` | Журнал ПНК |
 | `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру |
 | `client_hall_lifecycle` | `id` | Закрытие ПЗ/ТЗ/АЗ (`hall`, `closed_at`, `close_reason`); индексы `client_id`, `club_id` |
-| `loyalty_glance` | `client_id` | Кэш баллов ПЗ (GET, не очередь) |
+| `trainer_schedule_entries` | `id` | Ежедневник тренера: день, время, заметка и/или `client_ids[]`; индексы `trainer_id`, `[trainer_id, day_date]` — см. [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |
 | `loyalty_glance` | `client_id` | Кэш снимка баллов (GET `loyalty-glance`, не sync_queue) |
 
 ### Postgres only (не stores IndexedDB)

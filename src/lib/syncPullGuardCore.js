@@ -12,6 +12,7 @@ export const PULL_MERGE_GUARD_STORE_LIST = Object.freeze([
   'pnk_funnel_events',
   'sale_clips',
   'client_hall_lifecycle',
+  'trainer_schedule_entries',
 ])
 
 export const PULL_MERGE_GUARD_STORES = new Set(PULL_MERGE_GUARD_STORE_LIST)

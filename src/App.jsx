@@ -25,6 +25,7 @@ import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
 import { AdminDeletionLogPage } from './pages/admin/AdminDeletionLogPage.jsx'
 import { AdminClubCallLogPage } from './pages/admin/AdminClubCallLogPage.jsx'
+import { ClubTrainerSchedulePage } from './pages/admin/ClubTrainerSchedulePage.jsx'
 import { AdminLoyaltyJournal } from './pages/admin/AdminLoyaltyJournal.jsx'
 import { ClubSupervisorSettings } from './pages/admin/ClubSupervisorSettings'
 import { ClubSupervisorClubTasks } from './pages/admin/ClubSupervisorClubTasks'
@@ -37,6 +38,7 @@ import { TrainerHome } from './pages/trainer/TrainerHome'
 import { TrainerClients } from './pages/trainer/TrainerClients'
 import { TrainerProfile } from './pages/trainer/TrainerProfile'
 import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
+import { TrainerCalendarPage } from './pages/trainer/TrainerCalendarPage'
 import { TrainingPage } from './pages/trainer/TrainingPage'
 
 /** В dev virtual:pwa-register недоступен — только prod, внутри Router (нужен useLocation). */
@@ -221,6 +223,7 @@ export default function App() {
               <Route path="/trainer/clients" element={<TrainerClients />} />
               <Route path="/trainer/profile" element={<TrainerProfile />} />
               <Route path="/trainer/clients/:id" element={<ClientCard />} />
+              <Route path="/trainer/calendar" element={<TrainerCalendarPage />} />
               <Route path="/trainer/workouts/:id" element={<TrainingPage />} />
               <Route path="/trainer/challenges/:challengeId" element={<TrainerChallengeDetail />} />
             </Route>
@@ -248,6 +251,7 @@ export default function App() {
                   <Route path=":id" element={<ClientCard />} />
                 </Route>
                 <Route path="call-log" element={<AdminClubCallLogPage accessMode="supervisor" />} />
+                <Route path="trainer-schedule" element={<ClubTrainerSchedulePage accessMode="supervisor" />} />
                 <Route path="challenges" element={<AdminChallenges />} />
                 <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
                 <Route path="club-tasks" element={<ClubSupervisorClubTasks />} />
@@ -270,6 +274,7 @@ export default function App() {
                 </Route>
                 <Route path="deletion-log" element={<AdminDeletionLogPage />} />
                 <Route path="call-log" element={<AdminClubCallLogPage />} />
+                <Route path="trainer-schedule" element={<ClubTrainerSchedulePage />} />
                 <Route path="loyalty" element={<AdminLoyaltyJournal />} />
                 <Route path="excel-lists" element={<AdminExcelLists />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />
