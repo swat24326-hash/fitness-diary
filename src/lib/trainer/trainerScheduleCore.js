@@ -272,7 +272,7 @@ export function shouldReloadTrainerScheduleData(detail = {}) {
     return false
   }
   if (!reason) return true
-  if (reason === 'sync-complete') return true
+  if (reason === 'sync-complete' || reason === 'trainer-schedule') return true
   if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
   if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
   return false

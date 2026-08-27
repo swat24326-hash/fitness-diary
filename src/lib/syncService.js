@@ -28,6 +28,7 @@ import { planWeightEntryPushPayload } from './clientWeightPushCore.js'
 import { isDuplicateInsertError } from './syncFlushResult'
 import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
 import { stampTrainingUpdatedAt } from './trainingUpdatedAtCore.js'
+import { syncQueueSortKey, splitSyncPushWaves } from './syncQueuePriorityCore.js'
 
 export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave } from './syncFlushResult'
 
@@ -59,32 +60,6 @@ const AUTO_PUSH_TABLES = new Set([
   'client_hall_lifecycle',
   'trainer_schedule_entries',
 ])
-
-/** Порядок отправки: сначала сущности, от которых зависят остальные. */
-const SYNC_TABLE_PRIORITY = {
-  clients: 10,
-  pnk_funnel_events: 12,
-  sale_clips: 13,
-  membership_types: 15,
-  nutrition_products: 16,
-  homework_presets: 17,
-  memberships: 20,
-  client_hall_lifecycle: 22,
-  trainer_schedule_entries: 25,
-  trainings: 30,
-  health_cards: 40,
-  body_measurements: 50,
-  client_weight_entries: 55,
-  challenges: 60,
-  exercises: 70,
-}
-
-function syncQueueSortKey(item) {
-  const op = item.operation
-  const opRank = op === 'delete' ? 0 : op === 'insert' ? 1 : 2
-  const tableRank = SYNC_TABLE_PRIORITY[item.table_name] ?? 99
-  return opRank * 1000 + tableRank
-}
 
 export function initConnectivityListeners() {
   return initNetworkReachability((online) => {
@@ -608,35 +583,38 @@ async function flushSyncQueueInnerWork() {
     const chunk = validQueue.slice(offset, offset + PUSH_BATCH_SIZE)
     reportStep(`Пачка ${Math.floor(offset / PUSH_BATCH_SIZE) + 1}…`)
 
-    let batchResult = await pushRecordsBatchViaApi(chunk)
+    const waves = splitSyncPushWaves(chunk)
+    for (const wave of waves) {
+      let batchResult = await pushRecordsBatchViaApi(wave)
 
-    if (!batchResult.results && chunk.length > 2) {
-      const half = Math.ceil(chunk.length / 2)
-      const left = chunk.slice(0, half)
-      const right = chunk.slice(half)
-      reportStep(`Повтор меньшими частями…`)
-      const r1 = await pushRecordsBatchViaApi(left)
-      const r2 = await pushRecordsBatchViaApi(right)
-      const mergedFailed = [...(r1.failed ?? []), ...(r2.failed ?? [])]
-      const mergedOk = (r1.results || r2.results) && mergedFailed.length === 0
-      batchResult = {
-        ok: mergedOk,
-        results: [...(r1.results ?? []), ...(r2.results ?? [])],
-        failed: mergedFailed.length ? mergedFailed : undefined,
+      if (!batchResult.results && wave.length > 2) {
+        const half = Math.ceil(wave.length / 2)
+        const left = wave.slice(0, half)
+        const right = wave.slice(half)
+        reportStep(`Повтор меньшими частями…`)
+        const r1 = await pushRecordsBatchViaApi(left)
+        const r2 = await pushRecordsBatchViaApi(right)
+        const mergedFailed = [...(r1.failed ?? []), ...(r2.failed ?? [])]
+        const mergedOk = (r1.results || r2.results) && mergedFailed.length === 0
+        batchResult = {
+          ok: mergedOk,
+          results: [...(r1.results ?? []), ...(r2.results ?? [])],
+          failed: mergedFailed.length ? mergedFailed : undefined,
+        }
       }
-    }
 
-    if (!batchResult.results) {
-      await runChunkFallback(chunk)
-      continue
-    }
+      if (!batchResult.results) {
+        await runChunkFallback(wave)
+        continue
+      }
 
-    const retryItems = batchResult.failed?.map((x) => x.item) ?? []
-    processed += chunk.length - retryItems.length
-    reportStep()
+      const retryItems = batchResult.failed?.map((x) => x.item) ?? []
+      processed += wave.length - retryItems.length
+      reportStep()
 
-    if (retryItems.length) {
-      await runChunkFallback(retryItems)
+      if (retryItems.length) {
+        await runChunkFallback(retryItems)
+      }
     }
   }
 

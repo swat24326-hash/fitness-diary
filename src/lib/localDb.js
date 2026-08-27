@@ -410,4 +410,10 @@ export async function removeClientFromLocalCacheOnly(clientId) {
     /* ignore */
   }
   await db.delete('clients', cid)
+  try {
+    const { stripClientIdFromTrainerScheduleEntries } = await import('./trainer/trainerScheduleService.js')
+    await stripClientIdFromTrainerScheduleEntries(cid, { sync: false })
+  } catch {
+    /* ignore */
+  }
 }

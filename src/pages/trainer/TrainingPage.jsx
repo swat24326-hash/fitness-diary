@@ -1253,7 +1253,22 @@ export function TrainingPage() {
           remote_id: prev ? row.id : null,
         })
         if (shouldLinkScheduleEntryOnTrainingSave(scheduleEntryParam, row.id)) {
-          void linkScheduleEntryToTraining(scheduleEntryParam, row.id)
+          try {
+            const linked = await linkScheduleEntryToTraining(scheduleEntryParam, row.id)
+            if (!linked?.ok) {
+              recordAppError({
+                source: 'app',
+                error: linked?.error ?? 'Не удалось связать слот ежедневника с тренировкой',
+                context: 'trainer_schedule_link',
+              })
+            }
+          } catch (linkErr) {
+            recordAppError({
+              source: 'app',
+              error: linkErr?.message ?? 'Не удалось связать слот ежедневника с тренировкой',
+              context: 'trainer_schedule_link',
+            })
+          }
         }
       } catch (e) {
         if (applyUi) {
@@ -1393,14 +1408,16 @@ export function TrainingPage() {
       const shouldPromoteUrl =
         applyUi && row.status !== 'completed' && isNewLive && id === 'new' && cid
       const clubQ = search.get('club')
-      const nextUrlClient = clubQ
-        ? `?clientId=${encodeURIComponent(cid)}&club=${encodeURIComponent(clubQ)}`
-        : `?clientId=${encodeURIComponent(cid)}`
+      const promoteQs = new URLSearchParams()
+      promoteQs.set('clientId', cid)
+      if (clubQ) promoteQs.set('club', clubQ)
+      if (scheduleEntryParam) promoteQs.set('scheduleEntry', scheduleEntryParam)
+      const nextUrlClient = `?${promoteQs.toString()}`
       if (shouldPromoteUrl) {
         // После первого сохранения делаем URL стабильным (/workouts/:id), даже если автосэйв включён skipNavigate.
         nav(`${workoutsBase}/${row.id}${nextUrlClient}`, { replace: true })
       } else if (applyUi && !skipNavigate && row.status !== 'completed' && isNewLive) {
-        nav(`${workoutsBase}/${row.id}${preserveClubQs}`, { replace: true })
+        nav(`${workoutsBase}/${row.id}${nextUrlClient}`, { replace: true })
       }
     })
     } catch (e) {

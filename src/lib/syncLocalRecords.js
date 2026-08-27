@@ -32,6 +32,7 @@ const UNSYNCED_SCAN = [
   { store: 'homework_presets', table: 'homework_presets', table_name: 'homework_presets' },
   { store: 'pnk_funnel_events', table: 'pnk_funnel_events', table_name: 'pnk_funnel_events' },
   { store: 'client_hall_lifecycle', table: 'client_hall_lifecycle', table_name: 'client_hall_lifecycle' },
+  { store: 'trainer_schedule_entries', table: 'trainer_schedule_entries', table_name: 'trainer_schedule_entries' },
 ]
 
 const STORE_BY_TABLE = {
@@ -47,6 +48,17 @@ const STORE_BY_TABLE = {
   homework_presets: 'homework_presets',
   pnk_funnel_events: 'pnk_funnel_events',
   client_hall_lifecycle: 'client_hall_lifecycle',
+  trainer_schedule_entries: 'trainer_schedule_entries',
+}
+
+/** Для verify: таблицы, которые помечаются synced после push. */
+export function listSyncMarkStoreTables() {
+  return Object.keys(STORE_BY_TABLE)
+}
+
+/** Для verify: stores, которые сканируются на unsynced без очереди. */
+export function listUnsyncedScanTableNames() {
+  return UNSYNCED_SCAN.map((x) => x.table_name)
 }
 
 function recordStoreKey(table_name, payload) {

@@ -259,6 +259,13 @@ export async function updateAllLocalClientsClubForTrainer(trainerId, newClubId) 
     }
   }
 
+  try {
+    const { updateTrainerScheduleClubForTrainer } = await import('./trainer/trainerScheduleService.js')
+    await updateTrainerScheduleClubForTrainer(tid, nextClub)
+  } catch {
+    /* ignore */
+  }
+
   dispatchLocalDataChanged({ reason: 'trainer-club-cascade', trainerId: tid })
 }
 
@@ -353,6 +360,13 @@ export async function deleteClientAndAllData(clientId) {
       memberships_count: mems.length,
     },
   })
+
+  try {
+    const { stripClientIdFromTrainerScheduleEntries } = await import('./trainer/trainerScheduleService.js')
+    await stripClientIdFromTrainerScheduleEntries(clientId, { sync: true })
+  } catch {
+    /* ignore */
+  }
 
   await purgeSyncQueuePendingForClient({
     clientId,

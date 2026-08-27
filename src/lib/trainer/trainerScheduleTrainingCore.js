@@ -21,13 +21,19 @@ export function resolveScheduleTrainingStart(entry, ctx = {}) {
   const linkedId = String(entry?.linked_training_id ?? '').trim()
   const trainingById = ctx.trainingById ?? {}
 
-  if (linkedId && trainingById[linkedId]) {
-    const status = String(trainingById[linkedId]?.status ?? '')
+  if (linkedId) {
+    const training = trainingById[linkedId]
+    const status = String(training?.status ?? '')
     return {
       kind: 'open',
       trainingId: linkedId,
       path: `${workoutsBase}/${encodeURIComponent(linkedId)}`,
-      label: status === 'completed' ? 'Открыть тренировку' : 'Продолжить черновик',
+      label:
+        status === 'completed'
+          ? 'Открыть тренировку'
+          : training
+            ? 'Продолжить черновик'
+            : 'Открыть тренировку',
     }
   }
 

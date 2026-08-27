@@ -20,6 +20,7 @@ import {
 import { normalizeTrainerPullPayload } from '../src/lib/trainerPullResponseCore.js'
 import { PUSH_ALLOWED_TABLES } from '../api/_lib/pushRecordCore.js'
 import { PULL_MERGE_GUARD_STORE_LIST } from '../src/lib/syncPullGuardCore.js'
+import { SYNC_TABLE_PRIORITY, splitSyncPushWaves, syncQueueSortKey } from '../src/lib/syncQueuePriorityCore.js'
 
 let failed = 0
 
@@ -112,8 +113,23 @@ ok(picked.length === 2 && picked[0].id === 'c1' && picked[1].id === 'c2', 'picke
 
 ok(!shouldReloadTrainerScheduleData({ reason: 'sync-queue' }), 'schedule reload: skip sync-queue')
 ok(shouldReloadTrainerScheduleData({ reason: 'sync-complete' }), 'schedule reload: sync-complete')
+ok(shouldReloadTrainerScheduleData({ reason: 'trainer-schedule' }), 'schedule reload: trainer-schedule')
 ok(shouldReloadTrainerScheduleData({}), 'schedule reload: pull empty reason')
 ok(!shouldReloadTrainerScheduleData({ reason: 'exercises' }), 'schedule reload: skip exercises')
+
+ok(SYNC_TABLE_PRIORITY.trainings < SYNC_TABLE_PRIORITY.trainer_schedule_entries, 'trainings before schedule priority')
+ok(
+  syncQueueSortKey({ table_name: 'trainings', operation: 'insert' }) <
+    syncQueueSortKey({ table_name: 'trainer_schedule_entries', operation: 'update' }),
+  'insert training before schedule update',
+)
+{
+  const waves = splitSyncPushWaves([
+    { table_name: 'trainer_schedule_entries', operation: 'update', data: { id: 's1' } },
+    { table_name: 'trainings', operation: 'insert', data: { id: 't1' } },
+  ])
+  ok(waves.length === 2 && waves[0][0].table_name === 'trainings', 'push waves: trainings first')
+}
 
 if (failed) {
   console.error(`\n${failed} failed`)

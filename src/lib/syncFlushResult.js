@@ -60,6 +60,10 @@ export function isUnrecoverablePushError(status, message) {
     )
   }
   if (code !== 403 && code !== 404) return false
+  // Связь слота с новой тренировкой: тренировка ещё летит в облако — не снимать с очереди.
+  if (msg.includes('связанная тренировка пока не в облаке') || msg.includes('связанная тренировка не найдена')) {
+    return false
+  }
   return (
     msg.includes('нет доступа к клиенту') ||
     msg.includes('тренировка не найдена') ||

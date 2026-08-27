@@ -38,6 +38,15 @@ const linked = resolveScheduleTrainingStart(
 )
 ok(linked.kind === 'open' && linked.path.endsWith('/tr-1'), 'linked draft → open')
 
+const linkedMissingLocal = resolveScheduleTrainingStart(
+  { ...entry, linked_training_id: 'tr-gone' },
+  { trainingById: {}, workoutsBase: '/trainer/workouts' },
+)
+ok(
+  linkedMissingLocal.kind === 'open' && linkedMissingLocal.path.endsWith('/tr-gone'),
+  'linked id without local row → open (no duplicate new)',
+)
+
 const pick = resolveScheduleTrainingStart(
   { ...entry, client_ids: ['c1', 'c2'] },
   { workoutsBase: '/trainer/workouts' },

@@ -300,6 +300,19 @@ async function handler(req, res) {
     sendJson(res, 405, { error: 'Method not allowed' })
     return
   }
+
+  // Ежедневники клуба — admin/supervisor (не в trainerActions: иначе action «теряется»).
+  if (action === 'trainer-schedule') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSupervisor(req, res, clubId)
+    if (!ctx) return
+    if (ctx.isSupervisor && !clubId) {
+      sendJson(res, 400, { error: 'Укажите club_id' })
+      return
+    }
+    return handleTrainerScheduleGet(ctx, req, res)
+  }
+
   const trainerActions = new Set([
     'challenges',
     'challenge-trainings',
@@ -340,16 +353,6 @@ async function handler(req, res) {
       }
       sendJson(res, 403, { error: 'Нет доступа' })
       return
-    }
-    if (action === 'trainer-schedule') {
-      const clubId = String(req.query?.club_id ?? '').trim()
-      const ctx = await requireAdminOrSupervisor(req, res, clubId)
-      if (!ctx) return
-      if (ctx.isSupervisor && !clubId) {
-        sendJson(res, 400, { error: 'Укажите club_id' })
-        return
-      }
-      return handleTrainerScheduleGet(ctx, req, res)
     }
     if (action === 'client-retention') {
       if (authCtx.isAdmin || authCtx.isTrainer || authCtx.isSupervisor) {

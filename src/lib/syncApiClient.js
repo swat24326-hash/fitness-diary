@@ -6,6 +6,7 @@ import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrpha
 import { applyPushRecordToLocal } from './syncLocalRecords'
 import { mapWithConcurrency } from './syncConcurrency'
 import { collapseMemoryPushBatch } from './syncFlushResult'
+import { splitSyncPushWaves } from './syncQueuePriorityCore.js'
 import { normalizeTrainerPullPayload } from './trainerPullResponseCore.js'
 
 /** Меньшие пачки — иначе serverless (10–60 с) обрывает запрос, клиент уходит в медленный retry. */
@@ -339,11 +340,15 @@ async function flushPushQueue() {
   batch = collapseMemoryPushBatch(batch)
   if (!batch.length) return
 
-  for (let i = 0; i < batch.length; i += PUSH_BATCH_SIZE) {
-    const chunk = batch.slice(i, i + PUSH_BATCH_SIZE)
-    const pushed = await pushRecordsBatchViaApi(chunk)
-    if (pushed.ok || !pushed.failed?.length) continue
-    await mapWithConcurrency(pushed.failed.map((x) => x.item), PUSH_PARALLEL, (item) => pushRecordViaApi(item))
+  // trainings → затем schedule и прочее (parallel push-records иначе ломает linked_training_id).
+  const waves = splitSyncPushWaves(batch)
+  for (const wave of waves) {
+    for (let i = 0; i < wave.length; i += PUSH_BATCH_SIZE) {
+      const chunk = wave.slice(i, i + PUSH_BATCH_SIZE)
+      const pushed = await pushRecordsBatchViaApi(chunk)
+      if (pushed.ok || !pushed.failed?.length) continue
+      await mapWithConcurrency(pushed.failed.map((x) => x.item), PUSH_PARALLEL, (item) => pushRecordViaApi(item))
+    }
   }
   try {
     const { scheduleBackgroundSyncDrain } = await import('./syncService.js')

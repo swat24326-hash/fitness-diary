@@ -136,7 +136,7 @@ export function TrainerScheduleDayAgenda({
                   <span className="trainer-schedule-day__entry-label">{label}</span>
                   {trainingChip ? <span className="trainer-schedule-day__entry-chip">{trainingChip}</span> : null}
                 </button>
-                {!readOnly && (start.kind === 'open' || start.kind === 'new') ? (
+                {!readOnly && (start.kind === 'open' || start.kind === 'new' || start.kind === 'pick_client') ? (
                   <button
                     type="button"
                     className="btn btn-icon-square btn-primary trainer-schedule-day__entry-start"
@@ -144,7 +144,8 @@ export function TrainerScheduleDayAgenda({
                     aria-label={start.label}
                     onClick={(ev) => {
                       ev.stopPropagation()
-                      nav(start.path)
+                      if (start.kind === 'pick_client') onOpenEntry(entry)
+                      else nav(start.path)
                     }}
                   >
                     <Play size={16} aria-hidden />

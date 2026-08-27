@@ -496,7 +496,8 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
             .eq('id', linkedId)
             .maybeSingle()
           if (!training) {
-            return { ok: false, error: 'Связанная тренировка не найдена' }
+            // Тренировка ещё в очереди auto-push — не 403 «навсегда», клиент повторит.
+            return { ok: false, error: 'Связанная тренировка пока не в облаке — повторите Sync' }
           }
           const linkCheck = assertTrainerScheduleLinkedTraining(training, user.id, profileClub)
           if (!linkCheck.ok) return linkCheck

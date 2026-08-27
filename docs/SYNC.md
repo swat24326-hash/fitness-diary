@@ -68,6 +68,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 `clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**.
 
+**Порядок отправки:** `trainings` уходят **раньше** `trainer_schedule_entries` (волны auto-push и flush), иначе связь `linked_training_id` ломается на FK / «тренировка ещё не в облаке». Логика: `src/lib/syncQueuePriorityCore.js`.
+
 `club_loyalty_settings` и `loyalty_ledger` **не** в allowlist (только `admin-data?action=loyalty-*`). Архив клуба и смена `club_id` пишут `burn_archive` / `club_move` **на сервере** после успешного push `clients`; закрытие **ПЗ** без архива клуба — `burn_archive` после push `client_hall_lifecycle` (`source: pz_hall_close`). Store `loyalty_glance` — кэш GET, не очередь. После ручного Sync тренера: flush → `trainer-pull` → GET `loyalty-glance` пачками ≤80 (не в теле pull).
 
 Создание клипа менеджером — через **`admin-data?action=sale-clips`**; тренер закрывает клип (`done` + `memberships.clip_id`) через очередь push.

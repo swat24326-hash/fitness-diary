@@ -22,6 +22,9 @@ export async function loadClubTrainerScheduleMonth({ clubId, trainerId = '', yea
   if (!data) {
     return { ok: false, error: 'API расписания недоступен — обновите страницу после деплоя' }
   }
+  if (data.error) {
+    return { ok: false, error: String(data.error) }
+  }
   return {
     ok: true,
     entries: Array.isArray(data.entries) ? data.entries : [],
