@@ -3538,6 +3538,14 @@ tr:last-child td {
 
 .trainer-home__tile-grid {
   margin-top: 0;
+  /* Три раздела: не полагаемся на auto-fit (масштаб шрифта / zoom на планшете ломает ряд). */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 520px) {
+  .trainer-home__tile-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Планшет / широкий экран: снимаем узкий 920px, заполняем ширину зала */
@@ -4099,7 +4107,8 @@ tr:last-child td {
 
   .trainer-home--board .trainer-home__tile-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Раньше 1fr 1fr под две плитки; с «Ежедневником» — всегда три в ряд на планшете. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: clamp(8px, 1.2vw, 12px);
     align-content: start;
   }
@@ -4107,8 +4116,14 @@ tr:last-child td {
   .trainer-home--board .feature-tile {
     min-height: clamp(5.25rem, 13.5vh, 7rem);
     height: auto;
-    padding: clamp(10px, 1.6vh, 16px) 14px;
+    padding: clamp(10px, 1.6vh, 16px) clamp(8px, 1.2vw, 14px);
     gap: clamp(8px, 1.2vh, 12px);
+  }
+
+  .trainer-home--board .feature-tile__title {
+    font-size: clamp(0.88rem, 1.8vw, 1.08rem);
+    line-height: 1.2;
+    font-weight: 650;
   }
 
   .trainer-home--board .feature-tile__icon {
@@ -4119,12 +4134,6 @@ tr:last-child td {
   .trainer-home--board .feature-tile__icon svg {
     width: clamp(24px, 3.8vh, 30px);
     height: clamp(24px, 3.8vh, 30px);
-  }
-
-  .trainer-home--board .feature-tile__title {
-    font-size: clamp(0.95rem, 2vh, 1.08rem);
-    line-height: 1.25;
-    font-weight: 650;
   }
 }
 
