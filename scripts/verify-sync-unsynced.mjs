@@ -5,6 +5,7 @@ import {
   defaultSyncOperation,
   pickUnsyncedRecordsForEnqueue,
   recordForPush,
+  resolveAfterPushAck,
   shouldEnqueueUnsyncedRecord,
 } from '../src/lib/syncUnsyncedCore.js'
 
@@ -41,6 +42,29 @@ assert(push.id === 't1' && push.date === '2026-05-01' && push.synced === undefin
 
 assert(defaultSyncOperation('trainings', { id: 'x' }).operation === 'insert', 'trainings default insert')
 assert(defaultSyncOperation('memberships', { id: 'x' }).operation === 'update', 'memberships default update')
+
+{
+  const local = { id: 't1', updated_at: '2026-08-27T14:00:00.000Z', status: 'completed' }
+  const cloud = { id: 't1', updated_at: '2026-08-27T13:00:00.000Z', status: 'completed' }
+  const pushed = { id: 't1', updated_at: '2026-08-27T14:00:00.000Z', status: 'completed' }
+  const d = resolveAfterPushAck({ localRow: local, cloudRow: cloud, pushedData: pushed, recordKey: 't1' })
+  assert(d.action === 'mark_local_synced', '409: local same as pushed → mark synced (no sticky local-only)')
+}
+
+{
+  const local = { id: 't1', updated_at: '2026-08-27T14:05:00.000Z' }
+  const cloud = { id: 't1', updated_at: '2026-08-27T14:00:00.000Z' }
+  const pushed = { id: 't1', updated_at: '2026-08-27T14:00:00.000Z' }
+  const d = resolveAfterPushAck({ localRow: local, cloudRow: cloud, pushedData: pushed, recordKey: 't1' })
+  assert(d.action === 'keep_local_needs_update' && d.remote_id === 't1', 'edit in flight → update meta')
+}
+
+{
+  const local = { id: 't1', updated_at: '2026-08-27T13:00:00.000Z' }
+  const cloud = { id: 't1', updated_at: '2026-08-27T14:00:00.000Z' }
+  const d = resolveAfterPushAck({ localRow: local, cloudRow: cloud, pushedData: local, recordKey: 't1' })
+  assert(d.action === 'use_cloud', 'cloud newer → take cloud')
+}
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed.`)

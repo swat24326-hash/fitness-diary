@@ -19,7 +19,7 @@ import {
   purgeSyncQueueAgainstLocalClients,
   pruneRedundantSyncQueue,
 } from './syncQueueOrphans'
-import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords, markRecordSynced } from './syncLocalRecords'
+import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords, markRecordSynced, applyPushRecordToLocal } from './syncLocalRecords'
 import { reportSyncOutcome, recordSyncError } from './appErrorJournal'
 import { reconcileLastSyncReportWithQueue } from './syncMotivationCore.js'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
@@ -495,6 +495,15 @@ async function processOneSyncQueueItem(item) {
   const err = String(pushedViaApi.error ?? 'Ошибка отправки')
   if (item.operation === 'insert' && isDuplicateInsertError({ message: err, status: pushedViaApi.status })) {
     await removeSyncItem(item.local_id)
+    try {
+      await applyPushRecordToLocal(item.table_name, payload, null)
+    } catch {
+      try {
+        await markRecordSynced(item.table_name, payload)
+      } catch {
+        /* ignore */
+      }
+    }
     return { ok: true }
   }
 

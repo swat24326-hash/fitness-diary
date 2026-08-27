@@ -8,14 +8,15 @@ import {
   markRecordFromCloud,
   pickUnsyncedRecordsForEnqueue,
   recordForPush,
+  resolveAfterPushAck,
 } from './syncUnsyncedCore'
-import { rowRevisionMs } from './syncPullGuardCore.js'
 
 export {
   defaultSyncOperation,
   markRecordFromCloud,
   pickUnsyncedRecordsForEnqueue,
   recordForPush,
+  resolveAfterPushAck,
   shouldEnqueueUnsyncedRecord,
 } from './syncUnsyncedCore'
 
@@ -69,6 +70,32 @@ function recordStoreKey(table_name, payload) {
 }
 
 /**
+ * @param {string} store
+ * @param {string} key
+ * @param {object | null | undefined} localRow
+ * @param {object} cloudRow
+ * @param {object} pushedData
+ */
+async function applyPushAckDecision(store, key, localRow, cloudRow, pushedData) {
+  const decision = resolveAfterPushAck({ localRow, cloudRow, pushedData, recordKey: key })
+  if (decision.action === 'mark_local_synced' && localRow) {
+    const { __sync: _m, ...rest } = localRow
+    await putStore(store, { ...rest, synced: true })
+    return
+  }
+  if (decision.action === 'keep_local_needs_update' && localRow) {
+    const remoteId = String(decision.remote_id || key).trim() || key
+    await putStore(store, {
+      ...localRow,
+      synced: false,
+      __sync: { operation: 'update', remote_id: remoteId },
+    })
+    return
+  }
+  await putStore(store, { ...cloudRow, synced: true })
+}
+
+/**
  * После успешного push: подмешать ответ сервера, если локаль не новее (правка в полёте).
  * Не использовать pull-guard synced:false — иначе ответ push никогда не попадёт в IDB.
  * @param {string} table_name
@@ -90,10 +117,7 @@ export async function applyPushRecordToLocal(table_name, pushedData, serverRecor
     const db = await getDb()
     const localRow = await db.get('health_cards', cid)
     const cloudRow = markRecordFromCloud(serverRecord)
-    if (localRow && rowRevisionMs(localRow) > rowRevisionMs(cloudRow)) {
-      return
-    }
-    await putStore('health_cards', { ...cloudRow, synced: true })
+    await applyPushAckDecision('health_cards', cid, localRow, cloudRow, pushedData)
     return
   }
 
@@ -107,10 +131,7 @@ export async function applyPushRecordToLocal(table_name, pushedData, serverRecor
   const db = await getDb()
   const localRow = await db.get(store, key)
   const cloudRow = markRecordFromCloud(serverRecord)
-  if (localRow && rowRevisionMs(localRow) > rowRevisionMs(cloudRow)) {
-    return
-  }
-  await putStore(store, { ...cloudRow, synced: true })
+  await applyPushAckDecision(store, key, localRow, cloudRow, pushedData)
 }
 
 /** После успешного push — не ставить в очередь снова. */

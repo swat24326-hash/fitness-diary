@@ -2,6 +2,8 @@
  * Чистая логика re-queue для node-тестов (без IndexedDB).
  */
 
+import { rowRevisionMs } from './syncPullGuardCore.js'
+
 /** Убрать служебные поля перед отправкой в API / Supabase. */
 export function recordForPush(record) {
   if (!record || typeof record !== 'object') return record ?? {}
@@ -14,6 +16,37 @@ export function markRecordFromCloud(record) {
   if (!record || typeof record !== 'object') return record
   const { __sync: _m, synced: _s, ...rest } = record
   return { ...rest, synced: true }
+}
+
+/**
+ * После успешного push / 409: что писать в IDB.
+ * Типичный залип: insert уже в облаке → 409 со старым updated_at → локаль «новее» →
+ * раньше return без synced → вечное «Только на устройстве».
+ *
+ * @param {{
+ *   localRow?: object | null,
+ *   cloudRow?: object | null,
+ *   pushedData?: object | null,
+ *   recordKey?: string,
+ * }} p
+ * @returns {{ action: 'use_cloud' } | { action: 'mark_local_synced' } | { action: 'keep_local_needs_update', remote_id: string }}
+ */
+export function resolveAfterPushAck(p) {
+  const localRow = p?.localRow
+  const cloudRow = p?.cloudRow
+  const key = String(p?.recordKey ?? '').trim()
+  if (!localRow || typeof localRow !== 'object') return { action: 'use_cloud' }
+  const localMs = rowRevisionMs(localRow)
+  const cloudMs = rowRevisionMs(cloudRow)
+  if (localMs <= cloudMs) return { action: 'use_cloud' }
+
+  const pushedMs = rowRevisionMs(p?.pushedData)
+  // Локаль = то, что только что ушло (или без ревизии у payload) — 409 со старым cloud.
+  if (!pushedMs || localMs <= pushedMs) {
+    return { action: 'mark_local_synced' }
+  }
+  // Правка в полёте поверх отправленного — нужен update, не insert→409.
+  return { action: 'keep_local_needs_update', remote_id: key || String(localRow.id ?? '').trim() }
 }
 
 function recordKeyForTable(table_name, record) {
