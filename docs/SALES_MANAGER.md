@@ -58,7 +58,7 @@
 - UI: плитка / вкладка **«Заявка тренеру»** — `/sales?tab=clips` (менеджер) или `/admin/sales`.
 - API: `admin-data?action=sale-clips` (GET список / POST create|cancel|match).
 - Тренер после Sync видит awaiting на главной (пустое состояние: «заявок нет» + Sync) и в карточке клиента → **«Создать по заявке»** (`memberships.clip_id`, статус `done`). Pull обязан класть `sale_clips` в IndexedDB (`normalizeTrainerPullPayload` / `verify-trainer-pull-response.mjs`).
-- **Хвост:** менеджер смотрит день, тренер — все свои awaiting. Если абон уже создали вручную (без кнопки), клип закрывается как **done** (не «отмена») и при необходимости вяжется `membership_id` / `clip_id`. Waiting без `client_id` — при Sync привязка по карте, если клиент в клубе один. Кнопка «Создать по заявке» без карточки серая с подписью. Клип без числа занятий / с уже существующим абоном по сумме в заметке — **не** создаёт дубль 0/0. Verify: `verify-sale-clips.mjs` (prune / superseded / bind / fulfill).
+- **Хвост:** менеджер смотрит день, тренер — все свои awaiting. Если абон уже создали вручную (без кнопки), клип закрывается как **done** (не «отмена») и при необходимости вяжется `membership_id` / `clip_id`. Waiting без `client_id` — при Sync привязка по карте, если клиент в клубе один. **Клиент уже в архиве** — awaiting снимается (`cancelled`), чтобы не висело на планшете сутками. Кнопка «Создать по заявке» без карточки серая с подписью. Клип без числа занятий / с уже существующим абоном по сумме в заметке — **не** создаёт дубль 0/0. Verify: `verify-sale-clips.mjs` (prune / superseded / bind / fulfill / archived).
 - Мягкий чеклист дня: висящие awaiting — без блокировки отчёта.
 - Verify: `node scripts/verify-sale-clips.mjs`.
 

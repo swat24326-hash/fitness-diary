@@ -248,6 +248,36 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
     bindPlan.some((p) => p.clipId === 'clip-orphan' && p.action === 'bind_client' && p.clientId === 'c-tsar'),
     'orphan clip binds client by card',
   )
+
+  const archivedPlan = planSupersededAwaitingSaleClips(
+    [
+      {
+        id: 'clip-archived',
+        status: 'awaiting',
+        client_id: 'c-arch',
+        created_at: '2026-08-18T10:00:00.000Z',
+        note: 'Оплата 3148 ₽ · 4/1',
+      },
+      {
+        id: 'clip-live-ok',
+        status: 'awaiting',
+        client_id: 'c-live',
+        created_at: '2026-08-20T10:00:00.000Z',
+      },
+    ],
+    { 'c-arch': [], 'c-live': [] },
+    {
+      clientsById: new Map([
+        ['c-arch', { id: 'c-arch', archived_at: '2026-08-19T06:00:00.000Z' }],
+        ['c-live', { id: 'c-live', archived_at: null }],
+      ]),
+    },
+  )
+  ok(
+    archivedPlan.some((p) => p.clipId === 'clip-archived' && p.action === 'cancel'),
+    'awaiting + archived client → cancel',
+  )
+  ok(!archivedPlan.some((p) => p.clipId === 'clip-live-ok'), 'live client awaiting stays')
 }
 
 if (failed) {

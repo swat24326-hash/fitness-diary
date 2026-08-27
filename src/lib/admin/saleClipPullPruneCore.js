@@ -104,7 +104,10 @@ export function resolveAwaitingSaleClipClientId(clip, clientsByCard) {
  * План закрытия / дозаполнения awaiting.
  * @param {object[]} awaitingClips
  * @param {Record<string, object[]>} membershipsByClientId
- * @param {{ clientsByCard?: Map<string, object>|Record<string, object> }} [opts]
+ * @param {{
+ *   clientsByCard?: Map<string, object>|Record<string, object>,
+ *   clientsById?: Map<string, object>|Record<string, object>,
+ * }} [opts]
  * @returns {{
  *   clipId: string,
  *   action: 'cancel'|'done'|'bind_client',
@@ -116,11 +119,32 @@ export function resolveAwaitingSaleClipClientId(clip, clientsByCard) {
 export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClientId, opts = {}) {
   const by = membershipsByClientId && typeof membershipsByClientId === 'object' ? membershipsByClientId : {}
   const clientsByCard = opts.clientsByCard
+  const clientsById =
+    opts.clientsById instanceof Map
+      ? opts.clientsById
+      : opts.clientsById && typeof opts.clientsById === 'object'
+        ? new Map(Object.entries(opts.clientsById))
+        : null
   const out = []
   for (const clip of awaitingClips ?? []) {
     if (normalizeSaleClipStatus(clip?.status) !== 'awaiting') continue
     const clipId = String(clip?.id ?? '').trim()
     if (!clipId) continue
+
+    const existingClientId = String(clip?.client_id ?? '').trim()
+    if (existingClientId && clientsById) {
+      const row = clientsById.get(existingClientId)
+      if (row && row.archived_at) {
+        out.push({
+          clipId,
+          action: 'cancel',
+          membershipId: null,
+          clientId: existingClientId,
+          reason: 'Клиент в архиве — заявка снята',
+        })
+        continue
+      }
+    }
 
     const bindId = clientsByCard ? resolveAwaitingSaleClipClientId(clip, clientsByCard) : null
     const cid = String(clip?.client_id ?? bindId ?? '').trim()

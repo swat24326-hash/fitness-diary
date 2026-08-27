@@ -45,6 +45,20 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
       ...[...clientsByCard.values()].map((c) => String(c.id).trim()).filter(Boolean),
     ]),
   ]
+
+  /** @type {Map<string, object>} */
+  const clientsById = new Map()
+  if (clientIds.length) {
+    const { data: byIdRows } = await supabaseAdmin
+      .from('clients')
+      .select('id, card_number, club_id, name, archived_at')
+      .in('id', clientIds.slice(0, 800))
+    for (const row of byIdRows ?? []) {
+      const id = String(row?.id ?? '').trim()
+      if (id) clientsById.set(id, row)
+    }
+  }
+
   /** @type {Record<string, object[]>} */
   const membershipsByClientId = {}
   if (clientIds.length) {
@@ -62,13 +76,17 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
     }
   }
 
-  const plan = planSupersededAwaitingSaleClips(clips, membershipsByClientId, { clientsByCard })
+  const plan = planSupersededAwaitingSaleClips(clips, membershipsByClientId, {
+    clientsByCard,
+    clientsById,
+  })
   if (!plan.length) return clips
 
   const now = new Date().toISOString()
   const closedIds = new Set()
   /** @type {Map<string, string>} */
   const boundClientByClip = new Map()
+  const clipById = new Map(clips.map((c) => [String(c?.id ?? ''), c]))
 
   for (const item of plan) {
     if (item.action === 'bind_client' && item.clientId) {
@@ -103,12 +121,16 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
     }
 
     if (item.action === 'cancel') {
+      const prev = clipById.get(String(item.clipId))
+      const prevNote = String(prev?.note ?? '').trim()
+      const reason = String(item.reason || 'Заявка снята').trim()
+      const note = [prevNote, reason].filter(Boolean).join(' · ').slice(0, 500)
       const { error } = await supabaseAdmin
         .from('sale_clips')
         .update({
           status: 'cancelled',
           updated_at: now,
-          note: String(item.reason || 'Заявка снята').slice(0, 500),
+          note,
         })
         .eq('id', item.clipId)
         .eq('status', 'awaiting')
