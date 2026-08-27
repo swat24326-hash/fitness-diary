@@ -486,19 +486,14 @@ button {
 }
 
 .app-header__menu-nav {
-  display: none;
+  /* Всегда в бургер-меню: на широком экране верхний nav есть, но тренеры ищут разделы здесь. */
+  display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 6px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.025);
-}
-
-@media (max-width: 900px) {
-  .app-header__menu-nav {
-    display: flex;
-  }
 }
 
 .app-header__menu-link {

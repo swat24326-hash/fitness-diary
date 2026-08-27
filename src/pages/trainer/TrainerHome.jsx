@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Users, Trophy, Swords } from 'lucide-react'
+import { User, Users, Trophy, Swords, CalendarDays } from 'lucide-react'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { TrainerHomeTodayStrip } from '../../components/trainer/TrainerHomeTodayStrip.jsx'
 import { TrainerTaskGlanceWidget } from '../../components/iskra/TrainerTaskGlanceWidget.jsx'
@@ -406,6 +406,13 @@ export function TrainerHome() {
           Разделы
         </h2>
         <div className="tile-grid trainer-home__tile-grid">
+          <Link to="/trainer/calendar" className="feature-tile u-no-decoration">
+            <div className="feature-tile__icon">
+              <CalendarDays size={36} aria-hidden />
+            </div>
+            <p className="feature-tile__title">Ежедневник</p>
+          </Link>
+
           <Link to="/trainer/clients" className="feature-tile u-no-decoration">
             <div className="feature-tile__icon">
               <Users size={36} aria-hidden />

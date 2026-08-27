@@ -699,7 +699,10 @@ export function AppHeader() {
                     Главная
                   </NavLink>
                   <NavLink to="/trainer/calendar" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Ежедневник
+                    <span className="app-header__nav-with-icon">
+                      <CalendarDays size={18} aria-hidden />
+                      Ежедневник
+                    </span>
                   </NavLink>
                   <NavLink to="/trainer/profile" className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Профиль
