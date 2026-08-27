@@ -1,6 +1,6 @@
 # R2 / C2 — стенд на Yandex (приложение уже подготовлено)
 
-**Актуально:** 2026-08-09.  
+**Актуально:** 2026-08-27 (перепроверка prep; день R2 без изменений).  
 **Статус:** runbook для дня команды «стартуем R2 на Yandex, C2». До команды **не** поднимаем Managed PG и не переключаем прод.
 
 Связано: [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) §5.4 R2, [AUTH_C2_MAP.md](./AUTH_C2_MAP.md), [SYNC.md](./SYNC.md).

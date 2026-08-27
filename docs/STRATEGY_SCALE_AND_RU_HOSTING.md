@@ -307,7 +307,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Сообщение «облако недоступно» без привязки к `status.supabase.com` (2026-08-22) — ок при смене BaaS.
 - [ ] Runtime data-port (`pg` вместо PostgREST в API) — после живой схемы на стенде; не блокер hybrid day-1.
 
-**Итог R1 (2026-08-22):** код готов к команде «стартуем R2…». Открытые пункты выше — только после staging / cutover, не блокеры текущего прода.
+**Итог R1 (2026-08-22; перепроверка 2026-08-27):** код готов к команде «стартуем R2…». Новые фичи (ежедневник/`trainer_schedule_entries`, посещаемость, лояльность, call-центр и др.) идут через `/api` + миграции в `supabase/migrations` — в план `db:migrate:pg` (92 файла) попадают автоматически; Hybrid day-1 не блокируют. Открытые пункты выше — только после staging / cutover, не блокеры текущего прода.
 
 *Dev-proxy:* `VITE_DEV_API_PROXY` (дефолт пока текущий prod) — только локальная разработка, не runtime клуба.
 
@@ -530,7 +530,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 | 2026-08-08 | Ревизия docs путь/цель | Статус supervisor ✅; ритуал не на каждый lint; оплата ↔ абон в пути | Очередь PATH_TO_GOAL §4 как канон приоритета |
 | 2026-08-08 | Оплаты и касса | **После стабильного переезда (R3+)**; до этого Excel-мост; не кодить L3/кассу в R1–R3 | PATH_TO_GOAL §4; PAYMENTS_DOMAIN шапка; north-star-lead |
 | 2026-08-09 | R2 prep дожим | Hybrid day-1 зафиксирован; `c2_auth_stub` + SSL migrate; `/api/health`; Docker `VITE_*` build-args; verify host/migrate | Когда готовы — «стартуем R2 на Yandex, C2»; data-port runtime — после живой PG |
-| | | | |
+| 2026-08-27 | Перепроверка R1 перед возможным R2 | `verify-r1-portability`, `verify-portable-host`, `verify-pg-migrate-order`, `lint` — ок; 12/12 API entrypoints; schedule в push allowlist; migrate plan 94 steps | Можно «стартуем R2…» = Hybrid A; клуб (R3) — только после зелёного стенда |
 
 ---
 
