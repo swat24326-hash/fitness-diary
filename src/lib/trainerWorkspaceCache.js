@@ -8,6 +8,7 @@ import {
 } from './localDbClubQuery'
 import { buildLastTrainingDateByClientId, buildTrainingsByClientId } from './trainerWorkspaceIndexes'
 import { getDb } from './localDb.js'
+import { partitionTrainerClientsByPzLifecycle } from './trainer/trainerClientsPzListCore.js'
 
 const STORAGE_EVENT = 'fitness-diary-storage'
 
@@ -111,10 +112,10 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   const lifecycleRows = await loadLifecycleForClients(clientIds)
   const memMap = await listMembershipsMapByClientIds(clientIds)
 
-  // Как раньше: Активные = не в архиве клуба; Архив = clients.archived_at.
-  // Список «закрытый ПЗ при живом ТЗ» временно не выделяем в UI.
-  const activeClients = sortClientsByName(clientsAll.filter((c) => !c?.archived_at))
-  const archivedClients = sortClientsByName(clientsAll.filter((c) => Boolean(c?.archived_at)))
+  // Активные = ПЗ не закрыт и не архив клуба; Архив = closed_at ПЗ и/или archived_at.
+  const partitioned = partitionTrainerClientsByPzLifecycle(clientsAll, { lifecycleRows })
+  const activeClients = sortClientsByName(partitioned.activeClients)
+  const archivedClients = sortClientsByName(partitioned.archivedClients)
 
   const clientIdSet = new Set(clientIds)
 
@@ -155,7 +156,12 @@ export function initTrainerWorkspaceCacheInvalidation() {
   const onStorage = (e) => {
     const reason = e?.detail?.reason
     if (reason === 'exercises') return
-    if (reason === 'client-hydrated' || reason === 'memberships-refreshed' || reason === 'sync-complete') {
+    if (
+      reason === 'client-hydrated' ||
+      reason === 'memberships-refreshed' ||
+      reason === 'sync-complete' ||
+      reason === 'client-hall-lifecycle'
+    ) {
       clearTrainerWorkspaceSnapshotSync()
       return
     }

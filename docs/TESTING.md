@@ -50,7 +50,7 @@
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
 | Удержание и жизнь клиента | `verify-client-retention.mjs` (pool, cohort M+3, renewal, archive, reactivation, **closed PZ вне R-RET**, `pzChurn*`); закрытие ПЗ — `verify-client-hall-lifecycle.mjs` |
-| Жизнь по направлениям | `verify-client-hall-lifecycle.mjs` (A–G); **списки L-A…L-F** — `verify-admin-clients-list-lifecycle.mjs`; migrate `npm run db:migrate:client-hall-lifecycle -- --linked`; [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) |
+| Жизнь по направлениям | `verify-client-hall-lifecycle.mjs` (A–G); **списки L-A…L-F** — `verify-admin-clients-list-lifecycle.mjs`; **Активные/Архив тренера** — `verify-trainer-clients-pz-list.mjs`; migrate `npm run db:migrate:client-hall-lifecycle -- --linked`; [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) |
 | Причина закрытия (форма) | `verify-client-archive-reason.mjs` (`buildArchiveReasonConfirmPayload`); срок — `verify-client-archive-expected-return.mjs` |
 
 

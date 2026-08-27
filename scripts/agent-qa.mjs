@@ -146,6 +146,7 @@ run('client archive reason', 'node', ['scripts/verify-client-archive-reason.mjs'
 run('client archive expected return', 'node', ['scripts/verify-client-archive-expected-return.mjs'])
 run('client hall lifecycle', 'node', ['scripts/verify-client-hall-lifecycle.mjs'])
 run('admin clients list lifecycle', 'node', ['scripts/verify-admin-clients-list-lifecycle.mjs'])
+run('trainer clients pz list', 'node', ['scripts/verify-trainer-clients-pz-list.mjs'])
 run('admin clients browse lifecycle cache', 'node', ['scripts/verify-admin-clients-browse-lifecycle-cache.mjs'])
 run('club sms campaign', 'node', ['scripts/verify-club-sms-campaign.mjs'])
 run('club sms campaign result', 'node', ['scripts/verify-club-sms-campaign-result.mjs'])

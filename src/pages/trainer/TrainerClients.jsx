@@ -16,6 +16,7 @@ import { CLIENT_LIST_PAGE_SIZE } from '../../lib/clientListPagination'
 import { todayLocalIso } from '../../lib/dateRu'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
+import { trainerPzClosedBadgeLabelForClient } from '../../lib/trainer/trainerClientsPzListCore.js'
 import { pullTrainerWorkspaceFromCloud } from '../../lib/trainerPullService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import {
@@ -83,6 +84,7 @@ export function TrainerClients() {
   }, [user?.id, user?.club_id, refreshUserProfile])
   const [clients, setClients] = useState([])
   const [archivedClients, setArchivedClients] = useState([])
+  const [lifecycleRows, setLifecycleRows] = useState([])
   const [memByClient, setMemByClient] = useState({})
   const [trainingsByClientId, setTrainingsByClientId] = useState({})
   const [lastTrainingDateByClientId, setLastTrainingDateByClientId] = useState({})
@@ -121,6 +123,7 @@ export function TrainerClients() {
       const snap = await loadTrainerWorkspaceSnapshot(user.id, trainerClubId)
       setClients(snap.clients)
       setArchivedClients(snap.archivedClients ?? [])
+      setLifecycleRows(snap.lifecycleRows ?? [])
       setMemByClient(snap.memByClient)
       setTrainingsByClientId(snap.trainingsByClientId)
       setLastTrainingDateByClientId(snap.lastTrainingDateByClientId)
@@ -696,6 +699,16 @@ export function TrainerClients() {
                     outreachBusy={outreach.busyClientId === c.id}
                     outreachSent={sentTodayIds.has(String(c.id))}
                     mode={clientsTab}
+                    closedBadgeLabel={
+                      clientsTab === 'archive'
+                        ? trainerPzClosedBadgeLabelForClient(
+                            c,
+                            memByClient[c.id] ?? [],
+                            lifecycleRows,
+                            today,
+                          )
+                        : ''
+                    }
                     busy={busy}
                     onDelete={(row) => setConfirmDelete({ id: row.id, name: row.name })}
                     onArchive={(row) => setArchiveReasonModal({ mode: 'enter', client: row })}

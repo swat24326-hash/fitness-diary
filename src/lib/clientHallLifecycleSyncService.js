@@ -19,6 +19,7 @@ import { MEMBERSHIP_HALLS } from './membershipHallCore.js'
 import { buildArchiveRestoreFields } from './clientArchiveReasonCore.js'
 import { todayLocalIso } from './dateRu.js'
 import { notifyClientHallLifecycleChanged, notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
+import { clearTrainerWorkspaceSnapshotSync } from './trainerWorkspaceCache.js'
 
 async function loadClientBundle(clientId) {
   const db = await getDb()
@@ -108,6 +109,7 @@ async function persistClosePlan(plan, clientId) {
   }
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Закрытие направления')
+  clearTrainerWorkspaceSnapshotSync()
   notifyClientHallLifecycleChanged(clientId, { clubId: clientOut?.club_id ?? plan.clientPatch?.club_id })
   return { row: clientOut, warn, plan }
 }
@@ -154,6 +156,7 @@ export async function reopenClientHall(clientRow, opts = {}) {
   }
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Открытие направления')
+  clearTrainerWorkspaceSnapshotSync()
   notifyClientHallLifecycleChanged(client.id, { clubId: clientOut?.club_id ?? client.club_id })
   return { row: clientOut, warn, plan }
 }
@@ -204,6 +207,7 @@ export async function leaveClubWithReason(clientRow, reasonInput) {
   })
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Уход из клуба')
+  clearTrainerWorkspaceSnapshotSync()
   notifyClientHallLifecycleChanged(client.id, { clubId: clientOut?.club_id ?? client.club_id })
   return { row: clientOut, warn, plan }
 }
