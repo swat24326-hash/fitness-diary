@@ -48,6 +48,11 @@
   --glass-saturate: var(--premium-glass-saturate);
   --danger: #f87171;
   --warning: #fbbf24;
+
+  /* Пульсовые зоны ЧСС (% от макс.): лёгкая / средняя / высокая */
+  --hr-zone-easy: #6eb5ff;
+  --hr-zone-mid: #3dd68c;
+  --hr-zone-hard: #f07167;
   --radius: 22px;
   --radius-md: 16px;
   --radius-sm: 12px;

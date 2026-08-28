@@ -77,7 +77,7 @@ import {
   estimateMaxHr,
   normalizeHrSessionSnapshot,
 } from '../../lib/hr/hrSessionAgg.js'
-import { hrConnectProfileHint } from '../../lib/hr/hrSessionsCore.js'
+import { hrConnectProfileHint, hrZoneClass } from '../../lib/hr/hrSessionsCore.js'
 import { pickHrSessionForPersist } from '../../lib/hr/hrSessionPersistCore.js'
 import {
   applyLoyaltyOnTrainingPersist,
@@ -1890,6 +1890,7 @@ export function TrainingPage() {
                   'training-hr-idle__btn',
                   hrLost ? 'training-hr-idle__btn--lost' : '',
                   !hr.supported ? 'training-hr-idle__btn--unsupported' : '',
+                  hrSlot?.status === 'live' && !hrLost ? hrZoneClass(hrSlot.zone) : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}

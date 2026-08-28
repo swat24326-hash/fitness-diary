@@ -102,37 +102,36 @@
   animation-play-state: paused;
 }
 
-.app-header__hr-chip--zone-easy {
-  --hr-tint: #3dd68c;
-  border-color: color-mix(in srgb, #3dd68c 55%, transparent);
+/* Зоны ЧСС: голубой / зелёный / красный (--hr-zone-* в tokens.css) */
+.hr-zone--easy {
+  --hr-tint: var(--hr-zone-easy, #6eb5ff);
+}
+
+.hr-zone--mid {
+  --hr-tint: var(--hr-zone-mid, #3dd68c);
+}
+
+.hr-zone--hard {
+  --hr-tint: var(--hr-zone-hard, #f07167);
+}
+
+.app-header__hr-chip.hr-zone--easy,
+.app-header__hr-chip.hr-zone--mid,
+.app-header__hr-chip.hr-zone--hard {
+  border-color: color-mix(in srgb, var(--hr-tint) 55%, transparent);
   background:
     linear-gradient(
       160deg,
-      color-mix(in srgb, #3dd68c 22%, rgba(0, 0, 0, 0.2)),
-      color-mix(in srgb, #3dd68c 8%, rgba(0, 0, 0, 0.45))
+      color-mix(in srgb, var(--hr-tint) 22%, rgba(0, 0, 0, 0.2)),
+      color-mix(in srgb, var(--hr-tint) 8%, rgba(0, 0, 0, 0.45))
     );
 }
 
-.app-header__hr-chip--zone-mid {
-  --hr-tint: #f0b429;
-  border-color: color-mix(in srgb, #f0b429 55%, transparent);
-  background:
-    linear-gradient(
-      160deg,
-      color-mix(in srgb, #f0b429 22%, rgba(0, 0, 0, 0.2)),
-      color-mix(in srgb, #f0b429 8%, rgba(0, 0, 0, 0.45))
-    );
-}
-
-.app-header__hr-chip--zone-hard {
-  --hr-tint: #f07167;
-  border-color: color-mix(in srgb, #f07167 55%, transparent);
-  background:
-    linear-gradient(
-      160deg,
-      color-mix(in srgb, #f07167 22%, rgba(0, 0, 0, 0.2)),
-      color-mix(in srgb, #f07167 8%, rgba(0, 0, 0, 0.45))
-    );
+.training-hr-idle__btn.hr-zone--easy,
+.training-hr-idle__btn.hr-zone--mid,
+.training-hr-idle__btn.hr-zone--hard {
+  color: var(--hr-tint);
+  border-color: color-mix(in srgb, var(--hr-tint) 45%, transparent);
 }
 
 .app-header__hr-chip--lost {
@@ -425,18 +424,30 @@
 }
 
 .training-hr-summary__zone--easy .training-hr-summary__zone-bar {
-  background: linear-gradient(90deg, #2bb673, #3dd68c);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hr-zone-easy) 85%, #000), var(--hr-zone-easy));
   animation-delay: 0.05s;
 }
 
 .training-hr-summary__zone--mid .training-hr-summary__zone-bar {
-  background: linear-gradient(90deg, #d49a1a, #f0b429);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hr-zone-mid) 85%, #000), var(--hr-zone-mid));
   animation-delay: 0.12s;
 }
 
 .training-hr-summary__zone--hard .training-hr-summary__zone-bar {
-  background: linear-gradient(90deg, #d45a52, #f07167);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--hr-zone-hard) 85%, #000), var(--hr-zone-hard));
   animation-delay: 0.2s;
+}
+
+.training-hr-summary__zone--easy .training-hr-summary__zone-label {
+  color: color-mix(in srgb, var(--hr-zone-easy) 88%, #fff);
+}
+
+.training-hr-summary__zone--mid .training-hr-summary__zone-label {
+  color: color-mix(in srgb, var(--hr-zone-mid) 88%, #fff);
+}
+
+.training-hr-summary__zone--hard .training-hr-summary__zone-label {
+  color: color-mix(in srgb, var(--hr-zone-hard) 88%, #fff);
 }
 
 .training-hr-summary__zone-label {

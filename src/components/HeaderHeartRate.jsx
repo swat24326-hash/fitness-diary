@@ -1,6 +1,6 @@
 import { Heart } from 'lucide-react'
 import { useHeartRateSessions } from '../context/HeartRateSessionsContext'
-import { hrChipZoneClass } from '../lib/hr/hrSessionsCore'
+import { hrZoneClass } from '../lib/hr/hrSessionsCore'
 
 /**
  * Чипы пульса в общей шапке: сердце + BPM; 2 live = фамилия сверху.
@@ -31,7 +31,7 @@ export function HeaderHeartRate() {
           slot.bpm != null ? String(slot.bpm) : slot.status === 'connecting' ? '…' : '—'
         const pulseSec = liveBeat ? Math.max(0.4, Math.min(1.35, 60 / slot.bpm)) : 1
         const name = surname(slot.clientName)
-        const zoneClass = hrChipZoneClass(slot.zone)
+        const zoneClass = hrZoneClass(slot.zone)
         const title = lost
           ? `${showNames ? name + ': ' : ''}нет связи — нажмите «Снова»; ПКМ — убрать`
           : `${showNames ? name + ': ' : ''}${bpmText} уд/мин — нажмите, чтобы отключить`

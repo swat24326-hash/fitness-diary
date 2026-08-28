@@ -15,6 +15,7 @@ import {
   hrChipSurname,
   hrChipZoneClass,
   hrConnectProfileHint,
+  hrZoneClass,
   showHrChipName,
 } from '../src/lib/hr/hrSessionsCore.js'
 import {
@@ -129,10 +130,11 @@ function bytes(...arr) {
   ok(hrChipSurname('') === 'Клиент', 'пустое имя')
   ok(hasHrSlotForClient([{ clientId: 'a' }], 'a'), 'has slot')
   ok(!hasHrSlotForClient([{ clientId: 'a' }], 'b'), 'no slot')
-  ok(hrChipZoneClass('easy') === 'app-header__hr-chip--zone-easy', 'zone easy class')
-  ok(hrChipZoneClass('mid') === 'app-header__hr-chip--zone-mid', 'zone mid class')
-  ok(hrChipZoneClass('hard') === 'app-header__hr-chip--zone-hard', 'zone hard class')
-  ok(hrChipZoneClass(null) === '', 'zone null class')
+  ok(hrZoneClass('easy') === 'hr-zone--easy', 'zone easy class')
+  ok(hrZoneClass('mid') === 'hr-zone--mid', 'zone mid class')
+  ok(hrZoneClass('hard') === 'hr-zone--hard', 'zone hard class')
+  ok(hrZoneClass(null) === '', 'zone null class')
+  ok(hrChipZoneClass('easy') === hrZoneClass('easy'), 'hrChipZoneClass alias')
   ok(
     hrConnectProfileHint({ birthDate: '1990-01-01', sex: 'male', weightKg: 80 }) === '',
     'profile hint empty when full',

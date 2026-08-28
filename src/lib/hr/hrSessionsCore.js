@@ -41,14 +41,19 @@ export function hasHrSlotForClient(slots, clientId) {
 }
 
 /**
- * CSS-модификатор зоны для чипа шапки.
+ * CSS-модификатор зоны ЧСС (чип шапки, кнопка на тренировке, сводка).
  * @param {'easy'|'mid'|'hard'|string|null|undefined} zone
  */
-export function hrChipZoneClass(zone) {
-  if (zone === 'easy') return 'app-header__hr-chip--zone-easy'
-  if (zone === 'hard') return 'app-header__hr-chip--zone-hard'
-  if (zone === 'mid') return 'app-header__hr-chip--zone-mid'
+export function hrZoneClass(zone) {
+  if (zone === 'easy') return 'hr-zone--easy'
+  if (zone === 'mid') return 'hr-zone--mid'
+  if (zone === 'hard') return 'hr-zone--hard'
   return ''
+}
+
+/** @deprecated используйте hrZoneClass */
+export function hrChipZoneClass(zone) {
+  return hrZoneClass(zone)
 }
 
 /**
