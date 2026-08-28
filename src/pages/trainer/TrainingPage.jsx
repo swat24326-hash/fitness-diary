@@ -5,7 +5,7 @@ import { CloseButton } from '../../components/CloseButton'
 import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
 import { useAuth } from '../../context/AuthContext'
-import { getHealthCard, getLocalClient, listClubsLocal, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
+import { getHealthCard, getLocalClient, listClubsLocal, listMemberships, listTrainingsForClient, LOCAL_DATA_CHANGED } from '../../lib/dataAccess'
 import { clampIsoDateToToday, formatDateRu, isIsoDateAfterToday, todayLocalIso } from '../../lib/dateRu'
 import { getDb } from '../../lib/localDb'
 import {
@@ -70,6 +70,7 @@ import { shouldOfferMarkPnkTrialDone } from '../../lib/pnk/pnkTrialTrainingCore'
 import { resolvePnkTrialDeliverableAfterWorkout } from '../../lib/pnk/pnkWizardCore'
 import { suggestTrainingPreWeightInput } from '../../lib/clientWeightCore'
 import { getHealthSex } from '../../lib/healthCardCore.js'
+import { resolveHealthForTrainingGate, shouldRefreshTrainingHealthOnStorageEvent } from '../../lib/trainingHealthGateCore.js'
 import {
   ageYearsFromBirthDate,
   buildHrSessionSummary,
@@ -318,6 +319,25 @@ export function TrainingPage() {
     })
   }, [loadState, meta.status, writeDurableFromLive])
 
+  const applyHealthCardRow = useCallback((hc) => {
+    setHealthCard(hc ?? null)
+    setContra(String(hc?.contraindications ?? '').trim())
+  }, [])
+
+  const refreshHealthCardFromDb = useCallback(
+    async (clientId) => {
+      const cid = String(clientId ?? '').trim()
+      if (!cid) {
+        applyHealthCardRow(null)
+        return null
+      }
+      const hc = await getHealthCard(cid)
+      applyHealthCardRow(hc ?? null)
+      return hc ?? null
+    },
+    [applyHealthCardRow],
+  )
+
   const applyDraftSessionSnapshot = useCallback((snap) => {
     setMeta({
       status: snap.meta?.status ?? 'draft',
@@ -327,8 +347,6 @@ export function TrainingPage() {
     setTrainingType(snap.trainingType || 'Силовая')
     setTrainingDate(snap.trainingDate || todayLocalIso())
     setClient(snap.client ?? null)
-    setHealthCard(snap.healthCard ?? null)
-    setContra(String(snap.contra ?? ''))
     setMembershipSummary(snap.membershipSummary ?? null)
     setOtherCompletedTrainings(Number(snap.otherCompletedTrainings) || 0)
     setEarlyActivateProposal(null)
@@ -341,7 +359,10 @@ export function TrainingPage() {
     setSaveError('')
     setAutosaveStatus('idle')
     setLoadState('ok')
-  }, [])
+    const cid = String(snap.client?.id ?? '').trim()
+    if (cid) void refreshHealthCardFromDb(cid)
+    else applyHealthCardRow(null)
+  }, [applyHealthCardRow, refreshHealthCardFromDb])
 
   /** До paint: уходящий черновик в LRU; при hit — сразу свой UI (без кадра чужих упражнений). */
   useLayoutEffect(() => {
@@ -406,7 +427,6 @@ export function TrainingPage() {
       trainingType,
       trainingDate,
       client,
-      healthCard,
       contra,
       membershipSummary,
       otherCompletedTrainings,
@@ -424,7 +444,6 @@ export function TrainingPage() {
     trainingType,
     trainingDate,
     client,
-    healthCard,
     contra,
     membershipSummary,
     otherCompletedTrainings,
@@ -455,6 +474,7 @@ export function TrainingPage() {
       const cid = String(cacheHit.clientId ?? '').trim()
       if (!cid) return
       try {
+        await refreshHealthCardFromDb(cid)
         const ms = await loadTrainingMembershipTileSummary({
           clientId: cid,
           trainingId: String(id ?? ''),
@@ -834,7 +854,6 @@ export function TrainingPage() {
         trainingType: sessionTypeNext,
         trainingDate: trainingDateNext,
         client: c,
-        healthCard: hc ?? null,
         contra: contraNext,
         membershipSummary,
         otherCompletedTrainings: otherCompletedNext,
@@ -849,12 +868,34 @@ export function TrainingPage() {
         void persistRef.current?.('draft', { silent: true, skipNavigate: true })
       }, 80)
     }
-  }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot, nav, search, workoutsBase])
+  }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot, nav, search, workoutsBase, refreshHealthCardFromDb])
 
   useEffect(() => {
     if (isNew && isAdmin) return
     void load()
   }, [load, isNew, isAdmin])
+
+  /** После сохранения здоровья в карточке / pull — подтянуть карту в gate «Завершить». */
+  useEffect(() => {
+    if (loadState !== 'ok') return undefined
+    if (isTrainingStatusCompleted(meta.status)) return undefined
+    const cid = String(client?.id ?? clientIdParam ?? '').trim()
+    if (!cid) return undefined
+    let debounceTimer = null
+    const onStorage = (e) => {
+      if (!shouldRefreshTrainingHealthOnStorageEvent(e?.detail, cid)) return
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null
+        void refreshHealthCardFromDb(cid)
+      }, 200)
+    }
+    window.addEventListener(LOCAL_DATA_CHANGED, onStorage)
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      window.removeEventListener(LOCAL_DATA_CHANGED, onStorage)
+    }
+  }, [client?.id, clientIdParam, loadState, meta.status, refreshHealthCardFromDb])
 
   /** Первый заход в форму: штамп старта сессии. Повтор / uuid — тот же ISO. ТЗ/АЗ/открытый ПНК — не куш. */
   useEffect(() => {
@@ -991,9 +1032,10 @@ export function TrainingPage() {
     const nextStatus = resolveTrainingPersistStatus(status, previousStatus)
     const firstCompletion = isTrainingFirstCompletion(previousStatus, nextStatus)
     if (firstCompletion && !silent) {
-      // Уже посчитано при load — повторный listTrainings на слабом планшете душит «Закончить».
       const isFirstCompletion = otherCompletedTrainings === 0
-      const hc = healthCard ?? (await getHealthCard(cid))
+      const freshHc = await getHealthCard(cid)
+      const hc = resolveHealthForTrainingGate(freshHc, healthCard)
+      applyHealthCardRow(hc)
       const blockers = getTrainingCompletionIssues(workoutState, { health: hc, isFirstCompletion })
       if (blockers.length > 0) {
         if (shouldApplyTrainingPersistUi({ currentEpoch: pageEpochRef.current, persistEpoch })) {

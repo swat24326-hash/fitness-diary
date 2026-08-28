@@ -90,7 +90,6 @@ const built = buildTrainingDraftSessionSnapshot({
   trainingType: 'Силовая',
   trainingDate: '2026-08-21',
   client: { id: 'c1', name: 'Иванов' },
-  healthCard: { weight_kg: 80 },
   contra: 'колено',
   membershipSummary: { current: 1, total: 12 },
   otherCompletedTrainings: 2,
@@ -98,6 +97,7 @@ const built = buildTrainingDraftSessionSnapshot({
 })
 ok(built?.meta?.trainingId === 't1', 'build snapshot')
 ok(built?.workoutState?.exercises?.[0]?.name === 'Жим', 'build workout')
+ok(!('healthCard' in (built ?? {})), 'snapshot does not cache health card')
 ok(
   buildTrainingDraftSessionSnapshot({
     loadState: 'ok',

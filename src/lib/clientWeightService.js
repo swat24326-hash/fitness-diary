@@ -1,5 +1,6 @@
 import { todayLocalIso } from './dateRu.js'
 import { saveLocalWithSync, deleteLocalWithSync } from './syncService.js'
+import { dispatchLocalDataChanged } from './localDataEvents.js'
 import { getDb, listSyncQueue } from './localDb.js'
 import { listWeightEntriesByClientId } from './localDbClubQuery.js'
 import {
@@ -226,6 +227,8 @@ export async function saveHealthCardWithWeightFields(clientId, health, formField
     const fresh = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
     await pruneDuplicateBaselineEntries(clientId, fresh, keeper?.id)
   }
+
+  dispatchLocalDataChanged({ reason: 'health-card-saved', client_id: clientId, table_name: 'health_cards' })
 
   return row
 }
