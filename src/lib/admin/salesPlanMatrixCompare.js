@@ -353,6 +353,8 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
  *   year?: number,
  *   month?: number,
  *   hallForecastTargets?: Record<string, number> | null,
+ *   allocatedCellForecasts?: Record<string, number> | null,
+ *   skipHallScaling?: boolean,
  * }} opts
  */
 export function buildPlanMatrixComparison(opts) {
@@ -362,6 +364,8 @@ export function buildPlanMatrixComparison(opts) {
   const year = Number(opts.year)
   const month = Number(opts.month)
   const hasYm = Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12
+  const allocatedCellForecasts = opts.allocatedCellForecasts ?? null
+  const skipHallScaling = opts.skipHallScaling === true || allocatedCellForecasts != null
 
   if (!hasPlanMatrixData(planMatrix)) {
     return {
@@ -415,16 +419,21 @@ export function buildPlanMatrixComparison(opts) {
     const onPace = !isCurrentMonth || factCount + paceSlack >= expectedCount
 
     const amountFc = hasYm
-      ? forecastPlanMatrixCellAmount({
-          monthRows,
-          year,
-          month,
-          cellKey,
-          factAmount,
-          planAmount,
-          category: col,
-          calendar,
-        })
+      ? allocatedCellForecasts?.[cellKey] != null
+        ? {
+            amount: roundPlanRub(Number(allocatedCellForecasts[cellKey]) || 0),
+            method: 'unified_club_pace',
+          }
+        : forecastPlanMatrixCellAmount({
+            monthRows,
+            year,
+            month,
+            cellKey,
+            factAmount,
+            planAmount,
+            category: col,
+            calendar,
+          })
       : {
           amount: forecastPlanMatrixAmountLinear(factAmount, calendar),
           method: 'linear_calendar',
@@ -469,9 +478,16 @@ export function buildPlanMatrixComparison(opts) {
     rows.push(row)
   }
 
-  const scaledRows = scaleMatrixForecastAmountsToHallTargets(rows, opts.hallForecastTargets)
-  if (scaledRows.some((r) => r.forecast?.scaled_to_hall)) {
+  const scaledRows = skipHallScaling
+    ? rows
+    : scaleMatrixForecastAmountsToHallTargets(rows, opts.hallForecastTargets)
+  if (
+    !skipHallScaling &&
+    scaledRows.some((r) => r.forecast?.scaled_to_hall)
+  ) {
     forecastMethod = 'mix_pace_plan_scaled_to_hall'
+  } else if (allocatedCellForecasts) {
+    forecastMethod = 'unified_club_pace'
   }
 
   for (const row of scaledRows) {

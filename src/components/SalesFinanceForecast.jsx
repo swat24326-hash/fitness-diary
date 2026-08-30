@@ -91,16 +91,20 @@ export function SalesFinanceForecast({
     { key: 'expense', label: 'Расход управляющего', kind: 'money', static: true },
   ]
 
-  const trainerPayrollMethod = forecast.payrollPace?.trainer
   const trainerRate = forecast.payrollPace?.trainerRatePerSession
   const trainerPayrollHint =
-    !closedMonth && trainerPayrollMethod === 'payroll_from_projected_tiers'
-      ? `Прогноз ЗП ПЗ: уровни плана к концу месяца + надбавки кабинета${
-          trainerRate != null ? ` · ср. ~${formatRub(trainerRate)}/зан.` : ''
-        }.`
-      : !closedMonth && trainerRate != null
-        ? `Прогноз ЗП ПЗ: темп часов × ср. ${formatRub(trainerRate)}/зан.`
-        : null
+    !closedMonth && trainerRate != null
+      ? `Прогноз ЗП ПЗ: темп часов × ср. ${formatRub(trainerRate)}/зан. (как факт месяца).`
+      : null
+  const trainerTierNote =
+    !closedMonth &&
+    forecast.payrollPace?.trainerTierScenario === 'payroll_from_projected_tiers' &&
+    Number(forecast.payrollPace?.trainerTierScenarioPayroll) >
+      Number(forecast.forecast?.trainerPayroll) + 1000
+      ? `Сценарий уровней плана к концу месяца: ~${formatRub(
+          forecast.payrollPace.trainerTierScenarioRatePerSession,
+        )}/зан. → ${formatRub(forecast.payrollPace.trainerTierScenarioPayroll)} (не в основном прогнозе).`
+      : null
 
   const netProfitRow = { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', primary: true, signed: true }
   const netProfitMarginRow = {
@@ -222,14 +226,25 @@ export function SalesFinanceForecast({
     )
   }
 
-  /** Действие на конец месяца — лаг «сегодня» уже на карточке «Темп», не повторяем. */
-  const formatPaceLabel = (pace, reach) => {
+  /** Действие на конец месяца — лаг «сегодня» уже на карточке «Темп». */
+  const formatPaceLabel = (pace, reach, calendarNorm, planScenarioReach) => {
     if (!pace) return null
     if (pace.mode === 'already_at_plan') return 'Факт уже закрывает план.'
     if (pace.mode === 'no_days_left') {
       return `До плана не хватает ${formatRub(pace.gapRub)} — дней отчёта уже не осталось.`
     }
-    if (reach?.willReach) return 'По прогнозу план выполним — держите темп.'
+    if (reach?.willReach) {
+      if (calendarNorm?.vs === 'behind') {
+        const lag = Math.abs(Number(calendarNorm.lagRub) || 0)
+        return lag > 0
+          ? `По темпу отчётов план достижим, но сегодня отстаём от нормы на ${formatRub(lag)}.`
+          : 'По темпу отчётов план достижим — догоните календарную норму.'
+      }
+      return 'По темпу отчётов план выполним.'
+    }
+    if (planScenarioReach?.willReach && !reach?.willReach) {
+      return `По темпу отчётов не хватает ${formatRub(reach?.gapRub ?? pace.gapRub)} — сценарий плана матрицы оптимистичнее.`
+    }
     if (pace.mode === 'weekday' && pace.perDayRub != null) {
       return `Нужно ~${formatRub(pace.perDayRub)} в будний день · ${pace.remainingWeekdays} буд. осталось`
     }
@@ -242,7 +257,8 @@ export function SalesFinanceForecast({
   const plan = forecast.plan
   const calendarNorm = plan?.calendarNorm
   const reach = plan?.reach
-  const paceLabel = formatPaceLabel(plan?.pace, reach)
+  const planScenarioReach = plan?.planScenarioReach
+  const paceLabel = formatPaceLabel(plan?.pace, reach, calendarNorm, planScenarioReach)
   /** Под прогнозом — ₽ и дыра до плана; «план по прогнозу» не дублируем, если % уже ≥100. */
   const forecastSub =
     reach?.willReach === true
@@ -271,12 +287,10 @@ export function SalesFinanceForecast({
         <p className="sales-finance-forecast__hint">
           {closedMonth
             ? 'Месяц закрыт — цифры по заполненным отчётам. Прогноз строится только в текущем месяце.'
-            : `Темп к норме на сегодня · прогноз на конец месяца${
-                forecast.method === 'mix_and_profit_blend'
-                  ? ' · с учётом матрицы покупок'
-                  : forecast.method === 'weekday_weekend_remaining'
-                    ? ' · будни и выходные отдельно'
-                    : ''
+            : `Темп к норме на сегодня · прогноз = темп отчётов (матрица — та же сумма)${
+                forecast.method === 'weekday_weekend_remaining'
+                  ? ' · будни и выходные отдельно'
+                  : ''
               }`}
         </p>
       </header>
@@ -339,6 +353,16 @@ export function SalesFinanceForecast({
               role="status"
             >
               {paceLabel}
+            </p>
+          ) : null}
+          {!closedMonth &&
+          plan?.planScenarioGross > 0 &&
+          plan?.planScenarioReach?.willReach &&
+          !reach?.willReach ? (
+            <p className="sales-finance-forecast__plan-scenario-note muted" role="note">
+              Сценарий плана матрицы: {plan.planScenarioProgressPercent}% (
+              {formatRub(plan.planScenarioGross)}) — только если выйти на план по ячейкам; основной
+              прогноз — по темпу отчётов.
             </p>
           ) : null}
         </div>
@@ -530,6 +554,11 @@ export function SalesFinanceForecast({
           {trainerPayrollHint ? (
             <p className="sales-finance-forecast__table-footnote" role="note">
               {trainerPayrollHint}
+            </p>
+          ) : null}
+          {trainerTierNote ? (
+            <p className="sales-finance-forecast__table-footnote" role="note">
+              {trainerTierNote}
             </p>
           ) : null}
         </div>

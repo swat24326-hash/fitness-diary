@@ -703,6 +703,7 @@ export function buildClubFinanceForecast(opts) {
     profitPaceGross,
   })
   const forecastGross = purchaseMix.clubBlend.forecastGross
+  const planScenarioGross = purchaseMix.planScenarioGross ?? forecastGross
   const refundsProj = resolveForecastRefunds({
     monthRows,
     year,
@@ -713,7 +714,7 @@ export function buildClubFinanceForecast(opts) {
   const forecastEarnings = roundRub(forecastGross - forecastRefunds)
   const forecastPzTrainings = pzTrainProj.forecastTotal
   const forecastAzTrainings = azTrainProj.forecastTotal
-  const trainerPayFromHours = forecastTrainerMonthPayroll({
+  const trainerTierScenario = forecastTrainerMonthPayroll({
     monthRows,
     membershipTypes: trainerTypes,
     planConfig: opts.planConfig,
@@ -724,13 +725,19 @@ export function buildClubFinanceForecast(opts) {
     factPayroll: trainerPayrollFact,
     fallbackPayroll: trainerPayProj.forecastTotal,
   })
+  const trainerPayFromHours = resolvePayrollFromHoursPace({
+    factHours: pzTrainingsTotal,
+    factPayroll: trainerPayrollFact,
+    forecastHours: forecastPzTrainings,
+    fallbackPayroll: trainerPayProj.forecastTotal,
+  })
+  const forecastTrainerPayroll = trainerPayFromHours.payroll
   const aerobicPayFromHours = resolvePayrollFromHoursPace({
     factHours: azTrainingsTotal,
     factPayroll: aerobicPayrollFact,
     forecastHours: forecastAzTrainings,
     fallbackPayroll: aerobicPayProj.forecastTotal,
   })
-  const forecastTrainerPayroll = trainerPayFromHours.payroll
   const forecastAerobicPayroll = aerobicPayFromHours.payroll
 
   const forecastNetProfit = computeNetProfitWithPayroll(
@@ -742,9 +749,33 @@ export function buildClubFinanceForecast(opts) {
 
   const forecastPlanProgress = planProgressPercent(forecastGross, planLevel3)
   const planReach = describePlanForecastReach(forecastPlanProgress, planLevel3, forecastGross)
+  const planScenarioProgress = planProgressPercent(planScenarioGross, planLevel3)
+  const planScenarioReach = describePlanForecastReach(
+    planScenarioProgress,
+    planLevel3,
+    planScenarioGross,
+  )
   let directionRows = buildDirectionForecastRows(monthRows, year, month, planTargets.directions)
   if (purchaseMix.clubBlend.trusted) {
     directionRows = directionRows.map((dir) => {
+      if (dir.key === 'extra' && dir.mode === 'revenue') {
+        const dopMix = purchaseMix.dop
+        const forecastRevenue = roundRub(dopMix?.forecast)
+        const factRevenue = roundRub(dopMix?.fact)
+        return {
+          ...dir,
+          fact: factRevenue,
+          forecast: forecastRevenue,
+          factProgressPercent: planProgressPercent(factRevenue, dir.planTarget),
+          forecastProgressPercent: planProgressPercent(forecastRevenue, dir.planTarget),
+          reach: describePlanForecastReach(
+            planProgressPercent(forecastRevenue, dir.planTarget),
+            dir.planTarget,
+            forecastRevenue,
+          ),
+          fromPurchaseMix: true,
+        }
+      }
       const mixHall = purchaseMix.byHall?.[dir.key]
       if (!mixHall || dir.mode !== 'revenue' || dir.key === 'extra') return dir
       const forecastRevenue = roundRub(mixHall.forecast)
@@ -797,9 +828,8 @@ export function buildClubFinanceForecast(opts) {
     closedMonth: false,
     reportDays,
     daysInMonth,
-    method: purchaseMix.clubBlend.trusted
-      ? purchaseMix.clubBlend.method
-      : grossProj.method,
+    method: grossProj.method,
+    blendMethod: purchaseMix.clubBlend.method ?? 'unified_profit_pace',
     scale: grossProj.scale,
     dayType: {
       weekdaySamples: grossProj.weekdaySamples,
@@ -813,16 +843,20 @@ export function buildClubFinanceForecast(opts) {
       level3: planLevel3,
       factGross,
       forecastGross,
+      planScenarioGross,
+      profitPaceGross,
       factProgressPercent: factPlanProgress,
       forecastProgressPercent: forecastPlanProgress,
+      planScenarioProgressPercent: planScenarioProgress,
       reach: planReach,
+      planScenarioReach,
       directions: directionRows,
       totals: directionTotals,
       directionLag,
       pace,
       calendarNorm,
       purchaseMix,
-      profitPaceGross,
+      tierScenarioTrainerPayroll: trainerTierScenario.payroll,
     },
     fact: enrichFinanceSnapshotWithNetProfitMargin({
       earnings: factEarnings,
@@ -856,6 +890,9 @@ export function buildClubFinanceForecast(opts) {
       aerobic: aerobicPayFromHours.method,
       trainerRatePerSession: trainerPayFromHours.ratePerSession,
       aerobicRatePerSession: aerobicPayFromHours.ratePerSession,
+      trainerTierScenario: trainerTierScenario.method,
+      trainerTierScenarioPayroll: trainerTierScenario.payroll,
+      trainerTierScenarioRatePerSession: trainerTierScenario.ratePerSession,
     },
     avgPerReportDay: {
       earnings: roundRub(earningsTotal / reportDays),

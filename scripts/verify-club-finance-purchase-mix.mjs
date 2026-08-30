@@ -3,7 +3,6 @@ import {
   blendClubGrossForecast,
   buildPurchaseMixForecast,
   parseMixCellKey,
-  PURCHASE_MIX_BLEND_WEIGHT,
   PURCHASE_MIX_COVERAGE_TRUST,
 } from '../src/lib/admin/clubFinancePurchaseMixForecastCore.js'
 import { planMatrixAvgField, planMatrixCountField } from '../src/lib/admin/salesPlanMatrixCore.js'
@@ -45,23 +44,23 @@ ok(blendDk.method === 'pace_plan_blend_dk', 'blend method dk')
 ok(blendDk.forecast === 330, 'dk blend 0.35*200+0.65*400')
 
 const clubWeak = blendClubGrossForecast({
-  mixForecastGross: 100,
   profitPaceGross: 1000,
+  planScenarioGross: 1100,
   factMixGross: 50,
   factProfitGross: 1000,
 })
-ok(!clubWeak.trusted && clubWeak.method === 'profit_pace', 'low coverage → profit')
+ok(!clubWeak.trusted && clubWeak.method === 'unified_profit_pace', 'low coverage still unified pace')
+ok(clubWeak.forecastGross === 1000, 'forecast = profit pace when low coverage')
 
 const clubOk = blendClubGrossForecast({
-  mixForecastGross: 800,
   profitPaceGross: 1000,
+  planScenarioGross: 1200,
   factMixGross: 600,
   factProfitGross: 1000,
 })
 ok(clubOk.trusted && clubOk.coverage >= PURCHASE_MIX_COVERAGE_TRUST, 'trusted coverage')
-ok(clubOk.mixWeight > PURCHASE_MIX_BLEND_WEIGHT, 'higher coverage → higher mix weight')
-const expected = clubOk.mixWeight * 800 + (1 - clubOk.mixWeight) * 1000
-ok(Math.abs(clubOk.forecastGross - expected) < 0.02, 'club blend weight')
+ok(clubOk.forecastGross === 1000, 'club forecast = profit pace')
+ok(clubOk.planScenarioGross === 1200, 'plan scenario stored separately')
 
 const planForm = {
   [planMatrixCountField('pz_dk')]: '2',
@@ -99,7 +98,8 @@ ok(mix.byCategory.dk.fact === 20000, 'dk fact')
 ok(mix.byHall.pz.plan === 20000, 'pz plan from matrix')
 ok(mix.byHall.tz.plan === 5000, 'tz plan')
 ok(mix.factMixGross === 25000, 'fact mix sum')
-ok(mix.factMatrixGross === 25000 && mix.dop.fact === 0, 'matrix gross without dop')
+ok(mix.mixForecastGross === 40000, 'mix forecast = profit pace passed in')
+ok(Math.abs(mix.clubBlend.forecastGross - 40000) < 0.02, 'club blend = profit pace')
 
 const rowsWithDop = [
   {

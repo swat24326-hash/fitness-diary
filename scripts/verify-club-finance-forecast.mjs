@@ -158,7 +158,7 @@ ok(
   fcPay.forecast.trainerPayroll === Math.round(fcPay.forecast.pzTrainings * 500 * 100) / 100,
   'forecast payroll = hours × rate (tiers equal to session)',
 )
-ok(fcPay.payrollPace?.trainer === 'payroll_from_projected_tiers', 'payroll uses projected tiers')
+ok(fcPay.payrollPace?.trainer === 'payroll_from_hours', 'payroll uses hours pace')
 ok(
   fcPay.forecast.netProfit ===
     fcPay.forecast.earnings - fcPay.forecast.trainerPayroll - fcPay.forecast.expense,
@@ -193,8 +193,10 @@ const fcTier = buildClubFinanceForecast({
 })
 const frozenAvg =
   Math.round(((fcTier.fact.trainerPayroll / fcTier.fact.pzTrainings) * fcTier.forecast.pzTrainings) * 100) / 100
-ok(fcTier.payrollPace?.trainer === 'payroll_from_projected_tiers', 'tier climb uses projected method')
-ok(fcTier.forecast.trainerPayroll > frozenAvg, 'tier climb: forecast ZP > frozen MTD average')
+ok(fcTier.payrollPace?.trainer === 'payroll_from_hours', 'forecast payroll uses hours pace')
+ok(fcTier.payrollPace?.trainerTierScenario === 'payroll_from_projected_tiers', 'tier scenario available')
+ok(fcTier.forecast.trainerPayroll === frozenAvg, 'main forecast uses frozen MTD rate')
+ok(fcTier.payrollPace?.trainerTierScenarioPayroll > frozenAvg, 'tier climb: scenario ZP > frozen MTD average')
 ok(
   fcTier.forecast.netProfit ===
     fcTier.forecast.earnings - fcTier.forecast.trainerPayroll - fcTier.forecast.expense,

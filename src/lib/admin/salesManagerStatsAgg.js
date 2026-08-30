@@ -261,6 +261,8 @@ export function buildSalesManagerMonthStats(opts) {
     plan_az: opts.planDirections?.plan_az != null ? String(opts.planDirections.plan_az) : '',
     plan_extra: opts.planDirections?.plan_extra != null ? String(opts.planDirections.plan_extra) : '',
   }
+  /** @type {Record<string, number> | null} */
+  let allocatedCellForecasts = null
   const clubFc = buildClubFinanceForecast({
     monthRows,
     year,
@@ -281,6 +283,13 @@ export function buildSalesManagerMonthStats(opts) {
       }
     }
     if (!Object.values(hallForecastTargets).some((n) => n > 0)) hallForecastTargets = null
+
+    if (clubFc.plan?.purchaseMix?.cells?.length) {
+      allocatedCellForecasts = {}
+      for (const cell of clubFc.plan.purchaseMix.cells) {
+        if (cell.cellKey) allocatedCellForecasts[cell.cellKey] = Number(cell.forecastRub) || 0
+      }
+    }
   }
 
   const planMatrixComparison = buildPlanMatrixComparison({
@@ -290,6 +299,8 @@ export function buildSalesManagerMonthStats(opts) {
     year,
     month,
     hallForecastTargets,
+    allocatedCellForecasts,
+    skipHallScaling: allocatedCellForecasts != null,
   })
 
   const { start, end } = monthDateRange(year, month)

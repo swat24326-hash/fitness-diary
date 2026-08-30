@@ -11,6 +11,10 @@ import {
 } from './salesReportCore.js'
 import { readPlanMatrixCellFromForm, roundPlanRub } from './salesPlanMatrixCore.js'
 import { projectMonthMetric } from './clubFinanceForecastProjection.js'
+import {
+  alignMatrixCellFactsToClubGross,
+  allocateMatrixForecastsToClubGross,
+} from './clubFinanceMatrixReconcileCore.js'
 
 /** @typedef {'pz'|'tz'|'az'} MixHall */
 /** @typedef {'nk'|'dk'|'uk'} MixCategory */
@@ -98,46 +102,32 @@ export function blendCellForecastWithPlan(opts) {
 }
 
 /**
- * Итоговый gross: смесь матрицы и классического темпа profit.
+ * Клубный прогноз = темп по отчётам (profit pace). Матрица — разложение того же итога.
+ * planScenarioGross — отдельный оптимистичный сценарий «если тянуться к плану ячеек».
+ *
  * @param {{
- *   mixForecastGross: number,
  *   profitPaceGross: number,
+ *   planScenarioGross: number,
  *   factMixGross: number,
  *   factProfitGross: number,
  * }} opts
  */
 export function blendClubGrossForecast(opts) {
-  const mixF = Math.max(0, Number(opts.mixForecastGross) || 0)
   const profitF = Math.max(0, Number(opts.profitPaceGross) || 0)
+  const planScenario = Math.max(profitF, Number(opts.planScenarioGross) || 0)
   const factMix = Math.max(0, Number(opts.factMixGross) || 0)
   const factProfit = Math.max(0, Number(opts.factProfitGross) || 0)
 
   const coverage = factProfit > 0 ? factMix / factProfit : factMix > 0 ? 1 : 0
   const trusted = coverage >= PURCHASE_MIX_COVERAGE_TRUST
 
-  if (!trusted || mixF <= 0) {
-    return {
-      forecastGross: roundPlanRub(profitF),
-      coverage: roundPlanRub(coverage * 100) / 100,
-      trusted: false,
-      method: 'profit_pace',
-      mixWeight: 0,
-    }
-  }
-
-  // Чем полнее заполнены суммы ячеек, тем сильнее матрица в общем прогнозе.
-  const span = Math.max(0.01, 1 - PURCHASE_MIX_COVERAGE_TRUST)
-  const t = Math.min(1, Math.max(0, (coverage - PURCHASE_MIX_COVERAGE_TRUST) / span))
-  const w = roundPlanRub(
-    PURCHASE_MIX_BLEND_WEIGHT + t * (PURCHASE_MIX_BLEND_WEIGHT_MAX - PURCHASE_MIX_BLEND_WEIGHT),
-  )
-  const blended = w * mixF + (1 - w) * profitF
   return {
-    forecastGross: roundPlanRub(blended),
+    forecastGross: roundPlanRub(profitF),
+    planScenarioGross: roundPlanRub(planScenario),
     coverage: roundPlanRub(coverage * 100) / 100,
-    trusted: true,
-    method: 'mix_and_profit_blend',
-    mixWeight: w,
+    trusted,
+    method: 'unified_profit_pace',
+    mixWeight: trusted ? 1 : 0,
   }
 }
 
@@ -203,7 +193,7 @@ export function buildPurchaseMixForecast(input) {
       paceMethod = proj.method
     }
 
-    const blend = closedMonth
+    const planScenario = closedMonth
       ? { forecast: factRub, method: 'closed_month_fact' }
       : blendCellForecastWithPlan({
           fact: factRub,
@@ -222,21 +212,13 @@ export function buildPurchaseMixForecast(input) {
       planRub,
       planCount: planCell.count,
       paceForecast: roundPlanRub(paceForecast),
-      forecastRub: blend.forecast,
-      blendMethod: blend.method,
+      planScenarioRub: planScenario.forecast,
+      planScenarioMethod: planScenario.method,
+      forecastRub: roundPlanRub(paceForecast),
+      blendMethod: 'pace_allocated',
       paceMethod,
     }
     cells.push(cell)
-
-    byHall[parsed.hall].fact = roundPlanRub(byHall[parsed.hall].fact + factRub)
-    byHall[parsed.hall].plan = roundPlanRub(byHall[parsed.hall].plan + planRub)
-    byHall[parsed.hall].forecast = roundPlanRub(byHall[parsed.hall].forecast + blend.forecast)
-
-    byCategory[parsed.category].fact = roundPlanRub(byCategory[parsed.category].fact + factRub)
-    byCategory[parsed.category].plan = roundPlanRub(byCategory[parsed.category].plan + planRub)
-    byCategory[parsed.category].forecast = roundPlanRub(
-      byCategory[parsed.category].forecast + blend.forecast,
-    )
   }
 
   let factDop = 0
@@ -259,22 +241,85 @@ export function buildPurchaseMixForecast(input) {
     dopPaceMethod = dopProj.method
   }
 
-  const factMatrixGross = roundPlanRub(cells.reduce((a, c) => a + c.factRub, 0))
-  const planMixGross = roundPlanRub(cells.reduce((a, c) => a + c.planRub, 0))
-  const mixMatrixForecastGross = roundPlanRub(cells.reduce((a, c) => a + c.forecastRub, 0))
+  const factProfitGross = roundPlanRub(Number(input?.factProfitGross) || 0)
+  const factMatrixGrossRaw = roundPlanRub(cells.reduce((a, c) => a + c.factRub, 0))
+  const profitPaceGross = roundPlanRub(
+    closedMonth
+      ? factProfitGross || roundPlanRub(factMatrixGrossRaw + factDop)
+      : Number(input?.profitPaceGross) || 0,
+  )
+
+  const factAligned = alignMatrixCellFactsToClubGross(cells, factProfitGross, factDop)
+  const alignedCells = factAligned.cells
+  factDop = factAligned.dopFact
+
+  let workingCells = alignedCells
+  let dopAlloc = {
+    fact: factDop,
+    paceForecast: closedMonth ? factDop : dopForecast,
+    forecast: closedMonth ? factDop : dopForecast,
+  }
+
+  if (!closedMonth && profitPaceGross > 0) {
+    const allocated = allocateMatrixForecastsToClubGross({
+      cells: alignedCells,
+      clubForecastGross: profitPaceGross,
+      dopFact: factDop,
+      dopPaceForecast: dopForecast,
+    })
+    workingCells = allocated.cells
+    dopAlloc = allocated.dop
+  } else if (closedMonth) {
+    workingCells = alignedCells.map((c) => ({ ...c, forecastRub: c.factRub }))
+  }
+
+  for (const hall of Object.keys(byHall)) {
+    byHall[hall].fact = 0
+    byHall[hall].plan = 0
+    byHall[hall].forecast = 0
+    byHall[hall].planScenario = 0
+  }
+  for (const cat of Object.keys(byCategory)) {
+    byCategory[cat].fact = 0
+    byCategory[cat].plan = 0
+    byCategory[cat].forecast = 0
+    byCategory[cat].planScenario = 0
+  }
+  for (const c of workingCells) {
+    byHall[c.hall].fact = roundPlanRub(byHall[c.hall].fact + c.factRub)
+    byHall[c.hall].plan = roundPlanRub(byHall[c.hall].plan + c.planRub)
+    byHall[c.hall].forecast = roundPlanRub(byHall[c.hall].forecast + c.forecastRub)
+    byHall[c.hall].planScenario = roundPlanRub(
+      byHall[c.hall].planScenario + (c.planScenarioRub || 0),
+    )
+    byCategory[c.category].fact = roundPlanRub(byCategory[c.category].fact + c.factRub)
+    byCategory[c.category].plan = roundPlanRub(byCategory[c.category].plan + c.planRub)
+    byCategory[c.category].forecast = roundPlanRub(byCategory[c.category].forecast + c.forecastRub)
+    byCategory[c.category].planScenario = roundPlanRub(
+      byCategory[c.category].planScenario + (c.planScenarioRub || 0),
+    )
+  }
+
+  const factMatrixGross = roundPlanRub(workingCells.reduce((a, c) => a + c.factRub, 0))
+  const planMixGross = roundPlanRub(workingCells.reduce((a, c) => a + c.planRub, 0))
+  const mixMatrixForecastGross = roundPlanRub(workingCells.reduce((a, c) => a + c.forecastRub, 0))
+  const planScenarioMatrixGross = roundPlanRub(
+    workingCells.reduce((a, c) => a + (c.planScenarioRub || 0), 0),
+  )
   /** Матрица 3×3 + доп. продажи — покрытие ближе к club gross. */
   const factMixGross = roundPlanRub(factMatrixGross + factDop)
   const mixForecastGross = roundPlanRub(
-    (closedMonth ? factMatrixGross : mixMatrixForecastGross) + (closedMonth ? factDop : dopForecast),
+    closedMonth ? factMixGross : roundPlanRub(mixMatrixForecastGross + dopAlloc.forecast),
+  )
+  const planScenarioGross = roundPlanRub(
+    closedMonth ? factMixGross : roundPlanRub(planScenarioMatrixGross + dopAlloc.forecast),
   )
 
   const clubBlend = blendClubGrossForecast({
-    mixForecastGross,
-    profitPaceGross: closedMonth
-      ? Number(input?.factProfitGross) || factMixGross
-      : Number(input?.profitPaceGross) || mixForecastGross,
+    profitPaceGross,
+    planScenarioGross,
     factMixGross,
-    factProfitGross: Number(input?.factProfitGross) || 0,
+    factProfitGross,
   })
 
   const hallRows = PURCHASE_MIX_HALLS.map((h) => {
@@ -308,7 +353,7 @@ export function buildPurchaseMixForecast(input) {
   return {
     ok: true,
     closedMonth,
-    cells,
+    cells: workingCells,
     byHall,
     byCategory,
     hallRows,
@@ -317,12 +362,16 @@ export function buildPurchaseMixForecast(input) {
     factMatrixGross,
     planMixGross,
     mixForecastGross,
+    planScenarioGross,
     mixMatrixForecastGross: closedMonth ? factMatrixGross : mixMatrixForecastGross,
     dop: {
       fact: factDop,
-      forecast: closedMonth ? factDop : dopForecast,
+      forecast: dopAlloc.forecast,
+      paceForecast: dopAlloc.paceForecast,
       paceMethod: dopPaceMethod,
     },
     clubBlend,
+    factAligned: factAligned.aligned,
+    forecastsReconciled: !closedMonth && profitPaceGross > 0,
   }
 }
