@@ -24,7 +24,7 @@ function ok(cond, msg) {
 }
 
 ok(HOME_GLANCE_CLOUD_MS === 8000, 'home glance cloud = 8s')
-ok(HOME_SALES_GLANCE_MS === 12000, 'sales glance = 12s')
+ok(HOME_SALES_GLANCE_MS === 16000, 'sales glance = 16s')
 ok(
   homeGlanceCloudFailMessage(new Error('timeout')).includes('не отвечает'),
   'timeout → русское сообщение',
@@ -51,6 +51,8 @@ ok(shiftSrc.includes('homeGlanceCloudFailMessage'), 'shift summary: humanize rea
 
 const salesSrc = readFileSync(join(root, 'src/components/admin/AdminHomeSalesPlanGlance.jsx'), 'utf8')
 ok(salesSrc.includes('HOME_SALES_GLANCE_MS'), 'sales glance: HOME_SALES_GLANCE_MS')
+ok(salesSrc.includes('Promise.all'), 'sales glance: bundle + payroll parallel')
+ok(salesSrc.includes('preferApi: true'), 'sales glance: API first (no direct Supabase)')
 
 const dashSrc = readFileSync(join(root, 'src/pages/admin/AdminDashboard.jsx'), 'utf8')
 ok(dashSrc.includes('withHomeGlanceTimeout'), 'dashboard CQ: withHomeGlanceTimeout')

@@ -8,7 +8,7 @@ import { withFastTimeout } from '../supabaseRetry.js'
 export const HOME_GLANCE_CLOUD_MS = 8000
 
 /** Продажи на главной тянут больше данных — чуть шире. */
-export const HOME_SALES_GLANCE_MS = 12000
+export const HOME_SALES_GLANCE_MS = 16000
 
 /**
  * @template T
