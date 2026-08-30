@@ -19,6 +19,7 @@ import {
   forecastPlanMatrixCellAmount,
   forecastPlanMatrixCellCount,
   forecastPlanMatrixCountLinear,
+  forecastCountFromUnifiedAmount,
   scaleMatrixForecastAmountsToHallTargets,
 } from './salesPlanMatrixForecastCore.js'
 
@@ -355,6 +356,8 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
  *   hallForecastTargets?: Record<string, number> | null,
  *   allocatedCellForecasts?: Record<string, number> | null,
  *   skipHallScaling?: boolean,
+ *   clubForecastGross?: number | null,
+ *   dopForecastGross?: number | null,
  * }} opts
  */
 export function buildPlanMatrixComparison(opts) {
@@ -438,19 +441,25 @@ export function buildPlanMatrixComparison(opts) {
           amount: forecastPlanMatrixAmountLinear(factAmount, calendar),
           method: 'linear_calendar',
         }
-    const countFc = hasYm
-      ? forecastPlanMatrixCellCount({
-          monthRows,
-          year,
-          month,
-          cellKey,
-          factCount,
-          calendar,
-        })
-      : {
-          count: forecastPlanMatrixCountLinear(factCount, calendar),
-          method: 'linear_calendar',
-        }
+    const unifiedCount =
+      amountFc.method === 'unified_club_pace'
+        ? forecastCountFromUnifiedAmount(amountFc.amount, factCount, factAmount, planAvg)
+        : null
+    const countFc = unifiedCount
+      ? unifiedCount
+      : hasYm
+        ? forecastPlanMatrixCellCount({
+            monthRows,
+            year,
+            month,
+            cellKey,
+            factCount,
+            calendar,
+          })
+        : {
+            count: forecastPlanMatrixCountLinear(factCount, calendar),
+            method: 'linear_calendar',
+          }
 
     const forecastCount = countFc.count
     const forecastAmount = amountFc.amount
@@ -536,6 +545,29 @@ export function buildPlanMatrixComparison(opts) {
   const statusLag = scaledRows.filter((r) => r.status?.status === 'lag').length
   const statusMuted = scaledRows.filter((r) => r.status?.status === 'muted').length
 
+  const totals = scaledRows.reduce(
+    (acc, row) => {
+      acc.planAmount = roundPlanRub(acc.planAmount + (Number(row.plan?.amount) || 0))
+      acc.factAmount = roundPlanRub(acc.factAmount + (Number(row.fact?.amount) || 0))
+      acc.forecastAmount = roundPlanRub(acc.forecastAmount + (Number(row.forecast?.amount) || 0))
+      acc.planCount += Math.trunc(Number(row.plan?.count) || 0)
+      acc.factCount += Math.trunc(Number(row.fact?.count) || 0)
+      acc.forecastCount += Math.trunc(Number(row.forecast?.count) || 0)
+      return acc
+    },
+    {
+      planAmount: 0,
+      factAmount: 0,
+      forecastAmount: 0,
+      planCount: 0,
+      factCount: 0,
+      forecastCount: 0,
+    },
+  )
+  const clubForecastGross = roundPlanRub(Number(opts.clubForecastGross) || 0)
+  const dopForecastGross = roundPlanRub(Number(opts.dopForecastGross) || 0)
+  const matrixPlusDop = roundPlanRub(totals.forecastAmount + dopForecastGross)
+
   return {
     has_plan_matrix: true,
     rows: scaledRows,
@@ -551,5 +583,12 @@ export function buildPlanMatrixComparison(opts) {
     },
     calendar_elapsed_pct: elapsedPct,
     forecast_method: forecastMethod,
+    totals,
+    club_forecast_gross: clubForecastGross > 0 ? clubForecastGross : null,
+    dop_forecast_gross: dopForecastGross > 0 ? dopForecastGross : null,
+    unified_forecast:
+      forecastMethod === 'unified_club_pace' && clubForecastGross > 0
+        ? Math.abs(matrixPlusDop - clubForecastGross) < 0.5
+        : null,
   }
 }

@@ -111,16 +111,34 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
         </div>
           {elapsedPct > 0 && elapsedPct < 100 ? (
           <p className="sales-report__plan-compare-forecast-hint">
-            Статус — по сумме и прогнозу к концу месяца. Рядом красным — где отстаём: количество абонементов,
-            средний чек, прогноз (с цифрами). Прогноз ₽: темп будни/выходные + тяга к плану сегмента (ДК сильнее),
-            сумма по залу = таблице направлений
-            {elapsedPct > 0
-              ? ` · календарь для темпа объёма: ${
-                  Number.isInteger(elapsedPct)
-                    ? Math.round(elapsedPct)
-                    : String(Math.round(elapsedPct * 10) / 10).replace('.', ',')
-                }%`
-              : ''}
+            {comparison.forecast_method === 'unified_club_pace' ? (
+              <>
+                Прогноз ₽ и шт — разложение <strong>того же</strong> клубного прогноза (темп отчётов). % в
+                строке — к плану <em>сегмента</em>, не к финалу клуба.
+                {comparison.club_forecast_gross != null ? (
+                  <>
+                    {' '}
+                    Сегменты {formatRub(comparison.totals?.forecastAmount ?? 0)}
+                    {Number(comparison.dop_forecast_gross) > 0
+                      ? ` + доп. ${formatRub(comparison.dop_forecast_gross)}`
+                      : ''}{' '}
+                    = {formatRub(comparison.club_forecast_gross)} (карточка «Прогноз»).
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <>
+                Статус — по сумме и прогнозу к концу месяца. Прогноз ₽: темп будни/выходные + тяга к плану
+                сегмента (ДК сильнее).
+                {elapsedPct > 0
+                  ? ` · календарь: ${
+                      Number.isInteger(elapsedPct)
+                        ? Math.round(elapsedPct)
+                        : String(Math.round(elapsedPct * 10) / 10).replace('.', ',')
+                    }%`
+                  : ''}
+              </>
+            )}
             .
           </p>
         ) : null}
@@ -302,6 +320,27 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
               )
             })}
           </tbody>
+          {comparison.totals ? (
+            <tfoot>
+              <tr className="sales-report__compare-row sales-report__compare-row--total">
+                <th scope="row">Итого сегменты</th>
+                <td />
+                <td className="sales-report__compare-num">{comparison.totals.planCount}</td>
+                <td className="sales-report__compare-num">{comparison.totals.factCount}</td>
+                <td colSpan={2} />
+                <td colSpan={3} />
+                <td className="sales-report__compare-money">{formatRub(comparison.totals.planAmount)}</td>
+                <td className="sales-report__compare-money">{formatRub(comparison.totals.factAmount)}</td>
+                <td className="sales-report__compare-num sales-report__compare-forecast">
+                  {comparison.totals.forecastCount}
+                </td>
+                <td className="sales-report__compare-money sales-report__compare-forecast">
+                  {formatRub(comparison.totals.forecastAmount)}
+                </td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
       </div>
     </div>

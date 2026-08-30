@@ -263,6 +263,8 @@ export function buildSalesManagerMonthStats(opts) {
   }
   /** @type {Record<string, number> | null} */
   let allocatedCellForecasts = null
+  let clubForecastGross = null
+  let dopForecastGross = null
   const clubFc = buildClubFinanceForecast({
     monthRows,
     year,
@@ -276,6 +278,8 @@ export function buildSalesManagerMonthStats(opts) {
     today: opts.today,
   })
   if (clubFc.ok) {
+    clubForecastGross = Number(clubFc.plan?.forecastGross) || null
+    dopForecastGross = Number(clubFc.plan?.purchaseMix?.dop?.forecast) || null
     hallForecastTargets = {}
     for (const dir of clubFc.plan?.directions ?? []) {
       if ((dir.key === 'pz' || dir.key === 'tz' || dir.key === 'az') && Number(dir.forecast) > 0) {
@@ -301,6 +305,8 @@ export function buildSalesManagerMonthStats(opts) {
     hallForecastTargets,
     allocatedCellForecasts,
     skipHallScaling: allocatedCellForecasts != null,
+    clubForecastGross,
+    dopForecastGross,
   })
 
   const { start, end } = monthDateRange(year, month)

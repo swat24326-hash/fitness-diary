@@ -227,7 +227,7 @@ export function SalesFinanceForecast({
   }
 
   /** Действие на конец месяца — лаг «сегодня» уже на карточке «Темп». */
-  const formatPaceLabel = (pace, reach, calendarNorm, planScenarioReach) => {
+  const formatPaceLabel = (pace, reach, calendarNorm) => {
     if (!pace) return null
     if (pace.mode === 'already_at_plan') return 'Факт уже закрывает план.'
     if (pace.mode === 'no_days_left') {
@@ -242,8 +242,15 @@ export function SalesFinanceForecast({
       }
       return 'По темпу отчётов план выполним.'
     }
-    if (planScenarioReach?.willReach && !reach?.willReach) {
-      return `По темпу отчётов не хватает ${formatRub(reach?.gapRub ?? pace.gapRub)} — сценарий плана матрицы оптимистичнее.`
+    const gapRub = Number(reach?.gapRub ?? pace.gapRub) || 0
+    if (gapRub > 0) {
+      if (pace.mode === 'weekday' && pace.perDayRub != null) {
+        return `До плана не хватает ${formatRub(gapRub)} · нужно ~${formatRub(pace.perDayRub)} в будний день (${pace.remainingWeekdays} ост.)`
+      }
+      if (pace.perDayRub != null) {
+        return `До плана не хватает ${formatRub(gapRub)} · нужно ~${formatRub(pace.perDayRub)} в день (${pace.remainingDays} ост.)`
+      }
+      return `До плана не хватает ${formatRub(gapRub)}.`
     }
     if (pace.mode === 'weekday' && pace.perDayRub != null) {
       return `Нужно ~${formatRub(pace.perDayRub)} в будний день · ${pace.remainingWeekdays} буд. осталось`
@@ -257,8 +264,7 @@ export function SalesFinanceForecast({
   const plan = forecast.plan
   const calendarNorm = plan?.calendarNorm
   const reach = plan?.reach
-  const planScenarioReach = plan?.planScenarioReach
-  const paceLabel = formatPaceLabel(plan?.pace, reach, calendarNorm, planScenarioReach)
+  const paceLabel = formatPaceLabel(plan?.pace, reach, calendarNorm)
   /** Под прогнозом — ₽ и дыра до плана; «план по прогнозу» не дублируем, если % уже ≥100. */
   const forecastSub =
     reach?.willReach === true
@@ -353,16 +359,6 @@ export function SalesFinanceForecast({
               role="status"
             >
               {paceLabel}
-            </p>
-          ) : null}
-          {!closedMonth &&
-          plan?.planScenarioGross > 0 &&
-          plan?.planScenarioReach?.willReach &&
-          !reach?.willReach ? (
-            <p className="sales-finance-forecast__plan-scenario-note muted" role="note">
-              Сценарий плана матрицы: {plan.planScenarioProgressPercent}% (
-              {formatRub(plan.planScenarioGross)}) — только если выйти на план по ячейкам; основной
-              прогноз — по темпу отчётов.
             </p>
           ) : null}
         </div>

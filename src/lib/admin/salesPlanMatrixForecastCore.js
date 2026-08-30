@@ -127,6 +127,29 @@ export function forecastPlanMatrixCellCount(opts) {
 }
 
 /**
+ * Шт. из единого прогноза ₽ (тот же контур, что карточка клуба).
+ * @param {number} amount
+ * @param {number} factCount
+ * @param {number} factAmount
+ * @param {number} planAvg
+ */
+export function forecastCountFromUnifiedAmount(amount, factCount, factAmount, planAvg) {
+  const amt = roundPlanRub(amount)
+  const fact = Math.trunc(Number(factCount) || 0)
+  const avg =
+    fact > 0 && factAmount > 0
+      ? roundPlanRub(factAmount / fact)
+      : roundPlanRub(Number(planAvg) || 0)
+  if (avg > 0 && amt > 0) {
+    return {
+      count: Math.max(fact, Math.round(amt / avg)),
+      method: 'unified_club_pace',
+    }
+  }
+  return null
+}
+
+/**
  * Растянуть прогнозы ₽ ячеек зала так, чтобы сумма = цель зала (как в таблице направлений).
  * @param {Array<{ hall?: string, fact?: { amount?: number }, forecast?: { amount?: number } }>} rows
  * @param {Record<string, number> | null | undefined} hallTargets
