@@ -157,6 +157,16 @@ ok(/resolveHeaderSyncForceFromCloud\(flush\?\.ok\)/.test(read('src/components/us
   ok(/archivedClients\.length === 0/.test(clientsPage), '9f Clients: recover Active 0 + Archive N')
 }
 
+{
+  const page = read('src/pages/trainer/TrainingPage.jsx')
+  const tabCore = read('src/lib/trainingDraftTabSwitchCore.js')
+  ok(/flushLeavingDraftSync/.test(page), '10a tab switch: sync flush before UI swap')
+  ok(/pendingLeavingTabFlushRef/.test(page), '10b tab switch: IDB flush even on session cache hit')
+  ok(/putLeavingDraftSessionOnTabSwitch/.test(tabCore), '10c tab switch core: sync session put')
+  ok(/persistTrainingId/.test(page), '10d tab switch: persist explicit leaving id')
+  ok(/buildLeavingDraftSessionSnapshot/.test(page), '10e tab switch: live ref snapshot')
+}
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

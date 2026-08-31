@@ -63,6 +63,10 @@ ok(
 ok(shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'b', metaTrainingId: 'a' }), 'block mismatched silent')
 ok(!shouldBlockMismatchedDraftPersist({ silent: false, routeId: 'b', metaTrainingId: 'a' }), 'allow explicit save check elsewhere')
 ok(!shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'a', metaTrainingId: 'a' }), 'aligned silent ok')
+ok(
+  shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'draft-a', metaTrainingId: '' }),
+  'block silent while meta hydrating existing route',
+)
 
 ok(!putTrainingDraftSession('new', { ready: true, meta: { trainingId: 'new' } }), 'reject new key')
 ok(!isTrainingDraftSessionSnapshotReady(null), 'ready null')

@@ -40,6 +40,7 @@ import {
   shouldClearDurableAfterIdbSave,
 } from '../../lib/trainingDraftDurableCore.js'
 import { pickTrainingDraftRestore, workoutDraftContentScore } from '../../lib/trainingDraftRestoreCore.js'
+import { buildLeavingDraftSessionSnapshot, putLeavingDraftSessionOnTabSwitch } from '../../lib/trainingDraftTabSwitchCore.js'
 import { clearTrainingDraftArtifacts, canPersistTrainingDraft, isTrainingDraftLocallyDeleted } from '../../lib/trainingDraftCleanup.js'
 import {
   clearTrainingDraftDurable,
@@ -194,6 +195,8 @@ export function TrainingPage() {
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
   const autosaveTimerRef = useRef(null)
   const draftTrainingIdRef = useRef(null)
+  /** ID вкладки, с которой ушли в layout — дожим IDB в load даже при session cache hit. */
+  const pendingLeavingTabFlushRef = useRef(null)
   /** Смена вкладки черновика: устаревший load/persist не пишет в чужой экран. */
   const pageEpochRef = useRef(0)
   /** Временный id буфера пульса до первого сохранения /workouts/new */
@@ -288,6 +291,53 @@ export function TrainingPage() {
     await writeDurableFromLiveGuarded(liveDraftRef.current)
   }, [writeDurableFromLiveGuarded])
 
+  /** Синхронно: session + durable до смены UI (layout не ждёт async). */
+  const flushLeavingDraftSync = useCallback(
+    (leavingId) => {
+      const tid = String(leavingId ?? '').trim()
+      if (!tid) return false
+      const ctx = { live: liveDraftRef.current, gate: draftSessionGateRef.current }
+      const ok = putLeavingDraftSessionOnTabSwitch(tid, ctx)
+      const live = liveDraftRef.current
+      if (String(live?.meta?.trainingId ?? '').trim() === tid) {
+        writeDurableFromLive(live)
+      }
+      return ok
+    },
+    [writeDurableFromLive],
+  )
+
+  /** Перед сменой вкладки: session + durable из live ref (gate может отставать на кадр). */
+  const flushLeavingDraftOnTabSwitch = useCallback(
+    async (leavingId) => {
+      const tid = String(leavingId ?? '').trim()
+      if (!tid) return
+      if (!(await canPersistTrainingDraft(tid))) return
+      const snap = buildLeavingDraftSessionSnapshot(tid, {
+        live: liveDraftRef.current,
+        gate: draftSessionGateRef.current,
+      })
+      if (snap && isTrainingDraftSessionSnapshotReady(snap, tid)) {
+        putTrainingDraftSession(tid, snap)
+      }
+      const live = liveDraftRef.current
+      const liveTid = String(live?.meta?.trainingId ?? '').trim()
+      if (liveTid === tid) {
+        writeDurableFromLive(live)
+        const persistFn = persistRef.current
+        if (typeof persistFn === 'function' && String(live?.loadState ?? '') === 'ok') {
+          void persistFn('draft', {
+            silent: true,
+            skipNavigate: true,
+            fromHide: true,
+            persistTrainingId: tid,
+          })
+        }
+      }
+    },
+    [writeDurableFromLive],
+  )
+
   const onHideFlush = useCallback((_live) => {
     flushDraftSnapshotOnLeave()
     userEditedRef.current = true
@@ -370,8 +420,10 @@ export function TrainingPage() {
     if (isNew && isAdmin) return
 
     const outgoing = draftSessionGateRef.current
-    if (outgoing?.id && outgoing.id !== id && isTrainingDraftSessionSnapshotReady(outgoing.snap, outgoing.id)) {
-      putTrainingDraftSession(outgoing.id, outgoing.snap)
+    if (outgoing?.id && outgoing.id !== id) {
+      flushLeavingDraftSync(outgoing.id)
+      pendingLeavingTabFlushRef.current = outgoing.id
+      void flushLeavingDraftOnTabSwitch(outgoing.id)
     }
 
     if (isNew || !id || id === 'new') {
@@ -404,7 +456,7 @@ export function TrainingPage() {
     }
     applyDraftSessionSnapshot(cached)
     bumpHydrateVersion((v) => v + 1)
-  }, [id, clientIdParam, isNew, isAdmin, user?.id, applyDraftSessionSnapshot])
+  }, [id, clientIdParam, isNew, isAdmin, user?.id, applyDraftSessionSnapshot, flushLeavingDraftOnTabSwitch, flushLeavingDraftSync])
 
   // Пока на вкладке — держим свежий снимок (последний кейстрок уйдёт в LRU при уходе).
   useLayoutEffect(() => {
@@ -466,6 +518,12 @@ export function TrainingPage() {
       clearTimeout(autosaveUiTimerRef.current)
       autosaveUiTimerRef.current = null
     }
+
+    const leavingId = pendingLeavingTabFlushRef.current
+    if (leavingId && String(leavingId) !== String(id ?? '')) {
+      await flushLeavingDraftOnTabSwitch(leavingId)
+    }
+    pendingLeavingTabFlushRef.current = null
 
     // Layout уже восстановил вкладку из LRU — не затираем IDB-load'ом.
     const cacheHit = sessionCacheHitRef.current
@@ -562,8 +620,10 @@ export function TrainingPage() {
     }
 
     const outgoing = draftSessionGateRef.current
-    if (outgoing?.id && outgoing.id !== id && isTrainingDraftSessionSnapshotReady(outgoing.snap, outgoing.id)) {
-      putTrainingDraftSession(outgoing.id, outgoing.snap)
+    if (outgoing?.id && outgoing.id !== id) {
+      flushLeavingDraftSync(outgoing.id)
+      pendingLeavingTabFlushRef.current = outgoing.id
+      await flushLeavingDraftOnTabSwitch(outgoing.id)
     }
 
     const epoch = pageEpochRef.current + 1
@@ -868,7 +928,7 @@ export function TrainingPage() {
         void persistRef.current?.('draft', { silent: true, skipNavigate: true })
       }, 80)
     }
-  }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot, nav, search, workoutsBase, refreshHealthCardFromDb])
+  }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot, nav, search, workoutsBase, refreshHealthCardFromDb, flushLeavingDraftOnTabSwitch, flushLeavingDraftSync])
 
   useEffect(() => {
     if (isNew && isAdmin) return
@@ -922,6 +982,7 @@ export function TrainingPage() {
     const silent = opts.silent === true
     const skipNavigate = opts.skipNavigate === true
     const fromHide = opts.fromHide === true
+    const persistTrainingIdOverride = String(opts.persistTrainingId ?? '').trim()
     const persistEpoch = pageEpochRef.current
     // Silent / hide: всегда актуальный снимок из ref (не stale closure от debounce/effect).
     const live = liveDraftRef.current
@@ -964,7 +1025,7 @@ export function TrainingPage() {
     if (
       shouldBlockMismatchedDraftPersist({
         silent,
-        routeId: id,
+        routeId: persistTrainingIdOverride || id,
         metaTrainingId: metaLive.trainingId,
       })
     ) {
@@ -976,7 +1037,7 @@ export function TrainingPage() {
       return
     }
     let trainingId = resolveTrainingPersistTargetId({
-      routeId: id,
+      routeId: persistTrainingIdOverride || id,
       metaTrainingId: metaLive.trainingId,
       draftRefId: draftTrainingIdRef.current,
     })

@@ -191,6 +191,8 @@ export function shouldBlockMismatchedDraftPersist(opts = {}) {
   if (!opts.silent) return false
   const routeId = String(opts.routeId ?? '').trim()
   const metaId = String(opts.metaTrainingId ?? '').trim()
-  if (!routeId || routeId === 'new' || !metaId) return false
+  if (!routeId || routeId === 'new') return false
+  // Существующий URL, meta ещё не подтянули — не писать пустой черновик в IDB.
+  if (!metaId) return true
   return routeId !== metaId
 }
