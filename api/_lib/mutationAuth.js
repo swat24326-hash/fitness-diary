@@ -39,7 +39,7 @@ async function getClientManagerDeleteCtx(supabaseAdmin, clientId) {
     supabaseAdmin
       .from('memberships')
       .select(
-        'id, client_id, hall, start_date, end_date, total_trainings, used_trainings, membership_type_id, is_pnk',
+        'id, client_id, hall, start_date, end_date, total_trainings, used_trainings, membership_type_id',
       )
       .eq('client_id', id),
     supabaseAdmin
