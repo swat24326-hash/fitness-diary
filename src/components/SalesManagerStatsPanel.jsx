@@ -261,6 +261,7 @@ export function SalesManagerStatsPanel({
           <h3 className="sales-report__stats-block-title">Тренировки в аэробном зале</h3>
           <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
             Нажмите на число — расшифровка по дням.
+            {showPayroll ? ' ЗП — количество × ставка типа из «Типы абон.» (АЗ).' : ''}
           </p>
           <div className="table-wrap admin-mem-type-table-wrap">
             <table className="admin-mem-type-table">
@@ -307,6 +308,21 @@ export function SalesManagerStatsPanel({
                     </button>
                   </td>
                 </tr>
+                {showPayroll ? (
+                  <tr className="admin-mem-type-table__club-row">
+                    <th className="admin-mem-type-table__trainer-col" scope="row">
+                      ЗП
+                    </th>
+                    {aerobicStats.byType.map((row) => (
+                      <td key={row.typeId} className="admin-mem-type-table__num sales-trainings-matrix__pay-col">
+                        {(row.payroll ?? 0) > 0 ? formatRub(row.payroll) : '—'}
+                      </td>
+                    ))}
+                    <td className="admin-mem-type-table__num admin-mem-type-table__sum-col sales-trainings-matrix__pay-col">
+                      <strong>{formatRub(aerobicStats.payrollTotal ?? summary.aerobicPayroll ?? 0)}</strong>
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>

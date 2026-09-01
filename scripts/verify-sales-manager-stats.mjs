@@ -78,6 +78,33 @@ ok(stats.hallFinance?.pz?.netProfit === 80000 - 1000, 'pz net profit revenue min
 ok(stats.hallFinance?.tz?.revenue === 40000, 'tz revenue from matrix amounts')
 ok(stats.hallFinance?.az?.netProfit === stats.hallFinance?.az?.revenue - (stats.summary.aerobicPayroll ?? 0), 'az net profit')
 ok(stats.aerobicStats?.total === 0, 'aerobic stats total from matrix')
+
+const statsWithAz = buildSalesManagerMonthStats({
+  monthRows: [
+    {
+      report_date: '2026-06-01',
+      aerobic_sales_matrix: [
+        { membership_type_id: 'az1', count: 10 },
+        { membership_type_id: 'az2', count: 4 },
+      ],
+    },
+    {
+      report_date: '2026-06-02',
+      aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 2 }],
+    },
+  ],
+  planLevels: { level1: 1_000_000, level2: 1_100_000, level3: 1_200_000 },
+  planDirections: {},
+  membershipTypes: [
+    { id: 'az1', code: 'Бокс', trainer_assignable: false, aerobic_pay_amount: 500 },
+    { id: 'az2', code: 'Йога', trainer_assignable: false, aerobic_pay_amount: 300 },
+  ],
+  year: 2026,
+  month: 6,
+})
+ok(statsWithAz.aerobicStats?.total === 16, 'aerobic stats count month')
+ok(statsWithAz.aerobicStats?.payrollTotal === 7200, 'aerobic stats payroll month')
+ok(statsWithAz.aerobicStats?.byType?.find((x) => x.typeId === 'az1')?.payroll === 6000, 'aerobic payroll by type')
 ok(stats.summary.pnkTotal === 4, 'pnk total')
 ok(stats.summary.dayCount === 2, 'reported days count')
 ok(stats.summary.daysInMonth === 30, 'days in june')

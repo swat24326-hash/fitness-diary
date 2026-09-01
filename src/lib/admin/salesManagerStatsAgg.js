@@ -227,10 +227,11 @@ export function buildSalesManagerMonthStats(opts) {
         }
       : undefined,
   ).clubTotal
-  const aerobicPayrollTotal = aggregateAerobicPayrollFromDailyRows(
+  const aerobicPayroll = aggregateAerobicPayrollFromDailyRows(
     monthRows,
     buildAerobicPayRateMap(aerobicTypes),
-  ).clubTotal
+  )
+  const aerobicPayrollTotal = aerobicPayroll.clubTotal
 
   const dopRubTotal = sumDopRubFromDailyRows(monthRows)
   const structure = buildCategoryStructure(summary, dopRubTotal)
@@ -244,7 +245,18 @@ export function buildSalesManagerMonthStats(opts) {
     trainerPayrollTotal,
     aerobicPayrollTotal,
   )
-  const aerobicStats = aggregateAerobicSalesFromDailyRows(monthRows, aerobicTypes)
+  const aerobicStatsRaw = aggregateAerobicSalesFromDailyRows(monthRows, aerobicTypes)
+  const aerobicPayByTypeId = new Map(
+    (aerobicPayroll.byType ?? []).map((line) => [line.typeId, line.amount]),
+  )
+  const aerobicStats = {
+    ...aerobicStatsRaw,
+    payrollTotal: aerobicPayrollTotal,
+    byType: aerobicStatsRaw.byType.map((row) => ({
+      ...row,
+      payroll: aerobicPayByTypeId.get(row.typeId) ?? 0,
+    })),
+  }
 
   const calendarContext = buildGeminiMonthCalendarContext(year, month, opts.today ?? new Date())
 
