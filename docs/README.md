@@ -18,7 +18,8 @@
 | [DEPLOY.md](./DEPLOY.md) | Первый выклад в интернет (полная инструкция) |
 | [SUPABASE_FIRST_DEPLOY.md](./SUPABASE_FIRST_DEPLOY.md) | Краткая шпаргалка: env + schema + RLS |
 | [RELEASE.md](./RELEASE.md) | Чеклист перед merge и prod-деплоем |
-| [RUNBOOK.md](./RUNBOOK.md) | Типовые инциденты: sync, PWA, клубы ≠ облако, статистика |
+| [RUNBOOK.md](./RUNBOOK.md) | **Что делать сейчас:** sync, PWA, клубы ≠ облако (процедуры) |
+| [INCIDENTS.md](./INCIDENTS.md) | **Журнал кейсов:** контуры (зал / админ / продажи / связь / инфра) + коды A–Q; ведёт агент по чату |
 | [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Auth, RLS, `users.id` перед крупным клубом |
 | [PUSH_SETUP.md](./PUSH_SETUP.md) | Web Push / VAPID (планёрка, задания) |
 | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) | Клубные SMS и звонки «Мои Звонки»: **в проде** + журнал связи (список/сводка/SMS) |
@@ -111,10 +112,11 @@
 Правило агента и DoD: **`.cursor/rules/fitness-diary-docs.mdc`**.
 
 1. **Фича shipped** → статус в соответствующем doc + при заметном UX — `CHANGELOG.md`.
-2. **Новый инцидент на проде** → § в [RUNBOOK.md](./RUNBOOK.md).
-3. **Смена архитектуры / ролей / API** → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) и API/SYNC/DATA_MODEL.
-4. **Новый endpoint / action** → [API.md](./API.md).
-5. **Новая таблица sync** → [SYNC.md](./SYNC.md) + [DATA_MODEL.md](./DATA_MODEL.md).
-6. **Новый doc** → строка в этот README.
+2. **Жалоба / баг / повтор** → [INCIDENTS.md](./INCIDENTS.md) (контур + код, INC-*); агент — `fitness-diary-incidents.mdc`.
+3. **Новая инструкция для зала** (как действовать при симптоме) → § в [RUNBOOK.md](./RUNBOOK.md), не история кейса.
+4. **Смена архитектуры / ролей / API** → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) и API/SYNC/DATA_MODEL.
+5. **Новый endpoint / action** → [API.md](./API.md).
+6. **Новая таблица sync** → [SYNC.md](./SYNC.md) + [DATA_MODEL.md](./DATA_MODEL.md).
+7. **Новый doc** → строка в этот README.
 
 Правила кода: `.cursor/rules/fitness-diary-architecture.mdc`, `fitness-diary-ship.mdc`.

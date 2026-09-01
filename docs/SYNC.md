@@ -1,6 +1,6 @@
 # Sync — очередь, flush, pull
 
-**Актуально:** 2026-08-26. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
+**Актуально:** 2026-08-26. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [INCIDENTS.md](./INCIDENTS.md) (**C**), [RUNBOOK.md](./RUNBOOK.md).
 
 ---
 

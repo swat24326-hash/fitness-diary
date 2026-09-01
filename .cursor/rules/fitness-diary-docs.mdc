@@ -32,6 +32,8 @@ alwaysApply: true
 | Фича shipped / статус roadmap | соответствующий `docs/*.md` + честный статус |
 | Новый файл в `docs/` | строка в `docs/README.md` |
 | Заметный UX для зала | 1–3 пункта в `CHANGELOG.md` |
+| Жалоба / баг / повтор на проде | `docs/INCIDENTS.md` (контур + код A–Q, INC-*) — правило `fitness-diary-incidents.mdc` |
+| Новая операционная инструкция для клуба | `docs/RUNBOOK.md` (не дублировать историю кейсов) |
 | How-to для ИСКРЫ | статья в JS KB (+ md-копия) |
 
 Мелкий стиль CSS без смены поведения — docs не трогать.
