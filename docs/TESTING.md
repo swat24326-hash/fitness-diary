@@ -12,6 +12,7 @@
 | `npm run qa:critical` | Критический контур зала+админки (без полного каталога) | После sync/абон/главная/клиенты; план — [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
 | `npm run qa:local` | build + **список** verify из `scripts/agent-qa.mjs` + lint, без prod smoke | Sync, статистика, абонементы, API agg, форматы упражнений, офлайн |
 | `node scripts/verify-security-l1-audit.mjs` | L1: admin-email, push IDOR, pull-guard pnk/clips, порядок debit | После правок auth/push/sync; в `agent-qa` |
+| `node scripts/verify-code-trace.mjs` | Пути и verify из [CODE_TRACE.md](./CODE_TRACE.md) (A–Q) | После правки CODE_TRACE / критических модулей |
 | `npm run qa` | как local + prod smoke | Перед релизом / по CI weekly |
 | `npm run qa:deep` | Углублённый прогон (`deep-qa.mjs`) | Перед крупным релизом / аудит |
 | `npm run qa:roles` / `qa:roles:browser` | Ролевые сценарии | Смена ролей / auth |
