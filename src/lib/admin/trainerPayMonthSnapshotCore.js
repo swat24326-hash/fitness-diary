@@ -3,6 +3,7 @@
  */
 
 import { calendarMonthRelation } from './clubFinanceForecastCore.js'
+import { parseAerobicPayRate } from './aerobicPayrollCore.js'
 import { normalizeTrainerPayPlanConfig } from './trainerPayPlanCore.js'
 import {
   indexTrainerPayProfilesByTrainerId,
@@ -17,7 +18,7 @@ import { resolveTrainerPayTiers, membershipTypeCountsTowardPayPlan } from './tra
 export function slimMembershipTypeForPaySnapshot(row) {
   const tiers = resolveTrainerPayTiers(row)
   const id = String(row?.id ?? '').trim()
-  return {
+  const slim = {
     id,
     code: String(row?.code ?? '').trim(),
     trainer_pay_per_session: tiers.l1,
@@ -27,6 +28,11 @@ export function slimMembershipTypeForPaySnapshot(row) {
     trainer_assignable: row?.trainer_assignable !== false,
     counts_toward_pay_plan: membershipTypeCountsTowardPayPlan(row),
   }
+  if (row?.trainer_assignable === false && row?.aerobic_pay_amount != null && row?.aerobic_pay_amount !== '') {
+    const aerobicParsed = parseAerobicPayRate(row.aerobic_pay_amount)
+    slim.aerobic_pay_amount = Number.isNaN(aerobicParsed) ? 0 : aerobicParsed
+  }
+  return slim
 }
 
 /**
@@ -78,6 +84,27 @@ export function normalizePayMonthSnapshotPayload(raw) {
  */
 export function shouldFreezePayMonth(year, month, today = new Date()) {
   return calendarMonthRelation(year, month, today) === -1
+}
+
+/**
+ * Снимки до fix не хранили aerobic_pay_amount — подставляем из live для типов АЗ.
+ * @param {Array<object>} frozenTypes
+ * @param {Array<object>} [liveTypes]
+ */
+export function enrichPaySnapshotMembershipTypesForAerobic(frozenTypes, liveTypes) {
+  if (!Array.isArray(frozenTypes) || !frozenTypes.length) return frozenTypes ?? []
+  const liveById = new Map((liveTypes ?? []).map((t) => [String(t?.id ?? '').trim(), t]))
+  return frozenTypes.map((ft) => {
+    if (ft?.trainer_assignable !== false) return ft
+    const id = String(ft?.id ?? '').trim()
+    if (!id) return ft
+    if (ft.aerobic_pay_amount != null && ft.aerobic_pay_amount !== '') return ft
+    const live = liveById.get(id)
+    if (!live) return ft
+    const pay = parseAerobicPayRate(live.aerobic_pay_amount)
+    if (Number.isNaN(pay)) return ft
+    return { ...ft, aerobic_pay_amount: pay }
+  })
 }
 
 /**

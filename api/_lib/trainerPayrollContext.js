@@ -7,6 +7,7 @@ import { normalizeTrainerPayPlanConfig } from '../../src/lib/admin/trainerPayPla
 import { indexTrainerPayProfilesByTrainerId } from '../../src/lib/admin/trainerPayProfileCore.js'
 import {
   buildPayMonthSnapshotPayload,
+  enrichPaySnapshotMembershipTypesForAerobic,
   normalizePayMonthSnapshotPayload,
   shouldFreezePayMonth,
 } from '../../src/lib/admin/trainerPayMonthSnapshotCore.js'
@@ -194,7 +195,7 @@ export async function loadTrainerPayrollContext(supabaseAdmin, clubId, opts = {}
   return {
     planConfig: payload.planConfig,
     profilesByTrainerId: indexTrainerPayProfilesByTrainerId(payload.profiles),
-    membershipTypes: payload.membershipTypes,
+    membershipTypes: enrichPaySnapshotMembershipTypesForAerobic(payload.membershipTypes, membershipTypes),
     clubId: cid,
     frozen: true,
     frozen_at: snapPack.row.frozen_at ?? null,

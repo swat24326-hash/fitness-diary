@@ -19,6 +19,7 @@ import {
 } from '../../lib/admin/salesReportCore'
 import { buildClubFinanceForecast } from '../../lib/admin/clubFinanceForecastCore'
 import { loadTrainerPayrollContextClient } from '../../lib/admin/trainerPayrollContextClient.js'
+import { enrichPaySnapshotMembershipTypesForAerobic } from '../../lib/admin/trainerPayMonthSnapshotCore.js'
 import { computePlanDirectionsFromForm, buildPlanMatrixJsonFromForm } from '../../lib/admin/salesPlanMatrixCore'
 import {
   buildTrainingsMatrixColumns,
@@ -693,7 +694,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       Array.isArray(payrollCtx.membershipTypes) &&
       payrollCtx.membershipTypes.length
     ) {
-      return payrollCtx.membershipTypes
+      return enrichPaySnapshotMembershipTypesForAerobic(payrollCtx.membershipTypes, membershipTypes)
     }
     return membershipTypes
   }, [payrollCtx.frozen, payrollCtx.membershipTypes, membershipTypes])

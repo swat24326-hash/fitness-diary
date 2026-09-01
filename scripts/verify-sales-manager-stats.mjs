@@ -5,6 +5,7 @@ import {
   aggregateTrainingsByMembershipTypes,
   sumMatrix3x3FromDailyRows,
 } from '../src/lib/admin/salesManagerStatsAgg.js'
+import { enrichPaySnapshotMembershipTypesForAerobic } from '../src/lib/admin/trainerPayMonthSnapshotCore.js'
 import { SALES_MONTH_DAILY_SELECT, planProgressPercent, sumMatrix3x3AmountsFromDailyRows } from '../src/lib/admin/salesReportCore.js'
 import { matrixRowsToMembershipStats, SALES_TRAINING_CLUB_ID } from '../src/lib/admin/salesTrainingsMatrix.js'
 
@@ -105,6 +106,43 @@ const statsWithAz = buildSalesManagerMonthStats({
 ok(statsWithAz.aerobicStats?.total === 16, 'aerobic stats count month')
 ok(statsWithAz.aerobicStats?.payrollTotal === 7200, 'aerobic stats payroll month')
 ok(statsWithAz.aerobicStats?.byType?.find((x) => x.typeId === 'az1')?.payroll === 6000, 'aerobic payroll by type')
+
+const statsFrozenAzMissingPay = buildSalesManagerMonthStats({
+  monthRows: [
+    {
+      report_date: '2026-08-01',
+      aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 10 }],
+    },
+  ],
+  planLevels: {},
+  planDirections: {},
+  membershipTypes: [
+    { id: 'az1', code: 'Бокс', trainer_assignable: false },
+    { id: 'az1-live', code: 'ignored', trainer_assignable: false, aerobic_pay_amount: 999 },
+  ],
+  year: 2026,
+  month: 8,
+})
+ok(statsFrozenAzMissingPay.aerobicStats?.payrollTotal === 0, 'missing aerobic rate stays zero without enrich')
+
+const enrichedTypes = enrichPaySnapshotMembershipTypesForAerobic(
+  [{ id: 'az1', code: 'Бокс', trainer_assignable: false }],
+  [{ id: 'az1', code: 'Бокс', trainer_assignable: false, aerobic_pay_amount: 500 }],
+)
+const statsFrozenAzEnriched = buildSalesManagerMonthStats({
+  monthRows: [
+    {
+      report_date: '2026-08-01',
+      aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 10 }],
+    },
+  ],
+  planLevels: {},
+  planDirections: {},
+  membershipTypes: enrichedTypes,
+  year: 2026,
+  month: 8,
+})
+ok(statsFrozenAzEnriched.aerobicStats?.payrollTotal === 5000, 'enriched frozen AZ types restore payroll')
 ok(stats.summary.pnkTotal === 4, 'pnk total')
 ok(stats.summary.dayCount === 2, 'reported days count')
 ok(stats.summary.daysInMonth === 30, 'days in june')

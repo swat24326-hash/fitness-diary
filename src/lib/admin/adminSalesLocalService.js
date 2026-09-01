@@ -310,14 +310,14 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate, prof
   const monthSummary = flags.needMonth ? aggregateMonthFromDailyRows(monthRows) : null
   if (monthSummary) {
     const expenseAmount = Number(expense?.amount) || 0
-    const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
-    const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
     const { loadTrainerPayrollContextClient } = await import('./trainerPayrollContextClient.js')
     const payrollCtx = await loadTrainerPayrollContextClient(cid, { year, month })
     const payTypes =
       payrollCtx.frozen && Array.isArray(payrollCtx.membershipTypes) && payrollCtx.membershipTypes.length
         ? payrollCtx.membershipTypes
         : membershipTypes
+    const aerobicTypes = filterAerobicSalesTypes(payTypes)
+    const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
     const monthPayroll = aggregatePayrollFromDailyRows(monthRows, buildTrainerPayRateMap(payTypes), {
       membershipTypes: payTypes,
       planConfig: payrollCtx.planConfig,

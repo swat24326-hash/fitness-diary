@@ -4,6 +4,7 @@
  */
 import {
   buildPayMonthSnapshotPayload,
+  enrichPaySnapshotMembershipTypesForAerobic,
   normalizePayMonthSnapshotPayload,
   payrollOptsFromSnapshot,
   shouldFreezePayMonth,
@@ -45,6 +46,18 @@ ok(
   slimMembershipTypeForPaySnapshot({ ...vipLive, counts_toward_pay_plan: false }).counts_toward_pay_plan === false,
   'slim keeps explicit false',
 )
+
+const azLive = {
+  id: 'box',
+  code: 'Бокс',
+  trainer_assignable: false,
+  aerobic_pay_amount: 550,
+}
+ok(slimMembershipTypeForPaySnapshot(azLive).aerobic_pay_amount === 550, 'slim aerobic pay rate')
+
+const frozenAz = slimMembershipTypeForPaySnapshot({ id: 'box', code: 'Бокс', trainer_assignable: false })
+const enriched = enrichPaySnapshotMembershipTypesForAerobic([frozenAz], [azLive])
+ok(enriched[0].aerobic_pay_amount === 550, 'enrich aerobic pay from live for frozen AZ type')
 
 const matrix = [{ trainer_id: 'tr1', membership_type_id: 'vip', count: 100 }]
 const daily = [{ trainings_matrix: matrix }]

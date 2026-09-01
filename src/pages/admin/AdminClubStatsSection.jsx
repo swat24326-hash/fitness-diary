@@ -19,6 +19,7 @@ import {
 import { TrainerRatingCard } from '../../components/admin/TrainerRatingCard'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { loadTrainerPayrollContextClient } from '../../lib/admin/trainerPayrollContextClient.js'
+import { enrichPaySnapshotMembershipTypesForAerobic } from '../../lib/admin/trainerPayMonthSnapshotCore.js'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 import { useClubPeriodStatsLoad } from './useClubPeriodStatsLoad'
@@ -148,7 +149,7 @@ export function AdminClubStatsSection({
         profilesByTrainerId: ctx?.profilesByTrainerId ?? null,
         membershipTypes:
           ctx?.frozen && Array.isArray(ctx.membershipTypes) && ctx.membershipTypes.length
-            ? ctx.membershipTypes
+            ? enrichPaySnapshotMembershipTypesForAerobic(ctx.membershipTypes, types)
             : types,
       })
     })

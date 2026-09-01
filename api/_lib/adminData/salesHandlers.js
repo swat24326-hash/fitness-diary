@@ -170,13 +170,15 @@ export async function handleSalesGet(ctx, req, res) {
   const monthSummary = aggregateMonthFromDailyRows(monthRows)
   const expenseAmount = Number(expenseRes.data?.amount) || 0
   const membershipTypes = typesRes.data ?? []
-  const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
-  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
   const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId, {
     year,
     month,
     membershipTypes,
   })
+  const payTypes =
+    payrollCtx.frozen && payrollCtx.membershipTypes?.length ? payrollCtx.membershipTypes : membershipTypes
+  const aerobicTypes = filterAerobicSalesTypes(payTypes)
+  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
   const monthPayroll = aggregatePayrollFromDailyRows(
     monthRows,
     buildTrainerPayRateMap(

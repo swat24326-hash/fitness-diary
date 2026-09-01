@@ -81,13 +81,15 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
 
   const monthRows = monthRes.data ?? []
   const membershipTypes = clubStatsRaw.membershipTypes
-  const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
-  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
   const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId, {
     year,
     month,
     membershipTypes,
   })
+  const payTypes =
+    payrollCtx.frozen && payrollCtx.membershipTypes?.length ? payrollCtx.membershipTypes : membershipTypes
+  const aerobicTypes = filterAerobicSalesTypes(payTypes)
+  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
   const payroll = aggregatePayrollFromDailyRows(
     monthRows,
     buildTrainerPayRateMap(
