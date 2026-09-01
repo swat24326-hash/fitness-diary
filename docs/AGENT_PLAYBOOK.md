@@ -37,7 +37,7 @@
 
 | Ситуация | Сначала | Правила | Проверки |
 |----------|---------|---------|----------|
-| **Жалоба / баг / «опять сломалось»** | [INCIDENTS.md](./INCIDENTS.md) §5–6 (grep симптом) | `fitness-diary-incidents.mdc`, `fitness-diary-fix-comprehensive.mdc`, `fitness-diary-stability.mdc` | Код направления → verify из TESTING; критический путь → `qa:critical` |
+| **Жалоба / баг / «опять сломалось»** | [INCIDENTS.md](./INCIDENTS.md) §5–6 → [CODE_TRACE.md](./CODE_TRACE.md) | `fitness-diary-incidents.mdc`, `fitness-diary-fix-comprehensive.mdc`, `fitness-diary-stability.mdc` | Код направления → verify из TESTING; критический путь → `qa:critical` |
 | **Sync, очередь, pull, планшет** | [SYNC.md](./SYNC.md), [RUNBOOK.md](./RUNBOOK.md) §1 | `fitness-diary-sync.mdc` | `qa:local` или `verify-sync-*` |
 | **Черновик / Закончить / абон** | INCIDENTS **A** / **B** / **C** | `fitness-diary-stability.mdc`, `fitness-diary-domain.mdc` | `npm run qa:critical`, [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
 | **Статистика / agg / ИСКРА** | [COACH_QUALITY.md](./COACH_QUALITY.md), API agg в handoff | `fitness-diary-domain.mdc` | `verify-stats-agg-parity`, `verify-club-*` |
@@ -132,4 +132,5 @@
 | Очередь работ | [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) |
 | Критический путь зала | [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
 | История багов | [INCIDENTS.md](./INCIDENTS.md) |
+| Симптом → файлы в репо | [CODE_TRACE.md](./CODE_TRACE.md) |
 | Prod URL | https://fitness-diary-bice.vercel.app |

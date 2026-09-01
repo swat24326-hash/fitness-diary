@@ -5,7 +5,7 @@
 
 **С чего начать:** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) — маршрут для агента (новый чат) → [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) — очередь → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде → карта ниже.
 
-**Системная карта (тонкие доки):** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) · [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
+**Системная карта (тонкие доки):** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) · [CODE_TRACE.md](./CODE_TRACE.md) · [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
 
 ---
 
@@ -16,6 +16,7 @@
 | [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) | **Первый** вход в новый чат: тип задачи → docs → rules → verify |
 | [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) | Роли, стек, каталоги, env |
 | [INCIDENTS.md](./INCIDENTS.md) | Жалоба / баг / повтор (коды A–Q) |
+| [CODE_TRACE.md](./CODE_TRACE.md) | Код направления → пути в `src/` и `api/` |
 | [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) | Критический путь зала |
 
 Также в корне: [CHANGELOG.md](../CHANGELOG.md) (заметки для зала), [CONTRIBUTING.md](../CONTRIBUTING.md) (как вносить изменения).

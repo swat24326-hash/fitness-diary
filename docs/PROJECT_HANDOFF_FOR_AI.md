@@ -240,7 +240,7 @@ CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 4. Схема: `supabase/schema.sql`, `migrations/`.
 5. После правок: `npm run lint`; sync/статистика/абонементы/agg → `npm run qa:local` или `qa:critical`.
 6. Новая таблица в sync: migration + RLS + `PUSH_ALLOWED_TABLES` + flush/pull + store в `localDb` при офлайн-кэше.
-7. Жалоба в чате → [INCIDENTS.md](./INCIDENTS.md) (`fitness-diary-incidents.mdc`).
+7. Жалоба в чате → [INCIDENTS.md](./INCIDENTS.md) + [CODE_TRACE.md](./CODE_TRACE.md) (`fitness-diary-incidents.mdc`).
 8. Фича shipped → обновить статус в doc + строку в README (см. ship-правило).
 
 ---
