@@ -38,10 +38,10 @@
 | Ситуация | Сначала | Правила | Проверки |
 |----------|---------|---------|----------|
 | **Жалоба / баг / «опять сломалось»** | [INCIDENTS.md](./INCIDENTS.md) §5–6 → [CODE_TRACE.md](./CODE_TRACE.md) | `fitness-diary-incidents.mdc`, `fitness-diary-fix-comprehensive.mdc`, `fitness-diary-stability.mdc` | Код направления → verify из TESTING; критический путь → `qa:critical` |
-| **Sync, очередь, pull, планшет** | [SYNC.md](./SYNC.md), [RUNBOOK.md](./RUNBOOK.md) §1 | `fitness-diary-sync.mdc` | `qa:local` или `verify-sync-*` |
-| **Черновик / Закончить / абон** | INCIDENTS **A** / **B** / **C** | `fitness-diary-stability.mdc`, `fitness-diary-domain.mdc` | `npm run qa:critical`, [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
-| **Статистика / agg / ИСКРА** | [COACH_QUALITY.md](./COACH_QUALITY.md), API agg в handoff | `fitness-diary-domain.mdc` | `verify-stats-agg-parity`, `verify-club-*` |
-| **Продажи / прогноз / Excel** | [SALES_MANAGER.md](./SALES_MANAGER.md) | `fitness-diary-scale.mdc` | `verify-sales-*`, `verify-club-finance-*` |
+| **Sync, очередь, pull, планшет** | [SYNC.md](./SYNC.md), [CODE_TRACE.md](./CODE_TRACE.md) §C, [RUNBOOK.md](./RUNBOOK.md) §1 | `fitness-diary-sync.mdc` | `qa:local` или `verify-sync-*` |
+| **Черновик / Закончить / абон** | INCIDENTS **A** / **B** / **C** → [CODE_TRACE.md](./CODE_TRACE.md) §A–C | `fitness-diary-stability.mdc`, `fitness-diary-domain.mdc` | `npm run qa:critical`, [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
+| **Статистика / agg / ИСКРА** | [COACH_QUALITY.md](./COACH_QUALITY.md), [CODE_TRACE.md](./CODE_TRACE.md) §I–J | `fitness-diary-domain.mdc` | `verify-stats-agg-parity`, `verify-club-*` |
+| **Продажи / прогноз / Excel** | [SALES_MANAGER.md](./SALES_MANAGER.md), [CODE_TRACE.md](./CODE_TRACE.md) §M–N | `fitness-diary-scale.mdc` | `verify-sales-*`, `verify-club-finance-*` |
 | **Новая фича** | [PATH_TO_GOAL.md](./PATH_TO_GOAL.md), [PRODUCT_VISION.md](./PRODUCT_VISION.md) | `fitness-diary-features.mdc` → architecture, file-structure | lint + verify по ветвлениям |
 | **API / auth / RLS** | [API.md](./API.md), [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | `fitness-diary-security.mdc`, `fitness-diary-supabase.mdc` | `verify-security-l1-audit` |
 | **Деплой / прод** | [RELEASE.md](./RELEASE.md) | `fitness-diary-ship.mdc` | `lint` + релевантный qa |
