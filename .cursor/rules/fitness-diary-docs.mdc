@@ -14,6 +14,7 @@ alwaysApply: true
 | Слой | Где | Зачем |
 |------|-----|--------|
 | Политика агента | `.cursor/rules/*.mdc` | Как писать код; не простыня «как устроен продукт» |
+| Маршрут агента | `docs/AGENT_PLAYBOOK.md` | Новый чат: тип задачи → docs → rules → verify |
 | Карта продукта | `docs/`, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md` | Правда для человека и нового чата |
 | KB ИСКРЫ | `src/lib/admin/iskraKnowledgeBaseArticles.js` (+ копии `docs/iskra-kb/`) | Ответы в приложении; **сначала JS**, потом md |
 

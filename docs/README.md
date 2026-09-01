@@ -1,11 +1,22 @@
 # Документация fitness-diary (**Ядро**)
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).  
-Системная карта (API / SYNC / DATA_MODEL / DEPLOY / handoff) сверена с кодом **2026-08-20**.
+Системная карта (API / SYNC / DATA_MODEL / DEPLOY / handoff) сверена с кодом **2026-09-01**.
 
-**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (ОС + CRM, замена 1С в операционке) → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) — сейчас→дальше и как вести процесс → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ядро vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
+**С чего начать:** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) — маршрут для агента (новый чат) → [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) — очередь → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде → карта ниже.
 
-**Системная карта (тонкие доки):** [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
+**Системная карта (тонкие доки):** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) · [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
+
+---
+
+## Для агента Cursor
+
+| Файл | Когда |
+|------|--------|
+| [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) | **Первый** вход в новый чат: тип задачи → docs → rules → verify |
+| [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) | Роли, стек, каталоги, env |
+| [INCIDENTS.md](./INCIDENTS.md) | Жалоба / баг / повтор (коды A–Q) |
+| [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) | Критический путь зала |
 
 Также в корне: [CHANGELOG.md](../CHANGELOG.md) (заметки для зала), [CONTRIBUTING.md](../CONTRIBUTING.md) (как вносить изменения).
 

@@ -1,8 +1,8 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-**Актуально:** 2026-08-26. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
+**Актуально:** 2026-09-01. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
-**Сначала:** крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка и ведение [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (что в коде сегодня) → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ готово; **код L3/кассы — после стабильного переезда РФ (R3+)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
+**Сначала:** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) (маршрут агента) → крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (код сегодня) → [README.md](./README.md) → [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Жалобы и кейсы: [INCIDENTS.md](./INCIDENTS.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ; **код L3/кассы — после R3+ (РФ)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
 **Роль агента:** вести процесс к конечной цели (ритуал и очередь ставок — PATH_TO_GOAL §4–5); владельцу — кабинеты, оплата, пароли, явные go/no-go. Правило: `.cursor/rules/fitness-diary-north-star-lead.mdc`.
 
@@ -40,7 +40,7 @@ Production: https://fitness-diary-bice.vercel.app
 | Сборка | Vite 6, `@vitejs/plugin-react` |
 | PWA | `vite-plugin-pwa` (SW в production) |
 | Бэкенд | Supabase (Postgres, Auth) + **Vercel serverless** `api/*.js` |
-| Локальное хранилище | `idb` → `src/lib/localDb.js` (версия IDB **16**) |
+| Локальное хранилище | `idb` → `src/lib/localDb.js` (версия IDB **19**) |
 | Стили | `src/index.css`, `src/styles/` |
 | AI | Gemini через `admin-data?action=gemini-analytics` (ключ только на сервере) |
 | Push | Web Push (VAPID) для планёрки / заданий |
@@ -210,6 +210,7 @@ UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domai
 | `npm run dev:vercel` | Локально Vite + serverless `api/` |
 | `npm run build` / `preview` | Production-сборка |
 | `npm run lint` | ESLint — **всегда** перед «готово» |
+| `npm run qa:critical` | Критический путь зала (sync, complete, абон, главная) — быстрее `qa:local` |
 | `npm run qa:local` | build + verify из `agent-qa.mjs` + lint (без prod smoke) |
 | `npm run qa` | + prod smoke |
 | `npm run qa:deep` / `qa:roles` | углублённые / ролевые проверки |
@@ -227,18 +228,20 @@ CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 1. `schema.sql` + идемпотентные `migrations/` — понимать порядок на новой БД.
 2. RLS на проде обязателен ([SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md)).
 3. PWA SW в dev обычно выключен — иначе риск «белого экрана» из кэша ([PWA.md](./PWA.md)).
-4. Инциденты клубы ≠ облако: [RUNBOOK.md](./RUNBOOK.md) §3.
+4. Инциденты: процедуры — [RUNBOOK.md](./RUNBOOK.md); история кейсов — [INCIDENTS.md](./INCIDENTS.md).
 
 ---
 
 ## 13. Как продолжить работу другой модели
 
-1. Этот handoff + [docs/README.md](./README.md).
-2. Код: `src/pages`, `src/components`, `src/lib`, `api/_lib`.
-3. Схема: `supabase/schema.sql`, `migrations/`.
-4. После правок: `npm run lint`; sync/статистика/абонементы/agg → `npm run qa:local`.
-5. Новая таблица в sync: migration + RLS + `PUSH_ALLOWED_TABLES` + flush/pull + store в `localDb` при офлайн-кэше.
-6. Фича shipped → обновить статус в doc + строку в README (см. ship-правило).
+1. [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) — маршрут по типу задачи.
+2. Этот handoff + [docs/README.md](./README.md).
+3. Код: `src/pages`, `src/components`, `src/lib`, `api/_lib`.
+4. Схема: `supabase/schema.sql`, `migrations/`.
+5. После правок: `npm run lint`; sync/статистика/абонементы/agg → `npm run qa:local` или `qa:critical`.
+6. Новая таблица в sync: migration + RLS + `PUSH_ALLOWED_TABLES` + flush/pull + store в `localDb` при офлайн-кэше.
+7. Жалоба в чате → [INCIDENTS.md](./INCIDENTS.md) (`fitness-diary-incidents.mdc`).
+8. Фича shipped → обновить статус в doc + строку в README (см. ship-правило).
 
 ---
 
@@ -260,6 +263,7 @@ CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 | `fitness-diary-security.mdc` | безопасность: auth, секреты, push/RLS, удалённые угрозы |
 | `fitness-diary-ship.mdc` | QA, деплой, коммит |
 | `fitness-diary-docs.mdc` | документация как DoD: правда, слои, без drift |
+| `fitness-diary-incidents.mdc` | журнал INCIDENTS: жалобы, коды A–Q |
 | `fitness-diary-file-structure.mdc` | как пишем файлы (структура с первого коммита) |
 | `fitness-diary-split-files.mdc` | пороги разбиения уже больших файлов |
 | `fitness-diary-domain.mdc` | абонементы, статистика |

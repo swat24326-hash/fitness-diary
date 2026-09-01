@@ -2,7 +2,7 @@
 
 **Актуально:** 2026-08-26  
 **Статус:** рабочий чеклист + автопрогон `npm run qa:critical`  
-**Политика:** `.cursor/rules/fitness-diary-stability.mdc`, [TESTING.md](./TESTING.md)
+**Политика:** `.cursor/rules/fitness-diary-stability.mdc`, [TESTING.md](./TESTING.md). История кейсов по залу: [INCIDENTS.md](./INCIDENTS.md) (коды **A**–**C**).
 
 Не дублирует полный `qa:local`. Это **обязательный контур «не сломать зал и админку»** после правок sync / абон / главная / call-центр / клиенты.
 

@@ -8,7 +8,7 @@ Production: **https://fitness-diary-bice.vercel.app**
 ## Перед merge в `main`
 
 - [ ] Изменения понятны и минимальны (без «заодно» рефакторинга).
-- [ ] Локально: `npm run qa:local` — всё зелёное.
+- [ ] Локально: `npm run qa:local` — всё зелёное (или `npm run qa:critical`, если зона узкая — sync/complete/абон/главная).
 - [ ] Если трогали **sync / очередь / pull**: `verify-sync-offline.mjs`, `verify-sync-unsynced.mjs` + сценарий на планшете (офлайн → запись → Sync).
 - [ ] Если трогали **статистику / абонементы**: `verify-club-client-period.mjs`, `verify-club-monthly-year.mjs`, `verify-membership-type-stats.mjs`, `verify-stats-agg-parity.mjs`.
 - [ ] Если трогали **SQL / RLS**: миграция в `supabase/migrations/`, обновлён `policies.sql`, план отката SQL записан.
@@ -31,6 +31,7 @@ npx vercel --prod --yes
 - [ ] При появлении баннера PWA — **Обновить** на тестовом планшете (см. RUNBOOK §4).
 - [ ] **Помощь → Диагностика**: поле **Сборка** — записать id; после деплоя на prod должен измениться (сравнить с Vercel → Deployment → JS asset).
 - [ ] После крупного релиза локально: `npm run qa` (prod smoke). Еженедельно: GitHub Actions **QA prod weekly**.
+- [ ] Регресс на проде → запись в [INCIDENTS.md](./INCIDENTS.md) (агент или владелец в чате).
 
 ## Откат
 
@@ -44,4 +45,4 @@ npx vercel --prod --yes
 - `navigate(0)` после Sync, сброс очереди «для починки UI».
 - Крупный рефактор `AppHeader`, `TrainingForm`, `syncService`, `dataAccess` без отдельного окна и тестов.
 
-См. также: [RUNBOOK.md](./RUNBOOK.md), [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md), [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md), [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md).
+См. также: [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md), [RUNBOOK.md](./RUNBOOK.md), [INCIDENTS.md](./INCIDENTS.md), [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md), [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md), [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md).

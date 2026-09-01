@@ -5,6 +5,7 @@
 ## Документация
 
 - **[docs/README.md](docs/README.md)** — карта всей документации
+- **[docs/AGENT_PLAYBOOK.md](docs/AGENT_PLAYBOOK.md)** — маршрут для агента Cursor (новый чат)
 - **[docs/PROJECT_HANDOFF_FOR_AI.md](docs/PROJECT_HANDOFF_FOR_AI.md)** — полный контекст для нового чата / разработчика
 - **[docs/API.md](docs/API.md)** · **[docs/SYNC.md](docs/SYNC.md)** · **[docs/TESTING.md](docs/TESTING.md)** · **[docs/PWA.md](docs/PWA.md)**
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** · **[CHANGELOG.md](CHANGELOG.md)**
