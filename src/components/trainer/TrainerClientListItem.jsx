@@ -19,7 +19,6 @@ import { ClientRowMoreMenu } from '../ClientRowMoreMenu'
 import { ClientArchiveReasonFact } from '../ClientArchiveReasonFact.jsx'
 import { ClientArchiveReasonEditButton } from '../ClientArchiveReasonEditButton.jsx'
 import { LoyaltyGlanceChip } from '../loyalty/LoyaltyGlanceChip.jsx'
-import { ClientAttendanceGlanceChip } from '../ClientAttendanceGlanceChip.jsx'
 import '../../styles/pnk-funnel.css'
 
 export function TrainerClientListItem({
@@ -140,14 +139,6 @@ export function TrainerClientListItem({
               <span className="td-client-fact__label">Последняя</span>
               <span className="td-client-fact__value">{last}</span>
             </div>
-            {mode === 'active' && active ? (
-              <ClientAttendanceGlanceChip
-                client={client}
-                memList={memList}
-                trainings={clientTrainings}
-                today={today}
-              />
-            ) : null}
             <LoyaltyGlanceChip snapshot={loyaltySnapshot} />
             {birthdayLabel ? (
               <div className="td-client-fact">
