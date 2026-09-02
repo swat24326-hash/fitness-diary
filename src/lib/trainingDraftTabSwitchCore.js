@@ -27,10 +27,26 @@ export function buildLeavingDraftSessionSnapshot(leavingId, ctx = {}) {
 
   const live = ctx.live
   const gate = ctx.gate
-  const liveTid = String(live?.meta?.trainingId ?? '').trim()
   const gateSnap = gate?.id === tid ? gate.snap : null
 
-  if (liveTid === tid && String(live?.loadState ?? '') === 'ok' && String(live?.client?.id ?? '').trim()) {
+  // Gate ещё от другой вкладки: live уже с meta нового URL, workout — от старого (утечка A→B).
+  if (gate?.id && gate.id !== tid) {
+    return gateSnap && isTrainingDraftSessionSnapshotReady(gateSnap, tid) ? gateSnap : null
+  }
+
+  const liveTid = String(live?.meta?.trainingId ?? '').trim()
+  if (
+    liveTid === tid &&
+    String(live?.loadState ?? '') === 'ok' &&
+    String(live?.client?.id ?? '').trim() &&
+    isLiveDraftStorageAligned(live)
+  ) {
+    const gateClient = String(gateSnap?.client?.id ?? '').trim()
+    const liveClient = String(live?.client?.id ?? '').trim()
+    if (gateClient && liveClient && gateClient !== liveClient) {
+      if (gateSnap && isTrainingDraftSessionSnapshotReady(gateSnap, tid)) return gateSnap
+      return null
+    }
     const snap = buildTrainingDraftSessionSnapshot({
       loadState: 'ok',
       meta: { status: live?.meta?.status ?? 'draft', trainingId: tid },
@@ -51,7 +67,48 @@ export function buildLeavingDraftSessionSnapshot(leavingId, ctx = {}) {
 }
 
 /**
- * Синхронный flush в session LRU (до смены UI / cache hit).
+ * Durable/persist при уходе — только если gate уже для этой вкладки (не чужой URL).
+ * @param {string | null | undefined} leavingId
+ * @param {{ id?: string } | null | undefined} gate
+ */
+export function isLeavingDraftGateReady(leavingId, gate) {
+  const tid = String(leavingId ?? '').trim()
+  if (!tid) return false
+  return String(gate?.id ?? '').trim() === tid
+}
+
+/**
+ * Можно ли писать durable / session из live ref (без «URL=B, meta/клиент чужие, тело=A»).
+ * @param {{
+ *   loadState?: string,
+ *   isNew?: boolean,
+ *   routeId?: string | null,
+ *   clientIdParam?: string | null,
+ *   meta?: { trainingId?: string | null },
+ *   client?: { id?: string } | null,
+ * } | null | undefined} live
+ */
+export function isLiveDraftStorageAligned(live) {
+  if (!live || typeof live !== 'object') return false
+  if (String(live.loadState ?? '') !== 'ok') return false
+
+  const routeId = String(live.routeId ?? '').trim()
+  const metaTid = String(live.meta?.trainingId ?? '').trim()
+  const paramCid = String(live.clientIdParam ?? '').trim()
+  const clientCid = String(live.client?.id ?? '').trim()
+
+  if (paramCid && clientCid && paramCid !== clientCid) return false
+
+  if (live.isNew) {
+    return Boolean(paramCid || clientCid)
+  }
+
+  if (!routeId || routeId === 'new') return Boolean(metaTid)
+  if (!metaTid || routeId !== metaTid) return false
+  return true
+}
+
+/**
  * @param {string | null | undefined} leavingId
  * @param {Parameters<typeof buildLeavingDraftSessionSnapshot>[1]} ctx
  * @returns {boolean}

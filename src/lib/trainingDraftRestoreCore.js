@@ -97,6 +97,7 @@ export function pickTrainingDraftRestore(ctx = {}) {
   const empty = {}
   const candidates = []
   const blockedId = String(ctx.blockedTrainingId ?? '').trim()
+  const expectClientId = String(ctx.expectClientId ?? ctx.idbRow?.client_id ?? '').trim()
 
   const idbRow = ctx.idbRow
   if (
@@ -122,20 +123,25 @@ export function pickTrainingDraftRestore(ctx = {}) {
     String(durable.status ?? 'draft') !== 'completed' &&
     shouldRestoreTrainingDraftCandidate(blockedId, durable.trainingId)
   ) {
-    const ws = durable.workoutState && typeof durable.workoutState === 'object' ? durable.workoutState : {}
-    candidates.push({
-      source: 'durable',
-      workoutState: ws,
-      trainingType: durable.trainingType,
-      trainingDate: durable.trainingDate,
-      revisionMs: draftRevisionMs(durable.revisedAt),
-    })
+    const durableClient = String(durable.clientId ?? '').trim()
+    if (!expectClientId || !durableClient || durableClient === expectClientId) {
+      const ws = durable.workoutState && typeof durable.workoutState === 'object' ? durable.workoutState : {}
+      candidates.push({
+        source: 'durable',
+        workoutState: ws,
+        trainingType: durable.trainingType,
+        trainingDate: durable.trainingDate,
+        revisionMs: draftRevisionMs(durable.revisedAt),
+      })
+    }
   }
 
   const session = ctx.session
   if (session?.workoutState && typeof session.workoutState === 'object') {
     const sessionTid = String(session.trainingId ?? '').trim()
-    if (!blockedId || (sessionTid && shouldRestoreTrainingDraftCandidate(blockedId, sessionTid))) {
+    const sessionClient = String(session.clientId ?? '').trim()
+    const clientOk = !expectClientId || !sessionClient || sessionClient === expectClientId
+    if (clientOk && (!blockedId || (sessionTid && shouldRestoreTrainingDraftCandidate(blockedId, sessionTid)))) {
       candidates.push({
         source: 'session',
         workoutState: session.workoutState,

@@ -40,7 +40,7 @@ import {
   shouldClearDurableAfterIdbSave,
 } from '../../lib/trainingDraftDurableCore.js'
 import { pickTrainingDraftRestore, workoutDraftContentScore } from '../../lib/trainingDraftRestoreCore.js'
-import { buildLeavingDraftSessionSnapshot, putLeavingDraftSessionOnTabSwitch } from '../../lib/trainingDraftTabSwitchCore.js'
+import { buildLeavingDraftSessionSnapshot, isLeavingDraftGateReady, isLiveDraftStorageAligned, putLeavingDraftSessionOnTabSwitch } from '../../lib/trainingDraftTabSwitchCore.js'
 import { clearTrainingDraftArtifacts, canPersistTrainingDraft, isTrainingDraftLocallyDeleted } from '../../lib/trainingDraftCleanup.js'
 import {
   clearTrainingDraftDurable,
@@ -235,6 +235,7 @@ export function TrainingPage() {
   liveDraftRef.current = {
     loadState,
     isNew,
+    routeId: id,
     clientIdParam,
     meta,
     workoutState,
@@ -245,6 +246,7 @@ export function TrainingPage() {
   }
 
   const writeDurableFromLive = useCallback((live, revisedAt) => {
+    if (!isLiveDraftStorageAligned(live)) return false
     const cid = live?.client?.id ?? live?.clientIdParam
     if (!cid) return false
     const tid = live?.meta?.trainingId
@@ -280,7 +282,9 @@ export function TrainingPage() {
   }, [writeDurableFromLive])
 
   const flushDraftSnapshotOnLeave = useCallback(async () => {
-    const tid = String(liveDraftRef.current?.meta?.trainingId ?? '').trim()
+    const live = liveDraftRef.current
+    if (!isLiveDraftStorageAligned(live)) return
+    const tid = String(live?.meta?.trainingId ?? '').trim()
     if (tid && !(await canPersistTrainingDraft(tid))) return
     const outgoing = draftSessionGateRef.current
     if (outgoing?.id && isTrainingDraftSessionSnapshotReady(outgoing.snap, outgoing.id)) {
@@ -299,7 +303,8 @@ export function TrainingPage() {
       const ctx = { live: liveDraftRef.current, gate: draftSessionGateRef.current }
       const ok = putLeavingDraftSessionOnTabSwitch(tid, ctx)
       const live = liveDraftRef.current
-      if (String(live?.meta?.trainingId ?? '').trim() === tid) {
+      const gateReady = isLeavingDraftGateReady(tid, draftSessionGateRef.current)
+      if (gateReady && String(live?.meta?.trainingId ?? '').trim() === tid) {
         writeDurableFromLive(live)
       }
       return ok
@@ -322,7 +327,8 @@ export function TrainingPage() {
       }
       const live = liveDraftRef.current
       const liveTid = String(live?.meta?.trainingId ?? '').trim()
-      if (liveTid === tid) {
+      const gateReady = isLeavingDraftGateReady(tid, draftSessionGateRef.current)
+      if (liveTid === tid && gateReady) {
         writeDurableFromLive(live)
         const persistFn = persistRef.current
         if (typeof persistFn === 'function' && String(live?.loadState ?? '') === 'ok') {
@@ -358,6 +364,7 @@ export function TrainingPage() {
     if (isTrainingStatusCompleted(meta.status)) return undefined
     return registerTrainingDraftUpdateFlush(async () => {
       const live = liveDraftRef.current
+      if (!isLiveDraftStorageAligned(live)) return
       const tid = String(live?.meta?.trainingId ?? '').trim()
       if (tid && !(await canPersistTrainingDraft(tid))) return
       writeDurableFromLive(live)
@@ -575,19 +582,24 @@ export function TrainingPage() {
         const durableCached = blockedId ? null : readTrainingDraftDurable({ trainingId: id, clientId: cid })
         const sessionEntry = blockedId ? null : peekTrainingDraftSessionEntry(id)
         const sessionSnap = sessionEntry?.snapshot
-        const pickedCached = pickTrainingDraftRestore({
-          idbRow: idbRowCached,
-          durable: durableCached,
-          blockedTrainingId: blockedId || null,
-          session: sessionSnap
+        const sessionClientId = String(sessionSnap?.client?.id ?? '').trim()
+        const sessionForPick =
+          sessionSnap && (!cid || !sessionClientId || sessionClientId === cid)
             ? {
                 workoutState: sessionSnap.workoutState,
                 trainingType: sessionSnap.trainingType,
                 trainingDate: sessionSnap.trainingDate,
                 revisionMs: sessionEntry?.at ?? cacheHit.sessionAt ?? 0,
                 trainingId: String(id ?? ''),
+                clientId: sessionClientId,
               }
-            : null,
+            : null
+        const pickedCached = pickTrainingDraftRestore({
+          idbRow: idbRowCached,
+          durable: durableCached,
+          blockedTrainingId: blockedId || null,
+          expectClientId: cid,
+          session: sessionForPick,
         })
         const cacheWs = sessionSnap?.workoutState ?? {}
         const idbWs = idbRowCached?.data && typeof idbRowCached.data === 'object' ? idbRowCached.data : {}
@@ -690,6 +702,7 @@ export function TrainingPage() {
       const pickedNew = pickTrainingDraftRestore({
         durable: blockedNewId ? null : durableNew,
         blockedTrainingId: blockedNewId || null,
+        expectClientId: clientIdParam,
       })
       if (pickedNew.source === 'durable') {
         workoutNew = {
@@ -838,19 +851,25 @@ export function TrainingPage() {
       const durable = blockedId ? null : readTrainingDraftDurable({ trainingId: t.id, clientId: t.client_id })
       const sessionEntry = blockedId ? null : peekTrainingDraftSessionEntry(t.id)
       const sessionSnap = sessionEntry?.snapshot
-      const picked = pickTrainingDraftRestore({
-        idbRow: t,
-        durable,
-        blockedTrainingId: blockedId || null,
-        session: sessionSnap
+      const expectCid = String(t.client_id ?? '').trim()
+      const sessionClientId = String(sessionSnap?.client?.id ?? '').trim()
+      const sessionForPick =
+        sessionSnap && (!expectCid || !sessionClientId || sessionClientId === expectCid)
           ? {
               workoutState: sessionSnap.workoutState,
               trainingType: sessionSnap.trainingType,
               trainingDate: sessionSnap.trainingDate,
               revisionMs: sessionEntry?.at ?? 0,
               trainingId: String(t.id),
+              clientId: sessionClientId,
             }
-          : null,
+          : null
+      const picked = pickTrainingDraftRestore({
+        idbRow: t,
+        durable,
+        blockedTrainingId: blockedId || null,
+        expectClientId: expectCid,
+        session: sessionForPick,
       })
       if (picked.source !== 'empty' && picked.source !== 'idb') {
         restoredFromBestDraft = true
@@ -1615,7 +1634,10 @@ export function TrainingPage() {
     if (!userEditedRef.current && contentFingerprint === baselineContentSnapshotRef.current) return
     if (durableWriteTimerRef.current) clearTimeout(durableWriteTimerRef.current)
     durableWriteTimerRef.current = setTimeout(() => {
-      void writeDurableFromLiveGuarded(liveDraftRef.current)
+      const live = liveDraftRef.current
+      if (isLiveDraftStorageAligned(live)) {
+        void writeDurableFromLiveGuarded(live)
+      }
     }, 280)
     return () => {
       if (durableWriteTimerRef.current) {
@@ -1623,7 +1645,10 @@ export function TrainingPage() {
         durableWriteTimerRef.current = null
       }
       if (loadState === 'ok' && !isTrainingStatusCompleted(meta.status)) {
-        void writeDurableFromLiveGuarded(liveDraftRef.current)
+        const live = liveDraftRef.current
+        if (isLiveDraftStorageAligned(live)) {
+          void writeDurableFromLiveGuarded(live)
+        }
       }
     }
   }, [contentFingerprint, loadState, meta.status, writeDurableFromLiveGuarded])
