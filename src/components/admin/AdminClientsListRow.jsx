@@ -464,7 +464,7 @@ export function AdminClientsListRow({
                         void onRestoreArchive(c, resolveAdminClientsActionHall(clientsTab)),
                     }
                   : null,
-                clientsTab === 'archive'
+                clientsTab === 'archive' && c.archived_at
                   ? {
                       id: 'archive-reason',
                       label: clientNeedsArchiveReason(c) ? 'Указать причину' : 'Изменить причину',
@@ -472,7 +472,7 @@ export function AdminClientsListRow({
                       onSelect: () => onArchiveReasonModal({ mode: 'edit', client: c }),
                     }
                   : null,
-                clientsTab !== 'archive'
+                clientsTab !== 'archive' || !c.archived_at
                   ? {
                       id: 'leave-club',
                       label: 'Ушёл из клуба',
@@ -485,7 +485,7 @@ export function AdminClientsListRow({
                         }),
                     }
                   : null,
-                clientsTab === 'archive'
+                clientsTab === 'archive' && c.archived_at
                   ? {
                       id: 'restore',
                       label: 'Вернуть в клуб',

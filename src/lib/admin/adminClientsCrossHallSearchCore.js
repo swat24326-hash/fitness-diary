@@ -9,7 +9,10 @@ import {
   pickHallActiveMembership,
 } from './deskMembershipLedgerCore.js'
 import { clientMembershipHallSet } from '../membershipHallCore.js'
-import { clientAdminVisibleHallSet } from './adminClientsListLifecycleCore.js'
+import {
+  clientAdminVisibleHallSet,
+  isAdminListEffectiveClubArchive,
+} from './adminClientsListLifecycleCore.js'
 
 /**
  * При непустом поиске по живому списку — ищем без фильтра вкладки зала.
@@ -31,13 +34,27 @@ export function shouldSearchAcrossHalls(query, clientsTab, minLen = 2) {
  *   query?: string,
  *   memByClient?: Record<string, object[]>,
  *   filterByTab: (clients: object[], tab: string, memByClient?: Record<string, object[]>) => object[],
+ *   lifecycleCtx?: { lifecycleRows?: object[], asOf?: string },
  * }} p
  */
 export function resolveAdminClientsSearchPool(p) {
   const list = Array.isArray(p?.clients) ? p.clients : []
   const tab = normalizeAdminClientsListTab(p?.clientsTab)
   if (shouldSearchAcrossHalls(p?.query, tab)) {
-    return list.filter((c) => !c?.archived_at)
+    const life = p?.lifecycleCtx
+    const memBy = p?.memByClient && typeof p.memByClient === 'object' ? p.memByClient : {}
+    return list.filter((c) => {
+      if (c?.archived_at) return false
+      if (!life) return true
+      const id = c?.id != null ? String(c.id) : ''
+      const memberships = id ? memBy[id] ?? memBy[c.id] ?? [] : []
+      return !isAdminListEffectiveClubArchive({
+        client: c,
+        memberships,
+        lifecycleRows: life.lifecycleRows ?? [],
+        asOf: life.asOf,
+      })
+    })
   }
   const filterByTab = typeof p?.filterByTab === 'function' ? p.filterByTab : null
   if (!filterByTab) return list

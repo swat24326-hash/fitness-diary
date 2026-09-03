@@ -589,8 +589,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   )
   const isDeskHallTab = clientsTab === 'tz' || clientsTab === 'az'
   const archiveHallOptions = useMemo(
-    () => (clientsTab === 'archive' ? buildArchiveHallFilterOptions(clients, memByClient) : []),
-    [clientsTab, clients, memByClient],
+    () =>
+      clientsTab === 'archive'
+        ? buildArchiveHallFilterOptions(clients, memByClient, listLifecycleCtx)
+        : [],
+    [clientsTab, clients, memByClient, listLifecycleCtx],
   )
   const showTrainerSearch =
     !isDeskHallTab &&
@@ -631,6 +634,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       query,
       memByClient,
       filterByTab: filterClientsByTabWithLifecycle,
+      lifecycleCtx: listLifecycleCtx,
     })
     if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
       base = base.filter((c) =>
@@ -712,6 +716,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     lifecycleRows,
     lifecycleReady,
     filterClientsByTabWithLifecycle,
+    listLifecycleCtx,
   ])
 
   const azDirectionOptions = useMemo(() => {

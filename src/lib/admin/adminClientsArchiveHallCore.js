@@ -73,9 +73,10 @@ export function clientMatchesArchiveHallFilter(client, filterRaw, memberships) {
  * @param {object[]|null|undefined} clients — любой набор; берутся только archived
  * @param {unknown} filterRaw
  * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
+ * @param {{ lifecycleRows?: object[], asOf?: string }|null|undefined} [lifecycleCtx]
  */
-export function filterArchivedClientsByHall(clients, filterRaw, membershipsByClientId) {
-  const archived = filterClientsByAdminListTab(clients, 'archive')
+export function filterArchivedClientsByHall(clients, filterRaw, membershipsByClientId, lifecycleCtx) {
+  const archived = filterClientsByAdminListTab(clients, 'archive', membershipsByClientId, lifecycleCtx)
   const want = normalizeArchiveHallFilter(filterRaw)
   if (!want) return archived
   return archived.filter((c) =>
@@ -86,10 +87,11 @@ export function filterArchivedClientsByHall(clients, filterRaw, membershipsByCli
 /**
  * @param {object[]|null|undefined} clients
  * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
+ * @param {{ lifecycleRows?: object[], asOf?: string }|null|undefined} [lifecycleCtx]
  * @returns {{ all: number, pz: number, tz: number, az: number }}
  */
-export function countArchivedClientsByHall(clients, membershipsByClientId) {
-  const archived = filterClientsByAdminListTab(clients, 'archive')
+export function countArchivedClientsByHall(clients, membershipsByClientId, lifecycleCtx) {
+  const archived = filterClientsByAdminListTab(clients, 'archive', membershipsByClientId, lifecycleCtx)
   let pz = 0
   let tz = 0
   let az = 0
@@ -106,10 +108,11 @@ export function countArchivedClientsByHall(clients, membershipsByClientId) {
  * Чипы: Все + ПЗ/ТЗ/АЗ (всегда, даже с нулём — видно пустые залы).
  * @param {object[]|null|undefined} clients
  * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
+ * @param {{ lifecycleRows?: object[], asOf?: string }|null|undefined} [lifecycleCtx]
  * @returns {Array<{ id: ArchiveHallFilter, label: string, count: number }>}
  */
-export function buildArchiveHallFilterOptions(clients, membershipsByClientId) {
-  const counts = countArchivedClientsByHall(clients, membershipsByClientId)
+export function buildArchiveHallFilterOptions(clients, membershipsByClientId, lifecycleCtx) {
+  const counts = countArchivedClientsByHall(clients, membershipsByClientId, lifecycleCtx)
   return [
     { id: ARCHIVE_HALL_FILTER_ALL, label: ARCHIVE_HALL_FILTER_LABELS[ARCHIVE_HALL_FILTER_ALL], count: counts.all },
     { id: ARCHIVE_HALL_FILTER_PZ, label: ARCHIVE_HALL_FILTER_LABELS[ARCHIVE_HALL_FILTER_PZ], count: counts.pz },

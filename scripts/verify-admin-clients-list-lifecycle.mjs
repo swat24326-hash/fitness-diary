@@ -5,6 +5,7 @@
  */
 import {
   clientAdminVisibleHallSet,
+  isAdminListEffectiveClubArchive,
   resolveAdminClientHallTabWithLifecycle,
   shouldHideClientFromHallListTab,
   shouldOfferAdminCloseDepletedHall,
@@ -135,16 +136,41 @@ const pzOnlyClosed = { id: 'c-pzonly', trainer_id: 't1', club_id: 'club1' }
 const pzOnlyMems = [mem('c-pzonly', 'pz', { total: 5, used: 5 })]
 const pzOnlyClosedCtx = ctxFor([lifeRow('c-pzonly', 'pz')])
 ok(
-  !shouldHideClientFromHallListTab({
+  shouldHideClientFromHallListTab({
     client: pzOnlyClosed,
     memberships: pzOnlyMems,
     lifecycleRows: pzOnlyClosedCtx.lifecycleRows,
     hall: 'pz',
     asOf,
   }),
-  'L-A4: closed PZ only — stay on ПЗ (reopen path)',
+  'L-A4: closed depleted PZ — hide from ПЗ (reopen невозможен)',
 )
-ok(tabMatch(pzOnlyClosed, 'active', pzOnlyMems, pzOnlyClosedCtx), 'L-A4: still on ПЗ tab')
+ok(!tabMatch(pzOnlyClosed, 'active', pzOnlyMems, pzOnlyClosedCtx), 'L-A4: not on ПЗ tab')
+ok(tabMatch(pzOnlyClosed, 'archive', pzOnlyMems, pzOnlyClosedCtx), 'L-A4: on Архив like trainer')
+ok(
+  isAdminListEffectiveClubArchive({
+    client: pzOnlyClosed,
+    memberships: pzOnlyMems,
+    lifecycleRows: pzOnlyClosedCtx.lifecycleRows,
+    asOf,
+  }),
+  'L-A4: effective club archive without archived_at',
+)
+
+const pzOnlyClosedLiveMems = [mem('c-pzonly-live', 'pz', { total: 8, used: 2 })]
+const pzOnlyClosedLive = { id: 'c-pzonly-live', trainer_id: 't1', club_id: 'club1' }
+const pzOnlyClosedLiveCtx = ctxFor([lifeRow('c-pzonly-live', 'pz')])
+ok(
+  !shouldHideClientFromHallListTab({
+    client: pzOnlyClosedLive,
+    memberships: pzOnlyClosedLiveMems,
+    lifecycleRows: pzOnlyClosedLiveCtx.lifecycleRows,
+    hall: 'pz',
+    asOf,
+  }),
+  'L-A4b: closed PZ + live mem — stay on ПЗ (reopen path)',
+)
+ok(tabMatch(pzOnlyClosedLive, 'active', pzOnlyClosedLiveMems, pzOnlyClosedLiveCtx), 'L-A4b: still on ПЗ tab')
 
 const multiOpen = { id: 'c-multi', trainer_id: 't1', club_id: 'club1' }
 const multiMems = [mem('c-multi', 'pz'), mem('c-multi', 'tz')]

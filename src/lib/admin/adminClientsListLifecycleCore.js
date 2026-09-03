@@ -1,6 +1,7 @@
 /**
  * Вкладки ПЗ/ТЗ/АЗ с учётом client_hall_lifecycle.
  * Канон: закрыли ПЗ, клиент жив на АЗ — не в списке ПЗ; на карточке/поиске — тоже.
+ * Закрытый зал без живого абона — Архив админа (как у тренера), не воронка «Не активные».
  */
 
 import {
@@ -63,6 +64,46 @@ export function clientAdminVisibleHallSet(p = {}) {
 }
 
 /**
+ * Админский «Архив» без `archived_at`: направление закрыли, живого абона нигде нет.
+ * Тренер таких уже кладёт в Архив (`closed_at` ПЗ). ПНК не уводим.
+ * @param {{
+ *   client?: object,
+ *   memberships?: object[],
+ *   lifecycleRows?: object[],
+ *   asOf?: string,
+ * }} p
+ */
+export function isAdminListEffectiveClubArchive(p = {}) {
+  if (p.client?.archived_at) return true
+  const lifecycle = String(p.client?.lifecycle ?? '')
+    .trim()
+    .toLowerCase()
+  if (lifecycle === 'pnk') return false
+  const clientId = String(p.client?.id ?? '').trim()
+  if (!clientId) return false
+
+  const asOf = p.asOf ?? todayLocalIso()
+  if (
+    listOpenHalls({
+      client: p.client,
+      memberships: p.memberships,
+      lifecycleRows: p.lifecycleRows,
+      asOf,
+    }).length > 0
+  ) {
+    return false
+  }
+
+  let anyClosed = false
+  let anyLive = false
+  for (const hall of MEMBERSHIP_HALLS) {
+    if (isHallLifecycleClosed(findLifecycleRow(p.lifecycleRows, clientId, hall))) anyClosed = true
+    if (hasLiveMembershipForHall(p.memberships, hall, asOf, p.client)) anyLive = true
+  }
+  return anyClosed && !anyLive
+}
+
+/**
  * @param {{
  *   client?: object,
  *   memberships?: object[],
@@ -94,7 +135,15 @@ export function shouldHideClientFromHallListTab(p = {}) {
       return true
     }
   }
-  return false
+
+  const lifecycle = String(p.client?.lifecycle ?? '')
+    .trim()
+    .toLowerCase()
+  if (lifecycle === 'pnk') return false
+
+  // Без живого/ожидающего абона reopen невозможен — не держим на вкладке зала
+  // (иначе «Не активные» у админа vs Архив у тренера).
+  return !hasLiveMembershipForHall(p.memberships, hall, asOf, p.client)
 }
 
 /**

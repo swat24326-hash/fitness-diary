@@ -5,7 +5,10 @@
  */
 
 import { clientMembershipHallSet } from '../membershipHallCore.js'
-import { clientAdminVisibleHallSet } from './adminClientsListLifecycleCore.js'
+import {
+  clientAdminVisibleHallSet,
+  isAdminListEffectiveClubArchive,
+} from './adminClientsListLifecycleCore.js'
 
 /** @typedef {'active'|'tz'|'az'|'archive'} AdminClientsListTab */
 
@@ -73,8 +76,19 @@ export function normalizeAdminClientsListTab(tab) {
 export function clientMatchesAdminListTab(client, tab, memberships, lifecycleCtx) {
   const t = normalizeAdminClientsListTab(tab)
   const archived = Boolean(client?.archived_at)
-  if (t === 'archive') return archived
-  if (archived) return false
+  const effectiveArchive =
+    archived ||
+    Boolean(
+      lifecycleCtx &&
+        isAdminListEffectiveClubArchive({
+          client,
+          memberships,
+          lifecycleRows: lifecycleCtx.lifecycleRows ?? [],
+          asOf: lifecycleCtx.asOf,
+        }),
+    )
+  if (t === 'archive') return effectiveArchive
+  if (effectiveArchive) return false
 
   const halls = lifecycleCtx
     ? clientAdminVisibleHallSet({
