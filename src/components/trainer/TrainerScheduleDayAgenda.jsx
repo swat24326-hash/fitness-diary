@@ -14,10 +14,14 @@ import {
 } from '../../lib/trainer/trainerScheduleTrainingCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 
-const PX_PER_MIN = 1.15
+const PX_PER_MIN = 1.4
 const DAY_START_MIN = SCHEDULE_DAY_START_HOUR * 60
 const DAY_END_MIN = SCHEDULE_DAY_END_HOUR * 60
 const TRACK_HEIGHT = (DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN
+
+/** Мин. высота карточки: время + тренер + ФИО клиента (админский вид). */
+const ENTRY_MIN_HEIGHT_WITH_TRAINER = 78
+const ENTRY_MIN_HEIGHT = 48
 
 /**
  * @param {{
@@ -101,7 +105,8 @@ export function TrainerScheduleDayAgenda({
           )}
           {dayEntries.map((entry) => {
             const top = (Number(entry.start_minutes) - DAY_START_MIN) * PX_PER_MIN
-            const height = Math.max(44, (Number(entry.duration_minutes) || 60) * PX_PER_MIN - 4)
+            const minH = showTrainerName ? ENTRY_MIN_HEIGHT_WITH_TRAINER : ENTRY_MIN_HEIGHT
+            const height = Math.max(minH, (Number(entry.duration_minutes) || 60) * PX_PER_MIN - 4)
             const label = buildScheduleEntryLabel(entry, clientNameById)
             const trainerName =
               showTrainerName && entry.trainer_id
@@ -111,6 +116,7 @@ export function TrainerScheduleDayAgenda({
             const linkedTraining = entry.linked_training_id ? trainingById[entry.linked_training_id] : null
             const trainingChip = scheduleEntryTrainingStatusLabel(entry, linkedTraining)
             const start = resolveScheduleTrainingStart(entry, { trainingById, workoutsBase: '/trainer/workouts' })
+            const titleParts = [formatScheduleTimeRange(entry), trainerName, label].filter(Boolean)
             return (
               <div
                 key={entry.id}
@@ -125,14 +131,20 @@ export function TrainerScheduleDayAgenda({
                   className={[
                     'trainer-schedule-day__entry',
                     hasClients ? 'trainer-schedule-day__entry--clients' : 'trainer-schedule-day__entry--note',
+                    trainerName ? 'trainer-schedule-day__entry--with-trainer' : '',
                   ].join(' ')}
                   onClick={() => onOpenEntry(entry)}
-                  title={label}
+                  title={titleParts.join(' · ')}
+                  aria-label={titleParts.join(', ')}
                 >
-                  <span className="trainer-schedule-day__entry-time">{formatScheduleTimeRange(entry)}</span>
                   {trainerName ? (
-                    <span className="trainer-schedule-day__entry-trainer">{trainerName}</span>
-                  ) : null}
+                    <span className="trainer-schedule-day__entry-meta">
+                      <span className="trainer-schedule-day__entry-time">{formatScheduleTimeRange(entry)}</span>
+                      <span className="trainer-schedule-day__entry-trainer">{trainerName}</span>
+                    </span>
+                  ) : (
+                    <span className="trainer-schedule-day__entry-time">{formatScheduleTimeRange(entry)}</span>
+                  )}
                   <span className="trainer-schedule-day__entry-label">{label}</span>
                   {trainingChip ? <span className="trainer-schedule-day__entry-chip">{trainingChip}</span> : null}
                 </button>
