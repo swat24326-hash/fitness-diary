@@ -1,11 +1,15 @@
 /**
  * Плитка «Трен. n/m» на форме тренировки — та же правда, что подпись в дневнике карточки.
  * Завершённая: номер по хронологии на абонементе.
- * Черновик: следующая (used + 1) на usable абонементе на дату.
+ * Черновик: следующая (effective used + 1) на usable абонементе на дату.
+ * effective used = max(поле used_trainings, число completed в дневнике) —
+ * иначе при отстающем поле первый заход в черновик показывает 1/8 вместо 2/8.
  */
 
+import { resolveEffectiveMembershipUsed } from '../membership/membershipTotalGuardCore.js'
 import {
   completedWorkoutNumberOnMembership,
+  countedUsedTrainingsOnMembership,
   pickUsableMembershipForDate,
   resolveMembershipForDiaryTraining,
 } from '../membershipRules.js'
@@ -52,8 +56,11 @@ export function buildTrainingMembershipTileSummary(input = {}) {
   const m = pickUsableMembershipForDate(memberships, date)
   if (!m?.id) return null
   const total = Number(m.total_trainings)
-  const used = Number(m.used_trainings)
-  if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(used)) return null
+  if (!Number.isFinite(total) || total <= 0) return null
+  const used = resolveEffectiveMembershipUsed(
+    m.used_trainings,
+    countedUsedTrainingsOnMembership(m, allTrainings),
+  )
   if (used >= total) return null
   return {
     current: Math.min(used + 1, total),

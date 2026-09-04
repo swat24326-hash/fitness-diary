@@ -66,6 +66,18 @@ const draftNext = buildTrainingMembershipTileSummary({
 })
 ok(draftNext?.current === 2 && draftNext?.total === 4, 'draft after 1 used → next 2/4')
 
+const draftStaleUsed = buildTrainingMembershipTileSummary({
+  memberships: [{ ...el, used_trainings: 0 }],
+  allTrainings: all,
+  training: { id: 't-draft', status: 'draft', date: '2026-08-26' },
+  trainingDate: '2026-08-26',
+  status: 'draft',
+})
+ok(
+  draftStaleUsed?.current === 2 && draftStaleUsed?.total === 4,
+  'CRITICAL: draft with stale used=0 but diary has 1 completed → next 2/4 (not 1/4)',
+)
+
 const secondOnEl = {
   id: 't-el-2',
   status: 'completed',

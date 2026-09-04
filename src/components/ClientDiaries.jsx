@@ -25,8 +25,10 @@ import {
   isCalendarUnlimitedMembership,
   compareTrainingsChronological,
   completedWorkoutNumberOnMembership,
+  countedUsedTrainingsOnMembership,
   resolveMembershipForDiaryTraining,
 } from '../lib/membershipRules'
+import { resolveEffectiveMembershipUsed } from '../lib/membership/membershipTotalGuardCore.js'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../lib/useDebouncedStorageReload'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { notifyTrainingDraftDeleted } from '../lib/trainingDraftCleanup.js'
@@ -101,25 +103,29 @@ function membershipForTrainingDate(dateStr, memberships, training, allTrainings)
 
   if (mFocused && membershipCoversDate(mFocused, d)) {
     const total = Number(mFocused.total_trainings ?? 0)
-    const used = Number(mFocused.used_trainings ?? 0)
+    const used = resolveEffectiveMembershipUsed(
+      mFocused.used_trainings,
+      countedUsedTrainingsOnMembership(mFocused, allTrainings),
+    )
     const ends = endsOf(mFocused)
 
-    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(used)) {
+    if (!Number.isFinite(total) || total <= 0) {
       return { tone: 'neutral', label: `Абонемент: до ${ends}` }
     }
 
     const isDraft = training?.status === 'draft'
     const isCompleted = training?.status === 'completed'
 
-    if (membershipHasRemaining(mFocused)) {
-      if (isDraft) {
-        const nextN = Math.min(total, Math.max(1, used + 1))
-        const metric = membershipToneBySlotsLeft(total, total - used)
-        return {
-          tone: toneClassFromMetricKey(metric),
-          label: `Абонемент: до ${ends}, следующая тренировка ${nextN}/${total}`,
-        }
+    if (isDraft && used < total) {
+      const nextN = Math.min(total, Math.max(1, used + 1))
+      const metric = membershipToneBySlotsLeft(total, total - used)
+      return {
+        tone: toneClassFromMetricKey(metric),
+        label: `Абонемент: до ${ends}, следующая тренировка ${nextN}/${total}`,
       }
+    }
+
+    if (membershipHasRemaining(mFocused)) {
       if (isCompleted) {
         const n = allTrainings && training ? completedWorkoutNumberOnMembership(training, mFocused, allTrainings) : null
         if (n == null || !Number.isFinite(n)) {
