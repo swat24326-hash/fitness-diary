@@ -8,6 +8,7 @@ import {
   buildTrainerScheduleClientPickerList,
   clientMatchesTrainerScheduleSearch,
   countScheduleEntriesByDay,
+  assignScheduleEntryLanes,
   filterScheduleEntriesForDay,
   formatScheduleMinutes,
   normalizeScheduleClientIds,
@@ -71,6 +72,20 @@ const entries = [
 ]
 ok(filterScheduleEntriesForDay(entries, '2026-08-27').length === 1, 'filter day')
 ok(countScheduleEntriesByDay(entries, 2026, 8)['2026-08-27'] === 1, 'count by day')
+
+const laneSolo = assignScheduleEntryLanes([
+  { id: 'a', start_minutes: 900, duration_minutes: 60 },
+])
+ok(laneSolo.get('a')?.lane === 0 && laneSolo.get('a')?.laneCount === 1, 'lane solo')
+
+const laneOverlap = assignScheduleEntryLanes([
+  { id: 'a', start_minutes: 900, duration_minutes: 60 },
+  { id: 'b', start_minutes: 900, duration_minutes: 60 },
+  { id: 'c', start_minutes: 960, duration_minutes: 60 },
+])
+ok(laneOverlap.get('a')?.lane !== laneOverlap.get('b')?.lane, 'overlap different lanes')
+ok(laneOverlap.get('a')?.laneCount === 2 && laneOverlap.get('b')?.laneCount === 2, 'overlap cluster width 2')
+ok(laneOverlap.get('c')?.laneCount === 1, 'non-overlap alone')
 
 ok(
   buildScheduleEntryLabel({ client_ids: ['c1'], title: '' }, { c1: 'Иванов' }) === 'Иванов',

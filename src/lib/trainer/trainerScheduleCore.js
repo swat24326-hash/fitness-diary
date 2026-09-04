@@ -154,6 +154,72 @@ export function filterScheduleEntriesForDay(entries, dayIso) {
     .sort((a, b) => (a.start_minutes - b.start_minutes) || String(a.id).localeCompare(String(b.id)))
 }
 
+/**
+ * Колонки для пересекающихся слотов (режим «Все тренеры»).
+ * @param {object[]} entries
+ * @returns {Map<string, { lane: number, laneCount: number }>}
+ */
+export function assignScheduleEntryLanes(entries) {
+  const list = [...(entries ?? [])].sort(
+    (a, b) =>
+      Number(a?.start_minutes ?? 0) - Number(b?.start_minutes ?? 0) ||
+      String(a?.id ?? '').localeCompare(String(b?.id ?? '')),
+  )
+  /** @type {Map<string, { lane: number, laneCount: number }>} */
+  const out = new Map()
+  if (!list.length) return out
+
+  const startOf = (e) => Number(e?.start_minutes) || 0
+  const endOf = (e) => startOf(e) + (Number(e?.duration_minutes) || SCHEDULE_DEFAULT_DURATION_MIN)
+
+  /** @type {number[]} */
+  const laneEnds = []
+  /** @type {{ id: string, start: number, end: number, lane: number }[]} */
+  const placed = []
+  for (const e of list) {
+    const id = String(e?.id ?? '').trim()
+    if (!id) continue
+    const start = startOf(e)
+    const end = endOf(e)
+    let lane = 0
+    while (lane < laneEnds.length && laneEnds[lane] > start) lane += 1
+    if (lane === laneEnds.length) laneEnds.push(end)
+    else laneEnds[lane] = end
+    placed.push({ id, start, end, lane })
+  }
+
+  const n = placed.length
+  const clusterOf = new Array(n).fill(-1)
+  let clusterCount = 0
+  for (let i = 0; i < n; i++) {
+    if (clusterOf[i] >= 0) continue
+    const queue = [i]
+    clusterOf[i] = clusterCount
+    for (let q = 0; q < queue.length; q++) {
+      const cur = queue[q]
+      for (let j = 0; j < n; j++) {
+        if (clusterOf[j] >= 0) continue
+        if (placed[cur].start < placed[j].end && placed[j].start < placed[cur].end) {
+          clusterOf[j] = clusterCount
+          queue.push(j)
+        }
+      }
+    }
+    clusterCount += 1
+  }
+
+  const clusterWidth = new Array(clusterCount).fill(1)
+  for (let i = 0; i < n; i++) {
+    const c = clusterOf[i]
+    clusterWidth[c] = Math.max(clusterWidth[c], placed[i].lane + 1)
+  }
+
+  for (let i = 0; i < n; i++) {
+    out.set(placed[i].id, { lane: placed[i].lane, laneCount: clusterWidth[clusterOf[i]] })
+  }
+  return out
+}
+
 /** @param {object[]} entries @param {number} year @param {number} month */
 export function countScheduleEntriesByDay(entries, year, month) {
   const prefix = `${year}-${String(month).padStart(2, '0')}-`

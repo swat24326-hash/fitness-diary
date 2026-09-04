@@ -3,6 +3,7 @@ import { Plus, Play } from 'lucide-react'
 import {
   SCHEDULE_DAY_END_HOUR,
   SCHEDULE_DAY_START_HOUR,
+  assignScheduleEntryLanes,
   buildScheduleEntryLabel,
   filterScheduleEntriesForDay,
   formatScheduleMinutes,
@@ -51,6 +52,7 @@ export function TrainerScheduleDayAgenda({
 }) {
   const nav = useNavigate()
   const dayEntries = filterScheduleEntriesForDay(entries, dayIso)
+  const entryLanes = assignScheduleEntryLanes(dayEntries)
   const hours = []
   for (let h = SCHEDULE_DAY_START_HOUR; h < SCHEDULE_DAY_END_HOUR; h++) hours.push(h)
 
@@ -107,6 +109,11 @@ export function TrainerScheduleDayAgenda({
             const top = (Number(entry.start_minutes) - DAY_START_MIN) * PX_PER_MIN
             const minH = showTrainerName ? ENTRY_MIN_HEIGHT_WITH_TRAINER : ENTRY_MIN_HEIGHT
             const height = Math.max(minH, (Number(entry.duration_minutes) || 60) * PX_PER_MIN - 4)
+            const lane = entryLanes.get(String(entry.id)) ?? { lane: 0, laneCount: 1 }
+            const laneCount = Math.max(1, Number(lane.laneCount) || 1)
+            const laneIndex = Math.min(Math.max(0, Number(lane.lane) || 0), laneCount - 1)
+            const widthPct = 100 / laneCount
+            const leftPct = laneIndex * widthPct
             const label = buildScheduleEntryLabel(entry, clientNameById)
             const trainerName =
               showTrainerName && entry.trainer_id
@@ -123,8 +130,15 @@ export function TrainerScheduleDayAgenda({
                 className={[
                   'trainer-schedule-day__entry-wrap',
                   hasClients ? 'trainer-schedule-day__entry-wrap--clients' : 'trainer-schedule-day__entry-wrap--note',
+                  laneCount > 1 ? 'trainer-schedule-day__entry-wrap--lane' : '',
                 ].join(' ')}
-                style={{ top, height }}
+                style={{
+                  top,
+                  height,
+                  left: `${leftPct}%`,
+                  width: `calc(${widthPct}% - 4px)`,
+                  right: 'auto',
+                }}
               >
                 <button
                   type="button"
