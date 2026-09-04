@@ -1705,6 +1705,17 @@ button {
   opacity: 1;
 }
 
+/* Планшет/тач: sticky :hover ломает CTA («Закончить» показывает tip вместо действия). */
+@media (hover: none), (pointer: coarse) {
+  .tip:hover::after,
+  .tip:focus-within::after,
+  .tip:hover::before,
+  .tip:focus-within::before {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 .btn-icon-xs {
   width: 34px;
   height: 34px;

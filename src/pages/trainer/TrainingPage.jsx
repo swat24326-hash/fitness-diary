@@ -1040,7 +1040,10 @@ export function TrainingPage() {
       // автосэйв не должен оставлять “залипшую” ошибку после успешной попытки
       setSaveError('')
     }
-    if (!user?.id) return
+    if (!user?.id) {
+      if (!silent) setSaveError('Нет сессии — войдите снова.')
+      return
+    }
     if (
       shouldBlockMismatchedDraftPersist({
         silent,
@@ -1070,6 +1073,9 @@ export function TrainingPage() {
     }
     if (!(await canPersistTrainingDraft(trainingId))) {
       if (silent) setAutosaveStatus('idle')
+      if (!silent) {
+        setSaveError('Черновик удалён или ждёт удаления — нельзя сохранить. Откройте тренировку заново.')
+      }
       return
     }
     const cid = clientLive?.id ?? clientIdParamLive
@@ -2227,33 +2233,31 @@ export function TrainingPage() {
 
       <div className="row training-actions-row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
           {isTrainingStatusCompleted(meta.status) ? (
-            <span className="tip" data-tip="Сохранить правки. Статус «завершена» не снимается, абон повторно не списывается.">
-              <button
-                type="button"
-                className="btn btn-primary btn-touch"
-                disabled={completeBusy}
-                onClick={() => {
-                  setShowCompletionHints(false)
-                  void persist('completed')
-                }}
-              >
-                {completeBusy ? 'Сохраняем…' : 'Сохранить'}
-              </button>
-            </span>
+            <button
+              type="button"
+              className="btn btn-primary btn-touch"
+              disabled={completeBusy}
+              title="Сохранить правки. Статус «завершена» не снимается, абон повторно не списывается."
+              onClick={() => {
+                setShowCompletionHints(false)
+                void persist('completed')
+              }}
+            >
+              {completeBusy ? 'Сохраняем…' : 'Сохранить'}
+            </button>
           ) : canCompleteTraining ? (
-            <span className="tip" data-tip="Пометит тренировку как завершённую и сохранит. Если есть проблема — появится сообщение ниже.">
-              <button
-                type="button"
-                className="btn btn-primary btn-touch"
-                disabled={completeBusy}
-                onClick={() => {
-                  setShowCompletionHints(false)
-                  void persist('completed')
-                }}
-              >
-                {completeBusy ? 'Сохраняем…' : 'Закончить тренировку'}
-              </button>
-            </span>
+            <button
+              type="button"
+              className="btn btn-primary btn-touch"
+              disabled={completeBusy}
+              title="Пометит тренировку как завершённую и сохранит"
+              onClick={() => {
+                setShowCompletionHints(false)
+                void persist('completed')
+              }}
+            >
+              {completeBusy ? 'Сохраняем…' : 'Закончить тренировку'}
+            </button>
           ) : (
             <button
               type="button"
@@ -2265,17 +2269,15 @@ export function TrainingPage() {
             </button>
           )}
           {!isTrainingStatusCompleted(meta.status) ? (
-          <span className="tip" data-tip="Сохранить черновик (можно продолжить позже).">
-            <button
-              type="button"
-              className="btn btn-ghost training-draft-save-btn"
-              aria-label="Сохранить черновик"
-              title="Сохранить черновик"
-              onClick={() => persist('draft')}
-            >
-              <Save size={22} strokeWidth={1.65} aria-hidden />
-            </button>
-          </span>
+          <button
+            type="button"
+            className="btn btn-ghost training-draft-save-btn"
+            aria-label="Сохранить черновик"
+            title="Сохранить черновик (можно продолжить позже)"
+            onClick={() => persist('draft')}
+          >
+            <Save size={22} strokeWidth={1.65} aria-hidden />
+          </button>
           ) : null}
           {meta.status !== 'completed' ? (
             <span

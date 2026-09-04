@@ -7,6 +7,7 @@ import {
   prepareTrainingPushPayload,
   stripTrainingUpdatedAt,
 } from './normalizeTrainingPayload.js'
+import { resolveTrainingPersistStatus } from '../../src/lib/trainingPersistStatusCore.js'
 import { normalizeMembershipPushPayload } from '../../src/lib/membershipPushPayload.js'
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
 import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
@@ -374,6 +375,15 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'trainings') {
         const prepared = prepareTrainingPushPayload(data, { operation: 'update' })
         if (!prepared) return { ok: false, status: 400, error: 'Некорректная тренировка' }
+        // Не откатывать completed → draft при flush старого черновика с планшета.
+        const { data: existing } = await supabaseAdmin
+          .from('trainings')
+          .select('status')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (existing) {
+          prepared.status = resolveTrainingPersistStatus(prepared.status, existing.status)
+        }
         return writeTrainingRow(supabaseAdmin, 'update', prepared, remote_id)
       }
       if (table_name === 'clients') {
