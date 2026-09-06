@@ -3,6 +3,12 @@
  * node scripts/verify-trainer-schedule-core.mjs
  */
 import {
+  SCHEDULE_DAY_END_HOUR,
+  SCHEDULE_DAY_FOCUS_HOUR,
+  SCHEDULE_DAY_START_HOUR,
+  SCHEDULE_VIEW_DAY,
+  SCHEDULE_VIEW_DAYS3,
+  SCHEDULE_VIEW_WEEK,
   buildScheduleEntryLabel,
   buildScheduleMonthGrid,
   buildTrainerScheduleClientPickerList,
@@ -11,12 +17,17 @@ import {
   assignScheduleEntryLanes,
   filterScheduleEntriesForDay,
   formatScheduleMinutes,
+  formatScheduleViewRangeLabel,
+  listScheduleViewDays,
   normalizeScheduleClientIds,
   normalizeTrainerScheduleEntry,
   parseScheduleTimeToMinutes,
   planTrainerSchedulePrune,
   resolveTrainerSchedulePullWindow,
+  shiftScheduleAnchorIso,
   shouldReloadTrainerScheduleData,
+  startOfWeekMondayIso,
+  weekdayShortRu,
 } from '../src/lib/trainer/trainerScheduleCore.js'
 import { normalizeTrainerPullPayload } from '../src/lib/trainerPullResponseCore.js'
 import { PUSH_ALLOWED_TABLES } from '../api/_lib/pushRecordCore.js'
@@ -36,6 +47,35 @@ function ok(cond, msg) {
 
 ok(parseScheduleTimeToMinutes('10:30') === 630, 'parse 10:30')
 ok(formatScheduleMinutes(630) === '10:30', 'format 10:30')
+ok(parseScheduleTimeToMinutes('00:00') === 0, 'parse midnight')
+ok(parseScheduleTimeToMinutes('23:00') === 1380, 'parse 23:00')
+ok(
+  SCHEDULE_DAY_START_HOUR === 0 && SCHEDULE_DAY_END_HOUR === 24 && SCHEDULE_DAY_FOCUS_HOUR === 7,
+  'day grid 00–23 (focus 07)',
+)
+ok(startOfWeekMondayIso('2026-09-06') === '2026-08-31', 'week monday for Sun 06.09')
+ok(listScheduleViewDays('2026-09-06', SCHEDULE_VIEW_DAY).join(',') === '2026-09-06', 'view day')
+ok(
+  listScheduleViewDays('2026-09-06', SCHEDULE_VIEW_DAYS3).join(',') ===
+    '2026-09-06,2026-09-07,2026-09-08',
+  'view 3 days',
+)
+ok(
+  listScheduleViewDays('2026-09-06', SCHEDULE_VIEW_WEEK).join(',') ===
+    '2026-08-31,2026-09-01,2026-09-02,2026-09-03,2026-09-04,2026-09-05,2026-09-06',
+  'view week Mon–Sun',
+)
+ok(shiftScheduleAnchorIso('2026-09-06', SCHEDULE_VIEW_DAY, 1) === '2026-09-07', 'shift day')
+ok(shiftScheduleAnchorIso('2026-09-06', SCHEDULE_VIEW_DAYS3, 1) === '2026-09-09', 'shift 3 days')
+ok(shiftScheduleAnchorIso('2026-09-06', SCHEDULE_VIEW_WEEK, -1) === '2026-08-30', 'shift week back')
+ok(weekdayShortRu('2026-09-06') === 'Вс', 'weekday short')
+ok(
+  formatScheduleViewRangeLabel(['2026-09-06', '2026-09-08'], (d) => {
+    const [y, m, day] = d.split('-')
+    return `${day}.${m}.${y}`
+  }) === '06.09 – 08.09.2026',
+  'range label same year',
+)
 ok(normalizeScheduleClientIds(['a', 'a', 'b']).join(',') === 'a,b', 'dedupe client ids')
 
 const row = normalizeTrainerScheduleEntry({

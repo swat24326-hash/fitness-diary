@@ -1,5 +1,5 @@
 /**
- * Ежедневник тренера — месяц и день по часам.
+ * Ежедневник тренера — месяц, день, 3 дня и неделя по часам.
  */
 
 .trainer-schedule-page {
@@ -7,6 +7,10 @@
   max-width: 920px;
   margin-inline: auto;
   padding-bottom: 24px;
+}
+
+.trainer-schedule-page--wide {
+  max-width: min(100%, 1180px);
 }
 
 .trainer-schedule-page__hero {
@@ -27,6 +31,39 @@
 
 .trainer-schedule-page__loading {
   margin: 0 0 12px;
+}
+
+/* --- View switcher --- */
+.trainer-schedule-view-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.trainer-schedule-view-switch__btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  min-height: 40px;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.trainer-schedule-view-switch__btn--active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text);
 }
 
 /* --- Month --- */
@@ -129,17 +166,69 @@
   margin-bottom: 12px;
 }
 
+.trainer-schedule-day__nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: min(100%, 16rem);
+}
+
 .trainer-schedule-day__title {
   margin: 0;
   flex: 1;
   font-size: 1.05rem;
   font-weight: 650;
+  text-align: center;
+  min-width: 0;
 }
 
 .trainer-schedule-day__add {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
+}
+
+.trainer-schedule-day__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.trainer-schedule-day__col-heads {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 6px;
+  align-items: stretch;
+}
+
+.trainer-schedule-day__col-heads-spacer {
+  min-width: 0;
+}
+
+.trainer-schedule-day__col-head {
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 40px;
+}
+
+.trainer-schedule-day__col-head--static {
+  cursor: default;
+}
+
+.trainer-schedule-day__col-head--today {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .trainer-schedule-day__board {
@@ -148,6 +237,38 @@
   gap: 8px;
   overflow: auto;
   max-height: min(68vh, 720px);
+}
+
+.trainer-schedule-day__board--multi {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.trainer-schedule-day--week .trainer-schedule-day__board {
+  max-height: min(72vh, 760px);
+}
+
+.trainer-schedule-day--week .trainer-schedule-day__entry-label {
+  font-size: 0.72rem;
+}
+
+.trainer-schedule-day--week .trainer-schedule-day__entry-time {
+  font-size: 10px;
+}
+
+.trainer-schedule-day__entry-wrap--compact {
+  padding-left: 2px;
+  min-height: 36px;
+  gap: 2px;
+}
+
+.trainer-schedule-day__entry--compact {
+  padding: 3px 4px;
+  gap: 1px;
+}
+
+.trainer-schedule-day__entry--compact .trainer-schedule-day__entry-label {
+  white-space: nowrap;
 }
 
 .trainer-schedule-day__hours {

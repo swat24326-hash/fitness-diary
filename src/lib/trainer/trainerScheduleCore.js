@@ -3,12 +3,21 @@
  */
 import { addDaysToIso } from '../dateRu.js'
 
-export const SCHEDULE_DAY_START_HOUR = 7
-export const SCHEDULE_DAY_END_HOUR = 22
+/** Сетка дня: полные сутки (часы 00…23). END exclusive. */
+export const SCHEDULE_DAY_START_HOUR = 0
+export const SCHEDULE_DAY_END_HOUR = 24
+/** При открытии дня скролл к этому часу (ночные слоты выше по скроллу). */
+export const SCHEDULE_DAY_FOCUS_HOUR = 7
 export const SCHEDULE_DEFAULT_DURATION_MIN = 60
 export const SCHEDULE_MAX_CLIENTS = 10
 export const SCHEDULE_PULL_DAYS_BACK = 30
 export const SCHEDULE_PULL_DAYS_FORWARD = 120
+
+/** Режимы календаря тренера / админа. */
+export const SCHEDULE_VIEW_DAY = 'day'
+export const SCHEDULE_VIEW_DAYS3 = 'days3'
+export const SCHEDULE_VIEW_WEEK = 'week'
+export const SCHEDULE_VIEW_MONTH = 'month'
 
 const WEEKDAY_LABELS_RU = Object.freeze(['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'])
 
@@ -152,6 +161,81 @@ export function filterScheduleEntriesForDay(entries, dayIso) {
   return (entries ?? [])
     .filter((e) => String(e?.day_date ?? '').slice(0, 10) === day)
     .sort((a, b) => (a.start_minutes - b.start_minutes) || String(a.id).localeCompare(String(b.id)))
+}
+
+/** @param {string} dayIso YYYY-MM-DD */
+export function startOfWeekMondayIso(dayIso) {
+  const day = String(dayIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return day
+  const [y, m, d] = day.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  const mondayOffset = (dt.getDay() + 6) % 7
+  return addDaysToIso(day, -mondayOffset)
+}
+
+/** @param {string} dayIso YYYY-MM-DD */
+export function weekdayShortRu(dayIso) {
+  const day = String(dayIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return ''
+  const [y, m, d] = day.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return WEEKDAY_LABELS_RU[(dt.getDay() + 6) % 7] ?? ''
+}
+
+/**
+ * Дни в окне режима: день / 3 дня от якоря / пн–вс недели якоря.
+ * @param {string} anchorIso
+ * @param {string} view
+ * @returns {string[]}
+ */
+export function listScheduleViewDays(anchorIso, view) {
+  const anchor = String(anchorIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return []
+  const mode = String(view ?? SCHEDULE_VIEW_DAY)
+  if (mode === SCHEDULE_VIEW_WEEK) {
+    const monday = startOfWeekMondayIso(anchor)
+    return Array.from({ length: 7 }, (_, i) => addDaysToIso(monday, i))
+  }
+  if (mode === SCHEDULE_VIEW_DAYS3) {
+    return [anchor, addDaysToIso(anchor, 1), addDaysToIso(anchor, 2)]
+  }
+  return [anchor]
+}
+
+/**
+ * Сдвиг якоря: день ±1, 3 дня ±3, неделя ±7.
+ * @param {string} anchorIso
+ * @param {string} view
+ * @param {number} delta  обычно −1 | +1
+ */
+export function shiftScheduleAnchorIso(anchorIso, view, delta) {
+  const anchor = String(anchorIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return anchor
+  const step = Number(delta) || 0
+  const mode = String(view ?? SCHEDULE_VIEW_DAY)
+  if (mode === SCHEDULE_VIEW_WEEK) return addDaysToIso(anchor, step * 7)
+  if (mode === SCHEDULE_VIEW_DAYS3) return addDaysToIso(anchor, step * 3)
+  return addDaysToIso(anchor, step)
+}
+
+/**
+ * Заголовок диапазона: одна дата или «дд.мм – дд.мм.гггг».
+ * @param {string[]} dayIsos
+ * @param {(iso: string) => string} formatDay
+ */
+export function formatScheduleViewRangeLabel(dayIsos, formatDay) {
+  const days = (dayIsos ?? []).map((d) => String(d ?? '').slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+  if (!days.length) return '—'
+  const fmt = typeof formatDay === 'function' ? formatDay : (iso) => iso
+  if (days.length === 1) return fmt(days[0])
+  const first = days[0]
+  const last = days[days.length - 1]
+  const a = fmt(first)
+  const b = fmt(last)
+  if (a.length >= 10 && b.length >= 10 && a.slice(6) === b.slice(6)) {
+    return `${a.slice(0, 5)} – ${b}`
+  }
+  return `${a} – ${b}`
 }
 
 /**

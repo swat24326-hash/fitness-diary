@@ -3,11 +3,19 @@ import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { CalendarDays } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { todayInTimeZoneIso } from '../../lib/dateRu.js'
-import { countScheduleEntriesByDay } from '../../lib/trainer/trainerScheduleCore.js'
+import {
+  SCHEDULE_VIEW_DAY,
+  SCHEDULE_VIEW_MONTH,
+  countScheduleEntriesByDay,
+  listScheduleViewDays,
+  shiftScheduleAnchorIso,
+} from '../../lib/trainer/trainerScheduleCore.js'
+import { resolveScheduleMonthWindow } from '../../lib/admin/trainerScheduleAdminCore.js'
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient.js'
 import { useClubTrainerScheduleData } from '../../hooks/useClubTrainerScheduleData.js'
 import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
-import { TrainerScheduleDayAgenda } from '../../components/trainer/TrainerScheduleDayAgenda.jsx'
+import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
+import { TrainerScheduleViewSwitcher } from '../../components/trainer/TrainerScheduleViewSwitcher.jsx'
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
 import '../../styles/trainer-schedule.css'
 
@@ -49,7 +57,7 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
   }, [isSup, outlet?.clubId, searchParams, user?.club_id])
 
   const today = todayInTimeZoneIso()
-  const [view, setView] = useState('month')
+  const [view, setView] = useState(SCHEDULE_VIEW_MONTH)
   const [selectedDay, setSelectedDay] = useState(today)
   const [monthCursor, setMonthCursor] = useState(() => parseMonthCursor(today))
   const [trainerFilter, setTrainerFilter] = useState(() => String(searchParams.get('trainer') ?? '').trim())
@@ -60,6 +68,17 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
 
   const clientsBase = isSup ? '/club/clients' : '/admin/clients'
   const homeHref = isSup ? '/club' : '/admin'
+
+  const agendaDays = useMemo(() => listScheduleViewDays(selectedDay, view), [selectedDay, view])
+
+  const loadRange = useMemo(() => {
+    if (view === SCHEDULE_VIEW_MONTH) {
+      const window = resolveScheduleMonthWindow(monthCursor.year, monthCursor.month)
+      return window ?? { dayFrom: selectedDay, dayTo: selectedDay }
+    }
+    if (!agendaDays.length) return { dayFrom: selectedDay, dayTo: selectedDay }
+    return { dayFrom: agendaDays[0], dayTo: agendaDays[agendaDays.length - 1] }
+  }, [view, monthCursor.year, monthCursor.month, agendaDays, selectedDay])
 
   useEffect(() => {
     if (!clubId) {
@@ -95,8 +114,8 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
     useClubTrainerScheduleData({
       clubId,
       trainerId: trainerFilter,
-      year: monthCursor.year,
-      month: monthCursor.month,
+      dayFrom: loadRange.dayFrom,
+      dayTo: loadRange.dayTo,
     })
 
   const countsByDay = useMemo(
@@ -107,16 +126,44 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
   const onSelectDay = (iso) => {
     setSelectedDay(iso)
     setMonthCursor(parseMonthCursor(iso))
-    setView('day')
+    setView(SCHEDULE_VIEW_DAY)
+  }
+
+  const onChangeView = (next) => {
+    setView(next)
+    if (next !== SCHEDULE_VIEW_MONTH) {
+      setMonthCursor(parseMonthCursor(selectedDay))
+    }
+  }
+
+  const shiftAnchor = (delta) => {
+    const next = shiftScheduleAnchorIso(selectedDay, view, delta)
+    setSelectedDay(next)
+    setMonthCursor(parseMonthCursor(next))
   }
 
   const openView = (entry) => {
+    const day = String(entry?.day_date ?? selectedDay).slice(0, 10)
+    if (day) {
+      setSelectedDay(day)
+      setMonthCursor(parseMonthCursor(day))
+    }
     setModalEntry(entry)
     setModalOpen(true)
   }
 
+  const wide = view !== SCHEDULE_VIEW_MONTH && agendaDays.length > 1
+
   return (
-    <div className="trainer-schedule-page admin-trainer-schedule-page">
+    <div
+      className={[
+        'trainer-schedule-page',
+        'admin-trainer-schedule-page',
+        wide ? 'trainer-schedule-page--wide' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <header className="trainer-schedule-page__hero">
         <div className="admin-trainer-schedule-page__head-row">
           <div>
@@ -132,6 +179,7 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
             ← На главную
           </Link>
         </div>
+        {clubId ? <TrainerScheduleViewSwitcher view={view} onChange={onChangeView} /> : null}
       </header>
 
       {!clubId ? (
@@ -160,7 +208,7 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
             </label>
             {truncated ? (
               <p className="admin-trainer-schedule-page__warn muted" role="status">
-                Показаны не все записи месяца — сузьте фильтр по тренеру.
+                Показаны не все записи периода — сузьте фильтр по тренеру.
               </p>
             ) : null}
           </div>
@@ -170,9 +218,13 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               {error}
             </p>
           ) : null}
-          {loading ? <p className="muted trainer-schedule-page__loading" role="status">Загрузка расписания…</p> : null}
+          {loading ? (
+            <p className="muted trainer-schedule-page__loading" role="status">
+              Загрузка расписания…
+            </p>
+          ) : null}
 
-          {view === 'month' ? (
+          {view === SCHEDULE_VIEW_MONTH ? (
             <TrainerScheduleMonthGrid
               year={monthCursor.year}
               month={monthCursor.month}
@@ -183,16 +235,19 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               onNextMonth={() => setMonthCursor((c) => shiftMonth(c.year, c.month, 1))}
             />
           ) : (
-            <TrainerScheduleDayAgenda
-              dayIso={selectedDay}
+            <TrainerScheduleMultiDayAgenda
+              dayIsos={agendaDays}
+              anchorDayIso={selectedDay}
               entries={entries}
               clientNameById={clientNameById}
               trainerNameById={trainerNameById}
               trainingById={trainingById}
               readOnly
               showTrainerName={!trainerFilter}
-              onBack={() => setView('month')}
-              onAddAtMinutes={() => {}}
+              onPrev={() => shiftAnchor(-1)}
+              onNext={() => shiftAnchor(1)}
+              onOpenDay={onSelectDay}
+              onAddAt={() => {}}
               onOpenEntry={openView}
             />
           )}

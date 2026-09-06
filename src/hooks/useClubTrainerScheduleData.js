@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { loadClubTrainerScheduleMonth } from '../lib/admin/trainerScheduleAdminService.js'
+import { loadClubTrainerScheduleRange } from '../lib/admin/trainerScheduleAdminService.js'
 
 /**
  * Ежедневники тренеров клуба — read-only через admin-data API.
- * @param {{ clubId: string, trainerId?: string, year: number, month: number }} opts
+ * @param {{ clubId: string, trainerId?: string, dayFrom: string, dayTo: string }} opts
  */
-export function useClubTrainerScheduleData({ clubId, trainerId = '', year, month }) {
+export function useClubTrainerScheduleData({ clubId, trainerId = '', dayFrom, dayTo }) {
   const [entries, setEntries] = useState([])
   const [clientNameById, setClientNameById] = useState({})
   const [trainerNameById, setTrainerNameById] = useState({})
@@ -16,7 +16,9 @@ export function useClubTrainerScheduleData({ clubId, trainerId = '', year, month
 
   const reload = useCallback(async () => {
     const cid = String(clubId ?? '').trim()
-    if (!cid) {
+    const from = String(dayFrom ?? '').slice(0, 10)
+    const to = String(dayTo ?? '').slice(0, 10)
+    if (!cid || !from || !to) {
       setEntries([])
       setClientNameById({})
       setTrainerNameById({})
@@ -29,11 +31,11 @@ export function useClubTrainerScheduleData({ clubId, trainerId = '', year, month
     setLoading(true)
     setError('')
     try {
-      const res = await loadClubTrainerScheduleMonth({
+      const res = await loadClubTrainerScheduleRange({
         clubId: cid,
         trainerId,
-        year,
-        month,
+        dayFrom: from,
+        dayTo: to,
       })
       if (!res.ok) {
         setEntries([])
@@ -55,7 +57,7 @@ export function useClubTrainerScheduleData({ clubId, trainerId = '', year, month
     } finally {
       setLoading(false)
     }
-  }, [clubId, trainerId, year, month])
+  }, [clubId, trainerId, dayFrom, dayTo])
 
   useEffect(() => {
     void reload()

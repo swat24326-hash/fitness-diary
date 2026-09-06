@@ -1,6 +1,6 @@
 # Ежедневник тренера (расписание персоналок)
 
-**Актуально:** 2026-08-27  
+**Актуально:** 2026-09-06  
 **Статус:** ✅ MVP в коде (тренер, планшет, офлайн + sync)  
 **Не:** Google Calendar как источник правды; групповые слоты; запись клиентом из ЛК (позже).
 
@@ -17,7 +17,7 @@
 | Что | Как |
 |-----|-----|
 | Кто создаёт | Только **тренер** на планшете |
-| UX | Как Google Calendar: **месяц** → тап по **дню** → **день по часам** |
+| UX | Как Google Calendar: **месяц** → тап по **дню** → сетка по часам. Режимы: **День / 3 дня / Неделя / Месяц**; в дневных режимах стрелки «назад/вперёд»; сетка **00:00–23:00**, при открытии скролл к ~07:00 |
 | Запись в слот | **Заметка** (текст) **или** один/несколько **клиентов** тренера |
 | Офлайн | IndexedDB + `sync_queue` → `push-record` |
 | Pull | `trainer-pull`, окно −30…+120 дней от «сегодня» (МСК) |
@@ -61,7 +61,7 @@
 | Экран | `src/pages/trainer/TrainerCalendarPage.jsx` |
 | Админ / управляющий | `src/pages/admin/ClubTrainerSchedulePage.jsx` |
 | Admin API | `api/_lib/adminData/trainerScheduleHandler.js`, `src/lib/admin/trainerScheduleAdminCore.js` |
-| UI-блоки | `src/components/trainer/TrainerSchedule*.jsx` |
+| UI-блоки | `src/components/trainer/TrainerSchedule*.jsx` (`ViewSwitcher`, `MultiDayAgenda`, месяц) |
 | Стили | `src/styles/trainer-schedule.css` |
 | Verify | `verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core.mjs` |
 
