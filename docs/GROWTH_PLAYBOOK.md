@@ -23,6 +23,8 @@
 | 2026-06-02 | 1 | 3 | ? | ? | Hobby | Free | стартовая база |
 | 2026-06-24 | 1 | 3 | ~40 / ~40 | уточнить в Supabase SQL | Hobby | Free | архив клиентов в коде; 12/12 API functions; prod отвечает; npm qa:local — verify 13/13 локально |
 | 2026-07-11 | 1 | 3 | `npm run check:volume` | `npm run check:volume` | Hobby | Free | масштабирование v10, индексы SQL, лимиты API/IDB; prod QA зелёный |
+| 2026-08-19 | 1+ | — | — | — | Hobby | Free / Nano | Dashboard: **Unhealthy**, CPU 80%, RAM 74%, Disk 15%; ~7 740 ошибок API Gateway / час (шторм, не рост объёма) |
+| 2026-09-04 | 2 | 33* | 775 / 404 | 1 585 (Клинцы) | Hobby | Free / Nano | `npm run check:volume`: всего тренировок 1 618, абон. 921; X•fit Москва 371 / 33. Disk ~15%, DB ~38,5 МБ, RAM ~63%, CPU ~5–10%. Объём в комфортной зоне Free. *тренеров = `users` role trainer + is_active (скрипт) |
 
 ---
 

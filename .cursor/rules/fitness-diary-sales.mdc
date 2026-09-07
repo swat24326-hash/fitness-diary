@@ -1,0 +1,45 @@
+---
+description: Продажи — отчёт дня, план месяца, стратегия, импорт Excel, доступ менеджера; инварианты цифр
+globs: src/lib/admin/sales*.js,src/lib/admin/adminSales*.js,src/lib/admin/aerobicSalesMatrix.js,src/lib/admin/deskClosingImport*.js,src/lib/admin/pzTrainingsReportImport*.js,src/pages/admin/AdminSales.jsx,api/_lib/adminData/salesHandlers.js,scripts/verify-sales-*.mjs,scripts/verify-club-sales-*.mjs,scripts/verify-pz-trainings-report-import.mjs,scripts/verify-desk-closing-import.mjs
+alwaysApply: false
+---
+
+# Продажи клуба
+
+Деньги клуба и работа менеджера: отчёт дня, план месяца, стратегия, импорт из Excel. Роли и экраны — `docs/SALES_MANAGER.md`; домен платежа (ТЗ, **код только после переезда на РФ**) — `docs/PAYMENTS_DOMAIN.md`. Здесь — инварианты.
+
+## Одна цифра
+
+- **Прибыль дня считает матрица:** `(НК + ДК + УК + доп.) − возвраты` через `computeProfitFromMatrix` (`salesReportCore.js`). Отдельного ручного «итога» нет, формулу в JSX не дублировать.
+- **Факт месяца — сумма дней** (`aggregateMonthFromDailyRows`). Сосуд, уровни плана и прогноз читают одну и ту же цифру, а не пересчитывают по строкам в компоненте.
+- **В ячейке количество и сумма ходят парой:** `count > 0` без суммы (или наоборот) ломает средний чек и агрегаты по залам.
+- **Матрица тренировок дня — либо `__club__`, либо реальные `trainer_id`,** никогда вместе (`salesTrainingsMatrix.js`): смешение даёт двойной счёт в месяце и в ЗП. ФИО тренера дообогащаем — сырой UUID в интерфейс не показываем.
+- Сегмент продажи (НК / ДК / УК) — только `salesClientSegmentCore.js`, своя классификация в импорте или UI даст ложный НК.
+
+## Сохранение и кэши
+
+| Тема | Правило |
+|---|---|
+| План месяца | Только `patchOrInsertClubSalesPlanRow` (UPDATE → INSERT). Частичный upsert обнуляет уровни и матрицу — план «пропадает» после «Посчитать» (`salesPlanRowPersistCore.js`) |
+| Снимок стратегии | `candidates` пересчитываются, `confirmedClosings` заморожены с фактом — новым расчётом их не перетирать; версия и лимит строк соблюдаются (`salesStrategySnapshotCore.js`) |
+| TTL | Разные по смыслу: shell — короткий плюс окно «не ходить в сеть» сразу после своего сохранения, glance плана — длиннее (`salesShellSession.js`, `salesPlanGlanceSession.js`). Один общий TTL уже ломал шапку: менеджер сохранил, у админа старый месяц |
+| Устойчивость SELECT | Запросы к `club_sales_*` идут через `adminSalesQueryResilience.js` с деградацией по колонкам. Новая колонка без fallback = 500 на клубе без миграции |
+| Профиль запроса | `full / shell / daily / month` (`salesBundleProfileCore.js`) — новые данные подключать флагом, а не «грузить всё всегда» |
+
+## Доступ
+
+- **Менеджеру финансы вырезает сервер** (`stripSalesBundleForManager` в `salesAccessCore.js`): расходы, ЗП, чистая прибыль не отдаются в ответе. Прятать их только в JSX — утечка.
+- Клуб проверяется на сервере (`canSalesManagerAccessClub`, `requireAdminOrSalesManager`); параметру `?club=` не доверять, пустой клуб в профиле — 403.
+- Push менеджера — узкий allowlist своего клуба (`salesManagerClientsAccessCore.js`). Расширять его «для удобства» нельзя: каскад заденет дневник ПЗ, а очередь залипнет на 403.
+
+## Импорт Excel — это мост, не домен оплат
+
+- Подставляем **только в день файла**: период — отказ, чужая дата — «откройте день файла» (`salesPaymentsImportCore.js`, `salesImportDateCore.js`).
+- «Подставить» меняет матрицу залов и доп. — ПНК, тренировки и возвраты не затирает.
+- Клиент матчится по номеру карты, затем по телефону; архив исключаем, при нескольких живых — «дубли карты» и разбор руками, **без автосоздания** (`salesClientMatchCore.js`).
+- Импорт закрытий создаёт desk-карточки строго `trainer_id = null` + зал `tz|az`, живые абонементы не перезаписывает (`deskClosingImportCore.js`).
+- **Никакой сущности платежа, ledger или кассы** — только превью → форма дня → `club_sales_daily`. Домен оплат стартует по явной команде после переезда (`fitness-diary-architecture.mdc`).
+
+## Перед завершением
+
+Релевантные `scripts/verify-sales-*.mjs` (отчёт, план, стратегия, импорт, доступ) и `verify-club-sales-profit`; тронули агрегаты клуба или ЗП — `npm run qa:local`. Изменилось поведение ролей или экрана — строка в `docs/SALES_MANAGER.md`.

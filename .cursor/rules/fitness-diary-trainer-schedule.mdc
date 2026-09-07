@@ -1,0 +1,35 @@
+---
+description: Ежедневник тренера — слоты, офлайн-запись, связь с тренировкой, права push; инварианты
+globs: src/lib/trainer/trainerSchedule*.js,src/lib/admin/trainerScheduleAdminCore.js,src/pages/trainer/TrainerCalendarPage.jsx,src/pages/admin/ClubTrainerSchedulePage.jsx,src/components/trainer/TrainerSchedule*.jsx,api/_lib/adminData/trainerScheduleHandler.js,src/styles/trainer-schedule.css,scripts/verify-trainer-schedule-*.mjs
+alwaysApply: false
+---
+
+# Ежедневник тренера
+
+Тренер планирует день на планшете: кому во сколько, заметки, несколько клиентов в час. Полное описание (поля, режимы, фазы) — `docs/TRAINER_SCHEDULE.md`. Здесь — то, что нельзя нарушить. Очередь и pull — `fitness-diary-sync.mdc`.
+
+## Права
+
+- **Пишет только тренер** и только своё: `trainerSchedulePushAuthCore.js` проверяет свой `trainer_id`, свой `club_id`, каждый `client_id` через `canAccessClient`, а `linked_training_id` — только на собственную тренировку. Админ, управляющий и менеджер слоты **не** создают.
+- Админ и управляющий — **просмотр** через `admin-data?action=trainer-schedule`; правит тренер на планшете. Не добавлять им редактирование «для удобства».
+
+## Офлайн и очередь
+
+- Запись — IndexedDB + `sync_queue` → `push-record`, как весь тренерский контур. Прямой `supabase.from` из экрана не заводить.
+- Pull — `trainer-pull` окном −30…+120 дней от сегодня (МСК). Слот вне окна не считать удалённым.
+- **Порядок волн:** `trainings` уходят раньше `trainer_schedule_entries`. Ошибка «тренировка пока не в облаке» — это ожидание, слот из очереди **не** снимаем.
+
+## Что не развилка (частые ошибки)
+
+| Тема | Правило |
+|---|---|
+| Заголовок слота | Есть `client_ids` — показываем имена клиентов; иначе `title`, иначе «Заметка». Пустого слота без подписи быть не должно |
+| Связь с тренировкой | `linked_training_id` проставляется после первого сохранения черновика; кнопка «Начать / Продолжить» и чип статуса читают её, а не угадывают по дате |
+| Несколько клиентов | В слоте до десяти клиентов; при старте тренировки тренер выбирает, с кого начать — не стартовать первого молча |
+| Сетка | Режимы День / 3 дня / Неделя / Месяц, часы 00:00–23:00, при открытии скролл к утру. Расчёты сетки и времени — `trainerScheduleCore.js`, не в компоненте |
+| Плитки главной | На широком планшете (режим доски, ≥768px) Клиенты, Ежедневник и Профиль стоят в один ряд — не возвращать сетку на две колонки |
+| Слои | Чистые правила — `trainerScheduleCore.js` / `trainerScheduleTrainingCore.js`, IDB и sync — в сервисах, экран тонкий |
+
+## Перед завершением
+
+`scripts/verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core`, при правках прав — `verify-trainer-schedule-push-auth`, при админском просмотре — `verify-trainer-schedule-admin-core`. Тронули очередь или волны push — `npm run qa:critical`. Изменилось поведение из таблиц канона — строка в `docs/TRAINER_SCHEDULE.md`.

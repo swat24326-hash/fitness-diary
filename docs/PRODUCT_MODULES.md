@@ -27,6 +27,7 @@
 - Справочники продуктов / пресетов ДЗ тянутся через `admin-data` (actions `nutrition-products`, `homework-presets`) и синхронизируются в allowlist push.
 - План рациона и ДЗ живут в карточке клиента; в воронке ПНК — отдельные шаги мастера (можно пропустить питание/ДЗ по сценарию).
 - Отдельного длинного ТЗ нет: при фиче — `*Core.js` + verify, не раздувать `ClientCard.jsx`.
+- Инварианты модулей (что сохраняется в карту здоровья, что живёт только в сессии, PNG и шаринг) — правило `.cursor/rules/fitness-diary-client-plans.mdc`; пульс — `fitness-diary-hr.mdc` + [TRAINING_HR.md](./TRAINING_HR.md).
 
 ### Как расширять
 

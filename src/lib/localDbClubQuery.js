@@ -237,6 +237,16 @@ export async function listTrainingsByClientId(clientId) {
 }
 
 /** @param {string} clientId */
+export async function listClientHallLifecycleByClientId(clientId) {
+  const cid = String(clientId ?? '').trim()
+  if (!cid) return []
+  const db = await getDb()
+  if (!db.objectStoreNames.contains('client_hall_lifecycle')) return []
+  const rows = await getAllFromIndex('client_hall_lifecycle', 'by_client_id', cid)
+  return (rows ?? []).filter((r) => String(r?.client_id ?? '') === cid)
+}
+
+/** @param {string} clientId */
 export async function listMembershipsByClientId(clientId) {
   const cid = String(clientId ?? '').trim()
   if (!cid) return []

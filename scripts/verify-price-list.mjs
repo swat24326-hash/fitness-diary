@@ -343,4 +343,23 @@ ok(assertPriceListWriteAccess({ isAdmin: true }, 'club-9').ok === true, 'admin w
 ok(assertPriceListWriteAccess({ isSalesManager: true, salesClubId: 'club-1' }, 'club-1').ok === true, 'manager write own club')
 ok(assertPriceListWriteAccess({ isSalesManager: true, salesClubId: 'club-1' }, 'club-2').ok === false, 'manager write other club denied')
 
+/* Управляющий клуба ведёт прайс своего клуба (решение владельца 2026-09) — чужой клуб закрыт. */
+ok(
+  assertPriceListClubAccess({ isSupervisor: true, supervisorClubId: 'club-1' }, 'club-1').ok === true,
+  'supervisor own club read',
+)
+ok(
+  assertPriceListWriteAccess({ isSupervisor: true, supervisorClubId: 'club-1' }, 'club-1').ok === true,
+  'supervisor write own club',
+)
+ok(
+  assertPriceListWriteAccess({ isSupervisor: true, supervisorClubId: 'club-1' }, 'club-2').ok === false,
+  'supervisor write other club denied',
+)
+ok(
+  assertPriceListWriteAccess({ isSupervisor: true }, 'club-1').ok === false,
+  'supervisor without club denied',
+)
+ok(assertPriceListWriteAccess({ isTrainer: true }, 'club-1').ok === false, 'trainer write denied')
+
 process.exit(failed > 0 ? 1 : 0)

@@ -1,0 +1,31 @@
+---
+description: Главная тренера — внимание, списки клиентов, журнал, glance-кэш, outreach и PNG; инварианты планшета
+globs: src/lib/trainer/trainerAttention*.js,src/lib/trainer/trainerClients*.js,src/lib/trainer/trainerClientOutreachCore.js,src/lib/trainer/trainerJournal*.js,src/lib/trainer/trainerSelfJournalApi.js,src/lib/trainer/trainerRemoteMerge.js,src/lib/trainer/trainerCoachQualityGlance*.js,src/lib/trainer/coachQualityRemoteGate.js,src/lib/trainer/enrichInactiveClientsFromLocalCore.js,src/lib/trainer/trainerOutreach*.js,src/lib/trainer/trainerPngShareCore.js,src/pages/trainer/TrainerHome.jsx,src/pages/trainer/TrainerClients.jsx,src/components/trainer/TrainerAttentionPanel.jsx,src/components/trainer/TrainerHomeTodayStrip.jsx,src/components/trainer/TrainerClientsBrowseFilters.jsx,scripts/verify-trainer-attention*.mjs,scripts/verify-trainer-clients-*.mjs,scripts/verify-trainer-journal-*.mjs,scripts/verify-trainer-outreach-*.mjs,scripts/verify-trainer-client-outreach.mjs,scripts/verify-trainer-png-share.mjs
+alwaysApply: false
+---
+
+# Главная тренера и его списки
+
+Планшет в зале, часто без сети. Тренер за секунды видит, кем заняться, и открывает клиента. Абонементы и статистика — `fitness-diary-domain.mdc`, очередь и pull — `fitness-diary-sync.mdc`, вёрстка — `fitness-diary-ui.mdc`.
+
+## Пустой экран — это баг, а не «нет данных»
+
+- **Локальный кэш неполный по умолчанию:** другой планшет, retention, обрезанный pull. Нельзя писать «локально что-то есть — облако не грузим». Нужна ли догрузка, решает `coachQualityRemoteGate.js` (сравнение с `trainer-self-stats`), журнал за период берём с сервера (`trainerSelfJournalApi.js`) и **сливаем** с локальным (`mergeLocalAndRemoteTrainings`).
+- **Имя не теряется после архивации:** список журнала строится из активных **и** архивных клиентов (`trainerJournalClientsCore.js`). Прочерк вместо ФИО в «Не активные» дополняем из локального кэша (`enrichInactiveClientsFromLocal`), а не оставляем «—».
+- **Обрыв сети → last-good, не нули.** Цифра, которой нет, не заменяется нулём и не прячет список.
+
+## Что не развилка (частые ошибки)
+
+| Тема | Правило |
+|---|---|
+| Glance и detail | Главная — короткий снимок с TTL сессии (`trainerCoachQualityGlanceSession.js`), экран статистики — всегда свежий расчёт. Один TTL на оба экрана не делать |
+| Внимание | Чипы и группы — из `trainerAttentionSummary.js` + `trainerAttentionUiCore.js`; та же правда на главной и в списке. Второе правило «кто горит» в JSX не заводить |
+| Архив ПЗ | Закрытое направление ПЗ (lifecycle) ≠ архив клуба (`trainerClientsPzListCore.js`). Вкладки Активные / Архив у тренера — про направление, не про карточку |
+| Фильтры списка | Чип = список без поиска (`trainerClientsBrowseFilterCore.js`); фильтр не должен молча резать клиентов, которых тренер ждёт увидеть |
+| Журнал outreach | Локальный, **только на устройстве тренера** — в sync и облако не отправляем. Повтор за день проверяем `hasOutreachLogToday`, шаблоны клуба берём из кэша |
+| PNG клиенту | Планшет: системное «Поделиться» файлом или картинка в буфер (download там часто не работает). ПК: файл в загрузки + подпись в буфер + открыть Max. Ошибку показываем понятной русской фразой (`formatTrainerPngShareError`) |
+| Слои | Правила в `src/lib/trainer/*Core.js` под verify; `TrainerHome.jsx` и `TrainerClients.jsx` остаются тонкими |
+
+## Перед завершением
+
+Правки внимания, списков, журнала или outreach — релевантные `scripts/verify-trainer-attention-summary.mjs`, `verify-trainer-clients-pz-list`, `verify-trainer-clients-browse-filters`, `verify-trainer-journal-clients`, `verify-trainer-journal-filter`, `verify-trainer-outreach-queue`, `verify-trainer-png-share`. Тронули завершение тренировки, очередь или абонемент — `npm run qa:critical`.

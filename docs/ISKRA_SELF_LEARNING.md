@@ -67,7 +67,7 @@ Gemini POST
 | `dispatch_assign` | +1.2 | Назначили задание из совета |
 | `dispatch_done` | +2 | Задание выполнено |
 | `dispatch_dismiss` | −1 | Скрыто / отклонено |
-| `advice_baseline` | 0 | Зафиксирован план/₽ на момент совета |
+| `advice_baseline` | +0.4 | Зафиксирован план/₽ на момент совета |
 | `advice_outcome` | ± | Δ план/₽ после совета |
 | `inaction_dismiss` | −0.9 | Закрыли бриф / часто видели карточку без действия |
 | `playbook_confirm` | +2 | Подтверждённый урок клуба |
@@ -99,7 +99,7 @@ api/_lib/iskraLearningHandler.js — upsert в Supabase
 - `positive_count >= 3`
 - `score >= 2.5`
 
-Текст попадает в блок `УРОКИ КЛУБА` в промпте. Ручное подтверждение — `playbook_confirm` + `note` (UI позже, в AdminIskraSettings).
+Текст попадает в блок `УРОКИ КЛУБА` в промпте. Ручное подтверждение — `playbook_confirm` + `note`; редактор уроков в проде: «Настройки ИСКРА» → `IskraPlaybooksSection`.
 
 ## Включение облака
 

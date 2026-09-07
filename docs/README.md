@@ -3,9 +3,9 @@
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).  
 Системная карта (API / SYNC / DATA_MODEL / DEPLOY / handoff) сверена с кодом **2026-09-01**.
 
-**С чего начать:** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) — маршрут для агента (новый чат) → [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) — очередь → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде → карта ниже.
+**С чего начать:** [`AGENTS.md`](../AGENTS.md) (короткий вход) → [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) → [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) (экономия) → [PRODUCT_VISION.md](./PRODUCT_VISION.md) → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) → карта ниже.
 
-**Системная карта (тонкие доки):** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) · [CODE_TRACE.md](./CODE_TRACE.md) · [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
+**Системная карта (тонкие доки):** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) · [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) · [CODE_TRACE.md](./CODE_TRACE.md) · [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
 
 ---
 
@@ -13,7 +13,10 @@
 
 | Файл | Когда |
 |------|--------|
-| [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) | **Первый** вход в новый чат: тип задачи → docs → rules → verify |
+| [`AGENTS.md`](../AGENTS.md) | Самый короткий вход (корень репо) |
+| [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) | Экономия лимитов **без** урезания правил и QA |
+| [HOOKS.md](./HOOKS.md) | Хуки Cursor: подтверждение push/деплоя, блок секретов, авто-lint в конце ответа |
+| [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) | Маршрут: тип задачи → docs → rules → verify |
 | [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) | Роли, стек, каталоги, env |
 | [INCIDENTS.md](./INCIDENTS.md) | Жалоба / баг / повтор (коды A–Q) |
 | [CODE_TRACE.md](./CODE_TRACE.md) | Код направления → пути в `src/` и `api/` |
@@ -74,7 +77,8 @@
 | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) | Архив клуба: sync и UI |
 | [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) | Закрытие направлений ПЗ/ТЗ/АЗ → автоархив клуба |
 | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS/звонок ✅ + журнал связи ✅ (список/сводка/учёт SMS) |
-| [PRICE_LIST.md](./PRICE_LIST.md) | Прайс ПЗ по клубу (админ + облако `club_price_lists`) |
+| [PRICE_LIST.md](./PRICE_LIST.md) | Прайс клуба ПЗ / ТЗ / АЗ: сетки, Excel-импорт, печать, облако |
+| [TRAINER_PAYROLL.md](./TRAINER_PAYROLL.md) | ЗП тренеров: уровни плана, ставки типов, снимок месяца, прогнозы |
 
 ---
 

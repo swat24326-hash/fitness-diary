@@ -14,7 +14,7 @@ alwaysApply: true
 ## Принципы
 
 1. **Доверяй только серверу** — роль и доступ решать в `api/_lib/` (`requireAuthUser`, `authorizePush`, `requireAdmin`), не во фронте (`VITE_ADMIN_EMAILS` — только UX).
-2. **Service role = катастрофа при утечке** — только server env, никогда `VITE_*`, коммиты, чаты, скриншоты.
+2. **Service role = катастрофа при утечке** — только server env, никогда `VITE_*`, коммиты, чаты, скриншоты. Хуки `guard-prompt-secrets` / `guard-read-secrets` блокируют отправку такого ключа в чат и чтение `.env` моделью — это страховка, а не повод вставлять ключи.
 3. **Anon key публичен** — защита прямого PostgREST = **RLS на проде** (`policies.sql` / чеклист). Новая таблица → migration + RLS в той же задаче.
 4. **Push обходит RLS** (пишет service role) → любая запись через sync обязана пройти `authorizePush` / аналог; дыра там = запись в облако.
 5. **Вход с улицы** — `/api/auth-sign-in` без Bearer: не расширять без лимитов/backoff; не светить, существует ли логин, сверх необходимого.

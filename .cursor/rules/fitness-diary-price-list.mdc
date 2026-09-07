@@ -1,0 +1,33 @@
+---
+description: Прайс клуба ПЗ/ТЗ/АЗ — три параллельных набора, Excel-импорт, печать, кэш ресепшена; инварианты
+globs: src/lib/priceList/**,src/components/priceList/**,api/_lib/adminData/priceListHandlers.js,api/_lib/adminData/tzPriceListHandlers.js,api/_lib/adminData/azPriceListHandlers.js,src/styles/price-list.css,src/styles/tz-price-list.css,src/styles/az-price-list.css,scripts/verify-price-list.mjs,scripts/verify-tz-price-list*.mjs,scripts/verify-az-price-list*.mjs
+alwaysApply: false
+---
+
+# Прайс клуба (ПЗ · ТЗ · АЗ)
+
+Витрина цен для ресепшена: три зала, у каждого своя сетка, облако, Excel-импорт и печать. Полное описание блоков и статусов: `docs/PRICE_LIST.md`, контракт ролей — `docs/API.md`. Здесь — то, что нельзя нарушить.
+
+## Три зала — три набора, но одно поведение
+
+- Файлы идут триплетами: `priceList*` (ПЗ), `tzPriceList*` (ТЗ), `azPriceList*` (АЗ) — core, DbCore, ExcelImport, Print, ExportCanvas, LocalStorage, CloudService. Меняешь **поведение** витрины — правь все три или выноси общее; «поправил ПЗ, забыл ТЗ и АЗ» — типовой баг этой зоны.
+- Общее уже вынесено: доступ `priceListAccessCore.js`, кэш `priceListCacheCore.js`, цвета `priceListBrandColors.js`, оболочка вкладок `PriceListHallShell.jsx`. Новое общее правило — туда, не копией в три файла.
+- Своё облако у каждого зала: `club_price_lists` / `club_tz_price_lists` / `club_az_price_lists` и `admin-data?action=price-list | tz-price-list | az-price-list`. Новый `api/*.js` не создавать — лимит Vercel.
+
+## Что не развилка (частые ошибки)
+
+| Тема | Правило |
+|---|---|
+| Колонки ПЗ | Эталон — типы абонементов ПЗ по `code`, **без БЗ**; переименование подхватывает `syncTariffsFromMembershipTypes`. Список тарифов в коде не хардкодить |
+| Доступ | Решает сервер (`assertPriceListClubAccess` / `assertPriceListWriteAccess`): менеджер и управляющий — **только свой** `club_id`. Спрятать вкладку в UI недостаточно. Меняешь роли — синхронно правь `docs/API.md` и verify |
+| Кэш ресепшена | Конверт localStorage `v1` + `fetchedAt`, TTL из `priceListCacheCore.js`. **Старый «голый» документ обязан читаться** (`parsePriceListLocalCache`) — иначе после деплоя ресепшен остаётся без прайса |
+| Офлайн | Нет сети — показываем last-good из localStorage, не пустую витрину и не ошибку на весь экран |
+| Excel-импорт | Парсер в `*ExcelImportCore.js` (не в визарде), проверять на эталонах `scripts/fixtures/tz-price-1kfs.xls` и `scripts/fixtures/az-price-1kfs.xlsx`. Импорт не должен молча затирать заполненный прайс при пустом или чужом файле |
+| Типовая сетка | Работа без Excel обязательна: добавить/удалить строку, править срок, занятия, направления, доплаты. Не превращать зону в «только импорт» |
+| Цены и скидки | Полная цена, −10%, экономия и ₽/мес считаются в `*Core.js` + verify, не в JSX. Своих «умных» округлений не вводить |
+| Печать / PNG | Все заполненные листы, A4 альбом, гамма из `priceListBrandColors.js`. Вёрстка печати — `*PrintHtml.js` / `*PrintChrome.js` / `*ExportCanvas.js`, не inline в компоненте |
+| Стили | Общий дизайн витрины — `card` + `price-list__*` в `src/styles/price-list.css`; отличия залов — `tz-price-list.css` / `az-price-list.css` |
+
+## Перед завершением
+
+Правки модели, импорта, доступа или печати — `scripts/verify-price-list.mjs` и релевантные `verify-tz-price-list*` / `verify-az-price-list*`. Тронули роли или контракт action — строка в `docs/API.md` и `docs/PRICE_LIST.md` в той же задаче.

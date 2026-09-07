@@ -161,9 +161,26 @@ const cascade = planClientClubMoveRelatedPatches({
     { id: 't1', club_id: 'club-a' },
     { id: 't2', club_id: 'club-b' },
   ],
+  lifecycleRows: [
+    { id: 'l1', client_id: 'c1', hall: 'pz', club_id: 'club-a', closed_at: '2026-05-01' },
+    { id: 'l2', client_id: 'c1', hall: 'tz', club_id: 'club-b', closed_at: null },
+  ],
 })
 ok(cascade.memberships.length === 1 && cascade.memberships[0].club_id === 'club-b', 'cascade mem')
 ok(cascade.trainings.length === 1 && cascade.trainings[0].club_id === 'club-b', 'cascade training')
+/* Без переноса lifecycle закрытый ПЗ «оживал» в новом клубе: строка оставалась у старого club_id. */
+ok(cascade.lifecycle.length === 1 && cascade.lifecycle[0].id === 'l1', 'cascade lifecycle row moved')
+ok(cascade.lifecycle[0].club_id === 'club-b', 'lifecycle club_id rewritten')
+ok(cascade.lifecycle[0].closed_at === '2026-05-01', 'closed hall stays closed after move')
+ok(
+  planClientClubMoveRelatedPatches({
+    oldClubId: 'a',
+    nextClubId: 'a',
+    memberships: [{ id: 'm1', club_id: 'a' }],
+    lifecycleRows: [{ id: 'l1', club_id: 'a' }],
+  }).lifecycle.length === 0,
+  'no lifecycle cascade same club',
+)
 ok(
   planClientClubMoveRelatedPatches({
     oldClubId: 'a',

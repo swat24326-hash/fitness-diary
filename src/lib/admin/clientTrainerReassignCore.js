@@ -81,24 +81,27 @@ export function clubMoveConfirmMessage({ oldClubId, newClubId, trainerName, loya
 }
 
 /**
- * Патчи абонов/тренировок при переезде клиента в другой клуб.
+ * Патчи абонов/тренировок/жизненного цикла залов при переезде клиента в другой клуб.
+ * Строки lifecycle читаются по club_id: без переноса закрытые направления «оживают» в новом клубе.
  * @param {{
  *   memberships?: object[],
  *   trainings?: object[],
+ *   lifecycleRows?: object[],
  *   oldClubId?: string|null,
  *   nextClubId?: string|null,
  * }} opts
- * @returns {{ memberships: object[], trainings: object[] }}
+ * @returns {{ memberships: object[], trainings: object[], lifecycle: object[] }}
  */
 export function planClientClubMoveRelatedPatches({
   memberships = [],
   trainings = [],
+  lifecycleRows = [],
   oldClubId,
   nextClubId,
 } = {}) {
   const next = String(nextClubId ?? '').trim() || null
   const old = String(oldClubId ?? '').trim() || null
-  if (!next || next === old) return { memberships: [], trainings: [] }
+  if (!next || next === old) return { memberships: [], trainings: [], lifecycle: [] }
   const memOut = []
   for (const m of memberships ?? []) {
     if (!m?.id) continue
@@ -111,7 +114,13 @@ export function planClientClubMoveRelatedPatches({
     if (String(t.club_id ?? '').trim() === next) continue
     trOut.push({ ...t, club_id: next })
   }
-  return { memberships: memOut, trainings: trOut }
+  const lifeOut = []
+  for (const r of lifecycleRows ?? []) {
+    if (!r?.id) continue
+    if (String(r.club_id ?? '').trim() === next) continue
+    lifeOut.push({ ...r, club_id: next })
+  }
+  return { memberships: memOut, trainings: trOut, lifecycle: lifeOut }
 }
 
 /**

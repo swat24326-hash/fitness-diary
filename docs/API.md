@@ -49,9 +49,9 @@
 | `trainer-pay-payroll-context` | GET: admin / sales_manager (свой клуб) | контекст ЗП на `year`+`month`: live или снимок (`frozen`); при первом запросе прошлого месяца создаёт snapshot |
 | `health-cards`, `clubs` | health-cards: admin / **supervisor**; clubs: admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж. Опционально `profile=shell\|daily\|month\|full` (default `full`); `include_fit_city=1` для подсказок типов |
-| `price-list` | GET: admin / sales_manager (свой клуб); POST: admin / sales_manager (свой клуб) | Прайс ПЗ клуба (`club_price_lists`) |
-| `tz-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс ТЗ клуба (`club_tz_price_lists`) |
-| `az-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс АЗ клуба (`club_az_price_lists`) |
+| `price-list` | GET/POST: admin / sales_manager / **supervisor** (свой клуб) | Прайс ПЗ клуба (`club_price_lists`) |
+| `tz-price-list` | GET/POST: admin / sales_manager / **supervisor** (свой клуб) | Прайс ТЗ клуба (`club_tz_price_lists`) |
+| `az-price-list` | GET/POST: admin / sales_manager / **supervisor** (свой клуб) | Прайс АЗ клуба (`club_az_price_lists`) |
 | `loyalty-settings` | GET: роли своего клуба; POST: **admin** | Ставки и интервалы лояльности ПЗ. UI: Структура `?tab=loyalty` |
 | `loyalty-account` | trainer **свои** клиенты; sales / supervisor / admin клуба | Полный снимок баллов + лента ledger |
 | `loyalty-glance` | те же; `ids` ≤ 200 | Снимки списка (`by_id`) |
@@ -76,9 +76,9 @@
 |--------|-----|--------|
 | `sales-daily`, `sales-plan` | admin / sales_manager | День / план. `sales-plan` scope `strategy_snapshot` — снимок playbook Стратегии; `promotions` — акции месяца (цели шт). В дне — `promo_sales` + список `promotions` для проверки ≤ факта сегмента |
 | `sales-finance`, `create-sales-manager`, `create-supervisor` | admin (`sales-finance` также supervisor своего клуба) | Финансы клуба; создание менеджера / управляющего |
-| `price-list` | admin / sales_manager (свой клуб) | Upsert прайса ПЗ клуба |
-| `tz-price-list` | admin / sales_manager (свой клуб) | Upsert прайса ТЗ клуба |
-| `az-price-list` | admin / sales_manager (свой клуб) | Upsert прайса АЗ клуба |
+| `price-list` | admin / sales_manager / supervisor (свой клуб) | Upsert прайса ПЗ клуба |
+| `tz-price-list` | admin / sales_manager / supervisor (свой клуб) | Upsert прайса ТЗ клуба |
+| `az-price-list` | admin / sales_manager / supervisor (свой клуб) | Upsert прайса АЗ клуба |
 | `loyalty-settings` | **admin** | Вкл/ставки клуба (интервалы `applyProgramToggle`) |
 | `loyalty-redeem` | sales_manager / admin | Списать все баллы `{ client_id, expected_points, comment }`; 403/409 |
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |

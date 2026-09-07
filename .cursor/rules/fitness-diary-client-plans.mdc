@@ -1,0 +1,33 @@
+---
+description: Питание и ДЗ клиента — план, опросник, справочники, PNG и шаринг; инварианты
+globs: src/lib/nutrition/**,src/lib/homework/**,src/lib/admin/nutritionProductPushPayload.js,src/lib/admin/homeworkPresetPushPayload.js,src/components/trainer/NutritionPlanDisplay.jsx,src/components/trainer/NutritionTableBlock.jsx,src/components/trainer/HomeworkPlanDisplay.jsx,src/pages/trainer/ClientNutritionPage.jsx,src/pages/trainer/ClientHomeworkPage.jsx,src/pages/admin/AdminNutritionProducts.jsx,src/pages/admin/AdminHomeworkPresets.jsx,scripts/verify-nutrition*.mjs,scripts/verify-homework*.mjs
+alwaysApply: false
+---
+
+# Питание и ДЗ клиента
+
+Тренер собирает рацион и домашнее задание в карточке клиента и отдаёт клиенту картинкой. Карта модулей — `docs/PRODUCT_MODULES.md` § «Питание и ДЗ»; отдельного длинного ТЗ нет, поэтому инварианты живут здесь, а поведение — в `*Core.js` под verify.
+
+## Хранение: рацион и ДЗ ведут себя по-разному
+
+- **Рацион сохраняется** в карту здоровья: `nutrition_plan`, `nutrition_plan_generated_at`, `nutrition_plan_history` через `saveLocalWithSync` (`nutritionPlanService.js`). Только офлайн-путь, не прямой `supabase.from`. Прошлый план уходит в историю (`archivePreviousPlan`), а не затирается.
+- **План ДЗ — черновик сессии** (`homeworkPlanCore.js`): в `health_cards` его **не** пишем. Результат работы — PNG и отправка клиенту. Не добавлять «заодно» сохранение в облако.
+- **Справочники синхронизируются:** `nutrition_products` и `homework_presets` — в allowlist push, нормализация и merge при pull в `*Core.js`, payload в `*PushPayload.js`. Pull не затирает строки с pending.
+
+## Что не развилка (частые ошибки)
+
+| Тема | Правило |
+|---|---|
+| Свежесть плана | Черновик рациона обязан быть собран из **текущих** ответов опросника (`nutritionPlanSessionCore.js`). План по устаревшим ответам не показывать как актуальный |
+| Смена параметров | Правка роста или веса в «Здоровье» делает рацион устаревшим (`nutritionPlanStaleCore.js`). Признак не прятать — тренер должен видеть, что пора пересобрать |
+| Расчёты | Ккал, БЖУ, слоты приёмов и доли суточных, сочетания продуктов — в `nutritionMacrosCore` / `nutritionMealSlotsCore` / `nutritionMealPairingCore` + verify, не в JSX и не «на глаз» |
+| Каталоги | Продукты и упражнения ДЗ берём из справочника (`nutritionProductCatalog`, `homeworkCatalogFilter`), не из произвольных строк в компоненте |
+| Сид пресетов ДЗ | Базовые шаблоны сидятся в клубе при первом открытии вкладки — повторный вход не должен плодить дубликаты |
+| PNG | Рендер локально на canvas (`*ExportCanvas.js`), без сторонних сервисов. В шапке — **название клуба клиента**, не бренд приложения |
+| Шаринг | Max или системное «Поделиться» (`*ShareCore.js`); нет мессенджера — понятный русский фолбэк, не молчание |
+| ПНК | Питание и ДЗ — шаги мастера, которые **можно пропустить** (`fitness-diary-pnk.mdc`). Не делать их обязательными |
+| Слои | Логика в `src/lib/nutrition/` и `src/lib/homework/`, не в `ClientCard.jsx` и не в странице вкладки |
+
+## Перед завершением
+
+Правки плана, опросника, справочников или шаринга — релевантные `scripts/verify-nutrition*.mjs` и `scripts/verify-homework*.mjs` (какие есть — смотреть по маске). Тронули `health_cards` или очередь — `npm run qa:local`. Новое поведение модуля — строка в `docs/PRODUCT_MODULES.md`.

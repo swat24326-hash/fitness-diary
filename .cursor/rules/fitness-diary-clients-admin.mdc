@@ -1,0 +1,45 @@
+---
+description: Клиенты в админке — залы и жизненный цикл, архив, дубли, кэш списка, удержание, desk и переезд клуба
+globs: src/lib/admin/adminClient*.js,src/lib/admin/adminClients*.js,src/lib/admin/client*.js,src/lib/admin/desk*.js,src/lib/admin/holdingClientsCore.js,src/lib/admin/litePzClientCreateCore.js,src/lib/clientHallLifecycle*.js,src/lib/clientArchive*.js,src/lib/membershipHallCore.js,scripts/verify-client-*.mjs,scripts/verify-admin-client*.mjs,scripts/verify-desk-*.mjs
+alwaysApply: false
+---
+
+# Клиенты в админке
+
+Список клиентов клуба по залам, архив, удержание, создание с ресепшена, перевод между тренерами и клубами. Каноны: `docs/CLIENT_HALL_LIFECYCLE.md`, `docs/CLIENT_ARCHIVE.md`, `docs/CLIENT_MULTI_HALL.md`, `docs/CLIENT_RETENTION.md`. Здесь — то, что нельзя нарушить.
+
+## Одна карточка, разные залы
+
+- **Один человек в клубе = одна карточка `clients`.** Зал живёт на `memberships.hall`, а не во второй карточке (`membershipHallCore.js`, `clientHallTabsCore.js`).
+- **Закрытое направление ≠ архив клуба.** Закрытие — `client_hall_lifecycle.closed_at` конкретного зала, архив — `clients.archived_at`. Архив ставим только когда не осталось ни одного открытого направления; уход ПЗ → ТЗ/АЗ — переход, **не отток** (`clientHallLifecycleCore.js`).
+- Открытое направление = живой или ожидающий старт абонемент этого зала и нет `closed_at`. Исчерпанный абонемент присутствием не считается.
+- Клиент с закрытым ПЗ и живым АЗ на вкладке ПЗ не появляется — ни в списке, ни в поиске, ни как стартовая вкладка карточки (`adminClientsListLifecycleCore.js`).
+
+## Дубли и создание
+
+| Тема | Правило |
+|---|---|
+| Номер карты | Занят в этом клубе — новую карточку не создаём. Проверка обязательна в desk-создании, lite-ПЗ и при смене клуба (`assertClubCardAvailableForCreate`) |
+| Матчинг | Карта, затем телефон. Статус `archived` возвращает архивную карточку, `conflict` разбирают руками — молча «создать нового» нельзя (`salesClientMatchCore.js`) |
+| Контуры desk | ТЗ и АЗ — `deskManualClientCreateCore.js`; ПЗ без планшета — `litePzClientCreateCore.js` (тренер обязан быть lite и из этого клуба). Desk-клиент — `trainer_id: null` + зал |
+| Живой абонемент | ТЗ — по календарю; ПЗ и АЗ — срок **и** остаток занятий; указан зал — смотрим только его абонементы (`deskMembershipLedgerCore.js`) |
+| Форма карточки | Hydrate из облака не затирает то, что правят сейчас: dirty-поле держит черновик, включая очищенную дату рождения (`deskClientFormMergeCore.js`) |
+| Жёсткое удаление | Не архив: код подтверждения плюс запись в журнал удалений. Тихого delete быть не должно |
+
+## Кэш списка и pull
+
+- Любая запись lifecycle в кэш — через `putStoreUnlessPendingSync`: pull не затирает строку с pending в очереди (`clientHallLifecycleAdminCache.js`).
+- **Prune только по полному ответу облака.** Пришло `truncated` — чистку не делаем; при active-pull архивных сохраняем (`adminClientsListService.js`).
+- Memory-снимок списка — ускорение возврата с карточки, не источник правды: после локальной мутации инвалидируем его вместе с glance главной, lifecycle из IndexedDB приоритетнее снимка (`adminClientsListMemoryCache.js`, `adminClientsListReloadCore.js`).
+- Число на плитке = длина списка вкладки; поиск от двух символов снимает вкладку и **сбрасывает воронку**, архивных в живой выдаче нет (`adminClientsBrowseFilterCore.js`, `adminClientsCrossHallSearchCore.js`).
+
+## Удержание и переезд
+
+- **Пул удержания ≠ universe:** в пуле нет архива, desk ТЗ/АЗ, holding, lite-ПЗ, открытого ПНК и закрытого ПЗ; в universe архивные остаются — иначе survivorship bias в M+3 и archive rate (`clientRetentionPoolCore.js`).
+- Три сигнала оттока не смешивать: закрытие направления, архив клуба, «давно не был». Историю прошлых периодов архив не переписывает — факты месяца остаются как были.
+- Каждый возврат в клуб пишется в журнал `client_restore_events` (на нём reactivation rate); ошибка журнала не блокирует push.
+- **Переезд в другой клуб — каскад:** `club_id` переписывается у абонементов и тренировок через очередь sync, иначе история разъезжается по клубам (`clientClubMoveCascadeService.js`). До записи — подтверждения: смена режима планшет ↔ lite, предупреждение о сгорании лояльности, свободный номер карты в новом клубе. Проверка недоступна — отказ, а не «сохраним и разберёмся».
+
+## Перед завершением
+
+Релевантные `scripts/verify-client-hall-lifecycle.mjs`, `verify-admin-clients-list-lifecycle`, `verify-admin-clients-cross-hall-search`, `verify-client-retention`, `verify-client-trainer-reassign`, `verify-desk-manual-client-create` и соседние по маске. Тронули кэш, prune или очередь — `npm run qa:critical`.

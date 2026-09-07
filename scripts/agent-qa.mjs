@@ -45,6 +45,8 @@ run('security L1 audit', 'node', ['scripts/verify-security-l1-audit.mjs'])
 run('critical hall', 'node', ['scripts/verify-critical-hall.mjs'])
 run('network reachability', 'node', ['scripts/verify-network-reachability.mjs'])
 run('app stability', 'node', ['scripts/verify-app-stability.mjs'])
+run('cursor hooks', 'node', ['scripts/verify-hooks.mjs'])
+run('cursor rules', 'node', ['scripts/verify-rules.mjs'])
 run('auth sign-in fallback', 'node', ['scripts/verify-auth-sign-in-fallback.mjs'])
 run('auth sign-in fast path', 'node', ['scripts/verify-auth-sign-in-fast-path.mjs'])
 run('auth login resolve', 'node', ['scripts/verify-auth-login-resolve.mjs'])
@@ -309,6 +311,8 @@ run('sync header pull', 'node', ['scripts/verify-sync-header-pull.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])
+  // `eslint .` не заходит в папки с точкой — хуки Cursor линтуем отдельно.
+  run('lint hooks', 'npm', ['run', 'lint:hooks'])
 }
 
 if (!skipProd) {

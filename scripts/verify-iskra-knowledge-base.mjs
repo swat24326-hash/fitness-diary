@@ -13,6 +13,9 @@ import {
   searchKbArticles,
 } from '../src/lib/admin/iskraKnowledgeBaseCore.js'
 import { buildIskraAppGuideReply } from '../src/lib/admin/iskraAppGuide.js'
+import { readdirSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 
 let failed = 0
 
@@ -62,6 +65,27 @@ const guideKb = buildIskraAppGuideReply('client', {
   period: 'июль',
 })
 ok(guideKb.includes('Клиенты') || guideKb.includes('клиент'), 'app guide uses KB')
+
+/* Статьи правятся в JS, docs/iskra-kb — копии для людей. Без этой сверки md тихо расходится с тем, что реально отвечает ИСКРА. */
+const kbDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'iskra-kb')
+const mdFiles = readdirSync(kbDir).filter((name) => name.endsWith('.md') && name !== 'README.md')
+const mdIds = new Set(mdFiles.map((name) => name.replace(/\.md$/, '')))
+
+for (const article of ISKRA_KB_ARTICLES) {
+  const fileName = `${article.id}.md`
+  if (!mdIds.has(article.id)) {
+    ok(false, `md-копия статьи ${article.id} (создайте docs/iskra-kb/${fileName})`)
+    continue
+  }
+  const md = readFileSync(join(kbDir, fileName), 'utf8')
+  const heading = md.match(/^#\s+(.+)$/m)?.[1]?.trim()
+  ok(heading === article.title, `md ${article.id}: заголовок совпадает с title`)
+  const mdSteps = md.split(/\r?\n/).filter((line) => /^\d+\.\s/.test(line)).length
+  ok(mdSteps === article.steps.length, `md ${article.id}: шагов ${mdSteps} = ${article.steps.length} в JS`)
+}
+
+const orphanMd = [...mdIds].filter((id) => !ISKRA_KB_ARTICLES.some((a) => a.id === id))
+ok(orphanMd.length === 0, `нет md без статьи в JS${orphanMd.length ? `: ${orphanMd.join(', ')}` : ''}`)
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed`)

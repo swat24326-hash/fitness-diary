@@ -1,6 +1,6 @@
 ---
 description: Sync, очередь, pull — офлайн без потери данных
-globs: src/lib/sync*.js,src/lib/trainerPull*.js,src/lib/syncLocalRecords.js,src/lib/pullReferenceData.js,api/push*.js,api/_lib/pushRecordCore.js,api/trainer-pull.js,scripts/verify-sync*.mjs
+globs: src/lib/sync*.js,src/lib/trainerPull*.js,src/lib/syncLocalRecords.js,src/lib/pullReferenceData.js,src/lib/localDb*.js,src/lib/trainingDraft*.js,src/lib/trainer/trainingCompleteFollowUp.js,src/lib/trainer/trainingClientPrefetch.js,api/push*.js,api/_lib/pushRecordCore.js,api/trainer-pull.js,scripts/verify-sync*.mjs,scripts/verify-training-draft*.mjs
 alwaysApply: false
 ---
 

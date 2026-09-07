@@ -14,6 +14,7 @@
     "start": "node server/index.js",
     "db:migrate:pg": "node scripts/pg-migrate-all.mjs",
     "lint": "eslint .",
+    "lint:hooks": "eslint --no-ignore .cursor/hooks",
     "lint:fix": "eslint . --fix",
     "db:migrate": "npx supabase db query --linked --file supabase/policies.sql",
     "db:migrate:sales": "node scripts/apply-club-sales-migration.mjs",

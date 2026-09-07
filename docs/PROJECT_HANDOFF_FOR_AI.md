@@ -2,7 +2,7 @@
 
 **Актуально:** 2026-09-01. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
-**Сначала:** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) (маршрут агента) → крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (код сегодня) → [README.md](./README.md) → [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Жалобы и кейсы: [INCIDENTS.md](./INCIDENTS.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ; **код L3/кассы — после R3+ (РФ)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
+**Сначала:** [`AGENTS.md`](../AGENTS.md) → [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) → [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) (экономия) → крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (код сегодня) → [README.md](./README.md) → [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Жалобы и кейсы: [INCIDENTS.md](./INCIDENTS.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ; **код L3/кассы — после R3+ (РФ)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
 **Роль агента:** вести процесс к конечной цели (ритуал и очередь ставок — PATH_TO_GOAL §4–5); владельцу — кабинеты, оплата, пароли, явные go/no-go. Правило: `.cursor/rules/fitness-diary-north-star-lead.mdc`.
 
@@ -79,6 +79,7 @@ supabase/
   schema.sql, migrations/, functions/ (legacy create-trainer / delete-trainer — прод через api/)
 docs/                     — карта в README.md
 .cursor/rules/            — architecture, sync, domain, ship, features, adult-app, …
+.cursor/hooks/            — хуки Cursor: guard команд, блок секретов, lint в конце ответа (docs/HOOKS.md)
 scripts/                  — agent-qa.mjs, verify-*.mjs
 ```
 
@@ -177,7 +178,7 @@ UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domai
 **Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — статистика + настройка весов/тумблеров в **Структура → Качество ведения**.
 
 **Удержание клиента** (фаза 0 — core + verify): [CLIENT_RETENTION.md](./CLIENT_RETENTION.md) — cohort M+3, renewal, archive/reactivation; отдельно от CQ и period census.  
-**План ЗП тренеров:** пороги тренировок месяца (ур. 2 / 3) — **Структура → План ЗП**; ставки ₽ и галочка **«В план»** (`counts_toward_pay_plan`) — **Типы абон.** (`trainer_pay_l1/l2/l3`); кабинет сотрудника (с планом / без плана + ±₽ за тренировку) — **Структура → Тренеры → кабинет** (иконка кошелька). Расчёт ЗП: уровень из порогов+профиля по типам с галочкой «В план» × ставка типа + adjustment (не ниже 0; карта с оплатой 0 — без adj). Без флага в старом кэше — фолбэк «ставка > 0». **Прошлый календарный месяц** — по снимку правил (`club_trainer_pay_month_snapshots`), текущий — live. **Дневной отчёт / статистика «по типам карт»:** колонки База + Итого ЗП (`trainerDayPayrollForecastCore` / `trainerPeriodPayrollForecastCore`); без плана — сценарии L1–L3 в ячейке. **Прогноз чистой:** ЗП ПЗ к концу месяца — `trainerMonthPayrollForecastCore` (прогнозный уровень × часы + adj), не замороженная средняя MTD.  
+**ЗП тренеров:** уровни по порогам тренировок месяца, ставки ₽ на типах карт, надбавка кабинета, снимок прошлого месяца и три прогноза (день / период / месяц) — [TRAINER_PAYROLL.md](./TRAINER_PAYROLL.md); правило агента `fitness-diary-payroll.mdc`.  
 Главная = **glance** (session last-good + фоновая перепроверка с debounce 25 с для ПНК, `homeGlanceCache`: CQ, продажи, сводка дня, presence ПНК/планёрки); экран статистики = **detail** (всегда свежий `coach-quality`, без glance-TTL). **ПНК на главной:** после доски — event без второго refetch; сеть не чаще 25 с (закладка под ×10 клубов).
 
 ---
@@ -253,10 +254,12 @@ CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 
 ## 15. Правила Cursor
 
+Правил 30: **12 грузятся всегда** (общая политика), **16 — по файлам задачи** (`globs`), **2 — по типу задачи** (агент открывает их сам, триггеры в `AGENTS.md` и `fitness-diary-architecture.mdc` §«Правила по типу задачи»). Доменные правила держат только инварианты, полный контракт — в `docs/`. Что ссылки и globs не сгнили, проверяет `node scripts/verify-rules.mjs` (в `qa:local`). Автоматические тормоза вокруг агента — [HOOKS.md](./HOOKS.md).
+
 | Файл | Когда |
 |------|--------|
-| `fitness-diary-north-star-lead.mdc` | конечная цель (1С→Ядро CRM) + агент ведёт процесс |
-| `fitness-diary-features.mdc` | новая фича: фильтр → исход → код → wow → стабильность |
+| `fitness-diary-north-star-lead.mdc` | **по задаче:** конечная цель (1С→Ядро CRM), очередь, ритуал ведения процесса |
+| `fitness-diary-features.mdc` | **по задаче:** новая фича: фильтр → исход → код → wow → стабильность |
 | `fitness-diary-architecture.mdc` | слои, офлайн |
 | `fitness-diary-scale.mdc` | масштаб, verify |
 | `fitness-diary-stability.mdc` | критические сценарии |
@@ -266,14 +269,27 @@ CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 | `fitness-diary-incidents.mdc` | журнал INCIDENTS: жалобы, коды A–Q |
 | `fitness-diary-file-structure.mdc` | как пишем файлы (структура с первого коммита) |
 | `fitness-diary-split-files.mdc` | пороги разбиения уже больших файлов |
-| `fitness-diary-domain.mdc` | абонементы, статистика |
-| `fitness-diary-sync.mdc` | очередь, pull |
-| `fitness-diary-supabase.mdc` | миграции, секреты, ≤12 functions |
-| `fitness-diary-ui.mdc` | планшет, русский UX, ПНК UI |
+| `fitness-diary-domain.mdc` | **по файлам:** абонементы, статистика |
+| `fitness-diary-sync.mdc` | **по файлам:** очередь, pull |
+| `fitness-diary-loyalty.mdc` | **по файлам:** баллы ПЗ — инварианты (канон [LOYALTY.md](./LOYALTY.md)) |
+| `fitness-diary-pnk.mdc` | **по файлам:** воронка ПНК — инварианты + контрольные экраны (канон [PNK_FUNNEL.md](./PNK_FUNNEL.md)) |
+| `fitness-diary-price-list.mdc` | **по файлам:** прайс ПЗ/ТЗ/АЗ — триплеты файлов, импорт, печать, кэш (канон [PRICE_LIST.md](./PRICE_LIST.md)) |
+| `fitness-diary-payroll.mdc` | **по файлам:** ЗП тренеров — уровни, ставки, снимок месяца, прогнозы (канон [TRAINER_PAYROLL.md](./TRAINER_PAYROLL.md)) |
+| `fitness-diary-client-plans.mdc` | **по файлам:** питание и ДЗ — план, опросник, справочники, PNG (карта [PRODUCT_MODULES.md](./PRODUCT_MODULES.md)) |
+| `fitness-diary-hr.mdc` | **по файлам:** пульс BLE — буфер, снимок в дневник, зоны (канон [TRAINING_HR.md](./TRAINING_HR.md)) |
+| `fitness-diary-trainer-home.mdc` | **по файлам:** главная тренера — внимание, списки, журнал, glance, outreach, PNG |
+| `fitness-diary-trainer-schedule.mdc` | **по файлам:** ежедневник — права push, офлайн, связь со тренировкой (канон [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md)) |
+| `fitness-diary-sales.mdc` | **по файлам:** продажи — отчёт дня, план, стратегия, импорт Excel, доступ (канон [SALES_MANAGER.md](./SALES_MANAGER.md)) |
+| `fitness-diary-clients-admin.mdc` | **по файлам:** клиенты админки — залы, архив, дубли, кэш списка, удержание, переезд клуба |
+| `fitness-diary-iskra.mdc` | **по файлам:** ИСКРА — честность цифр, база знаний, границы ответа, ключ Gemini, планёрка, обучение |
+| `fitness-diary-supabase.mdc` | **по файлам:** миграции, секреты, ≤12 functions |
+| `fitness-diary-ui.mdc` | **по файлам:** планшет, русский UX, дизайн-канон |
 | `fitness-diary-cursor-efficiency.mdc` | экономия контекста, понятные отчёты |
 | `fitness-diary-adult-app.mdc` | взрослое приложение: не наращивать костыли |
 | `fitness-diary-fix-comprehensive.mdc` | багфикс по всему контуру данных |
 | `fitness-diary-hosting-portability.mdc` | закладки под переезд на РФ |
+
+Экономия лимитов **без отключения этих правил** — [CURSOR_LIMITS.md](./CURSOR_LIMITS.md), вход [`AGENTS.md`](../AGENTS.md).
 
 ---
 

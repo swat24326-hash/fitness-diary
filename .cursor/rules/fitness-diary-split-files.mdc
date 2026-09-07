@@ -1,6 +1,6 @@
 ---
 description: Thresholds and patterns when splitting existing large JS/JSX/API/CSS files
-globs: src/**/*.{js,jsx,css},api/**/*.js
+globs: src/**/*.js,src/**/*.jsx,src/**/*.css,api/**/*.js
 alwaysApply: false
 ---
 
@@ -26,7 +26,7 @@ alwaysApply: false
 
 **dataAccess:** новое — в `src/lib/admin/` / trainer-сервисы; реэкспорт в `dataAccess.js` только при необходимости.
 
-**API:** `api/_lib/featureCore.js` + тонкий `api/feature.js`.
+**API:** ядро в `api/_lib/` + тонкий handler в `api/` (образец: `api/_lib/pushRecordCore.js` и `api/push-record.js`).
 
 **Диагностика:** `appErrorJournal.js` + `appDiagnostics.js` + `DiagnosticsPanel.jsx`.
 

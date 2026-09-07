@@ -200,8 +200,9 @@
 - [x] Кнопка **«Тренеру»** рядом с «Сделать» на InsightCard
 - [x] `club_iskra_dispatch` + `admin-data?action=iskra-dispatch`
 - [x] Inbox тренера: бейдж + список
-- [x] Статусы pending → done | dismissed
-- [ ] Deep-link, seen/accepted, управляющий
+- [x] Статусы pending → seen → accepted → done | declined | dismissed
+- [x] Deep-link на нужный экран, seen/accepted, постановка заданий управляющим и менеджером в своём клубе ✅
+- [x] Web Push: получателю при создании, отправителю при `accepted` / `done` (best-effort) ✅
 
 **DoD v1:** задание из инсайта доходит до тренера на планшете без Telegram. ✅
 
@@ -226,7 +227,7 @@
 
 - PDF-бриф, мульти-клуб, бенчмарк
 - Фаза learning `full`
-- Web Push для заданий Планёрки (эпик H в [ISKRA_PLANERKA](./ISKRA_PLANERKA.md))
+- ~~Web Push для заданий Планёрки~~ — уже в проде (см. Эпик F)
 
 ---
 
