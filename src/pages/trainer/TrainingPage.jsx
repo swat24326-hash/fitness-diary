@@ -17,7 +17,7 @@ import {
 } from '../../lib/trainer/membershipStartShiftService.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
-import { saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncService'
+import { isAppOnline, saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncService'
 import { clearOpenTrainingDraft, setOpenTrainingDraft } from '../../lib/openTrainingDraftGuard.js'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
@@ -94,7 +94,14 @@ import {
   parseScheduleEntryDayIso,
   shouldLinkScheduleEntryOnTrainingSave,
 } from '../../lib/trainer/trainerScheduleTrainingCore.js'
-import { prefetchTrainerClientWorkspace } from '../../lib/trainer/trainingClientPrefetch.js'
+import {
+  ensureTrainerMembershipsFresh,
+  prefetchTrainerClientWorkspace,
+} from '../../lib/trainer/trainingClientPrefetch.js'
+import {
+  shouldEnsureClientMembershipsBeforeDebit,
+  shouldEnsureClientMembershipsOnOpen,
+} from '../../lib/trainer/trainingMembershipEnsureCore.js'
 import { ensureTrainingDataMembershipId } from '../../lib/trainingMembershipLinkCore.js'
 import {
   applyMembershipFirstCompletionDebit,
@@ -192,6 +199,10 @@ export function TrainingPage() {
   const sessionCacheHitRef = useRef(null)
   const saveMutexRef = useRef(Promise.resolve())
   const completeInFlightRef = useRef(false)
+  /** Когда в последний раз ходили в облако за абонементами этого клиента (client id → ms). */
+  const membershipEnsureAtRef = useRef(new Map())
+  /** Клиент, для которого уже пробовали догрузку перед списанием — второй раз не ждём сеть. */
+  const debitEnsureTriedForRef = useRef('')
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
   const autosaveTimerRef = useRef(null)
   const draftTrainingIdRef = useRef(null)
@@ -991,6 +1002,80 @@ export function TrainingPage() {
     })
   }, [hydrateVersion, loadState, meta.status, client])
 
+  /**
+   * Плитки «Трен.» и «Дней» пустые, потому что абонемент ещё не доехал на планшет
+   * (оформили на другом устройстве, pull не успел). Догружаем точечно и пересчитываем,
+   * иначе тренер видит прочерки и упирается на «Закончить» — INC-2026-09-07-02.
+   */
+  useEffect(() => {
+    if (loadState !== 'ok') return undefined
+    const cid = String(client?.id ?? '').trim()
+    if (!cid) return undefined
+
+    const ensureCtx = () => ({
+      clientId: cid,
+      status: meta.status,
+      hasSummary: Boolean(membershipSummary),
+      online: isAppOnline(),
+      isAdmin,
+      lastAttemptAt: membershipEnsureAtRef.current.get(cid) ?? 0,
+      now: Date.now(),
+    })
+    /* Плитка уже посчитана / завершённая / офлайн — даже в базу не ходим. */
+    if (!shouldEnsureClientMembershipsOnOpen({ ...ensureCtx(), membershipsCount: 0 })) return undefined
+
+    let alive = true
+    const epoch = pageEpochRef.current
+    const stillHere = () => alive && isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)
+
+    void (async () => {
+      const memberships = await listMemberships(cid)
+      if (!stillHere()) return
+      if (
+        !shouldEnsureClientMembershipsOnOpen({
+          ...ensureCtx(),
+          membershipsCount: memberships.length,
+        })
+      ) {
+        return
+      }
+
+      membershipEnsureAtRef.current.set(cid, Date.now())
+      const ensured = await ensureTrainerMembershipsFresh({ trainerId: user?.id })
+      if (!ensured.ok || !stillHere()) return
+
+      const [freshMemberships, trainings] = await Promise.all([
+        listMemberships(cid),
+        listTrainingsForClient(cid),
+      ])
+      if (!stillHere()) return
+
+      const summary = buildTrainingMembershipTileSummary({
+        memberships: freshMemberships,
+        allTrainings: trainings,
+        training: { id: meta.trainingId, client_id: cid, date: trainingDate, status: meta.status },
+        trainingDate,
+        status: meta.status,
+        fallbackDate: todayLocalIso(),
+      })
+      if (summary) setMembershipSummary(summary)
+    })()
+
+    return () => {
+      alive = false
+    }
+  }, [
+    hydrateVersion,
+    loadState,
+    meta.status,
+    meta.trainingId,
+    trainingDate,
+    membershipSummary,
+    client?.id,
+    isAdmin,
+    user?.id,
+  ])
+
   /** Смена URL-тренировки / клиента — новый scope пульса (не путать черновики). */
   useEffect(() => {
     pendingHrScopeRef.current = null
@@ -1248,7 +1333,23 @@ export function TrainingPage() {
     // Сначала сохраняем completed-тренировку, потом debit (если save упадёт — used не растёт зря).
     let membershipToDebit = null
     if (firstCompletion) {
-      const debitPlan = await resolveMembershipForFirstCompletionDebit(cid, effectiveDate)
+      let debitPlan = await resolveMembershipForFirstCompletionDebit(cid, effectiveDate)
+      /* «Нет абонемента» на планшете часто значит «строки ещё не доехали»: одна попытка догрузки,
+         прежде чем отказать тренеру в завершении тренировки. */
+      if (
+        shouldEnsureClientMembershipsBeforeDebit({
+          planOk: debitPlan.ok,
+          clientId: cid,
+          online: isAppOnline(),
+          alreadyEnsured: debitEnsureTriedForRef.current === cid,
+        })
+      ) {
+        debitEnsureTriedForRef.current = cid
+        const ensured = await ensureTrainerMembershipsFresh({ trainerId: isAdmin ? '' : user?.id })
+        if (ensured.ok) {
+          debitPlan = await resolveMembershipForFirstCompletionDebit(cid, effectiveDate)
+        }
+      }
       if (!debitPlan.ok) {
         if (silent) setAutosaveStatus('error')
         if (!silent) setSaveError(debitPlan.message)

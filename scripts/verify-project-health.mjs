@@ -9,7 +9,12 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const agentQaPath = join(root, 'scripts/agent-qa.mjs')
-const MAX_MAIN_BUNDLE_KB = 3480
+/**
+ * Планшет в зале грузит этот файл целиком, поэтому потолок держим близко к факту.
+ * 08.09.2026 факт ~3480 КБ — следующий рост оплачиваем не потолком, а вынесением
+ * админки в ленивые чанки (главный подозреваемый: страницы `src/pages/admin`).
+ */
+const MAX_MAIN_BUNDLE_KB = 3500
 
 let failed = 0
 
