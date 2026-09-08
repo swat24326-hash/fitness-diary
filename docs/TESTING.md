@@ -9,6 +9,7 @@
 | Команда | Что делает | Когда |
 |---------|------------|--------|
 | `npm run lint` | ESLint | **Всегда** перед «готово» |
+| `npm run qa:fast` | lint изменённых файлов + **только** verify, связанные с ними по импортам; **без build** | Пока идёт работа: быстрая обратная связь вместо полного каталога. Не заменяет `qa:local` перед деплоем |
 | `npm run qa:critical` | Критический контур зала+админки (без полного каталога) | После sync/абон/главная/клиенты; план — [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
 | `npm run qa:local` | build + **список** verify из `scripts/agent-qa.mjs` + lint, без prod smoke | Sync, статистика, абонементы, API agg, форматы упражнений, офлайн |
 | `node scripts/verify-security-l1-audit.mjs` | L1: admin-email, push IDOR, pull-guard pnk/clips, порядок debit | После правок auth/push/sync; в `agent-qa` |
@@ -20,6 +21,8 @@
 | `npm run qa:deep` | Углублённый прогон (`deep-qa.mjs`) | Перед крупным релизом / аудит |
 | `npm run qa:roles` / `qa:roles:browser` | Ролевые сценарии | Смена ролей / auth |
 | `npm run check:volume` | Объём данных | Рост клуба; см. [DATA_VOLUME.md](./DATA_VOLUME.md) |
+
+**Быстрый режим** (`qa:fast`) сам находит нужные тесты: он читает импорты всех `verify-*.mjs` и строит связь «файл проекта → тесты, которые его затрагивают» (транзитивно, через сервисы). Список «зона → тесты» руками не держим — он бы отстал от кода. Флаги: `--plan` (только показать, что запустилось бы), `--base=<коммит>` (изменения против ветки или коммита). Режим честно печатает файлы **без своего теста** и требует полный прогон, если правка меняет саму сборку (`package.json`, `vite.config.js` и подобные). Логика — `scripts/lib/qaFastPlan.mjs`, проверка — `node scripts/verify-qa-fast.mjs`.
 
 Оркестратор: `scripts/agent-qa.mjs` (явный список; на диске может быть больше `verify-*.mjs` — новый скрипт **регистрировать** в `agent-qa.mjs`). Таблица ниже — **критический поднабор**, не полный каталог. CI: `.github/workflows/qa.yml` → `qa:local` на push/PR.
 
