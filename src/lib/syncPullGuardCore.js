@@ -119,3 +119,17 @@ export function shouldApplyCloudRowOnPull(ctx = {}) {
 
   return true
 }
+
+/**
+ * После отказа записать cloud draft поверх local completed — пометить локаль на повторный push.
+ * Иначе облако залипает в draft, ЗП с сервера = 0, а планшет показывает «Завершена».
+ */
+export function shouldRequeueLocalCompletedOverCloudDraft(localRow, cloudRow, storeName = '') {
+  if (String(storeName ?? '') !== 'trainings') return false
+  if (!localRow || typeof localRow !== 'object') return false
+  if (!cloudRow || typeof cloudRow !== 'object') return false
+  if (localRow.synced === false) return false
+  const localStatus = String(localRow.status ?? '')
+  const cloudStatus = String(cloudRow.status ?? '')
+  return localStatus === 'completed' && cloudStatus !== 'completed'
+}

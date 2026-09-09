@@ -75,6 +75,28 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
 {
   const collapsed = collapseMemoryPushBatch([
     {
+      table_name: 'trainings',
+      operation: 'update',
+      remote_id: 't1',
+      data: { id: 't1', status: 'completed', data: { stars: 5 } },
+      local_id: 'tc',
+    },
+    {
+      table_name: 'trainings',
+      operation: 'update',
+      remote_id: 't1',
+      data: { id: 't1', status: 'draft', data: { stars: 0 } },
+      local_id: 'td',
+    },
+  ])
+  assert(
+    collapsed.length === 1 && collapsed[0].data.status === 'completed',
+    'memory batch: late draft cannot uncomplete training',
+  )
+}
+{
+  const collapsed = collapseMemoryPushBatch([
+    {
       table_name: 'memberships',
       operation: 'insert',
       remote_id: null,

@@ -94,10 +94,33 @@ export function isDuplicateInsertError(err) {
   return msg.includes('409') || details.includes('duplicate')
 }
 
+import { mergeTrainingPushStatus } from './trainingPersistStatusCore.js'
+
+/**
+ * Слить data нескольких push одной сущности. Для trainings status не откатывается draft поверх completed.
+ * @param {object} baseData
+ * @param {object[]} updatesData
+ * @param {string} tableName
+ */
+export function mergePushBatchEntityData(baseData, updatesData, tableName) {
+  let data = baseData && typeof baseData === 'object' ? { ...baseData } : {}
+  const table = String(tableName ?? '').trim()
+  for (const u of updatesData ?? []) {
+    if (!u || typeof u !== 'object') continue
+    const prevStatus = data.status
+    data = { ...data, ...u }
+    if (table === 'trainings') {
+      data.status = mergeTrainingPushStatus(prevStatus, u.status ?? data.status)
+    }
+  }
+  return data
+}
+
 /**
  * Схлопнуть in-memory пачку auto-push:
  * - delete побеждает insert/update той же сущности;
- * - insert + update → один insert с последними данными (ранняя активация офлайн).
+ * - insert + update → один insert с последними данными (ранняя активация офлайн);
+ * - несколько update trainings: last wins по полям, но status completed не откатывается в draft.
  * @param {Array<{ table_name?: string, operation?: string, remote_id?: string | null, data?: object, local_id?: string }>} items
  */
 export function collapseMemoryPushBatch(items) {
@@ -131,6 +154,7 @@ export function collapseMemoryPushBatch(items) {
   /** @type {typeof list} */
   const out = [...passthrough]
   for (const group of byEntity.values()) {
+    const tableName = String(group[0]?.table_name ?? '').trim()
     const lastDeleteIdx = group.map((x) => x.operation).lastIndexOf('delete')
     if (lastDeleteIdx >= 0) {
       out.push(group[lastDeleteIdx])
@@ -140,10 +164,11 @@ export function collapseMemoryPushBatch(items) {
     const updates = group.filter((x) => x.operation === 'update')
     if (inserts.length && updates.length) {
       const base = inserts[inserts.length - 1]
-      let data = { ...(base.data && typeof base.data === 'object' ? base.data : {}) }
-      for (const u of updates) {
-        if (u.data && typeof u.data === 'object') data = { ...data, ...u.data }
-      }
+      const data = mergePushBatchEntityData(
+        base.data && typeof base.data === 'object' ? base.data : {},
+        updates.map((u) => (u.data && typeof u.data === 'object' ? u.data : {})),
+        tableName,
+      )
       out.push({
         ...base,
         operation: 'insert',
@@ -153,7 +178,17 @@ export function collapseMemoryPushBatch(items) {
       continue
     }
     if (updates.length > 1) {
-      out.push(updates[updates.length - 1])
+      const last = updates[updates.length - 1]
+      if (tableName === 'trainings') {
+        const data = mergePushBatchEntityData(
+          {},
+          updates.map((u) => (u.data && typeof u.data === 'object' ? u.data : {})),
+          tableName,
+        )
+        out.push({ ...last, data })
+      } else {
+        out.push(last)
+      }
       continue
     }
     out.push(...group)

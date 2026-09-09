@@ -40,3 +40,26 @@ export function shouldSkipSilentPersistOfCompleted(diskStatus, silent) {
 export function shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlight) {
   return silent === true && completeInFlight === true
 }
+
+/**
+ * Облако уже completed, а в push ещё летит старый draft (гонка автосейва с «Закончить»).
+ * Такой flush нельзя применять — иначе ЗП/статистика с сервера откатываются в 0.
+ */
+export function shouldSkipObsoleteTrainingDraftPush(existingStatus, requestedStatus) {
+  return isTrainingStatusCompleted(existingStatus) && !isTrainingStatusCompleted(requestedStatus)
+}
+
+/**
+ * Draft-update на сервере: писать только пока строка ещё draft (`.eq('status','draft')`).
+ * Иначе параллельный completed уже победил — устаревший HTTP draft не должен перезаписать.
+ */
+export function trainingDraftPushRequiresDraftRowFilter(requestedStatus) {
+  return !isTrainingStatusCompleted(requestedStatus)
+}
+
+/**
+ * Схлопнуть status при merge нескольких push одной тренировки (last-write без учёта completed опасен).
+ */
+export function mergeTrainingPushStatus(currentStatus, nextStatus) {
+  return resolveTrainingPersistStatus(nextStatus, currentStatus)
+}

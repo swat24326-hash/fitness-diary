@@ -4,11 +4,14 @@
 import {
   isTrainingFirstCompletion,
   isTrainingStatusCompleted,
+  mergeTrainingPushStatus,
   resolveTrainingPersistStatus,
   shouldSkipDuplicateCompleteClick,
   shouldSkipDuplicateFirstCompletionSave,
+  shouldSkipObsoleteTrainingDraftPush,
   shouldSkipSilentPersistOfCompleted,
   shouldSkipSilentPersistWhileCompleteInFlight,
+  trainingDraftPushRequiresDraftRowFilter,
 } from '../src/lib/trainingPersistStatusCore.js'
 
 let failed = 0
@@ -46,6 +49,28 @@ ok(!shouldSkipSilentPersistOfCompleted('completed', false), 'explicit save of co
 ok(shouldSkipSilentPersistWhileCompleteInFlight(true, true), 'autosave yields to complete in-flight')
 ok(!shouldSkipSilentPersistWhileCompleteInFlight(true, false), 'autosave when not completing')
 ok(!shouldSkipSilentPersistWhileCompleteInFlight(false, true), 'explicit complete not skipped by guard')
+
+ok(
+  shouldSkipObsoleteTrainingDraftPush('completed', 'draft'),
+  'cloud completed + late draft push → skip',
+)
+ok(
+  !shouldSkipObsoleteTrainingDraftPush('draft', 'draft'),
+  'draft→draft push allowed',
+)
+ok(
+  !shouldSkipObsoleteTrainingDraftPush('draft', 'completed'),
+  'draft→completed push allowed',
+)
+ok(
+  !shouldSkipObsoleteTrainingDraftPush('completed', 'completed'),
+  'completed→completed edit allowed',
+)
+ok(trainingDraftPushRequiresDraftRowFilter('draft'), 'draft update needs status=draft filter')
+ok(!trainingDraftPushRequiresDraftRowFilter('completed'), 'completed update has no draft filter')
+ok(mergeTrainingPushStatus('completed', 'draft') === 'completed', 'batch merge keeps completed')
+ok(mergeTrainingPushStatus('draft', 'completed') === 'completed', 'batch merge promotes completed')
+ok(mergeTrainingPushStatus('draft', 'draft') === 'draft', 'batch merge draft stays draft')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

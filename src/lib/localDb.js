@@ -1,5 +1,5 @@
 import { openDB } from 'idb'
-import { cloudPutAllowedOnPull, isPullMergeGuardedStore, shouldApplyCloudRowOnPull } from './syncPullGuardCore.js'
+import { cloudPutAllowedOnPull, isPullMergeGuardedStore, shouldApplyCloudRowOnPull, shouldRequeueLocalCompletedOverCloudDraft } from './syncPullGuardCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
@@ -346,6 +346,13 @@ export async function putStoreUnlessPendingSync(storeName, record, pending) {
         recordKey: key,
       })
     ) {
+      if (shouldRequeueLocalCompletedOverCloudDraft(localRow, fromCloud, storeName)) {
+        await putStore(storeName, {
+          ...localRow,
+          synced: false,
+          __sync: { operation: 'update', remote_id: key },
+        })
+      }
       return false
     }
   } else if (!cloudPutAllowedOnPull(storeName, key, pending)) {

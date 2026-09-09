@@ -8,6 +8,7 @@ import {
   rowRevisionMs,
   shouldApplyCloudRowOnPull,
   shouldPreserveLocalRowFromCloudPull,
+  shouldRequeueLocalCompletedOverCloudDraft,
 } from '../src/lib/syncPullGuardCore.js'
 import { hasOpenTrainingDraft, resetOpenTrainingDraftForTests, setOpenTrainingDraft } from '../src/lib/openTrainingDraftGuard.js'
 import {
@@ -248,6 +249,22 @@ ok(
     recordKey: 't-f1',
   }),
   'F1 CRITICAL: cloud draft never un-completes local completed',
+)
+ok(
+  shouldRequeueLocalCompletedOverCloudDraft(
+    { id: 't-f1', synced: true, status: 'completed' },
+    { id: 't-f1', status: 'draft' },
+    'trainings',
+  ),
+  'F1b local completed vs cloud draft → requeue for push',
+)
+ok(
+  !shouldRequeueLocalCompletedOverCloudDraft(
+    { id: 't-f1', synced: false, status: 'completed' },
+    { id: 't-f1', status: 'draft' },
+    'trainings',
+  ),
+  'F1c already unsynced — no double mark',
 )
 ok(
   !shouldApplyCloudRowOnPull({

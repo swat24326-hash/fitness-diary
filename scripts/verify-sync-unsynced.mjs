@@ -66,6 +66,16 @@ assert(defaultSyncOperation('memberships', { id: 'x' }).operation === 'update', 
   assert(d.action === 'use_cloud', 'cloud newer → take cloud')
 }
 
+{
+  const local = { id: 't1', updated_at: '2026-09-09T12:00:00.000Z', status: 'completed' }
+  const cloud = { id: 't1', updated_at: '2026-09-09T12:01:00.000Z', status: 'draft' }
+  const d = resolveAfterPushAck({ localRow: local, cloudRow: cloud, pushedData: cloud, recordKey: 't1' })
+  assert(
+    d.action === 'keep_local_needs_update' && d.remote_id === 't1',
+    'late draft ack must not uncomplete local completed',
+  )
+}
+
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed.`)
   process.exit(1)

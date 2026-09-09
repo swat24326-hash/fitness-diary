@@ -3,6 +3,7 @@
  */
 
 import { rowRevisionMs } from './syncPullGuardCore.js'
+import { isTrainingStatusCompleted } from './trainingPersistStatusCore.js'
 
 /** Убрать служебные поля перед отправкой в API / Supabase. */
 export function recordForPush(record) {
@@ -36,6 +37,18 @@ export function resolveAfterPushAck(p) {
   const cloudRow = p?.cloudRow
   const key = String(p?.recordKey ?? '').trim()
   if (!localRow || typeof localRow !== 'object') return { action: 'use_cloud' }
+  // Устаревший draft-ack после «Закончить»: cloud новее по updated_at, но status откатил бы completed.
+  if (
+    isTrainingStatusCompleted(localRow.status) &&
+    cloudRow &&
+    typeof cloudRow === 'object' &&
+    !isTrainingStatusCompleted(cloudRow.status)
+  ) {
+    return {
+      action: 'keep_local_needs_update',
+      remote_id: key || String(localRow.id ?? '').trim(),
+    }
+  }
   const localMs = rowRevisionMs(localRow)
   const cloudMs = rowRevisionMs(cloudRow)
   if (localMs <= cloudMs) return { action: 'use_cloud' }

@@ -7,7 +7,11 @@ import {
   prepareTrainingPushPayload,
   stripTrainingUpdatedAt,
 } from './normalizeTrainingPayload.js'
-import { resolveTrainingPersistStatus } from '../../src/lib/trainingPersistStatusCore.js'
+import {
+  resolveTrainingPersistStatus,
+  shouldSkipObsoleteTrainingDraftPush,
+  trainingDraftPushRequiresDraftRowFilter,
+} from '../../src/lib/trainingPersistStatusCore.js'
 import { normalizeMembershipPushPayload } from '../../src/lib/membershipPushPayload.js'
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
 import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
@@ -173,6 +177,8 @@ async function validateMembershipTypeLink(supabaseAdmin, payload, operation, opt
 
 /**
  * Insert/update trainings + вернуть строку (updated_at для merge на планшете).
+ * Draft-update фильтрует `status=draft`, чтобы поздний HTTP автосейва не откатил completed
+ * после параллельного «Закончить» (TOCTOU select→update).
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
  * @param {'insert' | 'update'} operation
  * @param {object} payload
@@ -182,6 +188,24 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
   let result
   if (operation === 'insert') {
     result = await supabaseAdmin.from('trainings').insert(payload).select('*').maybeSingle()
+  } else if (trainingDraftPushRequiresDraftRowFilter(payload?.status)) {
+    result = await supabaseAdmin
+      .from('trainings')
+      .update(payload)
+      .eq('id', remote_id)
+      .eq('status', 'draft')
+      .select('*')
+      .maybeSingle()
+    if (!result.error && !result.data) {
+      const { data: existing, error: existingErr } = await supabaseAdmin
+        .from('trainings')
+        .select('*')
+        .eq('id', remote_id)
+        .maybeSingle()
+      if (existingErr) return { ok: false, status: 400, error: existingErr.message }
+      if (existing) return { ok: true, record: existing, skipped_obsolete_draft: true }
+      return { ok: false, status: 404, error: 'Тренировка не найдена' }
+    }
   } else {
     result = await supabaseAdmin.from('trainings').update(payload).eq('id', remote_id).select('*').maybeSingle()
   }
@@ -190,6 +214,24 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
     const stripped = stripTrainingUpdatedAt(payload)
     if (operation === 'insert') {
       result = await supabaseAdmin.from('trainings').insert(stripped).select('*').maybeSingle()
+    } else if (trainingDraftPushRequiresDraftRowFilter(payload?.status)) {
+      result = await supabaseAdmin
+        .from('trainings')
+        .update(stripped)
+        .eq('id', remote_id)
+        .eq('status', 'draft')
+        .select('*')
+        .maybeSingle()
+      if (!result.error && !result.data) {
+        const { data: existing, error: existingErr } = await supabaseAdmin
+          .from('trainings')
+          .select('*')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (existingErr) return { ok: false, status: 400, error: existingErr.message }
+        if (existing) return { ok: true, record: existing, skipped_obsolete_draft: true }
+        return { ok: false, status: 404, error: 'Тренировка не найдена' }
+      }
     } else {
       result = await supabaseAdmin.from('trainings').update(stripped).eq('id', remote_id).select('*').maybeSingle()
     }
@@ -375,15 +417,19 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'trainings') {
         const prepared = prepareTrainingPushPayload(data, { operation: 'update' })
         if (!prepared) return { ok: false, status: 400, error: 'Некорректная тренировка' }
-        // Не откатывать completed → draft при flush старого черновика с планшета.
+        // Не откатывать completed → draft и не затирать тело completed устаревшим автосейвом.
         const { data: existing } = await supabaseAdmin
           .from('trainings')
-          .select('status')
+          .select('*')
           .eq('id', remote_id)
           .maybeSingle()
+        if (existing && shouldSkipObsoleteTrainingDraftPush(existing.status, data?.status ?? prepared.status)) {
+          return { ok: true, record: existing, skipped_obsolete_draft: true }
+        }
         if (existing) {
           prepared.status = resolveTrainingPersistStatus(prepared.status, existing.status)
         }
+        // Draft-update: только пока в БД ещё draft (гонка с параллельным «Закончить»).
         return writeTrainingRow(supabaseAdmin, 'update', prepared, remote_id)
       }
       if (table_name === 'clients') {
