@@ -115,6 +115,7 @@
 | Debit абонемента при first complete | `verify-training-membership-debit.mjs` (в т.ч. перекрытие: сначала старый) |
 | Плитка «Трен. n/m» при редактировании завершённой | `verify-training-membership-tile.mjs` |
 | Абон не доехал на планшет: догрузка вместо прочерков и отказа закрыть | `verify-training-membership-ensure.mjs` |
+| Копирование / существующий draft без usable: early-activate как у новой | `verify-training-membership-draft-gate.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Прогноз ЗП месяца для чистой (уровни к концу + adj) | `verify-trainer-month-payroll-forecast.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |

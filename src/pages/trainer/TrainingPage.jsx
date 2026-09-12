@@ -12,9 +12,10 @@ import {
   applyEarlyMembershipActivation,
   applyLateMembershipStart,
   loadEarlyActivationProposal,
-  loadLateStartInspection,
   loadLateStartProposal,
 } from '../../lib/trainer/membershipStartShiftService.js'
+import { inspectTrainerDraftMembershipOpenGate } from '../../lib/trainer/trainingMembershipDraftGateService.js'
+import { shouldOfferEarlyActivateAfterDebitFail } from '../../lib/trainer/trainingMembershipDraftGateCore.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
 import { isAppOnline, saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncService'
@@ -562,23 +563,22 @@ export function TrainingPage() {
         setMembershipSummary(ms)
         if (!isAdmin && String(cacheHit.status ?? '') === 'draft') {
           const gateDay = String(cacheHit.trainingDate || todayLocalIso()).slice(0, 10)
-          const lateInsp = await loadLateStartInspection(cid, gateDay)
+          const gateCached = await inspectTrainerDraftMembershipOpenGate({
+            clientId: cid,
+            day: gateDay,
+            hasMembershipSummary: Boolean(ms),
+            isAdmin,
+            status: 'draft',
+            isNewTraining: false,
+          })
           if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
-          if (lateInsp.status === 'offer' && lateInsp.proposal) {
-            setEarlyActivateProposal(lateInsp.proposal)
-            setMembershipShiftMode('late')
-            setLateDraftOffer(true)
-            setLateBlockedNotice('')
-          } else if (lateInsp.status === 'blocked') {
-            setEarlyActivateProposal(null)
-            setMembershipShiftMode(null)
-            setLateDraftOffer(false)
-            setLateBlockedNotice(lateInsp.message || '')
-          } else {
-            setEarlyActivateProposal(null)
-            setMembershipShiftMode(null)
-            setLateDraftOffer(false)
-            setLateBlockedNotice('')
+          setEarlyActivateProposal(gateCached.proposal)
+          setMembershipShiftMode(gateCached.shiftMode)
+          setLateDraftOffer(gateCached.lateDraftOffer)
+          setLateBlockedNotice(gateCached.lateBlockedNotice)
+          if (gateCached.loadState === 'awaiting_activate') {
+            setLoadState('awaiting_activate')
+            return
           }
         }
         prefetchTrainerClientWorkspace(cid, {
@@ -759,34 +759,24 @@ export function TrainingPage() {
       }
       lateShiftDismissedRef.current = false
       setLateDraftOffer(false)
-      if (!ms) {
-        const offer = await loadEarlyActivationProposal(clientIdParam, todayLocalIso())
-        if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
-        if (offer.ok && offer.proposal) {
-          setEarlyActivateProposal(offer.proposal)
-          setMembershipShiftMode('early')
-          setLateBlockedNotice('')
-          setLoadState('awaiting_activate')
-        } else {
-          setEarlyActivateProposal(null)
-          setMembershipShiftMode(null)
-          setLateBlockedNotice('')
-          setLoadState('no_membership')
-        }
-        return
-      }
-      const lateInsp = await loadLateStartInspection(clientIdParam, todayLocalIso())
+      const gateDayNew = String(dateNew || todayLocalIso()).slice(0, 10)
+      const gateNew = await inspectTrainerDraftMembershipOpenGate({
+        clientId: clientIdParam,
+        day: gateDayNew,
+        hasMembershipSummary: Boolean(ms),
+        isAdmin,
+        status: 'draft',
+        isNewTraining: true,
+      })
       if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
-      if (lateInsp.status === 'offer' && lateInsp.proposal) {
-        setEarlyActivateProposal(lateInsp.proposal)
-        setMembershipShiftMode('late')
-        setLateBlockedNotice('')
-        setLoadState('awaiting_activate')
+      setEarlyActivateProposal(gateNew.proposal)
+      setMembershipShiftMode(gateNew.shiftMode)
+      setLateDraftOffer(gateNew.lateDraftOffer)
+      setLateBlockedNotice(gateNew.lateBlockedNotice)
+      if (gateNew.loadState !== 'ok') {
+        setLoadState(gateNew.loadState)
         return
       }
-      setEarlyActivateProposal(null)
-      setMembershipShiftMode(null)
-      setLateBlockedNotice(lateInsp.status === 'blocked' ? lateInsp.message || '' : '')
       prefetchTrainerClientWorkspace(clientIdParam, {
         trainerId: isAdmin ? '' : user.id,
         clubId: c?.club_id ?? '',
@@ -824,34 +814,9 @@ export function TrainingPage() {
       listMemberships(t.client_id),
     ])
     if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
-    const membershipSummary = buildTrainingMembershipTileSummary({
-      memberships,
-      allTrainings: trainings,
-      training: t,
-      trainingDate: loaded,
-      status: t.status,
-      fallbackDate: today,
-    })
-
-    let earlyActivateProposalNext = null
-    let membershipShiftModeNext = null
-    let lateDraftOfferNext = false
-    let lateBlockedNoticeNext = ''
-    if (!isAdmin && String(t.status ?? '') === 'draft') {
-      const gateDay = String(loaded ?? today).slice(0, 10)
-      const lateInsp = await loadLateStartInspection(t.client_id, gateDay)
-      if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
-      if (lateInsp.status === 'offer' && lateInsp.proposal) {
-        earlyActivateProposalNext = lateInsp.proposal
-        membershipShiftModeNext = 'late'
-        lateDraftOfferNext = true
-      } else if (lateInsp.status === 'blocked') {
-        lateBlockedNoticeNext = lateInsp.message || ''
-      }
-    }
-    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
 
     // Все setState после awaits — иначе устаревший load пишет чужой workout на новый URL.
+    // Сначала дата/черновик, потом плитка и gate абона (копирование = существующий draft).
     let trainingDateNext = canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded)
     let sessionTypeNext = sessionType
     let workoutNext = { ...emptyTrainingData(), ...w }
@@ -906,6 +871,32 @@ export function TrainingPage() {
         statusNext = 'draft'
       }
     }
+
+    const membershipSummary = buildTrainingMembershipTileSummary({
+      memberships,
+      allTrainings: trainings,
+      training: t,
+      trainingDate: trainingDateNext,
+      status: statusNext,
+      fallbackDate: today,
+    })
+
+    const gateExisting = await inspectTrainerDraftMembershipOpenGate({
+      clientId: t.client_id,
+      day: String(trainingDateNext || today).slice(0, 10),
+      hasMembershipSummary: Boolean(membershipSummary),
+      isAdmin,
+      status: statusNext,
+      isNewTraining: false,
+    })
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+
+    const earlyActivateProposalNext = gateExisting.proposal
+    const membershipShiftModeNext = gateExisting.shiftMode
+    const lateDraftOfferNext = gateExisting.lateDraftOffer
+    const lateBlockedNoticeNext = gateExisting.lateBlockedNotice
+    const loadStateNext = gateExisting.loadState
+
     const otherCompletedNext = trainings.filter(
       (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id,
     ).length
@@ -932,13 +923,13 @@ export function TrainingPage() {
       trainerId: isAdmin ? '' : user.id,
       clubId: c?.club_id ?? t.club_id ?? '',
     })
-    setLoadState('ok')
+    setLoadState(loadStateNext)
     bumpHydrateVersion((v) => v + 1)
 
     putTrainingDraftSession(
       t.id,
       buildTrainingDraftSessionSnapshot({
-        loadState: 'ok',
+        loadState: loadStateNext,
         meta: { status: statusNext, trainingId: t.id },
         workoutState: workoutNext,
         trainingType: sessionTypeNext,
@@ -951,7 +942,7 @@ export function TrainingPage() {
       }),
     )
 
-    if (restoredFromBestDraft) {
+    if (restoredFromBestDraft && loadStateNext === 'ok') {
       window.setTimeout(() => {
         if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
         userEditedRef.current = true
@@ -1352,7 +1343,31 @@ export function TrainingPage() {
       }
       if (!debitPlan.ok) {
         if (silent) setAutosaveStatus('error')
-        if (!silent) setSaveError(debitPlan.message)
+        if (!silent) {
+          const early = !isAdmin
+            ? await loadEarlyActivationProposal(cid, effectiveDate)
+            : { ok: false, proposal: null }
+          if (
+            shouldOfferEarlyActivateAfterDebitFail({
+              planOk: false,
+              isAdmin,
+              silent,
+              earlyOfferOk: early.ok === true,
+              earlyProposal: early.proposal,
+            })
+          ) {
+            setEarlyActivateProposal(early.proposal)
+            setMembershipShiftMode('early')
+            setLateDraftOffer(false)
+            setEarlyActivateError('')
+            setEarlyActivateOpen(true)
+            setSaveError(
+              'Нет действующего абонемента на эту дату. Активируйте купленный абонемент раньше — затем снова нажмите «Завершить».',
+            )
+            return
+          }
+          setSaveError(debitPlan.message)
+        }
         return
       }
       membershipToDebit = debitPlan.membership
@@ -2415,12 +2430,16 @@ export function TrainingPage() {
       ) : null}
 
       <EarlyMembershipActivateSheet
-        open={earlyActivateOpen && membershipShiftMode === 'late' && !!earlyActivateProposal}
-        mode="late"
+        open={
+          earlyActivateOpen &&
+          !!earlyActivateProposal &&
+          (membershipShiftMode === 'late' || membershipShiftMode === 'early')
+        }
+        mode={membershipShiftMode === 'late' ? 'late' : 'early'}
         proposal={earlyActivateProposal}
         busy={earlyActivateBusy}
         error={earlyActivateError}
-        allowSkipWithoutShift
+        allowSkipWithoutShift={membershipShiftMode === 'late'}
         onCancel={() => {
           if (earlyActivateBusy) return
           setEarlyActivateOpen(false)
@@ -2439,13 +2458,18 @@ export function TrainingPage() {
         onConfirm={async () => {
           const cid = client?.id ?? clientIdParam
           if (!cid) return
+          const isLateShift = membershipShiftMode === 'late'
           setEarlyActivateBusy(true)
           setEarlyActivateError('')
           try {
             const day = String(trainingDate || todayLocalIso()).slice(0, 10)
-            const res = await applyLateMembershipStart(cid, day)
+            const res = isLateShift
+              ? await applyLateMembershipStart(cid, day)
+              : await applyEarlyMembershipActivation(cid, day)
             if (!res.ok) {
-              setEarlyActivateError(res.error || 'Не удалось сдвинуть срок')
+              setEarlyActivateError(
+                res.error || (isLateShift ? 'Не удалось сдвинуть срок' : 'Не удалось активировать'),
+              )
               return
             }
             lateShiftDismissedRef.current = true
@@ -2462,9 +2486,15 @@ export function TrainingPage() {
                 fallbackDate: day,
               }),
             )
-            setSaveNotice('Срок абонемента сдвинут от первой тренировки')
+            setSaveNotice(
+              isLateShift
+                ? 'Срок абонемента сдвинут от первой тренировки'
+                : 'Абонемент активирован — можно завершить тренировку',
+            )
           } catch (e) {
-            setEarlyActivateError(e?.message || 'Не удалось сдвинуть срок')
+            setEarlyActivateError(
+              e?.message || (isLateShift ? 'Не удалось сдвинуть срок' : 'Не удалось активировать'),
+            )
           } finally {
             setEarlyActivateBusy(false)
           }

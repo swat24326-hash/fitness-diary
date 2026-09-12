@@ -109,8 +109,9 @@
 | Правила | `src/lib/membershipRules.js` |
 | UI абона | `src/components/MembershipManager.jsx` |
 | Сдвиг дат | `src/lib/trainer/membershipStartShiftService.js` |
-| Verify | `scripts/verify-membership-total-guard.mjs`, `scripts/verify-training-membership-link.mjs` |
-| Docs | INCIDENTS **H** |
+| Gate draft / copy | `src/lib/trainer/trainingMembershipDraftGateCore.js`, `trainingMembershipDraftGateService.js`, `TrainingPage.jsx` |
+| Verify | `scripts/verify-membership-total-guard.mjs`, `scripts/verify-training-membership-link.mjs`, `scripts/verify-training-membership-draft-gate.mjs` |
+| Docs | INCIDENTS **H**, INC-2026-09-12-01 |
 
 ---
 
