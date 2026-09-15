@@ -5,6 +5,8 @@
 
 **С чего начать:** [`AGENTS.md`](../AGENTS.md) (короткий вход) → [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) → [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) (экономия) → [PRODUCT_VISION.md](./PRODUCT_VISION.md) → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) → карта ниже.
 
+**Цифры для людей (не разработка):** [METRICS_TEXTBOOK.md](./METRICS_TEXTBOOK.md) — учебник: каждая карточка статистики и каждый параметр внутри простыми словами.
+
 **Системная карта (тонкие доки):** [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) · [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) · [CODE_TRACE.md](./CODE_TRACE.md) · [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
 
 ---
@@ -103,6 +105,7 @@
 
 | Файл | Статус | Назначение |
 |------|--------|------------|
+| [METRICS_TEXTBOOK.md](./METRICS_TEXTBOOK.md) | ✅ учебник | Все цифры Ядра простым языком: статистика, продажи, финансы, фильтры клиентов |
 | [PNK_FUNNEL.md](./PNK_FUNNEL.md) | ✅ в проде | Воронка ПНК: менеджер → тренер → KPI |
 | [COACH_QUALITY.md](./COACH_QUALITY.md) | ✅ MVP | Качество ведения тренера: care / depth / хвосты базы |
 | [CLIENT_RETENTION.md](./CLIENT_RETENTION.md) | 📋 фаза 0 | Удержание и жизнь клиента: cohort M+3, renewal, archive, reactivation |

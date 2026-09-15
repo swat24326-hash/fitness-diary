@@ -11,9 +11,16 @@ import {
   isClubAttendancePayloadIncomplete,
   preferClubAttendancePayload,
   pickUsableAttendanceMembershipForDate,
+  resolveClubAttendanceWindow,
 } from '../src/lib/admin/clubAttendanceAggCore.js'
+import {
+  attachClubAttendancePreviousWindow,
+  formatClubAttendanceTrendHint,
+} from '../src/lib/admin/clubAttendanceTrendCore.js'
 import { isClientAttendanceSlip } from '../src/lib/clientAttendanceGlanceCore.js'
+import { ATTENDANCE_GLANCE_WINDOW_DAYS } from '../src/lib/clientAttendanceGlanceCore.js'
 import { daysInIsoRangeInclusive } from '../src/lib/clientAttendanceStatsCore.js'
+import { addDaysToIso } from '../src/lib/dateRu.js'
 import { pickUsableTypedMembershipForDate } from '../src/lib/membershipRules.js'
 
 let failed = 0
@@ -99,8 +106,9 @@ ok(
 ok(agg.inRhythmPct === 50, 'pct = 50')
 ok(formatClubAttendancePct(agg.inRhythmPct) === '50%', 'format pct')
 ok(agg.slippedPreview.some((r) => r.clientId === 'c2'), 'preview has slipped client')
-ok(agg.windowDays === 30, 'default window is 30 inclusive days when dateFrom omitted')
+ok(agg.windowDays === 30, 'default window is 30 inclusive days')
 ok(agg.windowFrom != null, 'default windowFrom set')
+ok(agg.windowFixed === true, 'windowFixed flag')
 ok(agg.totalVisitsInWindow === 2, 'only completed in window (c1×2)')
 
 const expectedAvg = (2 / 2) * (7 / 30) // total/pool * 7/days
@@ -113,7 +121,7 @@ ok(formatClubAvgVisitsPerWeek(1.234) === '1.23', 'format avg two decimals')
 ok(meanOfNumbers([1, 2, 3]) === 2, 'meanOfNumbers')
 ok(medianOfNumbers([1, 2, 3, 4]) === 2.5, 'medianOfNumbers even')
 
-// Период сводки длиннее 30 дн. — окно = dateFrom…dateTo, не фикс. 30.
+// Период сводки (dateFrom) не расширяет и не сужает окно ритма — всегда фиксированные 30 дн.
 const periodFrom = '2026-07-01'
 const periodAgg = aggregateClubAttendance({
   clients,
@@ -123,18 +131,45 @@ const periodAgg = aggregateClubAttendance({
   dateTo: today,
   clampAsOf: false,
 })
-ok(periodAgg.windowFrom === periodFrom, 'period windowFrom = dateFrom')
-ok(periodAgg.windowDays === 54, 'period windowDays = 54 (2026-07-01…08-23)')
-ok(periodAgg.totalVisitsInWindow === 3, 'period includes July visit inside selected window')
-const periodExpectedAvg = (3 / 2) * (7 / 54)
+const fixedWin = resolveClubAttendanceWindow(today, ATTENDANCE_GLANCE_WINDOW_DAYS)
+ok(periodAgg.windowFrom === fixedWin.windowFrom, 'period dateFrom ignored → fixed windowFrom')
+ok(periodAgg.windowDays === 30, 'period dateFrom ignored → windowDays stays 30')
+ok(periodAgg.windowFixed === true, 'period payload still windowFixed')
+ok(periodAgg.totalVisitsInWindow === 2, 'July visit outside fixed 30d window not counted')
 ok(
-  Math.abs(periodAgg.avgVisitsPerWeek - periodExpectedAvg) < 1e-12,
-  'period avg uses selected window days, not 30',
+  Math.abs(periodAgg.avgVisitsPerWeek - expectedAvg) < 1e-12,
+  'avg uses fixed 30d window even when summary period is longer',
 )
 ok(
-  periodAgg.windowDays === daysInIsoRangeInclusive(periodFrom, today),
-  'windowDays matches daysInIsoRangeInclusive',
+  periodAgg.windowDays === daysInIsoRangeInclusive(periodAgg.windowFrom, today),
+  'windowDays matches inclusive range of fixed window',
 )
+
+// Явный override windowDays (тесты / будущие режимы) — не через dateFrom.
+const longWin = aggregateClubAttendance({
+  clients,
+  memberships,
+  trainings,
+  dateTo: today,
+  clampAsOf: false,
+  windowDays: 54,
+})
+ok(longWin.windowDays === 54, 'windowDays override = 54')
+ok(longWin.totalVisitsInWindow === 3, 'override 54d includes July visit')
+const longExpectedAvg = (3 / 2) * (7 / 54)
+ok(Math.abs(longWin.avgVisitsPerWeek - longExpectedAvg) < 1e-12, 'override avg uses 54 days')
+
+// Короткий период сводки (полмесяца) тоже не режет ритм до dateFrom.
+const midMonth = aggregateClubAttendance({
+  clients,
+  memberships,
+  trainings,
+  dateFrom: '2026-08-15',
+  dateTo: today,
+  clampAsOf: false,
+})
+ok(midMonth.windowDays === 30, 'mid-month summary still 30d rhythm window')
+ok(midMonth.windowFrom === fixedWin.windowFrom, 'mid-month dateFrom ignored')
 
 ok(!isClubAttendancePayloadIncomplete(agg), 'fresh agg complete')
 ok(isClubAttendancePayloadIncomplete(null), 'null incomplete')
@@ -329,6 +364,28 @@ ok(futureAsOf.asOf !== '2099-01-01', 'future dateTo clamped to today')
 
 const daysCheck = daysInIsoRangeInclusive('2026-07-25', '2026-08-23')
 ok(daysCheck === 30, 'inclusive 30-day window helper')
+
+const withTrend = attachClubAttendancePreviousWindow(agg, {
+  clients,
+  memberships,
+  trainings,
+  clampAsOf: false,
+})
+ok(withTrend.previousWindow != null, 'previousWindow attached')
+ok(withTrend.previousWindow.windowDays === 30, 'previous window also 30d')
+ok(
+  withTrend.previousWindow.asOf === addDaysToIso(today, -30),
+  'previous asOf = current asOf − 30',
+)
+ok(Number.isFinite(withTrend.deltaAvgVisitsPerWeek) || withTrend.deltaAvgVisitsPerWeek === null, 'delta present or null')
+ok(
+  formatClubAttendanceTrendHint(1.4, -0.15, formatClubAvgVisitsPerWeek) === 'было 1.40 · -0.15',
+  'trend hint format',
+)
+ok(
+  formatClubAttendanceTrendHint(1.4, 0.2, formatClubAvgVisitsPerWeek) === 'было 1.40 · +0.20',
+  'trend hint positive',
+)
 
 if (failed) process.exit(1)
 console.log('verify-club-attendance-agg: all ok')

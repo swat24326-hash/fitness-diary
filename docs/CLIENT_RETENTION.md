@@ -51,12 +51,15 @@ API `client-retention` подтягивает `client_hall_lifecycle` → KPI **
 
 ## MVP KPI (6)
 
-1. Retention M+3 (когорты до 6 мес.)
-2. Renewal rate (окно 14 дн.)
-3. Archive rate (квартал / период)
+1. Retention M+3 (когорты до 6 мес.) — **не** «удержание за выбранный месяц»
+2. Renewal rate (окно 14 дн. к asOf) — оперативный срез
+2b. **Period renewal rate** — end абона в `periodFrom`…`periodTo`, renew в 14 дн. после end (честный итог периода рядом с 14-дн.)
+3. Archive rate (события в `periodFrom`…`periodTo`)
 4. Archive reason mix
 5. Reactivation rate = successful / restores (90 дн. lookback; нужен список restore-событий)
 6. Trainer retention M+3 (tablet, R-RET) + **медиана жизни по тренеру** (attribution = anchorTrainerId, все клиенты universe)
+
+**Рядом, не retention:** клубная **посещаемость** (`client-attendance`) — ритм за **фиксированные 30 дн.** до asOf + сравнение с предыдущими 30 дн.; фильтр месяца сводки окно не задаёт. См. [METRICS_TEXTBOOK.md](./METRICS_TEXTBOOK.md) §4.9.
 
 ## Код
 

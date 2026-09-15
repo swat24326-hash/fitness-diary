@@ -56,7 +56,7 @@
 | Админ: статистика / ИСКРА | agg, snapshot |
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
-| Удержание и жизнь клиента | `verify-client-retention.mjs` (pool, cohort M+3, renewal, archive, reactivation, **closed PZ вне R-RET**, `pzChurn*`); закрытие ПЗ — `verify-client-hall-lifecycle.mjs` |
+| Удержание и жизнь клиента | `verify-client-retention.mjs` (pool, cohort M+3, renewal 14д + **period renewal**, archive, reactivation, **closed PZ вне R-RET**, `pzChurn*`); закрытие ПЗ — `verify-client-hall-lifecycle.mjs` |
 | Жизнь по направлениям | `verify-client-hall-lifecycle.mjs` (A–G); **списки L-A…L-F** — `verify-admin-clients-list-lifecycle.mjs`; **Активные/Архив тренера** — `verify-trainer-clients-pz-list.mjs`; migrate `npm run db:migrate:client-hall-lifecycle -- --linked`; [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) |
 | Причина закрытия (форма) | `verify-client-archive-reason.mjs` (`buildArchiveReasonConfirmPayload`); срок — `verify-client-archive-expected-return.mjs` |
 
@@ -179,7 +179,7 @@
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
 | Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |
 | Статистика клиента: посещаемость, оценка, glance, разорванный ритм, фильтр «выпали», hydrate | `verify-client-attendance-stats.mjs`, `verify-client-attendance-glance.mjs` |
-| Статистика клуба: посещаемость ПЗ (окно = период сводки, exact weeks, prefer/truncated, % без выпадения, byTrainer) | `verify-club-attendance-agg.mjs` |
+| Статистика клуба: посещаемость ПЗ (окно = фикс. 30 дн. до asOf, не период сводки; **previous 30д / Δ**; exact weeks, prefer/truncated, % без выпадения, byTrainer) | `verify-club-attendance-agg.mjs` |
 | Клиенты: keep-alive путь список/карточка | `verify-admin-clients-keepalive.mjs` |
 | Клиенты: поиск по всем залам + стек ПЗ/ТЗ/АЗ | `verify-admin-clients-cross-hall-search.mjs` |
 | Абоны: цена пакета paid_amount (форма) | `verify-membership-paid-amount.mjs` |

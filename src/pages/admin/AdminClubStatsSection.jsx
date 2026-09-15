@@ -891,7 +891,7 @@ export function AdminClubStatsSection({
             }
             title={
               hasClientAttendance && !clientAttendanceBusy
-                ? 'Средняя посещаемость ПЗ (трен./нед) — нажмите для аналитики'
+                ? 'Средняя посещаемость ПЗ за последние 30 дней (трен./нед) — нажмите для аналитики'
                 : undefined
             }
             onClick={() => toggleInlinePanel('clientAttendance')}
@@ -910,7 +910,7 @@ export function AdminClubStatsSection({
                   ? 'нет активных абонов'
                   : inlinePanel === 'clientAttendance'
                     ? 'скрыть подробности'
-                    : `трен./нед · без выпад. ${formatClubAttendancePct(clientAttendance.inRhythmPct)} · нажмите`}
+                    : `трен./нед · 30 дн. · без выпад. ${formatClubAttendancePct(clientAttendance.inRhythmPct)} · нажмите`}
             </p>
           </button>
           ) : null}

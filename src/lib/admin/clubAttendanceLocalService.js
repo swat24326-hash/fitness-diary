@@ -22,6 +22,7 @@ import {
 import { collectHoldingTrainerIds } from './holdingClientsCore.js'
 import { collectNoTabletTrainerIds } from './trainerTabletModeCore.js'
 import { aggregateClubAttendance } from './clubAttendanceAggCore.js'
+import { attachClubAttendancePreviousWindow } from './clubAttendanceTrendCore.js'
 import { listMembershipTypesForClub } from '../membershipTypesService.js'
 
 /**
@@ -41,19 +42,9 @@ export async function loadClubAttendanceFromLocal(opts) {
   }
 
   const dateTo = clampIsoDateToToday(dateToRaw)
-  const periodFromRaw = String(opts.dateFrom ?? '').slice(0, 10)
-  const windowFromGuess =
-    /^\d{4}-\d{2}-\d{2}$/.test(periodFromRaw) && periodFromRaw <= dateTo
-      ? periodFromRaw
-      : addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
-  const windowDaysGuess = Math.max(
-    1,
-    Math.round(
-      (new Date(`${dateTo}T12:00:00`) - new Date(`${windowFromGuess}T12:00:00`)) / 86400000,
-    ) + 1,
-  )
-  // Lookback для last visit / slip: не короче 90 дн. и не короче окна периода + 14.
-  const trainFrom = addDaysToIso(dateTo, -Math.max(90, windowDaysGuess + 14))
+  // Окно ритма фиксированное; dateFrom сводки не режет посещаемость.
+  // Lookback для last visit / slip: не короче 90 дн. и не короче окна + 14.
+  const trainFrom = addDaysToIso(dateTo, -Math.max(90, ATTENDANCE_GLANCE_WINDOW_DAYS + 14))
   const hintCompleted = Number(opts.hintCompletedInPeriod) || 0
   const canRemote = isSupabaseConfigured() && isAppOnline()
 
@@ -125,19 +116,31 @@ export async function loadClubAttendanceFromLocal(opts) {
     membershipTypes = []
   }
 
-  const clientAttendance = aggregateClubAttendance({
-    clients,
-    memberships,
-    trainings,
-    dateFrom: String(opts.dateFrom ?? '').slice(0, 10) || undefined,
-    dateTo,
-    trainerIdFilter: opts.trainerIdFilter ?? null,
-    holdingTrainerIds,
-    noTabletTrainerIds,
-    lifecycleRows: lifecycleRows ?? [],
-    truncated: false,
-    membershipTypes,
-  })
+  const clientAttendance = attachClubAttendancePreviousWindow(
+    aggregateClubAttendance({
+      clients,
+      memberships,
+      trainings,
+      dateTo,
+      trainerIdFilter: opts.trainerIdFilter ?? null,
+      holdingTrainerIds,
+      noTabletTrainerIds,
+      lifecycleRows: lifecycleRows ?? [],
+      truncated: false,
+      membershipTypes,
+    }),
+    {
+      clients,
+      memberships,
+      trainings,
+      trainerIdFilter: opts.trainerIdFilter ?? null,
+      holdingTrainerIds,
+      noTabletTrainerIds,
+      lifecycleRows: lifecycleRows ?? [],
+      truncated: false,
+      membershipTypes,
+    },
+  )
 
   const windowFrom =
     clientAttendance.windowFrom ||
@@ -150,6 +153,8 @@ export async function loadClubAttendanceFromLocal(opts) {
 
   return {
     ...clientAttendance,
+    summaryPeriodFrom: String(opts.dateFrom ?? '').slice(0, 10) || null,
+    summaryPeriodTo: dateToRaw,
     periodFrom: windowFrom,
     periodTo: dateToRaw,
     asOf: dateTo,

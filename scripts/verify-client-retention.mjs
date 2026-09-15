@@ -13,7 +13,9 @@ import {
   isHardChurnInPeriod,
   isPaidMembershipRow,
   isRenewalEligible,
+  isRenewalEligibleInPeriod,
   isRenewed,
+  isRenewedInPeriod,
   isRestoreEvent,
   isRetentionActiveToday,
   isSoftChurnToday,
@@ -248,6 +250,37 @@ const lateRenewMems = [
 ok(isRenewalEligible({ id: 'r4', lifecycle: 'active' }, lateRenewMems, TYPES, TODAY), 'late renew still eligible in window')
 ok(!isRenewed({ id: 'r4', lifecycle: 'active' }, lateRenewMems, TYPES, TODAY), 'renew start after 14d window not renewed')
 
+setSection('RENEWAL / period (месяц сводки)')
+const periodRenewClient = { id: 'rp1', trainer_id: 't-tab', lifecycle: 'active' }
+const periodRenewMems = [
+  mem('rp1', 'paid', '2026-01-01', '2026-07-05', 8, 8),
+  mem('rp1', 'paid', '2026-07-08', '2026-10-08', 0, 8),
+]
+ok(
+  isRenewalEligibleInPeriod(periodRenewClient, periodRenewMems, TYPES, '2026-07-01', '2026-07-31'),
+  'period eligible: end in July',
+)
+ok(
+  isRenewedInPeriod(periodRenewClient, periodRenewMems, TYPES, '2026-07-01', '2026-07-31'),
+  'period renewed within 14d after end',
+)
+ok(
+  !isRenewalEligibleInPeriod(periodRenewClient, periodRenewMems, TYPES, '2026-08-01', '2026-08-31'),
+  'end in July not eligible for August period',
+)
+const periodOutside14 = [
+  mem('rp2', 'paid', '2026-01-01', '2026-07-05', 8, 8),
+  mem('rp2', 'paid', '2026-08-01', '2026-11-01', 0, 8),
+]
+ok(
+  isRenewalEligibleInPeriod({ id: 'rp2', lifecycle: 'active' }, periodOutside14, TYPES, '2026-07-01', '2026-07-31'),
+  'period eligible even if renew late',
+)
+ok(
+  !isRenewedInPeriod({ id: 'rp2', lifecycle: 'active' }, periodOutside14, TYPES, '2026-07-01', '2026-07-31'),
+  'period not renewed if next start >14d after end',
+)
+
 setSection('ARCHIVE / hard churn & reasons')
 const archived = { id: 'a1', trainer_id: 't-tab', lifecycle: 'active', archived_at: '2026-07-10T12:00:00Z', archive_reason: 'Не ходит / пропал' }
 ok(isHardChurnInPeriod(archived, '2026-07-01', '2026-07-31'), 'hard churn in period')
@@ -291,9 +324,27 @@ ok(agg.universeSize === 2, 'agg universe includes archived tablet client')
 ok(agg.archivesInPeriod === 1, 'c2 archived in July counted')
 ok(agg.retentionM3.cohortSize >= 1, 'agg retention computed')
 ok(agg.medianTenureDays != null, 'tenure computed')
+ok(agg.periodRenewalEligible === 0, 'smoke: no period renewals without ends in July pool')
 const byTab = agg.byTrainer?.['t-tab']
 ok(byTab?.medianTenureDays != null, 'byTrainer median tenure')
 ok(byTab?.tenureClientCount === 2, 'byTrainer tenure client count')
+
+const aggPeriodRenew = aggregateClientRetention({
+  clients: [{ id: 'c-pr', trainer_id: 't-tab', lifecycle: 'active' }],
+  memberships: [
+    mem('c-pr', 'paid', '2026-01-01', '2026-07-10', 8, 8),
+    mem('c-pr', 'paid', '2026-07-12', '2026-10-12', 0, 8),
+  ],
+  trainings: [],
+  membershipTypes: TYPES,
+  trainers: TRAINERS,
+  periodFrom: '2026-07-01',
+  periodTo: '2026-07-31',
+  asOf: TODAY,
+})
+ok(aggPeriodRenew.periodRenewalEligible === 1, 'agg period renewal eligible')
+ok(aggPeriodRenew.periodRenewalRenewed === 1, 'agg period renewal renewed')
+ok(aggPeriodRenew.periodRenewalRate === 1, 'agg period renewal rate 100%')
 
 const aggArchivedTenure = aggregateClientRetention({
   clients: [

@@ -10,7 +10,9 @@ import {
   isPzHallChurnInPeriod,
   isPzHallTransitionReason,
   isRenewalEligible,
+  isRenewalEligibleInPeriod,
   isRenewed,
+  isRenewedInPeriod,
   isSuccessfulReactivation,
   resolveCohortAnchorDate,
   tenureDays,
@@ -115,6 +117,8 @@ export function aggregateClientRetention(input) {
 
   let renewalEligible = 0
   let renewalRenewed = 0
+  let periodRenewalEligible = 0
+  let periodRenewalRenewed = 0
   for (const client of pool) {
     const id = String(client.id ?? '')
     const memList = membershipsByClient.get(id) ?? []
@@ -122,9 +126,17 @@ export function aggregateClientRetention(input) {
       renewalEligible += 1
       if (isRenewed(client, memList, membershipTypes, asOf)) renewalRenewed += 1
     }
+    if (isRenewalEligibleInPeriod(client, memList, membershipTypes, periodFrom, periodTo)) {
+      periodRenewalEligible += 1
+      if (isRenewedInPeriod(client, memList, membershipTypes, periodFrom, periodTo)) {
+        periodRenewalRenewed += 1
+      }
+    }
   }
   const renewalRate =
     renewalEligible > 0 ? renewalRenewed / renewalEligible : null
+  const periodRenewalRate =
+    periodRenewalEligible > 0 ? periodRenewalRenewed / periodRenewalEligible : null
 
   const hardChurnClients = universe.filter((c) => isHardChurnInPeriod(c, periodFrom, periodTo))
   const archiveRate = universe.length > 0 ? hardChurnClients.length / universe.length : null
@@ -213,6 +225,10 @@ export function aggregateClientRetention(input) {
     renewalRate,
     renewalEligible,
     renewalRenewed,
+    /** Итог периода сводки: end абона в [periodFrom, periodTo], renew в 14 дн. после end. */
+    periodRenewalRate,
+    periodRenewalEligible,
+    periodRenewalRenewed,
     archiveRate,
     archivesInPeriod: hardChurnClients.length,
     archiveReasonMix,

@@ -1,7 +1,8 @@
 /**
  * Клубная агрегация посещаемости ПЗ (карточка Статистики).
  * Средняя посещаемость = (визиты в окне / пул) × (7 / дни_окна).
- * Окно = dateFrom…dateTo (период сводки); без dateFrom — последние 30 дн. до dateTo.
+ * Окно ритма — всегда фиксированные N дней до asOf (по умолчанию ATTENDANCE_GLANCE_WINDOW_DAYS),
+ * не период сводки «сентябрь». dateFrom в input игнорируется (совместимость API).
  * % без выпадения = (pool − slipped) / pool; slip = isClientAttendanceSlip.
  * Чистая логика без React/IDB.
  */
@@ -12,7 +13,7 @@ import {
   daysSinceLastCompletedVisit,
   isClientAttendanceSlip,
 } from '../clientAttendanceGlanceCore.js'
-import { buildClientAttendanceStats, daysInIsoRangeInclusive } from '../clientAttendanceStatsCore.js'
+import { buildClientAttendanceStats } from '../clientAttendanceStatsCore.js'
 import { membershipHasTypeId, pickUsableTypedMembershipForDate } from '../membershipRules.js'
 import { isPnkTrialTypeRow } from '../pnk/pnkTrialTrainingCore.js'
 import { filterMembershipsByHall } from '../membershipHallCore.js'
@@ -90,6 +91,27 @@ export function clubAttendanceExactWeekDivisor(daysInRange) {
   return days / 7
 }
 
+/**
+ * Фиксированное окно ритма: последние `windowDays` календарных дней включительно до asOf.
+ * Не зависит от фильтра месяца/периода сводки.
+ * @param {string} asOf yyyy-mm-dd
+ * @param {number} [windowDays]
+ * @returns {{ windowFrom: string, windowDays: number, asOf: string }}
+ */
+export function resolveClubAttendanceWindow(asOf, windowDays = ATTENDANCE_GLANCE_WINDOW_DAYS) {
+  const asOfIso = String(asOf ?? '').slice(0, 10)
+  const daysRaw = Number(windowDays)
+  const days =
+    Number.isFinite(daysRaw) && daysRaw >= 1
+      ? Math.floor(daysRaw)
+      : ATTENDANCE_GLANCE_WINDOW_DAYS
+  return {
+    asOf: asOfIso,
+    windowDays: days,
+    windowFrom: addDaysToIso(asOfIso, -(days - 1)),
+  }
+}
+
 /** @deprecated alias → clubAttendanceExactWeekDivisor */
 export function clubAttendanceWeekDivisor(windowDays = ATTENDANCE_GLANCE_WINDOW_DAYS) {
   return clubAttendanceExactWeekDivisor(windowDays)
@@ -134,6 +156,7 @@ export function medianOfNumbers(values) {
  *   previewLimit?: number,
  *   membershipTypes?: object[],
  *   dateFrom?: string,
+ *   windowDays?: number,
  * }} input
  */
 export function aggregateClubAttendance(input = {}) {
@@ -144,12 +167,10 @@ export function aggregateClubAttendance(input = {}) {
   // asOf не в будущем: иначе «месяц» с dateTo=31-го при сегодня 27-м режет живые абоны.
   const dateTo = input.clampAsOf === false ? dateToRaw : clampIsoDateToToday(dateToRaw)
 
-  const dateFromRaw = String(input.dateFrom ?? '').slice(0, 10)
-  const dateFrom =
-    /^\d{4}-\d{2}-\d{2}$/.test(dateFromRaw) && dateFromRaw <= dateTo
-      ? dateFromRaw
-      : addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
-  const daysInRange = daysInIsoRangeInclusive(dateFrom, dateTo)
+  // Ритм ≠ период сводки: dateFrom игнорируем; окно всегда фиксированное до asOf.
+  const resolved = resolveClubAttendanceWindow(dateTo, input.windowDays)
+  const dateFrom = resolved.windowFrom
+  const daysInRange = resolved.windowDays
   const weekDivisor = clubAttendanceExactWeekDivisor(daysInRange)
   const trainerIdFilter = input.trainerIdFilter ? String(input.trainerIdFilter).trim() : ''
   const membershipTypes = input.membershipTypes ?? []
@@ -343,6 +364,8 @@ export function aggregateClubAttendance(input = {}) {
     windowFrom: dateFrom,
     windowDays: daysInRange || ATTENDANCE_GLANCE_WINDOW_DAYS,
     weekDivisor,
+    /** Ритм не привязан к фильтру месяца сводки — только asOf + фиксированные дни. */
+    windowFixed: true,
     truncated: Boolean(input.truncated),
   }
 }
@@ -367,6 +390,7 @@ function emptyClubAttendance(truncated = false) {
     windowFrom: null,
     windowDays: ATTENDANCE_GLANCE_WINDOW_DAYS,
     weekDivisor: clubAttendanceExactWeekDivisor(ATTENDANCE_GLANCE_WINDOW_DAYS),
+    windowFixed: true,
     truncated: truncated,
   }
 }

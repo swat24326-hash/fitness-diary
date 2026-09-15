@@ -4,6 +4,7 @@ import {
   formatClubAttendancePct,
   formatClubAvgVisitsPerWeek,
 } from '../lib/admin/clubAttendanceAggCore'
+import { formatClubAttendanceTrendHint } from '../lib/admin/clubAttendanceTrendCore.js'
 import { buildAdminClubQueryHref } from '../lib/admin/adminClientQuickFilters'
 import '../styles/client-retention.css'
 
@@ -11,8 +12,8 @@ const REGULARITY_ROWS = [
   { key: 'regular', label: 'Регулярно', hint: '≥1.5 / нед, перерывы <14 дн.' },
   { key: 'moderate', label: 'Норма', hint: '≥1 / нед в среднем' },
   { key: 'rare', label: 'Редко', hint: 'ниже 1 / нед' },
-  { key: 'none', label: 'Нет визитов', hint: 'в выбранном окне не ходили' },
-  { key: 'insufficient', label: 'Мало данных', hint: 'меньше 2 визитов в окне' },
+  { key: 'none', label: 'Нет визитов', hint: 'в окне ритма (последние N дн.) не ходили' },
+  { key: 'insufficient', label: 'Мало данных', hint: 'меньше 2 визитов в окне ритма' },
 ]
 
 /**
@@ -61,6 +62,11 @@ export function ClientAttendanceClubPanel({
   const by = clientAttendance.byRegularity ?? {}
   const byPct = clientAttendance.byRegularityPct ?? {}
   const avgTone = clubAvgVisitsTone(clientAttendance.avgVisitsPerWeek)
+  const trendHint = formatClubAttendanceTrendHint(
+    clientAttendance.previousWindow?.avgVisitsPerWeek,
+    clientAttendance.deltaAvgVisitsPerWeek,
+    formatClubAvgVisitsPerWeek,
+  )
   const listHref = buildAdminClubQueryHref(clientsPath, {
     clubId,
     filter: 'attendance_slip',
@@ -85,13 +91,15 @@ export function ClientAttendanceClubPanel({
         <div className="client-retention-panel__about" role="note">
           <p className="client-retention-panel__about-lead">
             <strong>Зачем клубу:</strong> сколько в среднем ходят клиенты с активным абоном (планшет), и где
-            проседает ритм — до того, как человек уйдёт в архив. Это не «проведено тренировок» за период.
+            проседает ритм — до того, как человек уйдёт в архив. Это не «проведено тренировок» за месяц сводки.
           </p>
           <ul className="client-retention-panel__about-list">
             <li>
-              <strong>Средняя посещаемость</strong> — (сумма завершённых тренировок за выбранный период
-              сводки ÷ число клиентов в пуле) × (7 ÷ {clientAttendance.windowDays ?? 30} дн. окна). На{' '}
-              {clientAttendance.asOf ?? 'сегодня'}
+              <strong>Средняя посещаемость</strong> — ритм за последние{' '}
+              {clientAttendance.windowDays ?? 30} дней до {clientAttendance.asOf ?? 'сегодня'} (не за выбранный
+              месяц в фильтре). Рядом — сравнение с <em>предыдущими</em>{' '}
+              {clientAttendance.windowDays ?? 30} днями. Формула: (сумма завершённых ÷ пул) × (7 ÷{' '}
+              {clientAttendance.windowDays ?? 30} дн.)
               {clientAttendance.windowFrom
                 ? ` · окно ${clientAttendance.windowFrom}…${clientAttendance.asOf ?? '…'}`
                 : ''}
@@ -112,9 +120,15 @@ export function ClientAttendanceClubPanel({
           label="Средняя (трен./нед)"
           value={formatClubAvgVisitsPerWeek(clientAttendance.avgVisitsPerWeek)}
           hint={
-            clientAttendance.medianVisitsPerWeek != null
-              ? `медиана ${formatClubAvgVisitsPerWeek(clientAttendance.medianVisitsPerWeek)} · ${clientAttendance.totalVisitsInWindow ?? 0} визитов в окне`
-              : `${clientAttendance.totalVisitsInWindow ?? 0} визитов в окне`
+            [
+              trendHint,
+              clientAttendance.medianVisitsPerWeek != null
+                ? `медиана ${formatClubAvgVisitsPerWeek(clientAttendance.medianVisitsPerWeek)}`
+                : null,
+              `${clientAttendance.totalVisitsInWindow ?? 0} визитов · ${clientAttendance.windowDays ?? 30} дн.`,
+            ]
+              .filter(Boolean)
+              .join(' · ')
           }
         />
         <KpiCard

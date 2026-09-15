@@ -6,6 +6,7 @@ import { addDaysToIso } from '../../src/lib/dateRu.js'
 import { clampIsoDateToToday } from '../../src/lib/dateRu.js'
 import { ATTENDANCE_GLANCE_WINDOW_DAYS } from '../../src/lib/clientAttendanceGlanceCore.js'
 import { aggregateClubAttendance } from '../../src/lib/admin/clubAttendanceAggCore.js'
+import { attachClubAttendancePreviousWindow } from '../../src/lib/admin/clubAttendanceTrendCore.js'
 import { fetchClubTrainerModeIds } from './clubTrainerModeIds.js'
 import { fetchPagedLimited } from './fetchPagedLimited.js'
 import {
@@ -42,17 +43,9 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
   }
 
   const dateTo = clampIsoDateToToday(dateToRaw)
-  const periodFromRaw = String(opts.dateFrom ?? '').slice(0, 10)
-  const windowFrom =
-    /^\d{4}-\d{2}-\d{2}$/.test(periodFromRaw) && periodFromRaw <= dateTo
-      ? periodFromRaw
-      : addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
-  // Lookback для last visit / slip: не короче 90 дн. и не короче окна периода + 14.
-  const windowDays = Math.max(
-    1,
-    Math.round((new Date(`${dateTo}T12:00:00`) - new Date(`${windowFrom}T12:00:00`)) / 86400000) + 1,
-  )
-  const trainFrom = addDaysToIso(dateTo, -Math.max(90, windowDays + 14))
+  // Lookback для last visit / slip: не короче 90 дн. и не короче окна ритма + 14.
+  // date_from периода сводки не задаёт окно посещаемости.
+  const trainFrom = addDaysToIso(dateTo, -Math.max(90, ATTENDANCE_GLANCE_WINDOW_DAYS + 14))
 
   const modeIds = await fetchClubTrainerModeIds(supabaseAdmin, clubId)
 
@@ -114,19 +107,31 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
     lifecycleRows = lifecycleRows.filter((r) => allowed.has(String(r?.client_id ?? '')))
   }
 
-  const clientAttendance = aggregateClubAttendance({
-    clients,
-    memberships: membershipsRes.rows ?? [],
-    trainings,
-    dateFrom: windowFrom,
-    dateTo,
-    trainerIdFilter,
-    holdingTrainerIds: modeIds.holdingTrainerIds,
-    noTabletTrainerIds: modeIds.noTabletTrainerIds,
-    lifecycleRows,
-    truncated,
-    membershipTypes: typesRes?.rows ?? [],
-  })
+  const clientAttendance = attachClubAttendancePreviousWindow(
+    aggregateClubAttendance({
+      clients,
+      memberships: membershipsRes.rows ?? [],
+      trainings,
+      dateTo,
+      trainerIdFilter,
+      holdingTrainerIds: modeIds.holdingTrainerIds,
+      noTabletTrainerIds: modeIds.noTabletTrainerIds,
+      lifecycleRows,
+      truncated,
+      membershipTypes: typesRes?.rows ?? [],
+    }),
+    {
+      clients,
+      memberships: membershipsRes.rows ?? [],
+      trainings,
+      trainerIdFilter,
+      holdingTrainerIds: modeIds.holdingTrainerIds,
+      noTabletTrainerIds: modeIds.noTabletTrainerIds,
+      lifecycleRows,
+      truncated,
+      membershipTypes: typesRes?.rows ?? [],
+    },
+  )
 
   const visitsDataMissing =
     clientAttendance.poolSize > 0 &&
@@ -136,9 +141,12 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
   return {
     clientAttendance: {
       ...clientAttendance,
-      periodFrom: windowFrom,
+      /** Период сводки (для подписи UI), не окно ритма. */
+      summaryPeriodFrom: String(opts.dateFrom ?? '').slice(0, 10) || null,
+      summaryPeriodTo: dateToRaw,
+      periodFrom: clientAttendance.windowFrom,
       periodTo: dateToRaw,
-      windowFrom,
+      windowFrom: clientAttendance.windowFrom,
       visitsDataMissing,
     },
   }

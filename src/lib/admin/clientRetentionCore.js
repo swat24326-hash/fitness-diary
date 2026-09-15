@@ -198,6 +198,28 @@ export function hasRenewalAfterEnd(memList, membershipTypes, endedMembership, wi
 }
 
 /**
+ * Paid-абон, чей end попадает в [from, to] включительно (итог периода сводки).
+ * @param {object[]|null|undefined} memList
+ * @param {object[]|null|undefined} membershipTypes
+ * @param {string} from yyyy-mm-dd
+ * @param {string} to yyyy-mm-dd
+ */
+export function pickPaidMembershipEndedInRange(memList, membershipTypes, from, to) {
+  const fromIso = String(from ?? '').slice(0, 10)
+  const toIso = String(to ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromIso) || !/^\d{4}-\d{2}-\d{2}$/.test(toIso)) return null
+  if (fromIso > toIso) return null
+  const paid = (memList ?? [])
+    .filter((m) => isPaidMembershipRow(m, membershipTypes))
+    .filter((m) => {
+      const end = String(m.end_date ?? '').slice(0, 10)
+      return end && end >= fromIso && end <= toIso
+    })
+    .sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))
+  return paid[0] ?? null
+}
+
+/**
  * Paid-абон, чей end попадает в [asOf−windowDays, asOf].
  * @param {object[]|null|undefined} memList
  * @param {object[]|null|undefined} membershipTypes
@@ -210,14 +232,7 @@ export function pickPaidMembershipEndedInWindow(memList, membershipTypes, asOf, 
   const parts = d.split('-').map(Number)
   const windowStartMs = Date.UTC(parts[0], parts[1] - 1, parts[2]) - windowDays * 86400000
   const windowStart = new Date(windowStartMs).toISOString().slice(0, 10)
-  const paid = (memList ?? [])
-    .filter((m) => isPaidMembershipRow(m, membershipTypes))
-    .filter((m) => {
-      const end = String(m.end_date ?? '').slice(0, 10)
-      return end && end >= windowStart && end <= d
-    })
-    .sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))
-  return paid[0] ?? null
+  return pickPaidMembershipEndedInRange(memList, membershipTypes, windowStart, d)
 }
 
 /**
@@ -233,6 +248,19 @@ export function isRenewalEligible(client, memList, membershipTypes, asOf, window
 }
 
 /**
+ * Итог периода: абон закончился в [periodFrom, periodTo].
+ * @param {object|null|undefined} client
+ * @param {object[]|null|undefined} memList
+ * @param {object[]|null|undefined} membershipTypes
+ * @param {string} periodFrom
+ * @param {string} periodTo
+ */
+export function isRenewalEligibleInPeriod(client, memList, membershipTypes, periodFrom, periodTo) {
+  if (isClientExcludedFromRenewals(client)) return false
+  return pickPaidMembershipEndedInRange(memList, membershipTypes, periodFrom, periodTo) != null
+}
+
+/**
  * @param {object|null|undefined} client
  * @param {object[]|null|undefined} memList
  * @param {object[]|null|undefined} membershipTypes
@@ -244,6 +272,29 @@ export function isRenewed(client, memList, membershipTypes, asOf, windowDays = R
   const ended = pickPaidMembershipEndedInWindow(memList, membershipTypes, asOf, windowDays)
   if (!ended) return false
   return hasRenewalAfterEnd(memList, membershipTypes, ended, windowDays)
+}
+
+/**
+ * Продлили после окончания в периоде (окно renew после end — как у 14-дн. среза).
+ * @param {object|null|undefined} client
+ * @param {object[]|null|undefined} memList
+ * @param {object[]|null|undefined} membershipTypes
+ * @param {string} periodFrom
+ * @param {string} periodTo
+ * @param {number} [renewWindowDays]
+ */
+export function isRenewedInPeriod(
+  client,
+  memList,
+  membershipTypes,
+  periodFrom,
+  periodTo,
+  renewWindowDays = RETENTION_RENEWAL_WINDOW_DAYS,
+) {
+  if (isClientExcludedFromRenewals(client)) return false
+  const ended = pickPaidMembershipEndedInRange(memList, membershipTypes, periodFrom, periodTo)
+  if (!ended) return false
+  return hasRenewalAfterEnd(memList, membershipTypes, ended, renewWindowDays)
 }
 
 /**
