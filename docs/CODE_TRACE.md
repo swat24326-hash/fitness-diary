@@ -110,6 +110,7 @@
 | UI абона | `src/components/MembershipManager.jsx` |
 | Сдвиг дат | `src/lib/trainer/membershipStartShiftService.js` |
 | Gate draft / copy | `src/lib/trainer/trainingMembershipDraftGateCore.js`, `trainingMembershipDraftGateService.js`, `TrainingPage.jsx` |
+| Дата /new (не вчера из durable) | `src/lib/trainer/trainingNewDraftDateCore.js` — INC **H** 09-16 |
 | Verify | `scripts/verify-membership-total-guard.mjs`, `scripts/verify-training-membership-link.mjs`, `scripts/verify-training-membership-draft-gate.mjs` |
 | Docs | INCIDENTS **H**, INC-2026-09-12-01 |
 

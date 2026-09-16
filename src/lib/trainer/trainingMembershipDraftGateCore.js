@@ -1,7 +1,8 @@
 /**
  * Gate абонемента при открытии черновика тренера.
- * «Новая тренировка» и уже существующий draft (в т.ч. после копирования)
- * должны одинаково предлагать раннюю активацию upcoming, если usable нет.
+ * Новая тренировка: early/late → полноэкранный gate.
+ * Существующий draft (копирование / вчерашний): форма + баннер, не прячем упражнения
+ * (INC-2026-09-12-01, INC-2026-09-16-01).
  * Verify: scripts/verify-training-membership-draft-gate.mjs
  */
 
@@ -69,11 +70,14 @@ export function resolveTrainerDraftMembershipOpenGate(input = {}) {
   }
 
   if (input.earlyOfferOk === true && input.earlyProposal) {
+    /* Как late: новая — полноэкранный gate; существующий draft — форма + баннер.
+     * Иначе заполненный вчерашний черновик «пропадает» за экраном активации
+     * (INC-2026-09-16-01: Карека / Куршакова). */
     return {
-      loadState: 'awaiting_activate',
+      loadState: isNewTraining ? 'awaiting_activate' : 'ok',
       shiftMode: 'early',
       proposal: input.earlyProposal,
-      lateDraftOffer: false,
+      lateDraftOffer: !isNewTraining,
       lateBlockedNotice: '',
     }
   }

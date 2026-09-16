@@ -21,7 +21,7 @@ function ok(cond, msg) {
 const earlyProposal = { membershipId: 'm-new', to: { start: '2026-09-12', end: '2026-10-12' } }
 const lateProposal = { membershipId: 'm-late', to: { start: '2026-09-12', end: '2026-10-12' } }
 
-/* INC-2026-09-12-01: копирование → существующий draft, старый закрыт, новый upcoming. */
+/* INC-2026-09-12-01 + 09-16-01: копирование / существующий draft — форма, не fullscreen. */
 const copyDraft = resolveTrainerDraftMembershipOpenGate({
   isAdmin: false,
   status: 'draft',
@@ -30,8 +30,9 @@ const copyDraft = resolveTrainerDraftMembershipOpenGate({
   earlyOfferOk: true,
   earlyProposal,
 })
-ok(copyDraft.loadState === 'awaiting_activate', 'копирование: пустая плитка + upcoming → awaiting_activate')
+ok(copyDraft.loadState === 'ok', 'существующий draft + upcoming → форма (не awaiting_activate)')
 ok(copyDraft.shiftMode === 'early', 'копирование: режим early')
+ok(copyDraft.lateDraftOffer === true, 'существующий draft: баннер early')
 ok(copyDraft.proposal === earlyProposal, 'копирование: proposal ранней активации')
 
 const newTrainingSame = resolveTrainerDraftMembershipOpenGate({
@@ -42,8 +43,9 @@ const newTrainingSame = resolveTrainerDraftMembershipOpenGate({
   earlyOfferOk: true,
   earlyProposal,
 })
-ok(newTrainingSame.loadState === 'awaiting_activate', 'новая тренировка: тот же early gate')
+ok(newTrainingSame.loadState === 'awaiting_activate', 'новая тренировка: fullscreen early gate')
 ok(newTrainingSame.shiftMode === 'early', 'новая тренировка: early')
+ok(newTrainingSame.lateDraftOffer === false, 'новая: без баннера (есть fullscreen)')
 
 /* Раньше баг: существующий draft без early оставался ok с пустой плиткой. */
 ok(

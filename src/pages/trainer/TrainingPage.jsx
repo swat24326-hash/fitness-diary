@@ -16,6 +16,7 @@ import {
 } from '../../lib/trainer/membershipStartShiftService.js'
 import { inspectTrainerDraftMembershipOpenGate } from '../../lib/trainer/trainingMembershipDraftGateService.js'
 import { shouldOfferEarlyActivateAfterDebitFail } from '../../lib/trainer/trainingMembershipDraftGateCore.js'
+import { resolveTrainerNewTrainingOpenDate } from '../../lib/trainer/trainingNewDraftDateCore.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
 import { isAppOnline, saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncService'
@@ -676,11 +677,8 @@ export function TrainingPage() {
       if (fromPrior) prefilled.pre_weight_kg = fromPrior
       let workoutNew = prefilled
       let typeNew = 'Силовая'
-      let dateNew = todayLocalIso()
+      const todayNew = todayLocalIso()
       const scheduleDay = parseScheduleEntryDayIso(dateParam)
-      if (scheduleDay) {
-        dateNew = isAdmin ? scheduleDay : clampIsoDateToToday(scheduleDay)
-      }
       const durableNew = readTrainingDraftDurable({ clientId: clientIdParam, isNew: true })
       const durableTid = String(durableNew?.trainingId ?? '').trim()
       let deletedOrPending = false
@@ -725,10 +723,14 @@ export function TrainingPage() {
         if (pickedNew.trainingType || durableNew?.trainingType) {
           typeNew = pickedNew.trainingType || durableNew.trainingType
         }
-        if (pickedNew.trainingDate || durableNew?.trainingDate) {
-          dateNew = String(pickedNew.trainingDate || durableNew.trainingDate).slice(0, 10)
-        }
       }
+      /* Дата: слот / сегодня. Не тащим вчера из durable — иначе early-activate при абоне «с сегодня». */
+      const dateNew = resolveTrainerNewTrainingOpenDate({
+        isAdmin,
+        todayIso: todayNew,
+        scheduleDayIso: scheduleDay,
+        durableDateIso: pickedNew.trainingDate || durableNew?.trainingDate,
+      })
       setWorkoutState(workoutNew)
       setTrainingType(typeNew)
       setTrainingDate(dateNew)
@@ -2053,9 +2055,10 @@ export function TrainingPage() {
             setEarlyActivateBusy(true)
             setEarlyActivateError('')
             try {
+              const day = String(trainingDate || todayLocalIso()).slice(0, 10)
               const res = isLateShift
-                ? await applyLateMembershipStart(clientIdParam, todayLocalIso())
-                : await applyEarlyMembershipActivation(clientIdParam, todayLocalIso())
+                ? await applyLateMembershipStart(clientIdParam, day)
+                : await applyEarlyMembershipActivation(clientIdParam, day)
               if (!res.ok) {
                 setEarlyActivateError(
                   res.error || (isLateShift ? 'Не удалось сдвинуть срок' : 'Не удалось активировать'),
@@ -2202,10 +2205,15 @@ export function TrainingPage() {
         </div>
       ) : null}
 
-      {lateDraftOffer && earlyActivateProposal && membershipShiftMode === 'late' && !lateShiftDismissedRef.current ? (
+      {lateDraftOffer &&
+      earlyActivateProposal &&
+      (membershipShiftMode === 'late' || membershipShiftMode === 'early') &&
+      !lateShiftDismissedRef.current ? (
         <div className="card" style={{ display: 'grid', gap: 10 }}>
           <p className="muted" style={{ margin: 0 }}>
-            Абонемент стартовал раньше этой тренировки. Можно сдвинуть срок от первой тренировки (длина та же).
+            {membershipShiftMode === 'late'
+              ? 'Абонемент стартовал раньше этой тренировки. Можно сдвинуть срок от первой тренировки (длина та же).'
+              : 'На дату этой тренировки абонемент ещё не начался. Можно активировать раньше (даты сдвинутся) и завершить занятие.'}
           </p>
           <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
             <button
@@ -2216,7 +2224,7 @@ export function TrainingPage() {
                 setEarlyActivateOpen(true)
               }}
             >
-              Сдвинуть срок
+              {membershipShiftMode === 'late' ? 'Сдвинуть срок' : 'Активировать раньше'}
             </button>
             <button
               type="button"
@@ -2229,7 +2237,7 @@ export function TrainingPage() {
                 setEarlyActivateOpen(false)
               }}
             >
-              Без сдвига
+              {membershipShiftMode === 'late' ? 'Без сдвига' : 'Позже'}
             </button>
           </div>
         </div>
