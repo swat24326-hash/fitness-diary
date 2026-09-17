@@ -5,6 +5,7 @@
 import { buildPendingSyncKeysByTable, getDb, listSyncQueue, putStore } from './localDb'
 import { listChallengesByClubId } from './localDbClubQuery'
 import { shouldPreserveLocalRowOnPull } from './syncFlushResult'
+import { markRecordFromCloud } from './syncUnsyncedCore'
 import { isSupabaseConfigured } from './supabase'
 import { SYNC_PULL_FETCH_TIMEOUT_MS } from './networkReachability'
 import { fetchChallengesForClubViaApi } from './admin/adminApiClient'
@@ -159,7 +160,8 @@ async function mergeChallengesFromRemote(cid, rows, source) {
     const id = String(row?.id ?? '').trim()
     const existing = id ? await db.get('challenges', id) : null
     if (shouldPreserveLocalRowOnPull(pending.challenges, id, existing)) continue
-    await putStore('challenges', row)
+    // Без synced:true после pull челлендж считался «только на устройстве» (INC-2026-09-17-01).
+    await putStore('challenges', markRecordFromCloud(row))
   }
   const { pruned } = await reconcileChallengesForClub(cid, rows)
   if (pruned > 0 && typeof window !== 'undefined') {
