@@ -98,7 +98,8 @@ async function buildTrainerNameMap() {
   try {
     const viaApi = await fetchTrainersViaAdminApi()
     for (const u of viaApi?.trainers ?? []) {
-      if (u?.id) map.set(u.id, String(u.name ?? '').trim() || '—')
+      const id = String(u?.id ?? '').trim()
+      if (id) map.set(id, String(u.name ?? '').trim() || '—')
     }
   } catch {
     /* офлайн — имена в рейтинге необязательны */
@@ -131,8 +132,17 @@ export async function pullChallengeTrainingsForPeriod(clubId, dateFrom, dateTo, 
       for (const row of viaApi.trainings) {
         await putStoreUnlessPendingSync('trainings', row, pending)
       }
+      for (const c of viaApi.clients ?? []) {
+        if (!String(c?.id ?? '').trim()) continue
+        await putStoreUnlessPendingSync('clients', c, pending)
+      }
       if (opts.notify !== false) notifyLocalDataChanged()
-      return { ok: true, count: viaApi.trainings.length, source: 'api' }
+      return {
+        ok: true,
+        count: viaApi.trainings.length,
+        source: 'api',
+        clients: Array.isArray(viaApi.clients) ? viaApi.clients : [],
+      }
     }
   } catch (e) {
     const msg = String(e?.message ?? e ?? '')
@@ -214,27 +224,65 @@ export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
   const ch = opts.challenge
   let dateFrom = ''
   let dateTo = ''
+  let pulledClients = []
   if (ch && opts.pullRemote !== false && cid && isSupabaseConfigured() && isAppOnline()) {
     dateFrom = String(ch.start_date ?? '').slice(0, 10)
     dateTo = String(ch.end_date ?? '').slice(0, 10)
     if (dateFrom && dateTo) {
       try {
-        await pullChallengeTrainingsForPeriod(cid, dateFrom, dateTo, { notify: opts.notifyPull !== false })
+        const pull = await pullChallengeTrainingsForPeriod(cid, dateFrom, dateTo, {
+          notify: opts.notifyPull !== false,
+        })
+        if (Array.isArray(pull?.clients)) pulledClients = pull.clients
       } catch (e) {
         console.warn('[challenge] pull trainings', e)
       }
     }
   }
 
-  const clubClients = await listClientsByClubId(cid)
   const from = dateFrom || String(ch?.start_date ?? '').slice(0, 10)
   const to = dateTo || String(ch?.end_date ?? '').slice(0, 10)
   const clubTrainings =
     from && to ? await listTrainingsByClubIdInRange(cid, from, to) : []
+
+  const localClients = await listClientsByClubId(cid)
+  const clientById = new Map()
+  for (const c of localClients ?? []) {
+    const id = String(c?.id ?? '').trim()
+    if (id) clientById.set(id, c)
+  }
+  for (const c of pulledClients) {
+    const id = String(c?.id ?? '').trim()
+    if (id && !clientById.has(id)) clientById.set(id, c)
+  }
+  // Догрузка имён, если в IDB нет клиента из тренировки (старый ответ API без clients).
+  const missingIds = []
+  for (const t of clubTrainings ?? []) {
+    const id = String(t?.client_id ?? '').trim()
+    if (id && !clientById.has(id)) missingIds.push(id)
+  }
+  if (missingIds.length && isSupabaseConfigured() && isAppOnline()) {
+    try {
+      const { fetchClientsMapByIds } = await import('./admin/adminJournalService')
+      const map = await fetchClientsMapByIds(missingIds)
+      for (const c of Object.values(map ?? {})) {
+        const id = String(c?.id ?? '').trim()
+        if (id) clientById.set(id, c)
+      }
+    } catch (e) {
+      console.warn('[challenge] clients by id', e)
+    }
+  }
+
   const { listExercisesCached } = await import('./exerciseCatalog')
   const exercises = await listExercisesCached()
   const trainerNameById = await buildTrainerNameMap()
-  return { trainings: clubTrainings, clients: clubClients, exercises: exercises ?? [], trainerNameById }
+  return {
+    trainings: clubTrainings,
+    clients: [...clientById.values()],
+    exercises: exercises ?? [],
+    trainerNameById,
+  }
 }
 
 export async function getChallengeByIdLocal(id) {

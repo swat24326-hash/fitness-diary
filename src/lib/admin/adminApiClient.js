@@ -593,6 +593,7 @@ export async function fetchChallengeTrainingsViaApi(clubId, dateFrom, dateTo) {
   if (routeMissing) return null
   return {
     trainings: Array.isArray(data.trainings) ? data.trainings : [],
+    clients: Array.isArray(data.clients) ? data.clients : [],
     count: typeof data.count === 'number' ? data.count : 0,
   }
 }

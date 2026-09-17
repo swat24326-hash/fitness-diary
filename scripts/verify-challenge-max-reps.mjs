@@ -186,5 +186,59 @@ const lbTime = buildChallengeLeaderboard(
 )
 ok(lbTime.rows[0]?.value === 3.5, 'max_time uses tut_sec minutes as stored in training form')
 
+const lbNames = buildChallengeLeaderboard(
+  {
+    club_id: 'club-1',
+    exercise_id: 'ex-1',
+    metric: 'max_weight',
+    start_date: '2026-06-01',
+    end_date: '2026-06-30',
+  },
+  {
+    exercises: [{ id: 'ex-1', name: 'Жим' }],
+    clients: [{ id: 'c-uuid', club_id: 'club-1', name: 'Иванова Анна', trainer_id: 't-uuid' }],
+    trainings: [
+      {
+        client_id: 'c-uuid',
+        club_id: 'club-1',
+        trainer_id: 't-uuid',
+        status: 'completed',
+        date: '2026-06-12',
+        data: { exercises: [{ catalog_exercise_id: 'ex-1', sets: [{ weight_kg: 80 }] }] },
+      },
+    ],
+    trainerNameById: new Map([['t-uuid', 'Семёнов Дмитрий']]),
+  },
+)
+ok(lbNames.rows[0]?.client_name === 'Иванова Анна', 'leaderboard shows client name')
+ok(lbNames.rows[0]?.trainer_name === 'Семёнов Дмитрий', 'leaderboard shows trainer name')
+
+const lbTrainerFromTraining = buildChallengeLeaderboard(
+  {
+    club_id: 'club-1',
+    exercise_id: 'ex-1',
+    metric: 'max_weight',
+    start_date: '2026-06-01',
+    end_date: '2026-06-30',
+  },
+  {
+    exercises: [{ id: 'ex-1', name: 'Жим' }],
+    clients: [],
+    trainings: [
+      {
+        client_id: 'orphan',
+        club_id: 'club-1',
+        trainer_id: 't-uuid',
+        status: 'completed',
+        date: '2026-06-12',
+        data: { exercises: [{ catalog_exercise_id: 'ex-1', sets: [{ weight_kg: 50 }] }] },
+      },
+    ],
+    trainerNameById: new Map([['t-uuid', 'Семёнов Дмитрий']]),
+  },
+)
+ok(lbTrainerFromTraining.rows[0]?.client_name === 'Клиент', 'missing client card → placeholder')
+ok(lbTrainerFromTraining.rows[0]?.trainer_name === 'Семёнов Дмитрий', 'trainer from training.trainer_id')
+
 if (failed) process.exit(1)
 console.log('verify-challenge-max-reps: all passed')

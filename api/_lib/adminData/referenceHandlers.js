@@ -84,7 +84,36 @@ export async function handleChallengeTrainings(authCtx, req, res) {
   }
 
   const trainings = await fetchPaged(authCtx.supabaseAdmin, 'trainings', '*', clubId, dateFrom, dateTo)
-  sendJson(res, 200, { trainings, count: trainings.length, club_id: clubId, date_from: dateFrom, date_to: dateTo })
+
+  // Краткие карточки клиентов для рейтинга (админский IDB часто без полного списка клуба).
+  const clientIds = [
+    ...new Set(
+      (trainings ?? [])
+        .map((t) => String(t?.client_id ?? '').trim())
+        .filter(Boolean),
+    ),
+  ]
+  const clients = []
+  const CLIENT_BRIEF = 'id, name, trainer_id, club_id, archived_at'
+  const CHUNK = 120
+  for (let i = 0; i < clientIds.length; i += CHUNK) {
+    const chunk = clientIds.slice(i, i + CHUNK)
+    const { data, error } = await authCtx.supabaseAdmin.from('clients').select(CLIENT_BRIEF).in('id', chunk)
+    if (error) {
+      sendJson(res, 400, { error: error.message })
+      return
+    }
+    for (const c of data ?? []) clients.push(c)
+  }
+
+  sendJson(res, 200, {
+    trainings,
+    clients,
+    count: trainings.length,
+    club_id: clubId,
+    date_from: dateFrom,
+    date_to: dateTo,
+  })
 }
 
 export async function handleClubs(ctx, res) {

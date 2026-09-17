@@ -60,7 +60,7 @@
 | `sale-clips` | admin / sales_manager | Клип-карты дня (список) |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch` | admin (+ dispatch шире: trainer / sales / supervisor по view) | Настройки, обучение, задания |
-| `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
+| `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники; `challenge-trainings` — тренировки за период **и** краткие `clients` (id, name, trainer_id) для рейтинга |
 | `nutrition-products`, `homework-presets` | admin / trainer (как trainerActions) | Справочники питания и ДЗ |
 | `trainer-self-stats` | trainer (свой клуб) / admin+trainer_id | ЗП день/месяц + сводка периода (сервер) |
 | `trainer-self-journal` | trainer (свой клуб) / admin+trainer_id | Список завершённых тренировок за период (для журнала на планшете; тот же контур, что цифры stats) |

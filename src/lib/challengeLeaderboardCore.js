@@ -139,11 +139,16 @@ export function buildChallengeLeaderboard(challenge, ctx) {
   const exerciseName = exRow?.name?.trim() || 'Упражнение'
   const nameNorm = normExerciseName(exRow?.name)
 
-  const clientById = new Map((clients ?? []).filter((c) => c?.id).map((c) => [c.id, c]))
+  const clientById = new Map(
+    (clients ?? [])
+      .filter((c) => c?.id)
+      .map((c) => [String(c.id), c]),
+  )
+  /** @type {Map<string, { value: number, trainer_id: string | null }>} */
   const bestByClient = new Map()
 
   for (const t of trainings ?? []) {
-    const cid = t.client_id
+    const cid = String(t.client_id ?? '').trim()
     const clientRow = cid ? clientById.get(cid) : null
     if (clientRow && isClientArchived(clientRow)) continue
     const tClub = String(t.club_id ?? clientRow?.club_id ?? '')
@@ -164,22 +169,38 @@ export function buildChallengeLeaderboard(challenge, ctx) {
     }
     if (sessionBest == null) continue
 
+    const trainerId =
+      String(clientRow?.trainer_id ?? '').trim() ||
+      String(t.trainer_id ?? '').trim() ||
+      null
     const prev = bestByClient.get(cid)
-    bestByClient.set(cid, prev == null ? sessionBest : Math.max(prev, sessionBest))
+    if (prev == null || sessionBest > prev.value) {
+      bestByClient.set(cid, { value: sessionBest, trainer_id: trainerId })
+    } else if (sessionBest === prev.value && !prev.trainer_id && trainerId) {
+      bestByClient.set(cid, { value: sessionBest, trainer_id: trainerId })
+    }
   }
 
-  const trainerNameById = ctx.trainerNameById instanceof Map ? ctx.trainerNameById : new Map(Object.entries(ctx.trainerNameById ?? {}))
+  const trainerNameById =
+    ctx.trainerNameById instanceof Map
+      ? ctx.trainerNameById
+      : new Map(
+          Object.entries(ctx.trainerNameById ?? {}).map(([k, v]) => [String(k), v]),
+        )
 
   const rows = []
-  for (const [clientId, value] of bestByClient) {
+  for (const [clientId, hit] of bestByClient) {
     const c = clientById.get(clientId)
-    const trainerId = c?.trainer_id ?? null
+    const trainerId = hit.trainer_id || String(c?.trainer_id ?? '').trim() || null
+    const trainerKey = trainerId ? String(trainerId) : ''
     rows.push({
       client_id: clientId,
       client_name: c?.name?.trim() || 'Клиент',
       trainer_id: trainerId,
-      trainer_name: trainerId ? trainerNameById.get(trainerId) || `Тренер ${String(trainerId).slice(0, 8)}…` : '—',
-      value,
+      trainer_name: trainerKey
+        ? trainerNameById.get(trainerKey) || `Тренер ${trainerKey.slice(0, 8)}…`
+        : '—',
+      value: hit.value,
     })
   }
 
