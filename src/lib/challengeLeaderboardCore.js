@@ -102,6 +102,7 @@ function bestMetricInExercise(ex, challenge) {
         if (sw != null && sw > 0) best = best == null ? sw : Math.max(best, sw)
       }
     } else if (metric === 'max_time_sec') {
+      // Поле подхода tut_sec в UI — минуты (см. TrainingSetRow), ключ метрики исторический.
       const v = parseNum(set?.tut_sec)
       if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
     } else if (metric === 'max_distance_m') {

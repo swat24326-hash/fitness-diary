@@ -39,7 +39,7 @@ export function formatChallengeMetricRu(metric, referenceWeightKg = null) {
     if (ref != null) return `Макс. повторения @ ${ref} кг`
     return 'Макс. повторения'
   }
-  if (metric === 'max_time_sec') return 'Макс. время (сек.)'
+  if (metric === 'max_time_sec') return 'Макс. время (мин.)'
   if (metric === 'max_distance_m') return 'Макс. расстояние (м)'
   if (metric === 'max_points') return 'Максимум (устар.)'
   if (metric === 'max_rpe') return 'Макс. RPE (устар.)'
@@ -55,7 +55,8 @@ export function formatChallengeValueRu(metric, value) {
   if (value == null || !Number.isFinite(value)) return '—'
   if (metric === 'max_weight') return `${Math.round(value * 10) / 10} кг`
   if (metric === 'max_reps') return `${Math.round(value)} повт.`
-  if (metric === 'max_time_sec') return `${Math.round(value * 10) / 10} с`
+  // tut_sec в подходах хранит минуты (как в форме тренировки: placeholder «мин»).
+  if (metric === 'max_time_sec') return `${Math.round(value * 10) / 10} мин`
   if (metric === 'max_distance_m') return `${Math.round(value * 10) / 10} м`
   if (metric === 'max_points') return `${Math.round(value * 10) / 10}`
   if (metric === 'max_rpe') return `${Math.round(value * 10) / 10}`

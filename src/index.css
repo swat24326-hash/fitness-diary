@@ -10421,6 +10421,33 @@ tr:last-child td {
   margin-top: 4px;
 }
 
+.challenge-modal__exercise-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.challenge-modal__exercise-selected {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.challenge-modal__exercise-selected strong {
+  color: var(--text, #e2e8f0);
+  font-weight: 600;
+}
+
+.challenge-modal__exercise-list {
+  max-height: 220px;
+}
+
+.challenge-modal__exercise-opt--on.admin-homework-catalog__opt {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+}
+
 .challenge-detail__toolbar {
   margin-bottom: 12px;
 }

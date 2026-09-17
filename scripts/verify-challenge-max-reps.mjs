@@ -155,5 +155,36 @@ const lbRpe = buildChallengeLeaderboard(rpeChallenge, {
 })
 ok(lbRpe.rows[0]?.value === 9, 'max_rpe challenge uses lr side rpe')
 
+const lbTime = buildChallengeLeaderboard(
+  {
+    club_id: 'club-1',
+    exercise_id: 'ex-plank',
+    metric: 'max_time_sec',
+    start_date: '2026-06-01',
+    end_date: '2026-06-30',
+  },
+  {
+    exercises: [{ id: 'ex-plank', name: 'Планка' }],
+    clients: [{ id: 'c1', club_id: 'club-1', name: 'Аня', trainer_id: 't1' }],
+    trainings: [
+      {
+        client_id: 'c1',
+        club_id: 'club-1',
+        status: 'completed',
+        date: '2026-06-12',
+        data: {
+          exercises: [
+            {
+              catalog_exercise_id: 'ex-plank',
+              sets: [{ tut_sec: '2' }, { tut_sec: '3.5' }],
+            },
+          ],
+        },
+      },
+    ],
+  },
+)
+ok(lbTime.rows[0]?.value === 3.5, 'max_time uses tut_sec minutes as stored in training form')
+
 if (failed) process.exit(1)
 console.log('verify-challenge-max-reps: all passed')

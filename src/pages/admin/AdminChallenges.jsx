@@ -21,6 +21,7 @@ import {
   CHALLENGE_METRICS,
 } from '../../lib/dataAccess'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { filterHomeworkExerciseCatalog } from '../../lib/homework/homeworkCatalogFilter'
 import { useDebouncedStorageReload, shouldReloadAdminChallengesPage } from '../../lib/useDebouncedStorageReload'
 import { stripDirectionControls } from '../../lib/textInput'
 
@@ -73,6 +74,7 @@ export function AdminChallenges() {
   })
   const [saveMsg, setSaveMsg] = useState('')
   const [exercisesModalBusy, setExercisesModalBusy] = useState(false)
+  const [exerciseQuery, setExerciseQuery] = useState('')
   const [deleteBusyId, setDeleteBusyId] = useState(null)
 
   const loadExercises = useCallback(async () => {
@@ -147,6 +149,15 @@ export function AdminChallenges() {
     return m
   }, [exercises])
 
+  const filteredExercises = useMemo(
+    () => filterHomeworkExerciseCatalog(exercises, exerciseQuery),
+    [exercises, exerciseQuery],
+  )
+
+  const selectedExerciseName = form.exercise_id
+    ? exerciseNameById.get(form.exercise_id) ?? '—'
+    : ''
+
   const onDeleteChallenge = async (ch) => {
     if (!ch?.id) return
     if (!window.confirm(`Удалить челлендж «${ch.name}»? Восстановить запись будет нельзя.`)) return
@@ -164,6 +175,7 @@ export function AdminChallenges() {
 
   const openCreate = async () => {
     setSaveMsg('')
+    setExerciseQuery('')
     setExercisesModalBusy(true)
     setModal(true)
     const today = todayLocalIso()
@@ -397,27 +409,14 @@ export function AdminChallenges() {
                   maxLength={4000}
                 />
               </label>
-              <label className="field">
+              <div className="field">
                 <span className="field__label">Упражнение</span>
-                <select
-                  className="input"
-                  value={form.exercise_id}
-                  disabled={exercisesModalBusy}
-                  onChange={(e) => setForm((f) => ({ ...f, exercise_id: e.target.value }))}
-                >
-                  {exercisesModalBusy ? (
-                    <option value="">Загрузка справочника…</option>
-                  ) : exercises.length === 0 ? (
-                    <option value="">Справочник пуст</option>
-                  ) : null}
-                  {exercises.map((ex) => (
-                    <option key={ex.id} value={ex.id}>
-                      {ex.name}
-                    </option>
-                  ))}
-                </select>
-                {!exercisesModalBusy && exercises.length === 0 ? (
-                  <p className="muted" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.45 }}>
+                {exercisesModalBusy ? (
+                  <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                    Загрузка справочника…
+                  </p>
+                ) : exercises.length === 0 ? (
+                  <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>
                     {isSupervisor ? (
                       <>
                         Справочник упражнений пуст — попросите администратора сети завести упражнения в Структуре.
@@ -439,8 +438,49 @@ export function AdminChallenges() {
                       </>
                     )}
                   </p>
-                ) : null}
-              </label>
+                ) : (
+                  <div className="challenge-modal__exercise-pick">
+                    {selectedExerciseName ? (
+                      <p className="challenge-modal__exercise-selected muted">
+                        Выбрано: <strong>{selectedExerciseName}</strong>
+                      </p>
+                    ) : null}
+                    <input
+                      className="input"
+                      type="search"
+                      value={exerciseQuery}
+                      onChange={(e) => setExerciseQuery(e.target.value)}
+                      placeholder="Найти упражнение"
+                      aria-label="Поиск упражнения"
+                      autoComplete="off"
+                    />
+                    <div className="admin-homework-catalog__list challenge-modal__exercise-list" role="listbox" aria-label="Список упражнений">
+                      {filteredExercises.length === 0 ? (
+                        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                          Ничего не найдено
+                        </p>
+                      ) : (
+                        filteredExercises.map((ex) => {
+                          const selected = String(ex.id) === String(form.exercise_id)
+                          return (
+                            <button
+                              key={ex.id}
+                              type="button"
+                              role="option"
+                              aria-selected={selected}
+                              className={`admin-homework-catalog__opt${selected ? ' challenge-modal__exercise-opt--on' : ''}`}
+                              onClick={() => setForm((f) => ({ ...f, exercise_id: ex.id }))}
+                            >
+                              <span>{ex.name}</span>
+                              {ex.muscle_group ? <span className="muted">{ex.muscle_group}</span> : null}
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <label className="field">
                 <span className="field__label">Показатель</span>
                 <select
