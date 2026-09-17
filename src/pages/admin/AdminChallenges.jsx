@@ -381,186 +381,202 @@ export function AdminChallenges() {
       </ul>
 
       {modal ? (
-        <div className="modal-overlay" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && setModal(false)}>
-          <div className="modal challenge-modal" role="dialog" aria-modal="true" aria-labelledby="ch-modal-title">
+        <div className="modal-overlay modal-overlay--center" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && setModal(false)}>
+          <div className="modal challenge-modal challenge-modal--wide" role="dialog" aria-modal="true" aria-labelledby="ch-modal-title">
             <div className="challenge-modal__head">
               <h2 id="ch-modal-title">Новый челлендж</h2>
               <CloseButton onClick={() => setModal(false)} />
             </div>
             <form onSubmit={submitCreate} className="challenge-modal__form">
-              <label className="field">
-                <span className="field__label">Название</span>
-                <input
-                  className="input"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="Например, Майский жим ногами"
-                  required
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">Описание</span>
-                <textarea
-                  className="textarea challenge-modal__textarea"
-                  rows={4}
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: stripDirectionControls(e.target.value) }))}
-                  placeholder="Правила, призы, что учитывается в зачёте…"
-                  maxLength={4000}
-                />
-              </label>
-              <div className="field">
-                <span className="field__label">Упражнение</span>
-                {exercisesModalBusy ? (
-                  <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                    Загрузка справочника…
-                  </p>
-                ) : exercises.length === 0 ? (
-                  <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>
-                    {isSupervisor ? (
-                      <>
-                        Справочник упражнений пуст — попросите администратора сети завести упражнения в Структуре.
-                        {isSupabaseConfigured() ? ' При онлайне список подтягивается из облака.' : ''}
-                      </>
-                    ) : (
-                      <>
-                        Сначала заведите упражнения в разделе{' '}
-                        <Link
-                          to={`/admin/structure${clubQs ? `${clubQs}&` : '?'}tab=exercises`}
-                          className="u-no-decoration"
-                          style={{ color: 'var(--accent-bright, #2effb8)' }}
-                        >
-                          Упражнения
-                        </Link>
-                        {isSupabaseConfigured()
-                          ? ' (при онлайне список подтягивается из Supabase).'
-                          : ' (локально — добавьте вручную).'}
-                      </>
-                    )}
-                  </p>
-                ) : (
-                  <div className="challenge-modal__exercise-pick">
-                    {selectedExerciseName ? (
-                      <p className="challenge-modal__exercise-selected muted">
-                        Выбрано: <strong>{selectedExerciseName}</strong>
-                      </p>
-                    ) : null}
+              <div className="challenge-modal__body">
+                <div className="challenge-modal__col challenge-modal__col--meta">
+                  <label className="field">
+                    <span className="field__label">Название</span>
                     <input
                       className="input"
-                      type="search"
-                      value={exerciseQuery}
-                      onChange={(e) => setExerciseQuery(e.target.value)}
-                      placeholder="Найти упражнение"
-                      aria-label="Поиск упражнения"
-                      autoComplete="off"
+                      value={form.name}
+                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      placeholder="Например, Майский жим ногами"
+                      required
                     />
-                    <div className="admin-homework-catalog__list challenge-modal__exercise-list" role="listbox" aria-label="Список упражнений">
-                      {filteredExercises.length === 0 ? (
-                        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                          Ничего не найдено
-                        </p>
-                      ) : (
-                        filteredExercises.map((ex) => {
-                          const selected = String(ex.id) === String(form.exercise_id)
-                          return (
-                            <button
-                              key={ex.id}
-                              type="button"
-                              role="option"
-                              aria-selected={selected}
-                              className={`admin-homework-catalog__opt${selected ? ' challenge-modal__exercise-opt--on' : ''}`}
-                              onClick={() => setForm((f) => ({ ...f, exercise_id: ex.id }))}
-                            >
-                              <span>{ex.name}</span>
-                              {ex.muscle_group ? <span className="muted">{ex.muscle_group}</span> : null}
-                            </button>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <label className="field">
-                <span className="field__label">Показатель</span>
-                <select
-                  className="input"
-                  value={form.metric}
-                  onChange={(e) => {
-                    const metric = e.target.value
-                    setForm((f) => ({
-                      ...f,
-                      metric,
-                      ...(metric !== 'max_reps' ? { useReferenceWeight: false, reference_weight_kg: '' } : {}),
-                    }))
-                  }}
-                >
-                  {CHALLENGE_METRICS.map((id) => (
-                    <option key={id} value={id}>
-                      {formatChallengeMetricRu(id)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {form.metric === 'max_reps' ? (
-                <div className="challenge-modal__reps-weight">
-                  <label className="challenge-modal__check">
-                    <input
-                      type="checkbox"
-                      checked={form.useReferenceWeight}
-                      onChange={(e) =>
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Описание</span>
+                    <textarea
+                      className="textarea challenge-modal__textarea"
+                      rows={5}
+                      value={form.description}
+                      onChange={(e) => setForm((f) => ({ ...f, description: stripDirectionControls(e.target.value) }))}
+                      placeholder="Правила, призы, что учитывается в зачёте…"
+                      maxLength={4000}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Показатель</span>
+                    <select
+                      className="input"
+                      value={form.metric}
+                      onChange={(e) => {
+                        const metric = e.target.value
                         setForm((f) => ({
                           ...f,
-                          useReferenceWeight: e.target.checked,
-                          ...(e.target.checked ? {} : { reference_weight_kg: '' }),
+                          metric,
+                          ...(metric !== 'max_reps' ? { useReferenceWeight: false, reference_weight_kg: '' } : {}),
                         }))
-                      }
-                    />
-                    <span>Зачёт только при заданном весе (жим, присед и т.п.)</span>
+                      }}
+                    >
+                      {CHALLENGE_METRICS.map((id) => (
+                        <option key={id} value={id}>
+                          {formatChallengeMetricRu(id)}
+                        </option>
+                      ))}
+                    </select>
                   </label>
-                  {form.useReferenceWeight ? (
+                  {form.metric === 'max_reps' ? (
+                    <div className="challenge-modal__reps-weight">
+                      <label className="challenge-modal__check">
+                        <input
+                          type="checkbox"
+                          checked={form.useReferenceWeight}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              useReferenceWeight: e.target.checked,
+                              ...(e.target.checked ? {} : { reference_weight_kg: '' }),
+                            }))
+                          }
+                        />
+                        <span>Зачёт только при заданном весе (жим, присед и т.п.)</span>
+                      </label>
+                      {form.useReferenceWeight ? (
+                        <label className="field">
+                          <span className="field__label">Вес для зачёта, кг</span>
+                          <input
+                            className="input"
+                            type="number"
+                            min="0.5"
+                            step="0.5"
+                            inputMode="decimal"
+                            placeholder="100"
+                            value={form.reference_weight_kg}
+                            onChange={(e) => setForm((f) => ({ ...f, reference_weight_kg: e.target.value }))}
+                            required={form.useReferenceWeight}
+                          />
+                        </label>
+                      ) : (
+                        <p className="muted challenge-modal__reps-hint">
+                          Без галочки — лучший подход по числу повторений при любом весе (подтягивания, отжимания со своим весом).
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="challenge-modal__row">
                     <label className="field">
-                      <span className="field__label">Вес для зачёта, кг</span>
-                      <input
-                        className="input"
-                        type="number"
-                        min="0.5"
-                        step="0.5"
-                        inputMode="decimal"
-                        placeholder="100"
-                        value={form.reference_weight_kg}
-                        onChange={(e) => setForm((f) => ({ ...f, reference_weight_kg: e.target.value }))}
-                        required={form.useReferenceWeight}
-                      />
+                      <span className="field__label">Начало</span>
+                      <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} required />
                     </label>
-                  ) : (
-                    <p className="muted challenge-modal__reps-hint">
-                      Без галочки — лучший подход по числу повторений при любом весе (подтягивания, отжимания со своим весом).
-                    </p>
-                  )}
+                    <label className="field">
+                      <span className="field__label">Окончание</span>
+                      <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} required />
+                    </label>
+                  </div>
                 </div>
-              ) : null}
-              <div className="challenge-modal__row">
-                <label className="field">
-                  <span className="field__label">Начало</span>
-                  <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} required />
-                </label>
-                <label className="field">
-                  <span className="field__label">Окончание</span>
-                  <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} required />
-                </label>
+
+                <div className="challenge-modal__col challenge-modal__col--exercise">
+                  <div className="field challenge-modal__exercise-field">
+                    <span className="field__label">Упражнение</span>
+                    {exercisesModalBusy ? (
+                      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                        Загрузка справочника…
+                      </p>
+                    ) : exercises.length === 0 ? (
+                      <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>
+                        {isSupervisor ? (
+                          <>
+                            Справочник упражнений пуст — попросите администратора сети завести упражнения в Структуре.
+                            {isSupabaseConfigured() ? ' При онлайне список подтягивается из облака.' : ''}
+                          </>
+                        ) : (
+                          <>
+                            Сначала заведите упражнения в разделе{' '}
+                            <Link
+                              to={`/admin/structure${clubQs ? `${clubQs}&` : '?'}tab=exercises`}
+                              className="u-no-decoration"
+                              style={{ color: 'var(--accent-bright, #2effb8)' }}
+                            >
+                              Упражнения
+                            </Link>
+                            {isSupabaseConfigured()
+                              ? ' (при онлайне список подтягивается из Supabase).'
+                              : ' (локально — добавьте вручную).'}
+                          </>
+                        )}
+                      </p>
+                    ) : (
+                      <div className="challenge-modal__exercise-pick">
+                        {selectedExerciseName ? (
+                          <p className="challenge-modal__exercise-selected muted">
+                            Выбрано: <strong>{selectedExerciseName}</strong>
+                          </p>
+                        ) : (
+                          <p className="challenge-modal__exercise-selected muted">Выберите упражнение из списка</p>
+                        )}
+                        <input
+                          className="input"
+                          type="search"
+                          value={exerciseQuery}
+                          onChange={(e) => setExerciseQuery(e.target.value)}
+                          placeholder="Найти упражнение"
+                          aria-label="Поиск упражнения"
+                          autoComplete="off"
+                        />
+                        <div
+                          className="admin-homework-catalog__list challenge-modal__exercise-list"
+                          role="listbox"
+                          aria-label="Список упражнений"
+                        >
+                          {filteredExercises.length === 0 ? (
+                            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                              Ничего не найдено
+                            </p>
+                          ) : (
+                            filteredExercises.map((ex) => {
+                              const selected = String(ex.id) === String(form.exercise_id)
+                              return (
+                                <button
+                                  key={ex.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  className={`admin-homework-catalog__opt${selected ? ' challenge-modal__exercise-opt--on' : ''}`}
+                                  onClick={() => setForm((f) => ({ ...f, exercise_id: ex.id }))}
+                                >
+                                  <span>{ex.name}</span>
+                                  {ex.muscle_group ? <span className="muted">{ex.muscle_group}</span> : null}
+                                </button>
+                              )
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
               {saveMsg ? <p className="form-error">{saveMsg}</p> : null}
-              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                Рейтинг строится из завершённых тренировок за период. Для «макс. повторений» с весом учитываются только подходы с этим весом (±0,5 кг).
-              </p>
               <div className="challenge-modal__footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setModal(false)}>
-                  Отмена
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={!exercises.length || exercisesModalBusy}>
-                  Создать
-                </button>
+                <p className="muted challenge-modal__hint">
+                  Рейтинг — из завершённых тренировок за период. Для «макс. повторений» с весом учитываются только подходы с этим весом (±0,5 кг).
+                </p>
+                <div className="challenge-modal__actions">
+                  <button type="button" className="btn btn-ghost btn-touch" onClick={() => setModal(false)}>
+                    Отмена
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-touch" disabled={!exercises.length || exercisesModalBusy}>
+                    Создать
+                  </button>
+                </div>
               </div>
             </form>
           </div>
