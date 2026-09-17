@@ -240,5 +240,49 @@ const lbTrainerFromTraining = buildChallengeLeaderboard(
 ok(lbTrainerFromTraining.rows[0]?.client_name === 'Клиент', 'missing client card → placeholder')
 ok(lbTrainerFromTraining.rows[0]?.trainer_name === 'Семёнов Дмитрий', 'trainer from training.trainer_id')
 
+/** Один shared trainings-массив на два челленджа с разными датами (как loadShared… + build × N). */
+const sharedTrainings = [
+  {
+    client_id: 'c1',
+    club_id: 'club-1',
+    status: 'completed',
+    date: '2026-06-05',
+    data: { exercises: [{ catalog_exercise_id: 'ex-1', sets: [{ weight_kg: 100 }] }] },
+  },
+  {
+    client_id: 'c2',
+    club_id: 'club-1',
+    status: 'completed',
+    date: '2026-06-20',
+    data: { exercises: [{ catalog_exercise_id: 'ex-1', sets: [{ weight_kg: 120 }] }] },
+  },
+]
+const sharedCtx = {
+  exercises: [{ id: 'ex-1', name: 'Жим' }],
+  clients: [
+    { id: 'c1', club_id: 'club-1', name: 'Аня', trainer_id: 't1' },
+    { id: 'c2', club_id: 'club-1', name: 'Боря', trainer_id: 't1' },
+  ],
+  trainings: sharedTrainings,
+  trainerNameById: new Map([['t1', 'Тренер']]),
+}
+const earlyCh = {
+  club_id: 'club-1',
+  exercise_id: 'ex-1',
+  metric: 'max_weight',
+  start_date: '2026-06-01',
+  end_date: '2026-06-10',
+}
+const lateCh = {
+  ...earlyCh,
+  start_date: '2026-06-15',
+  end_date: '2026-06-30',
+}
+const lbEarly = buildChallengeLeaderboard(earlyCh, sharedCtx)
+const lbLate = buildChallengeLeaderboard(lateCh, sharedCtx)
+ok(lbEarly.rows[0]?.client_id === 'c1' && lbEarly.rows[0]?.value === 100, 'shared ctx: early window only c1')
+ok(lbLate.rows[0]?.client_id === 'c2' && lbLate.rows[0]?.value === 120, 'shared ctx: late window only c2')
+ok(lbEarly.rows.length === 1 && lbLate.rows.length === 1, 'shared ctx: date filter isolates leaders')
+
 if (failed) process.exit(1)
 console.log('verify-challenge-max-reps: all passed')

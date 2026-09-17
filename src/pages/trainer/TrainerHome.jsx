@@ -8,7 +8,7 @@ import { TrainerPnkGlanceWidget } from '../../components/pnk/TrainerPnkGlanceWid
 import { TrainerPushPrompt } from '../../components/iskra/TrainerPushPrompt.jsx'
 import { useAuth } from '../../context/AuthContext'
 import {
-  loadContextForChallengeLeaderboard,
+  loadSharedChallengeLeaderboardContext,
   buildChallengeLeaderboard,
   isChallengeVisibleForTrainerHome,
   listChallengesForTrainer,
@@ -253,6 +253,20 @@ export function TrainerHome() {
         const clients = await listClientsByTrainerId(trainerId)
         if (gen !== loadGenRef.current) return
 
+        const ctxByClub = new Map()
+        const clubIdsForCtx = [...new Set(active.map((ch) => String(ch.club_id ?? '').trim()).filter(Boolean))]
+        for (const cid of clubIdsForCtx) {
+          const clubChallenges = active.filter((ch) => String(ch.club_id ?? '') === cid)
+          ctxByClub.set(
+            cid,
+            await loadSharedChallengeLeaderboardContext(cid, clubChallenges, {
+              pullRemote: false,
+              notifyPull: false,
+            }),
+          )
+          if (gen !== loadGenRef.current) return
+        }
+
         const items = []
         for (const ch of active) {
           const chClub = String(ch.club_id ?? '')
@@ -261,11 +275,12 @@ export function TrainerHome() {
               .filter((c) => String(c.trainer_id) === String(trainerId) && String(c.club_id) === chClub)
               .map((c) => c.id),
           )
-          const lbCtx = await loadContextForChallengeLeaderboard(chClub, {
-            challenge: ch,
-            pullRemote: false,
-            notifyPull: false,
-          })
+          const lbCtx = ctxByClub.get(chClub) ?? {
+            trainings: [],
+            clients: [],
+            exercises: [],
+            trainerNameById: new Map(),
+          }
           const { rows } = buildChallengeLeaderboard(ch, lbCtx)
           const mine = rows
             .filter((r) => myClientIds.has(r.client_id))

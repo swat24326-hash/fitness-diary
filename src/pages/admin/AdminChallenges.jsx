@@ -10,7 +10,7 @@ import {
   listExercises,
   ensureExercisesCached,
   buildChallengeLeaderboard,
-  loadContextForChallengeLeaderboard,
+  loadSharedChallengeLeaderboardContext,
   pullChallengeTrainingsForClubChallenges,
   saveNewChallenge,
   validateChallengeDraft,
@@ -100,6 +100,9 @@ export function AdminChallenges() {
       else if (pull && !pull.ok && pull.reason === 'no_club_or_supabase') setPullNote('')
       await loadExercises()
 
+      // Список сразу — превью рейтинга вторым шагом.
+      if (!silent) setBusy(false)
+
       if (pullRemote && (rows ?? []).length > 0) {
         try {
           await pullChallengeTrainingsForClubChallenges(clubId, rows, { notify: false })
@@ -109,20 +112,26 @@ export function AdminChallenges() {
       }
 
       const next = {}
-      for (const ch of rows ?? []) {
-        const lbCtx = await loadContextForChallengeLeaderboard(clubId, { challenge: ch, pullRemote: false, notifyPull: false })
-        const { rows: r } = buildChallengeLeaderboard(ch, lbCtx)
-        const leader = r[0]
-        next[ch.id] = {
-          participants: r.length,
-          leaderName: leader?.client_name ?? null,
-          leaderValue: leader?.value ?? null,
+      if ((rows ?? []).length > 0) {
+        const lbCtx = await loadSharedChallengeLeaderboardContext(clubId, rows, {
+          pullRemote: false,
+          notifyPull: false,
+        })
+        for (const ch of rows) {
+          const { rows: r } = buildChallengeLeaderboard(ch, lbCtx)
+          const leader = r[0]
+          next[ch.id] = {
+            participants: r.length,
+            leaderName: leader?.client_name ?? null,
+            leaderValue: leader?.value ?? null,
+          }
         }
       }
       setPreviews(next)
     } catch {
       setChallenges([])
       setPreviews({})
+      if (!silent) setBusy(false)
     } finally {
       if (!silent) setBusy(false)
     }

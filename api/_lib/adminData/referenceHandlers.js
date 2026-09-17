@@ -83,7 +83,14 @@ export async function handleChallengeTrainings(authCtx, req, res) {
     }
   }
 
-  const trainings = await fetchPaged(authCtx.supabaseAdmin, 'trainings', '*', clubId, dateFrom, dateTo)
+  const trainings = await fetchPaged(
+    authCtx.supabaseAdmin,
+    'trainings',
+    'id, client_id, trainer_id, club_id, date, status, data',
+    clubId,
+    dateFrom,
+    dateTo,
+  )
 
   // Краткие карточки клиентов для рейтинга (админский IDB часто без полного списка клуба).
   const clientIds = [

@@ -216,36 +216,42 @@ export async function listChallengesForTrainer(trainerId, profileClubId, { pullR
 }
 
 /**
+ * Один контекст на клуб для нескольких челленджей (без N× IDB/pull).
  * @param {string} clubId
- * @param {{ challenge?: object, pullRemote?: boolean }} [opts]
+ * @param {object[]} challenges
+ * @param {{ pullRemote?: boolean, notifyPull?: boolean }} [opts]
  */
-export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
+export async function loadSharedChallengeLeaderboardContext(clubId, challenges, opts = {}) {
   const cid = String(clubId ?? '').trim()
-  const ch = opts.challenge
-  let dateFrom = ''
-  let dateTo = ''
+  const list = Array.isArray(challenges) ? challenges.filter(Boolean) : []
   let pulledClients = []
-  if (ch && opts.pullRemote !== false && cid && isSupabaseConfigured() && isAppOnline()) {
-    dateFrom = String(ch.start_date ?? '').slice(0, 10)
-    dateTo = String(ch.end_date ?? '').slice(0, 10)
-    if (dateFrom && dateTo) {
-      try {
-        const pull = await pullChallengeTrainingsForPeriod(cid, dateFrom, dateTo, {
-          notify: opts.notifyPull !== false,
-        })
-        if (Array.isArray(pull?.clients)) pulledClients = pull.clients
-      } catch (e) {
-        console.warn('[challenge] pull trainings', e)
-      }
+  const bounds = challengePeriodBounds(list)
+  let from = bounds.from
+  let to = bounds.to
+
+  if (opts.pullRemote !== false && cid && from && to && isSupabaseConfigured() && isAppOnline()) {
+    try {
+      const pull = await pullChallengeTrainingsForPeriod(cid, from, to, {
+        notify: opts.notifyPull !== false,
+      })
+      if (Array.isArray(pull?.clients)) pulledClients = pull.clients
+    } catch (e) {
+      console.warn('[challenge] pull trainings shared', e)
     }
   }
 
-  const from = dateFrom || String(ch?.start_date ?? '').slice(0, 10)
-  const to = dateTo || String(ch?.end_date ?? '').slice(0, 10)
-  const clubTrainings =
-    from && to ? await listTrainingsByClubIdInRange(cid, from, to) : []
+  if (!from || !to) {
+    for (const ch of list) {
+      const a = String(ch?.start_date ?? '').slice(0, 10)
+      const b = String(ch?.end_date ?? '').slice(0, 10)
+      if (a && (!from || a < from)) from = a
+      if (b && (!to || b > to)) to = b
+    }
+  }
 
-  const localClients = await listClientsByClubId(cid)
+  const clubTrainings = from && to && cid ? await listTrainingsByClubIdInRange(cid, from, to) : []
+
+  const localClients = cid ? await listClientsByClubId(cid) : []
   const clientById = new Map()
   for (const c of localClients ?? []) {
     const id = String(c?.id ?? '').trim()
@@ -255,7 +261,6 @@ export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
     const id = String(c?.id ?? '').trim()
     if (id && !clientById.has(id)) clientById.set(id, c)
   }
-  // Догрузка имён, если в IDB нет клиента из тренировки (старый ответ API без clients).
   const missingIds = []
   for (const t of clubTrainings ?? []) {
     const id = String(t?.client_id ?? '').trim()
@@ -283,6 +288,20 @@ export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
     exercises: exercises ?? [],
     trainerNameById,
   }
+}
+
+/**
+ * Контекст для одного челленджа (карточка рейтинга).
+ * @param {string} clubId
+ * @param {{ challenge?: object, pullRemote?: boolean, notifyPull?: boolean }} [opts]
+ */
+export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
+  const ch = opts.challenge
+  const list = ch ? [ch] : []
+  return loadSharedChallengeLeaderboardContext(clubId, list, {
+    pullRemote: opts.pullRemote,
+    notifyPull: opts.notifyPull,
+  })
 }
 
 export async function getChallengeByIdLocal(id) {

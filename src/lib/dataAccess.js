@@ -67,6 +67,7 @@ export {
   isChallengeVisibleForTrainerHome,
   buildChallengeLeaderboard,
   loadContextForChallengeLeaderboard,
+  loadSharedChallengeLeaderboardContext,
   pullChallengeTrainingsForPeriod,
   pullChallengeTrainingsForClubChallenges,
   challengePeriodBounds,
