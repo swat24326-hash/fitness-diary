@@ -5522,13 +5522,32 @@
   gap: 0.25rem;
   font-size: 0.85rem;
 }
-.sales-clip-form__note {
+.sales-clip-form__note,
+.sales-clip-form__paste {
   grid-column: 1 / -1;
 }
 .sales-clip-form input,
-.sales-clip-form select {
+.sales-clip-form select,
+.sales-clip-form textarea {
   min-height: 2.5rem;
   padding: 0.4rem 0.55rem;
+}
+.sales-clip-form textarea {
+  min-height: 7rem;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.35;
+}
+.sales-clip-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+.sales-clip-form__next-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
 }
 .sales-clip-warnings {
   grid-column: 1 / -1;

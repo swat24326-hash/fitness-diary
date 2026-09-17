@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardList, Plus } from 'lucide-react'
+import { ClipboardList, Eraser, Plus } from 'lucide-react'
 import { createSaleClip, cancelSaleClip, fetchSaleClips } from '../../lib/admin/saleClipService.js'
 import { buildSaleDayChecklist } from '../../lib/admin/saleClipCore.js'
+import { buildSaleClipFormPatchFromPaste } from '../../lib/admin/saleClipPasteCore.js'
 import { isHoldingTrainerUser } from '../../lib/admin/deskClosingImportCore.js'
 import { todayLocalIso, formatDateRu, addDaysToIso, clampIsoDateToToday } from '../../lib/dateRu.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
@@ -16,8 +17,24 @@ import {
 } from '../../lib/membership/membershipTotalGuardCore.js'
 import { membershipTypeCode } from '../../lib/membershipTypesService.js'
 
+/** Поля клиента под следующий клип; день и тренер не трогаем снаружи. */
+function emptyClipClientFields(startDate) {
+  return {
+    card_number: '',
+    phone: '',
+    client_name: '',
+    membership_type_id: '',
+    membership_type_label: '',
+    total_trainings: '8',
+    start_date: startDate,
+    end_date: '',
+    note: '',
+  }
+}
+
 /**
  * Форма клип-карты + список дня + мягкий чеклист.
+ * Можно заполнить полями или вставить сплошной текст с клип-карты (как массовое добавление упражнений).
  * @param {{
  *   clubId: string,
  *   trainers?: object[],
@@ -42,17 +59,12 @@ export function SalesClipCreateSection({
   const [error, setError] = useState('')
   const [okMsg, setOkMsg] = useState('')
   const [warnings, setWarnings] = useState([])
+  const [pasteText, setPasteText] = useState('')
+  const [pasteInfo, setPasteInfo] = useState('')
+  const [pasteWarnings, setPasteWarnings] = useState([])
   const [form, setForm] = useState({
-    card_number: '',
-    phone: '',
-    client_name: '',
     trainer_id: '',
-    membership_type_id: '',
-    membership_type_label: '',
-    total_trainings: '8',
-    start_date: day,
-    end_date: '',
-    note: '',
+    ...emptyClipClientFields(day),
   })
 
   const realTrainers = useMemo(
@@ -67,6 +79,32 @@ export function SalesClipCreateSection({
     }
     return m
   }, [trainers])
+
+  const formHasClientData = Boolean(
+    pasteText.trim() ||
+      form.client_name.trim() ||
+      form.card_number.trim() ||
+      form.phone.trim() ||
+      form.note.trim() ||
+      form.end_date ||
+      form.membership_type_id ||
+      okMsg ||
+      error,
+  )
+
+  /** Очистить форму под следующий клип: день и выбранный тренер остаются. */
+  const clearForNextClip = () => {
+    setPasteText('')
+    setPasteInfo('')
+    setPasteWarnings([])
+    setError('')
+    setOkMsg('')
+    setWarnings([])
+    setForm((f) => ({
+      trainer_id: f.trainer_id,
+      ...emptyClipClientFields(day),
+    }))
+  }
 
   const reload = async () => {
     if (!clubId) return
@@ -92,6 +130,25 @@ export function SalesClipCreateSection({
   useEffect(() => {
     setForm((f) => ({ ...f, start_date: day }))
   }, [day])
+
+  useEffect(() => {
+    const raw = pasteText.trim()
+    if (!raw) {
+      setPasteInfo('')
+      setPasteWarnings([])
+      return
+    }
+    const built = buildSaleClipFormPatchFromPaste(raw, {
+      trainers: realTrainers,
+      membershipTypes,
+    })
+    setPasteInfo(built.reason)
+    setPasteWarnings(built.warnings)
+    if (Object.keys(built.patch).length) {
+      setForm((f) => ({ ...f, ...built.patch }))
+    }
+    // Только при смене текста: иначе повторная подстановка затирает ручные правки полей.
+  }, [pasteText])
 
   const checklist = useMemo(
     () => buildSaleDayChecklist({ clips, asOf: day, overdueAwaiting }),
@@ -162,6 +219,9 @@ export function SalesClipCreateSection({
     setOkMsg('')
     setWarnings([])
     try {
+      const noteParts = []
+      if (String(form.note ?? '').trim()) noteParts.push(String(form.note).trim())
+      if (pasteText.trim()) noteParts.push(`Текст клипа:\n${pasteText.trim()}`)
       const data = await createSaleClip({
         club_id: clubId,
         clip_date: day,
@@ -174,16 +234,16 @@ export function SalesClipCreateSection({
         total_trainings: totalTrainings,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
-        note: form.note || null,
+        note: noteParts.length ? noteParts.join('\n\n') : null,
       })
       setWarnings(data.warnings ?? [])
       setOkMsg(data.reason || 'Поняла. Клип создан — ждём планшет тренера.')
+      setPasteText('')
+      setPasteInfo('')
+      setPasteWarnings([])
       setForm((f) => ({
-        ...f,
-        client_name: '',
-        phone: '',
-        card_number: '',
-        note: '',
+        trainer_id: f.trainer_id,
+        ...emptyClipClientFields(day),
       }))
       await reload()
     } catch (err) {
@@ -248,8 +308,8 @@ export function SalesClipCreateSection({
         )}
       </div>
       <p className="muted sales-clip-section__tip">
-        После продажи в 1С / amo — отправьте тренеру заявку на создание абона (30 сек). Правда = кнопка на планшете
-        «Создать по заявке». Сначала карта, потом телефон. Жёлтое/красное предупреждение — без звука.
+        После продажи в 1С — вставьте текст клип-карты в окно ниже или заполните поля вручную. Правда = кнопка на
+        планшете «Создать по заявке».
       </p>
 
       {!checklist.closedSoft ? (
@@ -275,6 +335,28 @@ export function SalesClipCreateSection({
       ) : null}
 
       <form className="sales-clip-form" onSubmit={(e) => void submit(e)}>
+        <label className="sales-clip-form__paste">
+          Текст с клип-карты
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            rows={5}
+            placeholder="Вставьте сюда текст из 1С / переписки — поля заполнятся сами"
+            spellCheck={false}
+          />
+        </label>
+        {pasteInfo ? (
+          <SalesVisualAlert level="ok" title="Распознала текст">
+            <p>{pasteInfo}</p>
+            {pasteWarnings.length ? (
+              <ul>
+                {pasteWarnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            ) : null}
+          </SalesVisualAlert>
+        ) : null}
         <label>
           № карты
           <input
@@ -358,6 +440,9 @@ export function SalesClipCreateSection({
         {okMsg ? (
           <SalesVisualAlert level="ok" title="Готово">
             <p>{okMsg}</p>
+            <p className="sales-clip-form__next-hint muted">
+              Дата заявок не менялась. Можно сразу следующий клип — тренер уже выбран.
+            </p>
           </SalesVisualAlert>
         ) : null}
         {warnings.length ? (
@@ -369,9 +454,20 @@ export function SalesClipCreateSection({
             </ul>
           </SalesVisualAlert>
         ) : null}
-        <button type="submit" className="btn btn-primary" disabled={busy || !clubId}>
-          <Plus size={16} aria-hidden /> Отправить заявку → планшет
-        </button>
+        <div className="sales-clip-form__actions">
+          <button type="submit" className="btn btn-primary" disabled={busy || !clubId}>
+            <Plus size={16} aria-hidden /> Отправить заявку → планшет
+          </button>
+          <button
+            type="button"
+            className={`btn ${okMsg ? 'btn-primary' : 'btn-ghost'}`}
+            disabled={busy || !formHasClientData}
+            onClick={clearForNextClip}
+            title="Очистить поля клиента. Дата дня и тренер останутся"
+          >
+            <Eraser size={16} aria-hidden /> {okMsg ? 'Ещё один клип' : 'Очистить'}
+          </button>
+        </div>
       </form>
 
       <h3 className="sales-report__section-title">Заявки на {formatDateRu(day)}</h3>

@@ -14,6 +14,9 @@ import {
   parseEveningInboundText,
   parseSaleClipNoteHints,
   findMembershipFulfillingSaleClip,
+  parseSaleClipPasteText,
+  buildSaleClipFormPatchFromPaste,
+  matchTrainerByNameHint,
 } from '../src/lib/admin/saleClipCore.js'
 import {
   collectHoldingTrainerIds,
@@ -176,6 +179,38 @@ ok(
 const parsed = parseEveningInboundText('Карта 5426\nИванов Иван\n89001112233')
 ok(parsed.cardNumber === '5426' && parsed.phone, 'evening parse card+phone')
 ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
+
+{
+  const clip1c = `ФИО Братищев Алексей Николаевич      Дата рождения: 28.06.2015       
+Телефон 89208348252       
+ Клип карта на тренировки(ок) 12, Тип карты: Elite      
+ Из них оплачены тренировки(ок)      
+ Занимается 1 чел.      
+Действие карты с 29.09.2026 по 29.10.2026       
+Дата оплаты 15.09.2026    Тренер Лисицын Кирилл   
+       
+Подпись менеджера      № карты: 5873`
+  const p = parseSaleClipPasteText(clip1c)
+  ok(p.cardNumber === '5873', '1c clip card 5873')
+  ok(p.phone === '89208348252', '1c clip full phone')
+  ok(p.name === 'Братищев Алексей Николаевич', '1c clip FIO without birth label')
+  ok(p.totalTrainings === 12, '1c clip 12 trainings not year')
+  ok(p.membershipTypeLabel === 'Elite', '1c clip type Elite')
+  ok(p.startDate === '2026-09-29' && p.endDate === '2026-10-29', '1c clip date range')
+  ok(p.trainerHint === 'Лисицын Кирилл', '1c clip trainer without подпись')
+  ok(p.birthDate === '2015-06-28', '1c clip birth date')
+
+  const built = buildSaleClipFormPatchFromPaste(clip1c, {
+    trainers: [{ id: 't1', name: 'Лисицын Кирилл' }],
+    membershipTypes: [{ id: 'mt1', code: 'Elite', name: 'Elite' }],
+  })
+  ok(built.patch.trainer_id === 't1', 'paste patch auto trainer')
+  ok(built.patch.membership_type_id === 'mt1', 'paste patch auto type')
+  ok(built.patch.total_trainings === '12', 'paste patch trainings')
+
+  const tm = matchTrainerByNameHint([{ id: 'a', name: 'Лисицын Кирилл' }, { id: 'b', name: 'Лисицын Пётр' }], 'Лисицын')
+  ok(tm.status === 'conflict', 'trainer hint conflict on same surname')
+}
 
 {
   const prune = planTrainerSaleClipsPrune(

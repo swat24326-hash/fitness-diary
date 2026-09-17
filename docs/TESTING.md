@@ -193,7 +193,7 @@
 | АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |
-| Клип-карта: match / holding / checklist | `verify-sale-clips.mjs` |
+| Клип-карта: match / holding / checklist / paste 1С | `verify-sale-clips.mjs` |
 | Клип → планшет после Sync (`sale_clips` в теле pull) | `verify-trainer-pull-response.mjs` |
 | Ежедневник тренера (сетка, слоты, pull/push allowlist) | `verify-trainer-schedule-core.mjs` |
 | Слот → тренировка (маршрут, linked_training_id) | `verify-trainer-schedule-training-core.mjs` |
