@@ -4,6 +4,7 @@
 import {
   collectPendingTrainingDeleteIds,
   isTrainingPendingDelete,
+  shouldBlockPersistForLocalTombstone,
   shouldRestoreTrainingDraftCandidate,
   shouldSkipDurableHydrateForTraining,
 } from '../src/lib/trainingDraftCleanupCore.js'
@@ -57,6 +58,19 @@ const blockedPick = pickTrainingDraftRestore({
   },
 })
 ok(blockedPick.source === 'empty', 'pick returns empty when training blocked')
+
+ok(
+  !shouldBlockPersistForLocalTombstone({ hasLocalRow: true, pendingDelete: false }),
+  'INC-2026-09-18-02: completed row still in IDB → allow edit after finish',
+)
+ok(
+  shouldBlockPersistForLocalTombstone({ hasLocalRow: false, pendingDelete: false }),
+  'tombstone + no IDB row → block',
+)
+ok(
+  shouldBlockPersistForLocalTombstone({ hasLocalRow: true, pendingDelete: true }),
+  'pending delete always blocks even if row briefly exists',
+)
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

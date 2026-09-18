@@ -47,3 +47,14 @@ export function shouldRestoreTrainingDraftCandidate(blockedTrainingId, candidate
   if (!candidate) return true
   return candidate !== blocked
 }
+
+/**
+ * Tombstone «удалили в этой вкладке»: блокировать persist только если строки уже нет.
+ * После «Закончить» строка completed остаётся — правку нельзя резать (INC-2026-09-18-02).
+ * @param {{ hasLocalRow?: boolean, pendingDelete?: boolean }} p
+ */
+export function shouldBlockPersistForLocalTombstone(p = {}) {
+  if (p.pendingDelete === true) return true
+  if (p.hasLocalRow === true) return false
+  return true
+}

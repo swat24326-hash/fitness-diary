@@ -322,7 +322,7 @@ export async function deleteClientAndAllData(clientId) {
   const trainings = await listTrainingsByClientId(clientId)
   const trainingIds = trainings.map((t) => t.id)
   for (const t of trainings) {
-    clearTrainingDraftArtifacts({ trainingId: t.id, clientId })
+    clearTrainingDraftArtifacts({ trainingId: t.id, clientId, markDeleted: true })
     await deleteLocalWithSync('trainings', t.id, 'trainings')
   }
 

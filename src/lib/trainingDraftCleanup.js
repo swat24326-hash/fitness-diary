@@ -4,16 +4,17 @@
  */
 
 import { dispatchLocalDataChanged } from './localDataEvents.js'
-import { listSyncQueue } from './localDb.js'
+import { getDb, listSyncQueue } from './localDb.js'
 import { clearOpenTrainingDraft } from './openTrainingDraftGuard.js'
 import { clearTrainingDraftDurable } from './trainingDraftDurableStorage.js'
 import { dropTrainingDraftSession } from './trainingDraftSessionCache.js'
 import {
   collectPendingTrainingDeleteIds,
   isTrainingPendingDelete,
+  shouldBlockPersistForLocalTombstone,
 } from './trainingDraftCleanupCore.js'
 
-/** @type {Set<string>} — same-tab tombstone до reload (delete из карточки / абона). */
+/** @type {Set<string>} — same-tab tombstone до reload (только реальное delete, не «Закончить»). */
 const locallyDeletedTrainingIds = new Set()
 
 /**
@@ -26,13 +27,17 @@ export function isTrainingDraftLocallyDeleted(trainingId) {
 }
 
 /**
- * @param {{ trainingId?: string | null, clientId?: string | null }} opts
+ * @param {{ trainingId?: string | null, clientId?: string | null, markDeleted?: boolean }} opts
+ * markDeleted: true только при удалении черновика/клиента (tombstone для canPersist).
+ * После «Закончить» — false: строка completed остаётся и её можно снова открыть и править.
  */
 export function clearTrainingDraftArtifacts(opts = {}) {
   const tid = String(opts.trainingId ?? '').trim()
   const cid = String(opts.clientId ?? '').trim()
   if (tid) {
-    locallyDeletedTrainingIds.add(tid)
+    if (opts.markDeleted === true) {
+      locallyDeletedTrainingIds.add(tid)
+    }
     dropTrainingDraftSession(tid)
     clearOpenTrainingDraft(tid)
     clearTrainingDraftDurable({ trainingId: tid, clientId: cid || undefined })
@@ -47,7 +52,7 @@ export function clearTrainingDraftArtifacts(opts = {}) {
  * @param {{ trainingId?: string | null, clientId?: string | null }} opts
  */
 export function notifyTrainingDraftDeleted(opts = {}) {
-  clearTrainingDraftArtifacts(opts)
+  clearTrainingDraftArtifacts({ ...opts, markDeleted: true })
   dispatchLocalDataChanged({
     reason: 'training-draft-deleted',
     trainingId: opts.trainingId ?? null,
@@ -62,12 +67,24 @@ export function notifyTrainingDraftDeleted(opts = {}) {
 export async function canPersistTrainingDraft(trainingId) {
   const tid = String(trainingId ?? '').trim()
   if (!tid) return true
-  if (isTrainingDraftLocallyDeleted(tid)) return false
+  let pendingDelete = false
   try {
     const pending = collectPendingTrainingDeleteIds(await listSyncQueue())
-    if (isTrainingPendingDelete(pending, tid)) return false
+    pendingDelete = isTrainingPendingDelete(pending, tid)
   } catch {
     /* best-effort */
   }
-  return true
+  if (pendingDelete) return false
+
+  if (!isTrainingDraftLocallyDeleted(tid)) return true
+
+  // Tombstone после ошибочного markDeleted или старого «Закончить»: если строка ещё в IDB — править можно.
+  let hasLocalRow = false
+  try {
+    const row = await (await getDb()).get('trainings', tid)
+    hasLocalRow = Boolean(row)
+  } catch {
+    /* best-effort */
+  }
+  return !shouldBlockPersistForLocalTombstone({ hasLocalRow, pendingDelete: false })
 }
