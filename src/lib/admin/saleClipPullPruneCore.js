@@ -3,7 +3,12 @@
  * Чистая логика без IDB.
  */
 
-import { normalizeSaleClipStatus, findMembershipFulfillingSaleClip } from './saleClipCore.js'
+import {
+  normalizeSaleClipStatus,
+  findMembershipFulfillingSaleClip,
+  membershipMayCloseSaleClip,
+  resolveMembershipTypesById,
+} from './saleClipCore.js'
 
 /**
  * Локальные awaiting, которых нет в remote awaiting → убрать с планшета
@@ -39,17 +44,19 @@ export function planTrainerSaleClipsPrune(localClips, remoteAwaitingClips, train
  * Абон уже создали вручную после клипа (без clip_id) → заявка исполнена вне кнопки.
  * @param {object} clip
  * @param {object[]} membershipsForClient
+ * @param {Map<string, object>|Record<string, object>|null|undefined} [typesById]
  */
-export function isAwaitingSaleClipSupersededByMembership(clip, membershipsForClient) {
-  return Boolean(findSupersedingMembership(clip, membershipsForClient))
+export function isAwaitingSaleClipSupersededByMembership(clip, membershipsForClient, typesById) {
+  return Boolean(findSupersedingMembership(clip, membershipsForClient, typesById))
 }
 
 /**
  * @param {object} clip
  * @param {object[]} membershipsForClient
+ * @param {Map<string, object>|Record<string, object>|null|undefined} [typesById]
  * @returns {object|null} membership, из‑за которого клип не нужен
  */
-export function findSupersedingMembership(clip, membershipsForClient) {
+export function findSupersedingMembership(clip, membershipsForClient, typesById) {
   if (normalizeSaleClipStatus(clip?.status) !== 'awaiting') return null
   const clipId = String(clip?.id ?? '').trim()
   const clipAt = Date.parse(String(clip?.created_at ?? ''))
@@ -58,6 +65,7 @@ export function findSupersedingMembership(clip, membershipsForClient) {
   let bestAt = Infinity
   for (const m of membershipsForClient ?? []) {
     if (String(m?.clip_id ?? '').trim() === clipId) return null
+    if (!membershipMayCloseSaleClip(clip, m, typesById)) continue
     const mAt = Date.parse(String(m?.created_at ?? ''))
     if (!Number.isFinite(mAt) || mAt < clipAt) continue
     if (mAt < bestAt) {
@@ -107,6 +115,8 @@ export function resolveAwaitingSaleClipClientId(clip, clientsByCard) {
  * @param {{
  *   clientsByCard?: Map<string, object>|Record<string, object>,
  *   clientsById?: Map<string, object>|Record<string, object>,
+ *   membershipTypes?: object[],
+ *   membershipTypesById?: Map<string, object>|Record<string, object>,
  * }} [opts]
  * @returns {{
  *   clipId: string,
@@ -125,6 +135,12 @@ export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClie
       : opts.clientsById && typeof opts.clientsById === 'object'
         ? new Map(Object.entries(opts.clientsById))
         : null
+  const typesById =
+    opts.membershipTypesById instanceof Map
+      ? opts.membershipTypesById
+      : opts.membershipTypesById && typeof opts.membershipTypesById === 'object'
+        ? new Map(Object.entries(opts.membershipTypesById))
+        : resolveMembershipTypesById(opts.membershipTypes)
   const out = []
   for (const clip of awaitingClips ?? []) {
     if (normalizeSaleClipStatus(clip?.status) !== 'awaiting') continue
@@ -149,7 +165,7 @@ export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClie
     const bindId = clientsByCard ? resolveAwaitingSaleClipClientId(clip, clientsByCard) : null
     const cid = String(clip?.client_id ?? bindId ?? '').trim()
     const mems = cid ? by[cid] ?? [] : []
-    const fulfilling = findMembershipFulfillingSaleClip(clip, mems)
+    const fulfilling = findMembershipFulfillingSaleClip(clip, mems, typesById)
     if (fulfilling) {
       out.push({
         clipId,
@@ -174,6 +190,7 @@ export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClie
     const superseding = findSupersedingMembership(
       cid ? { ...clip, client_id: cid } : clip,
       mems,
+      typesById,
     )
     if (superseding) {
       out.push({

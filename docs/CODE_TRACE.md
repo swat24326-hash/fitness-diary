@@ -171,9 +171,10 @@
 | Слой | Путь |
 |------|------|
 | Домен | `src/lib/admin/salesManagerStatsAgg.js`, `src/lib/admin/salesPlanMatrixCompare.js`, `src/lib/pnk/` |
+| Заявка/клип | `src/lib/admin/saleClipCore.js`, `saleClipPullPruneCore.js`, `api/_lib/saleClipsReconcile.js` (INC-2026-09-18-01: БЗ ≠ done) |
 | UI | `src/pages/admin/AdminSales.jsx`, `src/pages/admin/SalesPnk.jsx`, компоненты `SalesPlan*`, `SalesStrategy*` |
 | API | `api/_lib/adminData/salesHandlers.js`, `api/_lib/adminData/pnkHandlers.js` |
-| Verify | `scripts/verify-sales-plan-matrix-compare.mjs`, `scripts/verify-club-finance-forecast.mjs` (полный каталог: `verify-sales-*.mjs` в [TESTING.md](./TESTING.md)) |
+| Verify | `scripts/verify-sale-clips.mjs`, `scripts/verify-sales-plan-matrix-compare.mjs`, `scripts/verify-club-finance-forecast.mjs` (полный каталог: `verify-sales-*.mjs` в [TESTING.md](./TESTING.md)) |
 | Docs | [SALES_MANAGER.md](./SALES_MANAGER.md), [PNK_FUNNEL.md](./PNK_FUNNEL.md), INCIDENTS **M** |
 
 ### N — импорт Excel, мост оплат

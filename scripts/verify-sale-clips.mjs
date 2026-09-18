@@ -257,7 +257,16 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
       },
     ],
     {
-      c1: [{ id: 'm1', client_id: 'c1', created_at: '2026-08-02T10:00:00.000Z', clip_id: null }],
+      c1: [
+        {
+          id: 'm1',
+          client_id: 'c1',
+          created_at: '2026-08-02T10:00:00.000Z',
+          clip_id: null,
+          paid_amount: 6000,
+          total_trainings: 8,
+        },
+      ],
       c2: [],
       c3: [{ id: 'm3', client_id: 'c3', created_at: '2026-08-01T11:00:00.000Z', clip_id: 'clip-linked' }],
     },
@@ -265,6 +274,57 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
   ok(plan.some((p) => p.clipId === 'clip-old' && p.action === 'done'), 'manual membership → done (не cancel)')
   ok(plan.some((p) => p.clipId === 'clip-linked' && p.action === 'done'), 'clip_id link → done')
   ok(!plan.some((p) => p.clipId === 'clip-live'), 'live awaiting stays')
+
+  const bzTypes = [{ id: 't-bz', code: 'БЗ', name: 'БЗ', is_pnk_trial: true }]
+  const pnkClipPlan = planSupersededAwaitingSaleClips(
+    [
+      {
+        id: 'clip-paid',
+        status: 'awaiting',
+        client_id: 'c-pnk',
+        membership_type_id: 't-elite',
+        created_at: '2026-09-18T08:00:00.000Z',
+      },
+    ],
+    {
+      'c-pnk': [
+        {
+          id: 'm-bz',
+          client_id: 'c-pnk',
+          membership_type_id: 't-bz',
+          created_at: '2026-09-18T09:00:00.000Z',
+          clip_id: null,
+          paid_amount: 0,
+          total_trainings: 1,
+        },
+      ],
+    },
+    { membershipTypes: bzTypes.concat([{ id: 't-elite', code: 'Elite', name: 'Elite' }]) },
+  )
+  ok(!pnkClipPlan.some((p) => p.clipId === 'clip-paid'), 'БЗ после клипа не закрывает платную заявку')
+
+  const bzHeuristicPlan = planSupersededAwaitingSaleClips(
+    [
+      {
+        id: 'clip-paid-2',
+        status: 'awaiting',
+        client_id: 'c-pnk2',
+        created_at: '2026-09-18T08:00:00.000Z',
+      },
+    ],
+    {
+      'c-pnk2': [
+        {
+          id: 'm-bz2',
+          client_id: 'c-pnk2',
+          created_at: '2026-09-18T09:00:00.000Z',
+          clip_id: null,
+          total_trainings: 1,
+        },
+      ],
+    },
+  )
+  ok(!bzHeuristicPlan.some((p) => p.clipId === 'clip-paid-2'), 'БЗ без справочника типов тоже не закрывает')
 
   const bindPlan = planSupersededAwaitingSaleClips(
     [

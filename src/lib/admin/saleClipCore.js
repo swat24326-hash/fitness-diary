@@ -7,8 +7,66 @@ import { matchClientByCardThenPhone, normalizeSalesCardNumber } from './salesCli
 import { formatClientName } from '../clientNameFormat.js'
 import { todayLocalIso } from '../dateRu.js'
 import { normalizeMembershipTotalTrainings } from '../membership/membershipTotalGuardCore.js'
+import { isPnkTrialTypeRow } from '../pnk/pnkTrialTrainingCore.js'
 
 export const SALE_CLIP_STATUSES = /** @type {const} */ (['awaiting', 'done', 'cancelled'])
+
+/**
+ * @param {object[]|null|undefined} membershipTypes
+ * @returns {Map<string, object>}
+ */
+export function resolveMembershipTypesById(membershipTypes) {
+  const m = new Map()
+  for (const t of membershipTypes ?? []) {
+    if (t?.id != null) m.set(String(t.id), t)
+  }
+  return m
+}
+
+/**
+ * Без справочника типов: похоже на БЗ / пустую заглушку (нет оплаты и мало занятий).
+ * @param {object|null|undefined} membership
+ */
+export function looksLikeNonPaidTrialMembership(membership) {
+  const paid = Number(membership?.paid_amount)
+  if (Number.isFinite(paid) && paid > 0) return false
+  const total = Number(membership?.total_trainings)
+  if (Number.isFinite(total) && total >= 4) return false
+  return true
+}
+
+/**
+ * Можно ли этим абоном закрыть заявку (auto-done).
+ * БЗ/пробная ПНК не закрывает заявку на платный абон — иначе менеджер видит
+ * «подтверждено планшетом», а платного абона нет (INC-2026-09-18-01).
+ *
+ * @param {object} clip
+ * @param {object} membership
+ * @param {Map<string, object>|Record<string, object>|null|undefined} [typesById]
+ */
+export function membershipMayCloseSaleClip(clip, membership, typesById) {
+  if (!membership) return false
+  const clipId = String(clip?.id ?? '').trim()
+  if (clipId && String(membership.clip_id ?? '').trim() === clipId) return true
+
+  const map =
+    typesById instanceof Map
+      ? typesById
+      : typesById && typeof typesById === 'object'
+        ? new Map(Object.entries(typesById))
+        : null
+
+  const memTypeId = String(membership.membership_type_id ?? membership.type_id ?? '').trim()
+  const memType = memTypeId && map ? map.get(memTypeId) : null
+  const memIsTrial = memType ? isPnkTrialTypeRow(memType) : looksLikeNonPaidTrialMembership(membership)
+
+  const clipTypeId = String(clip?.membership_type_id ?? '').trim()
+  const clipType = clipTypeId && map ? map.get(clipTypeId) : null
+  const clipIsTrial = clipType ? isPnkTrialTypeRow(clipType) : false
+
+  if (memIsTrial && !clipIsTrial) return false
+  return true
+}
 
 /**
  * @param {unknown} raw
@@ -205,11 +263,14 @@ export function parseSaleClipNoteHints(note) {
  * Абон, которым уже закрыта продажа по клипу (не создавать второй).
  * @param {object} clip
  * @param {object[]} membershipsForClient
+ * @param {Map<string, object>|Record<string, object>|null|undefined} [typesById]
  * @returns {object|null}
  */
-export function findMembershipFulfillingSaleClip(clip, membershipsForClient) {
+export function findMembershipFulfillingSaleClip(clip, membershipsForClient, typesById) {
   const clipId = String(clip?.id ?? '').trim()
-  const list = membershipsForClient ?? []
+  const list = (membershipsForClient ?? []).filter((m) =>
+    membershipMayCloseSaleClip(clip, m, typesById),
+  )
   if (clipId) {
     const byClip = list.find((m) => String(m?.clip_id ?? '').trim() === clipId)
     if (byClip) return byClip

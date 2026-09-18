@@ -61,10 +61,12 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
 
   /** @type {Record<string, object[]>} */
   const membershipsByClientId = {}
+  /** @type {Set<string>} */
+  const membershipTypeIds = new Set()
   if (clientIds.length) {
     const { data: mems, error } = await supabaseAdmin
       .from('memberships')
-      .select('id, client_id, clip_id, created_at, paid_amount, total_trainings, start_date')
+      .select('id, client_id, clip_id, created_at, paid_amount, total_trainings, start_date, membership_type_id')
       .in('client_id', clientIds.slice(0, 800))
     if (!error) {
       for (const m of mems ?? []) {
@@ -72,13 +74,31 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
         if (!cid) continue
         if (!membershipsByClientId[cid]) membershipsByClientId[cid] = []
         membershipsByClientId[cid].push(m)
+        const tid = String(m.membership_type_id ?? '').trim()
+        if (tid) membershipTypeIds.add(tid)
       }
     }
+  }
+
+  for (const c of clips) {
+    const tid = String(c?.membership_type_id ?? '').trim()
+    if (tid) membershipTypeIds.add(tid)
+  }
+
+  /** @type {object[]} */
+  let membershipTypes = []
+  if (membershipTypeIds.size) {
+    const { data: types } = await supabaseAdmin
+      .from('membership_types')
+      .select('id, code, name, is_pnk_trial, is_active')
+      .in('id', [...membershipTypeIds].slice(0, 400))
+    membershipTypes = types ?? []
   }
 
   const plan = planSupersededAwaitingSaleClips(clips, membershipsByClientId, {
     clientsByCard,
     clientsById,
+    membershipTypes,
   })
   if (!plan.length) return clips
 
