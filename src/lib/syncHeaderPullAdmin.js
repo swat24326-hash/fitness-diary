@@ -4,6 +4,7 @@
 
 import { pullAdminClientsFromCloud } from './admin/adminClientsListService.js'
 import { recordSyncPullIssue } from './syncHeaderPullIssue.js'
+import { shouldEnqueueUnsyncedRecord } from './syncUnsyncedCore.js'
 
 /**
  * @param {{
@@ -34,6 +35,7 @@ export async function pullHeaderSyncForAdmin(p) {
   bump(82, 'Клиенты клуба…')
   const { listChallengesLocalForClub, pushChallengeToCloud } = await import('./challengeService.js')
   for (const ch of await listChallengesLocalForClub(club)) {
+    if (!shouldEnqueueUnsyncedRecord(ch, new Set(), 'challenges')) continue
     await pushChallengeToCloud(ch)
   }
   const pull = await pullAdminClientsFromCloud(club)

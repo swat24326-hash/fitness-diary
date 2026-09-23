@@ -54,7 +54,8 @@
 | Слой | Путь |
 |------|------|
 | Оркестрация | `src/lib/syncService.js`, `src/components/AppHeader.jsx` (кнопка Sync) |
-| Очередь | `src/lib/localDb.js` (`sync_queue`), `src/lib/syncQueueOrphans.js`, `src/lib/syncUnsyncedCore.js` |
+| Очередь | `src/lib/localDb.js` (`sync_queue`), `src/lib/syncQueueOrphans.js`, `src/lib/syncUnsyncedCore.js` (`recordForPush`) |
+| Челленджи push | `src/lib/challengeService.js`, `src/lib/syncHeaderPullAdmin.js` (только unsynced) |
 | Pull merge | `src/lib/trainerPullService.js`, `src/lib/syncHeaderPullTrainer.js`, `src/lib/syncHeaderPullService.js` |
 | Архив / prune | `src/lib/trainerPullClientPruneCore.js`, `src/lib/clientTrainingsPrune.js`, `src/lib/clientMembershipsPrune.js` |
 | API | `api/trainer-pull.js`, `api/push-records.js`, `api/_lib/pushRecordCore.js` (draft не откатывает completed) |

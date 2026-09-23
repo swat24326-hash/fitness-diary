@@ -10,6 +10,7 @@ import { mergeChallengeLists, sortChallengesByCreatedDesc } from './challengesCl
 import { todayLocalIso } from './dateRu'
 import { isAppOnline, saveLocalWithSync, deleteLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
+import { recordForPush } from './syncUnsyncedCore'
 import { fetchChallengeTrainingsViaApi, fetchTrainersViaAdminApi } from './admin/adminApiClient'
 import {
   CHALLENGE_METRICS,
@@ -347,7 +348,7 @@ export async function saveNewChallenge(row) {
   const push = await pushRecordViaApi({
     table_name: 'challenges',
     operation: 'insert',
-    data: payload,
+    data: recordForPush(payload),
     remote_id: null,
     local_id,
   })
@@ -369,7 +370,7 @@ export async function pushChallengeToCloud(row) {
   const push = await pushRecordViaApi({
     table_name: 'challenges',
     operation: 'insert',
-    data: payload,
+    data: recordForPush(payload),
     remote_id: null,
     local_id,
   })

@@ -39,6 +39,18 @@ assert(pickUnsyncedRecordsForEnqueue(rows.slice(3), pendingMemberships, 'members
 
 const push = recordForPush({ id: 't1', synced: false, __sync: { operation: 'insert' }, date: '2026-05-01' })
 assert(push.id === 't1' && push.date === '2026-05-01' && push.synced === undefined && push.__sync === undefined, 'strip meta for push')
+const challengePush = recordForPush({
+  id: 'ch1',
+  club_id: 'club-1',
+  synced: true,
+  __sync: { operation: 'insert' },
+})
+assert(
+  challengePush.id === 'ch1' && challengePush.club_id === 'club-1' && challengePush.synced === undefined,
+  'challenge local synced never goes to PostgREST',
+)
+assert(!shouldEnqueueUnsyncedRecord({ id: 'ch1', synced: true }, new Set(), 'challenges'), 'synced challenge skip re-push')
+assert(shouldEnqueueUnsyncedRecord({ id: 'ch2', synced: false }, new Set(), 'challenges'), 'unsynced challenge still pushed')
 
 assert(defaultSyncOperation('trainings', { id: 'x' }).operation === 'insert', 'trainings default insert')
 assert(defaultSyncOperation('memberships', { id: 'x' }).operation === 'update', 'memberships default update')

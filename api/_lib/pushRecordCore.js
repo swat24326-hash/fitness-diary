@@ -27,6 +27,7 @@ import {
   isWeightEntryTrainingFkError,
   sanitizeWeightEntryTrainingLink,
 } from '../../src/lib/clientWeightPushCore.js'
+import { recordForPush } from '../../src/lib/syncUnsyncedCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -263,7 +264,7 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
 export async function executePushRecord(ctx, item) {
   const table_name = String(item.table_name ?? '').trim()
   const operation = String(item.operation ?? '').trim()
-  const data = item.data
+  const data = recordForPush(item.data)
   const remote_id = item.remote_id != null ? String(item.remote_id) : null
 
   if (!PUSH_ALLOWED_TABLES.has(table_name)) {

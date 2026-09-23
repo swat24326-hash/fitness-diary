@@ -51,6 +51,9 @@ ok(/клиенты: выберите клуб/.test(admin), '3b без клуб�
 ok(/return true/.test(admin.split('if (!club)')[1]?.slice(0, 180) ?? ''), '3d без клуба — hadError, не «готово»')
 ok(/recordSyncPullIssue\('клиенты клуба'/.test(admin), '3c сбой клиентов — hadError, не «готово»')
 ok(/recordSyncPullIssue\('челленджи'/.test(admin), '3e сбой челленджей — в журнал pull')
+ok(/shouldEnqueueUnsyncedRecord/.test(admin), '3f админ не re-insert уже synced челленджей')
+ok(/recordForPush\(payload\)/.test(read('src/lib/challengeService.js')), '3g челлендж в API без synced')
+ok(/recordForPush\(item\.data\)/.test(read('api/_lib/pushRecordCore.js')), '3h сервер снимает synced/__sync до insert')
 
 ok(/pullTrainerWorkspaceFromCloud/.test(trainer), '4 тренер — рабочая область')
 ok(/fetchWithAppTimeout/.test(read('src/lib/syncApiClient.js')), '4a trainer-pull через fetchWithAppTimeout')
