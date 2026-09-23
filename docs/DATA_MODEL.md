@@ -27,7 +27,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `outreach_log` | `id` | Касания / Max-очередь (локальный журнал; кэш club SMS) |
 | `club_iskra_settings` | `club_id` | Локальный кэш **шаблонов** outreach (`outreach_templates` / SMS-шаблоны). Аккаунт **`moizvonki`** (в т.ч. api_key) живёт в **Postgres**; в API ключ не отдаём (`has_api_key`) — в IDB полный `moizvonki` не кэшируем |
 | `pnk_funnel_events` | `id` | Журнал ПНК |
-| `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру |
+| `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру. Удаление клиента: awaiting снимается, `client_id` не пишется обратно |
 | `client_hall_lifecycle` | `id` | Закрытие ПЗ/ТЗ/АЗ (`hall`, `closed_at`, `close_reason`); индексы `client_id`, `club_id` |
 | `trainer_schedule_entries` | `id` | Ежедневник тренера: день, время, заметка и/или `client_ids[]`; индексы `trainer_id`, `[trainer_id, day_date]` — см. [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |
 | `loyalty_glance` | `client_id` | Кэш снимка баллов (GET `loyalty-glance`, не sync_queue) |

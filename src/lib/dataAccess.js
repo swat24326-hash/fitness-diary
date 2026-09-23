@@ -347,6 +347,13 @@ export async function deleteClientAndAllData(clientId) {
 
   await deleteHealthCardByClientId(clientId)
 
+  try {
+    const { cancelLocalSaleClipsForDeletedClient } = await import('./admin/saleClipLocalService.js')
+    await cancelLocalSaleClipsForDeletedClient(clientId)
+  } catch (e) {
+    console.warn('[deleteClient] sale clips', e?.message ?? e)
+  }
+
   await deleteLocalWithSync('clients', clientId, 'clients', {
     id: clientId,
     name: clientSnap?.name ?? null,

@@ -28,6 +28,11 @@ import {
   planTrainerSaleClipsPrune,
   planSupersededAwaitingSaleClips,
 } from '../src/lib/admin/saleClipPullPruneCore.js'
+import {
+  isSaleClipMissingLinkFkError,
+  planSaleClipCancelsForDeletedClient,
+  saleClipPushWhenClientMissing,
+} from '../src/lib/admin/saleClipClientGoneCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -373,6 +378,50 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
     'awaiting + archived client → cancel',
   )
   ok(!archivedPlan.some((p) => p.clipId === 'clip-live-ok'), 'live client awaiting stays')
+}
+
+{
+  const fk =
+    'insert or update on table "sale_clips" violates foreign key constraint "sale_clips_client_id_fkey"'
+  ok(isSaleClipMissingLinkFkError(fk), 'sale_clips client fk recognized')
+  ok(
+    !isSaleClipMissingLinkFkError('insert or update on table "memberships" violates foreign key constraint "memberships_client_id_fkey"'),
+    'membership fk is not a sale clip fk',
+  )
+
+  const now = '2026-09-23T11:22:00.000Z'
+  const pushed = saleClipPushWhenClientMissing(
+    {
+      id: 'clip-1',
+      client_id: 'deleted-client',
+      membership_id: 'mem-1',
+      status: 'done',
+      client_name: 'Иванова',
+      note: 'Оплата 5000',
+      done_at: now,
+    },
+    now,
+  )
+  ok(pushed.client_id == null && pushed.membership_id == null, 'gone client: ids cleared')
+  ok(pushed.status === 'cancelled' && pushed.done_at == null, 'gone client: done becomes cancelled')
+  ok(pushed.client_name === 'Иванова' && /Клиент удалён/.test(pushed.note), 'gone client: name kept, reason in note')
+  ok(pushed.note.length <= 500, 'gone client: note fits constraint')
+
+  const again = saleClipPushWhenClientMissing(pushed, now)
+  ok((again.note.match(/Клиент удалён/g) || []).length === 1, 'reason is not duplicated')
+
+  const patches = planSaleClipCancelsForDeletedClient(
+    [
+      { id: 'a', client_id: 'gone', status: 'awaiting', client_name: 'А' },
+      { id: 'b', client_id: 'gone', status: 'done', client_name: 'Б' },
+      { id: 'c', client_id: 'live', status: 'awaiting', client_name: 'В' },
+      { id: 'd', client_id: 'gone', status: 'cancelled', client_name: 'Г' },
+    ],
+    'gone',
+    now,
+  )
+  ok(patches.length === 1 && patches[0].id === 'a' && patches[0].status === 'cancelled', 'delete cancels only awaiting of that client')
+  ok(patches[0].client_id == null, 'cancel patch does not send the deleted client id')
 }
 
 if (failed) {

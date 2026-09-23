@@ -28,6 +28,8 @@ import {
   sanitizeWeightEntryTrainingLink,
 } from '../../src/lib/clientWeightPushCore.js'
 import { recordForPush } from '../../src/lib/syncUnsyncedCore.js'
+import { isSaleClipMissingLinkFkError, saleClipPushWhenClientMissing } from '../../src/lib/admin/saleClipClientGoneCore.js'
+import { cancelAwaitingSaleClipsForClient, prepareSaleClipUpdateForPush } from './saleClipClientGone.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -501,7 +503,16 @@ export async function executePushRecord(ctx, item) {
           .maybeSingle()
         if (!prev.error && prev.data) lifeBefore = prev.data
       }
+      if (table_name === 'sale_clips') {
+        payload = await prepareSaleClipUpdateForPush(supabaseAdmin, payload)
+      }
       let { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
+      if (error && table_name === 'sale_clips' && isSaleClipMissingLinkFkError(error.message)) {
+        const retryPayload = saleClipPushWhenClientMissing(payload)
+        const retry = await supabaseAdmin.from(table_name).update(retryPayload).eq('id', remote_id)
+        error = retry.error
+        if (!error) payload = retryPayload
+      }
       if (
         error &&
         table_name === 'client_weight_entries' &&
@@ -551,6 +562,7 @@ export async function executePushRecord(ctx, item) {
 
     if (operation === 'delete' && remote_id) {
       if (table_name === 'clients') {
+        await cancelAwaitingSaleClipsForClient(supabaseAdmin, remote_id)
         await recordClientDeletionAudit(ctx, remote_id, data, { source: 'push' })
       }
       const { error } = await supabaseAdmin.from(table_name).delete().eq('id', remote_id)

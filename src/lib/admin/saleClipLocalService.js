@@ -18,6 +18,7 @@ import {
   normalizeMembershipTotalTrainings,
   shouldConfirmSuspiciousLowTotal,
 } from '../membership/membershipTotalGuardCore.js'
+import { planSaleClipCancelsForDeletedClient } from './saleClipClientGoneCore.js'
 
 /**
  * @param {string} trainerId
@@ -87,6 +88,16 @@ export async function createMembershipFromSaleClip(input) {
   if (!clip?.id) return { ok: false, reason: 'Нет клипа' }
   if (!clientId) return { ok: false, reason: 'Нет клиента для абонемента' }
   if (!clubId) return { ok: false, reason: 'Нет клуба' }
+
+  const dbForClient = await getDb()
+  const clientRow = await dbForClient.get('clients', clientId)
+  if (!clientRow) {
+    return {
+      ok: false,
+      reason:
+        'Карточки этого клиента нет на планшете. Нажмите Sync. Если клиента удалили — заявка снимется, абонемент оформите на оставшуюся карточку.',
+    }
+  }
 
   const gate = canMarkSaleClipDone(clip, clip.membership_id || 'pending')
   if (normalizeSaleClipStatus(clip.status) === 'done' && clip.membership_id) {
@@ -219,6 +230,34 @@ export async function createMembershipFromSaleClip(input) {
  * @param {object} clip
  * @param {string} [asOfIso]
  */
+/**
+ * Удаление клиента: awaiting-заявки снимаем сразу, в облако уходит client_id = null.
+ * Иначе «Создать по заявке» снова пишет id удалённой карточки и Sync ловит 400.
+ * @param {string} clientId
+ */
+export async function cancelLocalSaleClipsForDeletedClient(clientId) {
+  const cid = String(clientId ?? '').trim()
+  if (!cid) return { cancelled: 0 }
+  const db = await getDb()
+  let rows = []
+  try {
+    if (db.objectStoreNames.contains('sale_clips')) {
+      rows = await db.getAllFromIndex('sale_clips', 'by_client_id', cid)
+    }
+  } catch {
+    rows = []
+  }
+  const patches = planSaleClipCancelsForDeletedClient(rows, cid, new Date().toISOString())
+  for (const clip of patches) {
+    await saveLocalWithSync('sale_clips', clip, {
+      table_name: 'sale_clips',
+      operation: 'update',
+      remote_id: clip.id,
+    })
+  }
+  return { cancelled: patches.length }
+}
+
 export function saleClipAwaitingHours(clip, asOfIso = new Date().toISOString()) {
   const created = Date.parse(String(clip?.created_at ?? ''))
   const asOf = Date.parse(String(asOfIso))

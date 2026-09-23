@@ -94,6 +94,9 @@ export function suggestErrorHint(row) {
   if (/client_weight_entries_training_id_fkey|foreign key.*training_id/i.test(text)) {
     return 'Запись веса ссылалась на тренировку, которой уже нет в облаке. Обновите приложение и нажмите Sync — вес сохранится без привязки.'
   }
+  if (/sale_clips_client_id_fkey|sale_clips_membership_id_fkey/i.test(text)) {
+    return 'Заявка ссылалась на клиента, которого уже удалили. Обновите приложение и нажмите Sync — заявка снимется, очередь очистится. Абонемент оформите на оставшуюся карточку.'
+  }
   if (/lock broken|steal option/i.test(text)) {
     return 'Параллельный доступ к локальной базе. Дождитесь завершения Sync (не нажимайте повторно); при повторе — Ctrl+F5 и одна синхронизация.'
   }

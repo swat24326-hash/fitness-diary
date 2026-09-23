@@ -12,6 +12,7 @@ import {
 } from '../../../src/lib/pnk/pnkCreateAttachCore.js'
 import { fetchClubTrainersForSales, parseJsonBody } from './salesHandlers.js'
 import { recordClientDeletionAudit } from '../deletionAuditWrite.js'
+import { cancelAwaitingSaleClipsForClient } from '../saleClipClientGone.js'
 
 const PNK_CLIENT_SELECT =
   'id, name, phone, card_number, trainer_id, club_id, archived_at, created_at, lifecycle, pnk_stage, pnk_source, pnk_trial_sessions, pnk_trial_date, pnk_trial_time, pnk_comment, pnk_comments, pnk_deliverables, pnk_won_at, pnk_lost_at, pnk_lost_reason, pnk_created_at'
@@ -408,6 +409,7 @@ async function handlePnkPost(ctx, req, res) {
       return
     }
 
+    await cancelAwaitingSaleClipsForClient(supabaseAdmin, clientId)
     await recordClientDeletionAudit(ctx, clientId, row, { source: 'pnk_api' })
     const { error } = await supabaseAdmin.from('clients').delete().eq('id', clientId).eq('club_id', clubId)
     if (error) {

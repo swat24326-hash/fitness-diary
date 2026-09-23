@@ -83,6 +83,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 **Хвост sale_clips:** remote pull отдаёт только `awaiting`. После reconcile (абоны уже созданы вручную → cancel/done) локальные «лишние» awaiting снимаются (`planTrainerSaleClipsPrune`). Иначе на планшете висят заявки, которых в облаке уже нет.
 
+**Удалённый клиент:** `sale_clips.client_id` в Postgres обнуляется (`ON DELETE SET NULL`), но статус awaiting сам не меняется. Перед удалением клиента awaiting-заявки снимаются (`cancelAwaitingSaleClipsForClient` / `cancelLocalSaleClipsForDeletedClient`). Если планшет всё же шлёт update со старым `client_id`, сервер не отвечает 400: заявка становится `cancelled`, `client_id` пустой (`saleClipPushWhenClientMissing`). Иначе очередь крутит `sale_clips_client_id_fkey`. Verify: `verify-sale-clips.mjs`.
+
 ---
 
 ## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)
