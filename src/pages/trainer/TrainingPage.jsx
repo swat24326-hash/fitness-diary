@@ -61,6 +61,7 @@ import {
   shouldSkipDuplicateFirstCompletionSave,
   shouldSkipSilentPersistOfCompleted,
   shouldSkipSilentPersistWhileCompleteInFlight,
+  shouldEnqueueTrainingAsInsert,
 } from '../../lib/trainingPersistStatusCore'
 import {
   TRAINING_SESSION_TYPES,
@@ -1495,8 +1496,8 @@ export function TrainingPage() {
       try {
         await saveLocalWithSync('trainings', row, {
           table_name: 'trainings',
-          operation: prev ? 'update' : 'insert',
-          remote_id: prev ? row.id : null,
+          operation: shouldEnqueueTrainingAsInsert(prev) ? 'insert' : 'update',
+          remote_id: shouldEnqueueTrainingAsInsert(prev) ? null : row.id,
         })
         if (shouldLinkScheduleEntryOnTrainingSave(scheduleEntryParam, row.id)) {
           try {

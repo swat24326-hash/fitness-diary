@@ -1180,19 +1180,21 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const runDeleteClient = async () => {
     if (!confirmDelete?.id) return
+    const id = confirmDelete.id
     setDeleteBusy(true)
     try {
-      await deleteClientAndAllData(confirmDelete.id)
-      const flush = await flushCriticalWritesToCloud()
-      const warn = criticalWriteCloudWarning(flush, 'Удаление')
-      if (warn) alert(warn)
+      await deleteClientAndAllData(id)
       setConfirmDelete(null)
       await reload()
     } catch (e) {
       alert(e?.message ?? 'Не удалось удалить клиента')
+      return
     } finally {
       setDeleteBusy(false)
     }
+    const flush = await flushCriticalWritesToCloud()
+    const warn = criticalWriteCloudWarning(flush, 'Удаление')
+    if (warn) alert(warn)
   }
 
   return (

@@ -11,6 +11,7 @@ import {
   resolveTrainingPersistStatus,
   shouldSkipObsoleteTrainingDraftPush,
   trainingDraftPushRequiresDraftRowFilter,
+  shouldInsertTrainingAfterEmptyUpdate,
 } from '../../src/lib/trainingPersistStatusCore.js'
 import { normalizeMembershipPushPayload } from '../../src/lib/membershipPushPayload.js'
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
@@ -187,11 +188,53 @@ async function validateMembershipTypeLink(supabaseAdmin, payload, operation, opt
  * @param {object} payload
  * @param {string | null} remote_id
  */
+async function insertTrainingRow(supabaseAdmin, payload) {
+  let result = await supabaseAdmin.from('trainings').insert(payload).select('*').maybeSingle()
+  if (result.error && isMissingTrainingsUpdatedAtError(result.error.message)) {
+    result = await supabaseAdmin.from('trainings').insert(stripTrainingUpdatedAt(payload)).select('*').maybeSingle()
+  }
+  if (result.error?.code === '23505') {
+    if (payload?.id) {
+      const { data: existingById } = await supabaseAdmin
+        .from('trainings')
+        .select('*')
+        .eq('id', payload.id)
+        .maybeSingle()
+      if (existingById) return { ok: true, duplicate: true, record: existingById }
+    }
+    return { ok: true, duplicate: true }
+  }
+  if (result.error) return { ok: false, status: 400, error: result.error.message }
+  return { ok: true, record: result.data && typeof result.data === 'object' ? result.data : undefined }
+}
+
+async function insertTrainingIfUpdateMissed(supabaseAdmin, payload, remote_id) {
+  const { data: existing, error: existingErr } = await supabaseAdmin
+    .from('trainings')
+    .select('*')
+    .eq('id', remote_id)
+    .maybeSingle()
+  if (existingErr) return { ok: false, status: 400, error: existingErr.message }
+  if (
+    !shouldInsertTrainingAfterEmptyUpdate({
+      operation: 'update',
+      updatedRow: null,
+      existingRow: existing,
+    })
+  ) {
+    return { ok: true, record: existing, skipped_obsolete_draft: true }
+  }
+  const insertPayload = payload?.id ? payload : { ...payload, id: remote_id }
+  return insertTrainingRow(supabaseAdmin, insertPayload)
+}
+
 async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
-  let result
   if (operation === 'insert') {
-    result = await supabaseAdmin.from('trainings').insert(payload).select('*').maybeSingle()
-  } else if (trainingDraftPushRequiresDraftRowFilter(payload?.status)) {
+    return insertTrainingRow(supabaseAdmin, payload)
+  }
+
+  let result
+  if (trainingDraftPushRequiresDraftRowFilter(payload?.status)) {
     result = await supabaseAdmin
       .from('trainings')
       .update(payload)
@@ -207,7 +250,7 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
         .maybeSingle()
       if (existingErr) return { ok: false, status: 400, error: existingErr.message }
       if (existing) return { ok: true, record: existing, skipped_obsolete_draft: true }
-      return { ok: false, status: 404, error: 'Тренировка не найдена' }
+      return insertTrainingIfUpdateMissed(supabaseAdmin, payload, remote_id)
     }
   } else {
     result = await supabaseAdmin.from('trainings').update(payload).eq('id', remote_id).select('*').maybeSingle()
@@ -233,7 +276,7 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
           .maybeSingle()
         if (existingErr) return { ok: false, status: 400, error: existingErr.message }
         if (existing) return { ok: true, record: existing, skipped_obsolete_draft: true }
-        return { ok: false, status: 404, error: 'Тренировка не найдена' }
+        return insertTrainingIfUpdateMissed(supabaseAdmin, stripped, remote_id)
       }
     } else {
       result = await supabaseAdmin.from('trainings').update(stripped).eq('id', remote_id).select('*').maybeSingle()
@@ -255,7 +298,10 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
     return { ok: false, status: 400, error: result.error.message }
   }
 
-  return { ok: true, record: result.data && typeof result.data === 'object' ? result.data : undefined }
+  if (result.data && typeof result.data === 'object') {
+    return { ok: true, record: result.data }
+  }
+  return insertTrainingIfUpdateMissed(supabaseAdmin, payload, remote_id)
 }
 
 /**

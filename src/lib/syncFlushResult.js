@@ -64,9 +64,10 @@ export function isUnrecoverablePushError(status, message) {
   if (msg.includes('связанная тренировка пока не в облаке') || msg.includes('связанная тренировка не найдена')) {
     return false
   }
+  // Копия ещё не в облаке: update «тренировка не найдена» — повторить как insert, не снимать очередь.
+  if (msg.includes('тренировка не найдена')) return false
   return (
     msg.includes('нет доступа к клиенту') ||
-    msg.includes('тренировка не найдена') ||
     msg.includes('абонемент не найден') ||
     msg.includes('закреплён за другим') ||
     msg.includes('закреплён за вами') ||
@@ -196,7 +197,33 @@ export function collapseMemoryPushBatch(items) {
   return out
 }
 
-/** Текст для UI после flush (офлайн-first: не «успех», если очередь не пуста). */
+/**
+ * Flush сказал «готово», но в очереди ещё есть записи — это не успех.
+ * Так бывает, если отправка стартовала раньше, чем удаление дописало строки.
+ * @param {{ ok?: boolean, reason?: string, remaining?: number, requeued?: number } | null | undefined} result
+ * @param {number} queueLength
+ * @returns {{ done: boolean, result: { ok?: boolean, reason?: string, remaining?: number, requeued?: number } }}
+ */
+export function judgeFlushDrain(result, queueLength) {
+  const left = Math.max(0, Number(queueLength) || 0)
+  if (result?.reason === 'offline_or_stub' || result?.reason === 'paused') {
+    return { done: true, result }
+  }
+  if (left === 0 && (result?.ok || left === 0)) {
+    return { done: true, result: { ...result, ok: true, remaining: 0 } }
+  }
+  if (result?.ok && left > 0) {
+    return {
+      done: false,
+      result: { ok: false, reason: 'pending_items', remaining: left, requeued: result.requeued },
+    }
+  }
+  return {
+    done: false,
+    result: { ...result, ok: false, remaining: left },
+  }
+}
+
 export function describeFlushQueueResult(flush) {
   if (!flush) return { part: null, hadError: true }
   if (flush.ok) return { part: 'очередь отправлена', hadError: false }

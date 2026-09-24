@@ -11,6 +11,7 @@ import {
   pendingClientInsertIdsFromQueue,
   shouldPreserveLocalRowOnPull,
   collapseMemoryPushBatch,
+  judgeFlushDrain,
 } from '../src/lib/syncFlushResult.js'
 
 let failed = 0
@@ -31,7 +32,7 @@ assert(
   isUnrecoverablePushError(403, 'Менеджер может менять только клиентов и абонементы своего клуба'),
   '403 sales manager table deny -> drop queue',
 )
-assert(isUnrecoverablePushError(404, 'Тренировка не найдена'), '404 training -> drop')
+assert(!isUnrecoverablePushError(404, 'Тренировка не найдена'), '404 training → retry insert (copy race)')
 assert(!isUnrecoverablePushError(401, 'JWT'), '401 -> retry (session)')
 assert(!isUnrecoverablePushError(500, 'internal'), '500 -> retry')
 assert(!isUnrecoverablePushError(403, 'forbidden generic'), '403 generic -> retry')
@@ -199,6 +200,16 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
 {
   const exInsert = { table_name: 'exercises', operation: 'insert', data: { id: 'e1' } }
   assert(!isSyncQueueOrphanForCloudClients(exInsert, new Set()), 'exercises insert not orphan-purged')
+}
+
+/* --- удаление клиента: «ок» при непустой очереди не закрывает отправку --- */
+{
+  const staleOk = judgeFlushDrain({ ok: true, remaining: 0 }, 2)
+  assert(!staleOk.done && staleOk.result.ok === false && staleOk.result.remaining === 2, 'ok + очередь 2 → ещё не готово')
+  const empty = judgeFlushDrain({ ok: true, remaining: 0 }, 0)
+  assert(empty.done && empty.result.ok === true && empty.result.remaining === 0, 'ok + пустая очередь → готово')
+  const offline = judgeFlushDrain({ ok: false, reason: 'offline_or_stub' }, 2)
+  assert(offline.done && offline.result.reason === 'offline_or_stub', 'офлайн не крутим дальше')
 }
 
 if (failed > 0) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Calendar,
   CheckCircle2,
@@ -191,6 +191,7 @@ function MembershipBanner({ training, memberships, allTrainings }) {
 export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = false }) {
   const { user, isAdmin, isSupervisor } = useAuth()
   const hr = useHeartRateSessions()
+  const navigate = useNavigate()
   const workoutPrefix = isAdmin ? '/admin/workouts' : isSupervisor ? '/club/workouts' : '/trainer/workouts'
   const [trainings, setTrainings] = useState([])
   const [memberships, setMemberships] = useState([])
@@ -271,6 +272,7 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
     }
     await saveLocalWithSync('trainings', row, { table_name: 'trainings', operation: 'insert', remote_id: null })
     notify()
+    navigate(`${workoutPrefix}/${newId}${clubQs}`)
   }
 
   const deleteTraining = async (id) => {

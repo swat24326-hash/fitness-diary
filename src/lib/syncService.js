@@ -29,8 +29,9 @@ import { isDuplicateInsertError } from './syncFlushResult'
 import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
 import { stampTrainingUpdatedAt } from './trainingUpdatedAtCore.js'
 import { syncQueueSortKey, splitSyncPushWaves } from './syncQueuePriorityCore.js'
+import { judgeFlushDrain } from './syncFlushResult.js'
 
-export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave } from './syncFlushResult'
+export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave, judgeFlushDrain } from './syncFlushResult'
 
 const TRAINER_CACHE_STORES = new Set([
   'clients',
@@ -310,8 +311,11 @@ async function flushUntilQueueDrained(maxPasses = 8) {
     }
     const before = await getPendingSyncQueueLength()
     result = await flushSyncQueueInner()
-    if (result.ok) return result
-    const after = result.remaining ?? (await getPendingSyncQueueLength())
+    const left = await getPendingSyncQueueLength()
+    const judged = judgeFlushDrain(result, left)
+    if (judged.done) return judged.result
+    result = judged.result
+    const after = result.remaining ?? left
     if (after === 0) return { ok: true, remaining: 0 }
     if (pass > 0 && after >= before) break
   }
@@ -670,7 +674,7 @@ export async function saveLocalWithSync(storeName, record, { table_name, operati
   return queueRow.local_id
 }
 
-export async function deleteLocalWithSync(storeName, key, table_name, data = {}) {
+export async function deleteLocalWithSync(storeName, key, table_name, data = {}, opts = {}) {
   const db = await getDb()
   await db.delete(storeName, key)
   if (TRAINER_CACHE_STORES.has(storeName)) {
@@ -684,7 +688,7 @@ export async function deleteLocalWithSync(storeName, key, table_name, data = {})
     remote_id: key,
     data: payload,
   })
-  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused) {
+  if (!opts.deferPush && AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused) {
     schedulePushRecordViaApi({
       table_name,
       operation: 'delete',
@@ -697,7 +701,7 @@ export async function deleteLocalWithSync(storeName, key, table_name, data = {})
 }
 
 /** В IndexedDB ключ `client_id`, на сервере удаление по `id` записи медкарты. */
-export async function deleteHealthCardByClientId(clientId) {
+export async function deleteHealthCardByClientId(clientId, opts = {}) {
   const db = await getDb()
   const hc = await db.get('health_cards', clientId)
   if (!hc) return
@@ -708,7 +712,7 @@ export async function deleteHealthCardByClientId(clientId) {
     remote_id: hc.id ?? null,
     data: {},
   })
-  if (!backgroundSyncPaused) {
+  if (!opts.deferPush && !backgroundSyncPaused) {
     schedulePushRecordViaApi({
       table_name: 'health_cards',
       operation: 'delete',

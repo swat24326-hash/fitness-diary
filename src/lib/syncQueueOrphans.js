@@ -8,6 +8,7 @@ import {
   isUnrecoverablePushError,
   pendingClientInsertIdsFromQueue,
 } from './syncFlushResult'
+import { mergeTrainingPushStatus } from './trainingPersistStatusCore.js'
 
 export { isUnrecoverablePushError } from './syncFlushResult'
 
@@ -171,9 +172,14 @@ export async function collapseRedundantQueueItems() {
     const key = `${item.table_name}:${id}`
     const ins = insertByKey.get(key)
     if (!ins) continue
+    const insData = ins.data && typeof ins.data === 'object' ? ins.data : {}
+    const updData = item.data && typeof item.data === 'object' ? item.data : {}
     const mergedData = {
-      ...(ins.data && typeof ins.data === 'object' ? ins.data : {}),
-      ...(item.data && typeof item.data === 'object' ? item.data : {}),
+      ...insData,
+      ...updData,
+      ...(ins.table_name === 'trainings'
+        ? { status: mergeTrainingPushStatus(insData.status, updData.status) }
+        : {}),
     }
     const merged = { ...ins, data: mergedData, operation: 'insert', remote_id: null }
     await db.put('sync_queue', merged)

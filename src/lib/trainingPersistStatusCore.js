@@ -63,3 +63,30 @@ export function trainingDraftPushRequiresDraftRowFilter(requestedStatus) {
 export function mergeTrainingPushStatus(currentStatus, nextStatus) {
   return resolveTrainingPersistStatus(nextStatus, currentStatus)
 }
+
+/**
+ * Копия / новая тренировка ещё не в облаке: локально строка уже есть, поэтому persist
+ * раньше слал update. Пока push insert не доехал, update попадает в пустоту.
+ * @param {{ synced?: boolean } | null | undefined} prev
+ */
+export function shouldEnqueueTrainingAsInsert(prev) {
+  if (!prev) return true
+  return prev.synced === false
+}
+
+/**
+ * Update в облаке не задел ни одной строки: insert ещё не доехал (копия → Закончить)
+ * или строку уже удалили. Пустой «ок» нельзя считать успехом — иначе очередь снимается,
+ * а тренировки в облаке нет.
+ * @param {{
+ *   operation?: string,
+ *   updatedRow?: object | null,
+ *   existingRow?: object | null,
+ * }} p
+ */
+export function shouldInsertTrainingAfterEmptyUpdate(p = {}) {
+  if (String(p.operation ?? '') === 'insert') return false
+  if (p.updatedRow && typeof p.updatedRow === 'object') return false
+  if (p.existingRow && typeof p.existingRow === 'object') return false
+  return true
+}

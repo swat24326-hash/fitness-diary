@@ -19,6 +19,7 @@ import {
   deleteHealthCardByClientId,
   deleteLocalWithSync,
   saveLocalWithSync,
+  scheduleBackgroundSyncDrain,
 } from './syncService'
 import { ADMIN_CLIENT_COUNT_BATCH } from './admin/adminConstants'
 import { fetchTrainersViaAdminApi } from './admin/adminApiClient'
@@ -319,33 +320,34 @@ export async function deleteClientAndAllData(clientId) {
   const hc = await getHealthCard(clientId)
   const healthCardRemoteId = hc?.id ?? null
 
+  const deferPush = { deferPush: true }
   const trainings = await listTrainingsByClientId(clientId)
   const trainingIds = trainings.map((t) => t.id)
   for (const t of trainings) {
     clearTrainingDraftArtifacts({ trainingId: t.id, clientId, markDeleted: true })
-    await deleteLocalWithSync('trainings', t.id, 'trainings')
+    await deleteLocalWithSync('trainings', t.id, 'trainings', {}, deferPush)
   }
 
   const mems = await listMembershipsByClientId(clientId)
   const membershipIds = mems.map((m) => m.id)
   for (const m of mems) {
-    await deleteLocalWithSync('memberships', m.id, 'memberships')
+    await deleteLocalWithSync('memberships', m.id, 'memberships', {}, deferPush)
   }
 
   const measures = await listMeasurementsByClientId(clientId)
   const measurementIds = measures.map((b) => b.id)
   for (const b of measures) {
-    await deleteLocalWithSync('body_measurements', b.id, 'body_measurements')
+    await deleteLocalWithSync('body_measurements', b.id, 'body_measurements', {}, deferPush)
   }
 
   const { listWeightEntriesByClientId } = await import('./localDbClubQuery')
   const weightEntries = await listWeightEntriesByClientId(clientId)
   const weightEntryIds = weightEntries.map((w) => w.id)
   for (const w of weightEntries) {
-    await deleteLocalWithSync('client_weight_entries', w.id, 'client_weight_entries')
+    await deleteLocalWithSync('client_weight_entries', w.id, 'client_weight_entries', {}, deferPush)
   }
 
-  await deleteHealthCardByClientId(clientId)
+  await deleteHealthCardByClientId(clientId, deferPush)
 
   try {
     const { cancelLocalSaleClipsForDeletedClient } = await import('./admin/saleClipLocalService.js')
@@ -367,7 +369,7 @@ export async function deleteClientAndAllData(clientId) {
       trainings_count: trainings.length,
       memberships_count: mems.length,
     },
-  })
+  }, deferPush)
 
   try {
     const { stripClientIdFromTrainerScheduleEntries } = await import('./trainer/trainerScheduleService.js')
@@ -391,4 +393,5 @@ export async function deleteClientAndAllData(clientId) {
     clientId,
     clubId,
   })
+  scheduleBackgroundSyncDrain(0)
 }

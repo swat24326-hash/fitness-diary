@@ -12,6 +12,8 @@ import {
   shouldSkipSilentPersistOfCompleted,
   shouldSkipSilentPersistWhileCompleteInFlight,
   trainingDraftPushRequiresDraftRowFilter,
+  shouldEnqueueTrainingAsInsert,
+  shouldInsertTrainingAfterEmptyUpdate,
 } from '../src/lib/trainingPersistStatusCore.js'
 
 let failed = 0
@@ -71,6 +73,25 @@ ok(!trainingDraftPushRequiresDraftRowFilter('completed'), 'completed update has 
 ok(mergeTrainingPushStatus('completed', 'draft') === 'completed', 'batch merge keeps completed')
 ok(mergeTrainingPushStatus('draft', 'completed') === 'completed', 'batch merge promotes completed')
 ok(mergeTrainingPushStatus('draft', 'draft') === 'draft', 'batch merge draft stays draft')
+ok(shouldEnqueueTrainingAsInsert(null), 'no local row → insert')
+ok(shouldEnqueueTrainingAsInsert({ synced: false }), 'copy / unsynced → insert not update')
+ok(!shouldEnqueueTrainingAsInsert({ synced: true }), 'already in cloud → update')
+ok(
+  shouldInsertTrainingAfterEmptyUpdate({ operation: 'update', updatedRow: null, existingRow: null }),
+  'empty update + no cloud row → insert',
+)
+ok(
+  !shouldInsertTrainingAfterEmptyUpdate({
+    operation: 'update',
+    updatedRow: null,
+    existingRow: { id: 't1', status: 'completed' },
+  }),
+  'empty draft-update while completed exists → skip insert',
+)
+ok(
+  !shouldInsertTrainingAfterEmptyUpdate({ operation: 'insert', updatedRow: null, existingRow: null }),
+  'insert path does not re-enter empty-update',
+)
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)
