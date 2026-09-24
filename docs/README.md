@@ -17,7 +17,7 @@
 |------|--------|
 | [`AGENTS.md`](../AGENTS.md) | Самый короткий вход (корень репо) |
 | [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) | Экономия лимитов **без** урезания правил и QA |
-| [HOOKS.md](./HOOKS.md) | Хуки Cursor: подтверждение push/деплоя, блок секретов, авто-lint в конце ответа |
+| [HOOKS.md](./HOOKS.md) | Хуки Cursor: карточка на опасных командах, блок секретов, авто-lint в конце ответа |
 | [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) | Маршрут: тип задачи → docs → rules → verify |
 | [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) | Роли, стек, каталоги, env |
 | [INCIDENTS.md](./INCIDENTS.md) | Жалоба / баг / повтор (коды A–Q) |

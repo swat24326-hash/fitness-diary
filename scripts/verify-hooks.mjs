@@ -35,10 +35,10 @@ assert(gitSubcommand('npm run lint') === null, 'без git -> null')
 assert(splitSegments('npm run lint && git push').length === 2, 'сегменты по &&')
 
 /* --- спрашиваем подтверждение --- */
-assert(asks('git commit -m "feat"'), 'коммит -> ask')
-assert(asks('git push origin main'), 'push -> ask')
-assert(asks('npm run lint; git push --force'), 'push во втором сегменте -> ask')
-assert(asks('npx vercel --prod --yes'), 'деплой prod -> ask')
+assert(!asks('git commit -m "feat"'), 'коммит -> allow (уже сказано «заливай»)')
+assert(!asks('git push origin main'), 'push -> allow')
+assert(!asks('npm run lint; git push --force'), 'push во втором сегменте -> allow')
+assert(!asks('npx vercel --prod --yes'), 'деплой prod -> allow')
 assert(asks('npm run db:migrate:loyalty'), 'миграция базы -> ask')
 assert(asks('node scripts/apply-loyalty-migration.mjs'), 'apply-* миграция -> ask')
 assert(asks('npx supabase db query --linked --file supabase/policies.sql'), 'supabase db -> ask')
@@ -135,8 +135,10 @@ function callHook(script, input) {
 }
 
 const pushAnswer = callHook('guard-shell.mjs', { command: 'git push origin main' })
-assert(pushAnswer.permission === 'ask', 'guard-shell: push -> ask')
-assert(typeof pushAnswer.user_message === 'string' && pushAnswer.user_message.length > 0, 'guard-shell: есть текст для владельца')
+assert(pushAnswer.permission === 'allow', 'guard-shell: push -> allow')
+const resetAnswer = callHook('guard-shell.mjs', { command: 'git reset --hard HEAD' })
+assert(resetAnswer.permission === 'ask', 'guard-shell: reset -> ask')
+assert(typeof resetAnswer.user_message === 'string' && resetAnswer.user_message.length > 0, 'guard-shell: есть текст для владельца')
 assert(callHook('guard-shell.mjs', { command: 'npm run lint' }).permission === 'allow', 'guard-shell: lint -> allow')
 assert(callHook('guard-shell.mjs', {}).permission === 'allow', 'guard-shell: пустой вход -> allow (fail-open)')
 
