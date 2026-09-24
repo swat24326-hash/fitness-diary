@@ -1,6 +1,6 @@
 # Симптом → код (CODE_TRACE)
 
-**Актуально:** 2026-09-01  
+**Актуально:** 2026-09-24  
 **Для кого:** агент и разработчик — **куда смотреть в репо**, не дублируя [SYNC.md](./SYNC.md) и [INCIDENTS.md](./INCIDENTS.md).
 
 **Как пользоваться:** жалоба → код **A–Q** в [INCIDENTS.md](./INCIDENTS.md) §2 → секция ниже → `rg` по путям → узкий doc из [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) §3.
@@ -90,7 +90,7 @@
 
 | Слой | Путь |
 |------|------|
-| Главная | `src/pages/trainer/TrainerDashboard.jsx` |
+| Главная | `src/pages/trainer/TrainerHome.jsx`, `src/components/trainer/TrainerHomeTodayStrip.jsx` |
 | Списки клиентов | `src/components/trainer/TrainerClientListItem.jsx`, `src/lib/clientListSignals.js` |
 | Pull архива | `src/lib/trainerPullClientPruneCore.js`, [SYNC.md](./SYNC.md) §«Архив на планшете» |
 | Verify | `scripts/verify-critical-hall.mjs`, `scripts/verify-app-stability.mjs` |

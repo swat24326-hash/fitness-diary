@@ -152,7 +152,7 @@
 | Доска клиентов: Max (чат) рядом с SMS | `verify-club-client-max-outreach.mjs` |
 | Статистика клуба по залу ПЗ/ТЗ/АЗ | `verify-club-stats-hall.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |
-| План: ориентир ПЗ ДК из прайса (8 тр. × действующие) | `verify-sales-plan-pz-dk-suggest.mjs` |
+| Ядро ориентира ПЗ ДК (прайс × продления; его же читает Стратегия) | `verify-sales-plan-pz-dk-suggest.mjs` |
 | Стратегия: продления ДК ПЗ/ТЗ/АЗ (конец месяца × ср. покупок) | `verify-sales-plan-hall-renewals.mjs` |
 | Стратегия: НК/УК + добор до плана по долям прошлого месяца | `verify-sales-plan-hall-top-up.mjs` |
 | Стратегия: playbook недель / закрытия / темп | `verify-sales-strategy-playbook.mjs` |

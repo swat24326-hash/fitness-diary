@@ -915,28 +915,6 @@ button.pnk-chip:disabled {
   vertical-align: super;
 }
 
-.pnk-conversion-fraction {
-  display: grid;
-  gap: 2px;
-}
-
-.pnk-conversion-fraction__label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.pnk-conversion-fraction__value {
-  font-size: 1.35rem;
-  font-weight: 700;
-}
-
-.pnk-conversion-fraction__pct {
-  margin-left: 6px;
-  font-size: 0.7em;
-  font-weight: 600;
-  opacity: 0.75;
-  vertical-align: super;
-}
 
 /* Компактная «шапка» на плитке доски — тот же язык прогресса */
 .pnk-control-tile .pnk-funnel-hat--tile {

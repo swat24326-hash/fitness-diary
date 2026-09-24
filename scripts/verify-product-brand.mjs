@@ -33,7 +33,6 @@ const SCAN_ROOT_FILES = ['vite.config.js', 'scripts/generate-icons.mjs']
 
 /** Исключения: не бренд продукта */
 const ALLOW_FILE_SNIPPETS = [
-  { file: 'SalesSegmentComparablePaceChart.jsx', re: /Ось:\s*%/ },
   { file: 'coachQualityConfigCore.js', re: /Ось ведения|Ось хвостов/ },
 ]
 

@@ -60,7 +60,7 @@
 | `src/lib/trainer/coachQualityRemoteGate.js` | когда тянуть remote для CQ (local completed &lt; API) |
 | `src/lib/admin/coachQualityBriefCore.js` | утренний бриф: на разбор / просели к прошлому периоду |
 | `src/lib/trainer/trainerCoachQualityGlanceCore.js` | подсказка тренеру (тонкие + хвосты) |
-| `src/components/trainer/TrainerCoachQualityGlance.jsx` | UI на главной тренера |
+| `src/components/trainer/TrainerHomeTodayStrip.jsx` | UI качества на главной тренера |
 | `src/lib/admin/coachQualitySettingsService.js` | клиент API настроек |
 | `src/lib/homeGlanceCache.js` | session SWR для home-glance (не для detail) |
 | `src/hooks/useStaleWhileRevalidate.js` | hydrate → show → fetch if stale |
