@@ -224,8 +224,10 @@ export function judgeFlushDrain(result, queueLength) {
   }
 }
 
-/** После 12 сетевых сбоев не выкидывать тренировку и абон — иначе статистика пустая. */
+/** После 12 сетевых сбоев не выкидывать тренировку, абон и справочник упражнений. */
 export const SYNC_QUEUE_MAX_RETRIES = 12
+
+const KEEP_AFTER_EXHAUSTED_TABLES = new Set(['trainings', 'memberships', 'exercises'])
 
 /**
  * @param {{ table_name?: string, operation?: string, retry_count?: number } | null | undefined} item
@@ -235,7 +237,7 @@ export function shouldDropExhaustedSyncRetry(item) {
   if (n < SYNC_QUEUE_MAX_RETRIES) return false
   const table = String(item?.table_name ?? '')
   const op = String(item?.operation ?? '')
-  if ((table === 'trainings' || table === 'memberships') && (op === 'insert' || op === 'update')) {
+  if (KEEP_AFTER_EXHAUSTED_TABLES.has(table) && (op === 'insert' || op === 'update')) {
     return false
   }
   return true

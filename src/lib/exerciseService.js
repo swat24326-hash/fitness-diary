@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from './supabase'
-import { getDb, putStore, listSyncQueue, removeSyncItem } from './localDb'
+import { getDb, listSyncQueue, removeSyncItem } from './localDb'
 import { saveLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
 import {
@@ -7,6 +7,9 @@ import {
   markExercisesSyncMetaDirty,
   refreshExercisesSyncMetaFromLocal,
 } from './exerciseCatalog'
+import { shouldAwaitExerciseCloudAck } from './exerciseMutationCore.js'
+
+export { shouldAwaitExerciseCloudAck }
 
 async function afterExerciseMutation(cloudOk) {
   invalidateExerciseCatalogCache()
@@ -24,40 +27,7 @@ function normalizeExerciseRow(row) {
   }
 }
 
-async function applyDuplicateFromServer(localId, serverRecord) {
-  if (!serverRecord?.id) return
-  await putStore('exercises', serverRecord)
-  if (localId && String(localId) !== String(serverRecord.id)) {
-    const db = await getDb()
-    try {
-      await db.delete('exercises', localId)
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-async function pushExerciseOp(operation, row, remoteId) {
-  if (!isSupabaseConfigured() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-    return { cloudOk: false, cloudError: 'Нет сети — упражнение только на этом устройстве. Нажмите Sync позже.' }
-  }
-  const push = await pushRecordViaApi({
-    table_name: 'exercises',
-    operation,
-    data: row,
-    remote_id: remoteId ?? row.id ?? null,
-    local_id: null,
-  })
-  if (push.ok && push.duplicate && push.record) {
-    await applyDuplicateFromServer(row.id, push.record)
-  }
-  if (push.ok) await afterExerciseMutation(true)
-  return push.ok
-    ? { cloudOk: true, merged: !!push.duplicate, record: push.record }
-    : { cloudOk: false, cloudError: push.error ?? 'Не удалось отправить в облако' }
-}
-
-/** @returns {Promise<{ cloudOk: boolean, cloudError?: string, merged?: boolean }>} */
+/** @returns {Promise<{ cloudOk: boolean, cloudError?: string, queued?: boolean }>} */
 export async function insertExercise(row) {
   const payload = normalizeExerciseRow(row)
   if (!payload.name || !payload.muscle_group) {
@@ -68,11 +38,11 @@ export async function insertExercise(row) {
     operation: 'insert',
     remote_id: null,
   })
-  invalidateExerciseCatalogCache()
-  return pushExerciseOp('insert', payload, null)
+  await afterExerciseMutation(false)
+  return { cloudOk: true, queued: true }
 }
 
-/** @returns {Promise<{ cloudOk: boolean, cloudError?: string }>} */
+/** @returns {Promise<{ cloudOk: boolean, cloudError?: string, queued?: boolean }>} */
 export async function updateExercise(row) {
   const payload = normalizeExerciseRow(row)
   if (!payload.id) return { cloudOk: false, cloudError: 'Нет id упражнения' }
@@ -81,8 +51,8 @@ export async function updateExercise(row) {
     operation: 'update',
     remote_id: payload.id,
   })
-  invalidateExerciseCatalogCache()
-  return pushExerciseOp('update', payload, payload.id)
+  await afterExerciseMutation(false)
+  return { cloudOk: true, queued: true }
 }
 
 /** @returns {Promise<{ cloudOk: boolean, cloudError?: string }>} */

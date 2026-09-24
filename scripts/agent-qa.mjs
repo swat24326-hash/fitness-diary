@@ -35,6 +35,7 @@ function check(cond, label) {
 run('build', 'npm', ['run', 'build'])
 run('product brand', 'node', ['scripts/verify-product-brand.mjs'])
 run('exercise formats', 'node', ['scripts/verify-exercise-format.mjs'])
+run('exercise catalog save', 'node', ['scripts/verify-exercise-catalog-save.mjs'])
 run('training set laterality', 'node', ['scripts/verify-training-set-laterality.mjs'])
 run('training persist status', 'node', ['scripts/verify-training-persist-status.mjs'])
 run('training membership debit', 'node', ['scripts/verify-training-membership-debit.mjs'])

@@ -220,8 +220,12 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
     '12 таймаутов: абон не снимаем',
   )
   assert(
-    shouldDropExhaustedSyncRetry({ table_name: 'exercises', operation: 'insert', retry_count: 12 }),
-    '12 таймаутов: справочник снимаем',
+    !shouldDropExhaustedSyncRetry({ table_name: 'exercises', operation: 'insert', retry_count: 12 }),
+    '12 таймаутов: упражнение не снимаем',
+  )
+  assert(
+    shouldDropExhaustedSyncRetry({ table_name: 'homework_presets', operation: 'insert', retry_count: 12 }),
+    '12 таймаутов: прочий справочник снимаем',
   )
 }
 

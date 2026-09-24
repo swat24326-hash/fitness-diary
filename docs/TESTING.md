@@ -51,6 +51,7 @@
 | Черновик: уход на главную / удаление с карточки | restore — `verify-training-draft-restore.mjs`; delete не воскрешает — `verify-training-draft-delete.mjs`; ручной: Удалить→Да → карточка и вкладки пустые после reload |
 | Правка завершённой | смена даты, повторное сохранение |
 | Sync на планшете | flush + pull, pending не затираются |
+| Админ: упражнения создать/переименовать | форма не ждёт push 28 с — `verify-exercise-catalog-save.mjs`; очередь не drop после 12 таймаутов — `verify-sync-offline.mjs` |
 | Архив → Активные: список не обнуляется | `verify-trainer-archive-pull-prune.mjs`; [SYNC.md](./SYNC.md) §«Архив на планшете» |
 | Тип карты в журнале / ЗП / офлайн | `verify-membership-type-stats.mjs`, `verify-training-membership-link.mjs`, `verify-stats-agg-parity.mjs`; контур — [SYNC.md](./SYNC.md) §«Тип карты» |
 | Админ: статистика / ИСКРА | agg, snapshot |

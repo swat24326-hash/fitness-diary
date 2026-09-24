@@ -56,11 +56,12 @@
 | Оркестрация | `src/lib/syncService.js`, `src/components/AppHeader.jsx` (кнопка Sync) |
 | Очередь | `src/lib/localDb.js` (`sync_queue`), `src/lib/syncQueueOrphans.js`, `src/lib/syncUnsyncedCore.js` (`recordForPush`) |
 | Челленджи push | `src/lib/challengeService.js`, `src/lib/syncHeaderPullAdmin.js` (только unsynced) |
+| Справочник упражнений | `src/lib/exerciseService.js`, `src/lib/exerciseMutationCore.js` (insert/update не ждут сеть) |
 | Pull merge | `src/lib/trainerPullService.js`, `src/lib/syncHeaderPullTrainer.js`, `src/lib/syncHeaderPullService.js` |
 | Архив / prune | `src/lib/trainerPullClientPruneCore.js`, `src/lib/clientTrainingsPrune.js`, `src/lib/clientMembershipsPrune.js` |
 | API | `api/trainer-pull.js`, `api/push-records.js`, `api/_lib/pushRecordCore.js` (draft не откатывает completed) |
 | Заявка после удаления клиента | `src/lib/admin/saleClipClientGoneCore.js`, `api/_lib/saleClipClientGone.js` |
-| Verify | `scripts/verify-sync-offline.mjs`, `scripts/verify-sync-unsynced.mjs`, `scripts/verify-sync-pull-merge.mjs`, `scripts/verify-training-persist-status.mjs` |
+| Verify | `scripts/verify-sync-offline.mjs`, `scripts/verify-sync-unsynced.mjs`, `scripts/verify-sync-pull-merge.mjs`, `scripts/verify-training-persist-status.mjs`, `scripts/verify-exercise-catalog-save.mjs` |
 | Docs | [SYNC.md](./SYNC.md) §12c, [RUNBOOK.md](./RUNBOOK.md) §1c, INCIDENTS **C** |
 
 ### D — статистика есть, карточка / дневник пусто
