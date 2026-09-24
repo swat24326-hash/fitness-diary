@@ -37,8 +37,11 @@ export function cloneTrainingDraftSessionValue(value) {
 export function isTrainingDraftUiAligned(opts = {}) {
   const loadState = String(opts.loadState ?? '')
   if (loadState !== 'ok') return false
+  const routeClient = String(opts.routeClientId ?? '').trim()
+  const stateClient = String(opts.clientId ?? '').trim()
+  if (routeClient && stateClient && routeClient !== stateClient) return false
   if (opts.isNew) {
-    return Boolean(String(opts.clientId ?? '').trim())
+    return Boolean(stateClient || routeClient)
   }
   const routeId = String(opts.routeId ?? '').trim()
   const metaId = String(opts.metaTrainingId ?? '').trim()
@@ -194,5 +197,17 @@ export function shouldBlockMismatchedDraftPersist(opts = {}) {
   if (!routeId || routeId === 'new') return false
   // Существующий URL, meta ещё не подтянули — не писать пустой черновик в IDB.
   if (!metaId) return true
-  return routeId !== metaId
+  if (routeId !== metaId) return true
+  const routeClient = String(opts.routeClientId ?? '').trim()
+  const stateClient = String(opts.stateClientId ?? '').trim()
+  if (routeClient && stateClient && routeClient !== stateClient) return true
+  return false
+}
+
+/** Нельзя записать тренировку клиента A в строку, которая уже принадлежит B. */
+export function shouldBlockCrossClientTrainingRowWrite(opts = {}) {
+  const existing = String(opts.existingClientId ?? '').trim()
+  const payload = String(opts.payloadClientId ?? '').trim()
+  if (!existing || !payload) return false
+  return existing !== payload
 }

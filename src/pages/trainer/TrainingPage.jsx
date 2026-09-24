@@ -35,6 +35,7 @@ import {
   isTrainingDraftUiAligned,
   putTrainingDraftSession,
   shouldBlockMismatchedDraftPersist,
+  shouldBlockCrossClientTrainingRowWrite,
   takeTrainingDraftSessionEntry,
   peekTrainingDraftSessionEntry,
 } from '../../lib/trainingDraftSessionCache.js'
@@ -456,6 +457,7 @@ export function TrainingPage() {
     const cached = cachedEntry?.snapshot
     if (!isTrainingDraftSessionSnapshotReady(cached, { trainingId: id })) {
       sessionCacheHitRef.current = null
+      pageEpochRef.current += 1
       setLoadState('loading')
       setWorkoutState(emptyTrainingData())
       // Сбрасываем meta, иначе кадр «URL=B, meta=A» рисует чужие упражнения.
@@ -487,7 +489,8 @@ export function TrainingPage() {
         routeId: id,
         metaTrainingId: meta.trainingId,
         isNew,
-        clientId: client?.id ?? clientIdParam,
+        clientId: client?.id,
+        routeClientId: clientIdParam,
       })
     ) {
       return
@@ -1128,6 +1131,8 @@ export function TrainingPage() {
         silent,
         routeId: persistTrainingIdOverride || id,
         metaTrainingId: metaLive.trainingId,
+        routeClientId: persistTrainingIdOverride ? clientLive?.id : clientIdParamLive,
+        stateClientId: clientLive?.id,
       })
     ) {
       if (silent) setAutosaveStatus('idle')
@@ -1192,6 +1197,15 @@ export function TrainingPage() {
       return
     }
     let prev = trainingId ? await db.get('trainings', trainingId) : null
+    if (
+      shouldBlockCrossClientTrainingRowWrite({
+        existingClientId: prev?.client_id,
+        payloadClientId: cid,
+      })
+    ) {
+      if (silent) setAutosaveStatus('idle')
+      return
+    }
 
     const previousStatus = prev?.status ?? metaLive.status
     const nextStatus = resolveTrainingPersistStatus(status, previousStatus)
@@ -1951,7 +1965,8 @@ export function TrainingPage() {
     routeId: id,
     metaTrainingId: meta.trainingId,
     isNew,
-    clientId: client?.id ?? clientIdParam,
+    clientId: client?.id,
+    routeClientId: clientIdParam,
   })
   // Кадр смены вкладки: URL уже другой, meta/workout ещё старые — не рисуем чужие упражнения.
   if (loadState === 'ok' && !draftUiAligned) {

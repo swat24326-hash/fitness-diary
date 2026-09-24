@@ -11,6 +11,7 @@ import {
   peekTrainingDraftSession,
   putTrainingDraftSession,
   shouldBlockMismatchedDraftPersist,
+  shouldBlockCrossClientTrainingRowWrite,
   takeTrainingDraftSession,
   trainingDraftSessionCacheSize,
 } from '../src/lib/trainingDraftSessionCache.js'
@@ -66,6 +67,44 @@ ok(!shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'a', metaTraining
 ok(
   shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'draft-a', metaTrainingId: '' }),
   'block silent while meta hydrating existing route',
+)
+ok(
+  shouldBlockMismatchedDraftPersist({
+    silent: true,
+    routeId: 'draft-b',
+    metaTrainingId: 'draft-b',
+    routeClientId: 'c-platonov',
+    stateClientId: 'c-balabin',
+  }),
+  'CRITICAL: silent persist blocked when URL client ≠ live client',
+)
+ok(
+  !shouldBlockMismatchedDraftPersist({
+    silent: true,
+    routeId: 'draft-b',
+    metaTrainingId: 'draft-b',
+    routeClientId: 'c-b',
+    stateClientId: 'c-b',
+  }),
+  'silent persist ok when client matches',
+)
+ok(
+  shouldBlockCrossClientTrainingRowWrite({ existingClientId: 'c-platonov', payloadClientId: 'c-balabin' }),
+  'CRITICAL: не писать Балабина в строку Платонова',
+)
+ok(
+  !shouldBlockCrossClientTrainingRowWrite({ existingClientId: 'c-b', payloadClientId: 'c-b' }),
+  'same client row write ok',
+)
+ok(
+  !isTrainingDraftUiAligned({
+    loadState: 'ok',
+    routeId: 'draft-b',
+    metaTrainingId: 'draft-b',
+    clientId: 'c-balabin',
+    routeClientId: 'c-platonov',
+  }),
+  'ui hidden when tab client ≠ form client',
 )
 
 ok(!putTrainingDraftSession('new', { ready: true, meta: { trainingId: 'new' } }), 'reject new key')

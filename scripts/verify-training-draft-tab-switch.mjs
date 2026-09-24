@@ -182,6 +182,16 @@ ok(
   shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'draft-a', metaTrainingId: '' }),
   'CRITICAL: no silent IDB write while meta hydrating',
 )
+ok(
+  shouldBlockMismatchedDraftPersist({
+    silent: true,
+    routeId: 'draft-c',
+    metaTrainingId: 'draft-c',
+    routeClientId: 'c-platonov',
+    stateClientId: 'c-balabin',
+  }),
+  'CRITICAL: Балабин→Платонов silent persist blocked',
+)
 
 if (failed) {
   console.error(`\n${failed} failed`)
