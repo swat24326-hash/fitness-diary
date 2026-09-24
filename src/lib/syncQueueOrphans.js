@@ -7,10 +7,11 @@ import {
   isSyncQueueOrphanForCloudClients,
   isUnrecoverablePushError,
   pendingClientInsertIdsFromQueue,
+  shouldDropExhaustedSyncRetry,
 } from './syncFlushResult'
 import { mergeTrainingPushStatus } from './trainingPersistStatusCore.js'
 
-export { isUnrecoverablePushError } from './syncFlushResult'
+export { isUnrecoverablePushError, shouldDropExhaustedSyncRetry, SYNC_QUEUE_MAX_RETRIES } from './syncFlushResult'
 
 /** Удалить локальную запись, которую сервер больше не примет. */
 export async function dropLocalOrphanForSyncItem(item) {
@@ -64,9 +65,6 @@ export async function purgeSyncQueueAgainstLocalClients() {
   return purgeSyncQueueForMissingClients(localIds)
 }
 
-/** Максимум повторов отправки одной записи очереди — дальше снимаем и пишем в журнал. */
-export const SYNC_QUEUE_MAX_RETRIES = 12
-
 /**
  * Снять записи, исчерпавшие лимит повторов.
  * @param {{ onDrop?: (item: object) => void }} [opts]
@@ -77,7 +75,7 @@ export async function pruneExhaustedSyncRetries(opts = {}) {
   let removed = 0
 
   for (const item of queue) {
-    if ((item.retry_count ?? 0) < SYNC_QUEUE_MAX_RETRIES) continue
+    if (!shouldDropExhaustedSyncRetry(item)) continue
     await removeSyncItem(item.local_id)
     onDrop(item)
     removed++

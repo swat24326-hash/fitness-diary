@@ -12,6 +12,7 @@ import {
   shouldPreserveLocalRowOnPull,
   collapseMemoryPushBatch,
   judgeFlushDrain,
+  shouldDropExhaustedSyncRetry,
 } from '../src/lib/syncFlushResult.js'
 
 let failed = 0
@@ -210,6 +211,18 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
   assert(empty.done && empty.result.ok === true && empty.result.remaining === 0, 'ok + пустая очередь → готово')
   const offline = judgeFlushDrain({ ok: false, reason: 'offline_or_stub' }, 2)
   assert(offline.done && offline.result.reason === 'offline_or_stub', 'офлайн не крутим дальше')
+}
+{
+  const trainingInsert = { table_name: 'trainings', operation: 'insert', retry_count: 12 }
+  assert(!shouldDropExhaustedSyncRetry(trainingInsert), '12 таймаутов: тренировку не снимаем')
+  assert(
+    !shouldDropExhaustedSyncRetry({ table_name: 'memberships', operation: 'update', retry_count: 12 }),
+    '12 таймаутов: абон не снимаем',
+  )
+  assert(
+    shouldDropExhaustedSyncRetry({ table_name: 'exercises', operation: 'insert', retry_count: 12 }),
+    '12 таймаутов: справочник снимаем',
+  )
 }
 
 if (failed > 0) {

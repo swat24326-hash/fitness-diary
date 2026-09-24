@@ -224,6 +224,23 @@ export function judgeFlushDrain(result, queueLength) {
   }
 }
 
+/** После 12 сетевых сбоев не выкидывать тренировку и абон — иначе статистика пустая. */
+export const SYNC_QUEUE_MAX_RETRIES = 12
+
+/**
+ * @param {{ table_name?: string, operation?: string, retry_count?: number } | null | undefined} item
+ */
+export function shouldDropExhaustedSyncRetry(item) {
+  const n = Number(item?.retry_count) || 0
+  if (n < SYNC_QUEUE_MAX_RETRIES) return false
+  const table = String(item?.table_name ?? '')
+  const op = String(item?.operation ?? '')
+  if ((table === 'trainings' || table === 'memberships') && (op === 'insert' || op === 'update')) {
+    return false
+  }
+  return true
+}
+
 export function describeFlushQueueResult(flush) {
   if (!flush) return { part: null, hadError: true }
   if (flush.ok) return { part: 'очередь отправлена', hadError: false }

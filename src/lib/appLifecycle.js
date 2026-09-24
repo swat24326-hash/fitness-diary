@@ -6,7 +6,7 @@ export const APP_WAKE_EVENT = 'fitness-diary-app-wake'
 export const APP_BUILD_STALE_EVENT = 'fitness-diary-build-stale'
 
 const LONG_WAKE_MS = 30_000
-const SW_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000
+const SW_CHECK_INTERVAL_MS = 15 * 60 * 1000
 
 /** @type {Set<(detail: { sleptMs: number, long: boolean }) => void | Promise<void>>} */
 const longWakeHandlers = new Set()
@@ -61,8 +61,8 @@ export function initAppLifecycle(opts = {}) {
           console.warn('[lifecycle] long wake handler', e)
         })
       }
-      void probeBuildStale()
     }
+    void probeBuildStale()
     void probeServiceWorkerUpdate()
   }
 

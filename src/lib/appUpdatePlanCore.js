@@ -74,9 +74,9 @@ export function pwaUpdateBannerCopy(ctx = {}) {
   }
   if (ctx.action === 'defer') {
     return {
-      text: 'Доступна новая версия — обновим, когда закончите тренировку (черновик сохранён) или сохраните отчёт продаж.',
-      primary: null,
-      secondary: 'Понятно',
+      text: 'Доступна новая версия. Черновик тренировки сохраним на устройство, затем обновим. Можно нажать сейчас — не обязательно ждать конца занятия.',
+      primary: 'Обновить сейчас',
+      secondary: 'Позже',
     }
   }
   if (ctx.action === 'manual_only' || ctx.action === 'hard_recover') {
