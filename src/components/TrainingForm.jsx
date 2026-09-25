@@ -107,6 +107,7 @@ export function TrainingForm({
   trainingType = 'Силовая',
   clientId = '',
   currentTrainingId = null,
+  draftRouteId = null,
   hrSessionSummary = null,
 }) {
   const placeKey = String(currentTrainingId ?? '').trim()
@@ -132,6 +133,7 @@ export function TrainingForm({
   /** Последнее упражнение, с которым работали (не путать с панелью «фокус»). */
   const activeExerciseIdRef = useRef(initialPlace?.focusExerciseId ?? null)
   const placeKeyRef = useRef(placeKey)
+  const boundDraftRouteRef = useRef(String(draftRouteId ?? currentTrainingId ?? ''))
   const placeSnapshotRef = useRef({
     step,
     focusExerciseId: initialPlace?.focusExerciseId ?? null,
@@ -165,7 +167,7 @@ export function TrainingForm({
   }, [currentTrainingId, clientId])
 
   const setWorkout = (patch) => {
-    onChange((prev) => ({ ...prev, ...patch }))
+    onChange((prev) => ({ ...prev, ...patch }), { routeId: boundDraftRouteRef.current })
   }
 
   const sessionFallback = normalizeExerciseFormat(trainingType)

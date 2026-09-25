@@ -45,3 +45,27 @@ export function resolveTrainingFormRemountKey(opts = {}) {
 export function shouldApplyTrainingPersistUi(opts = {}) {
   return isTrainingDraftEpochCurrent(opts.currentEpoch, opts.persistEpoch)
 }
+
+/**
+ * Планшет: blur поля часто приходит после тапа по другой вкладке.
+ * Поздний onChange не должен писать упражнения клиента A в черновик B.
+ * @param {{
+ *   ownerRouteId?: string | null,
+ *   liveRouteId?: string | null,
+ *   ownerEpoch?: number,
+ *   currentEpoch?: number,
+ * }} opts
+ */
+export function shouldAcceptDraftWorkoutEdit(opts = {}) {
+  const ownerRoute = String(opts.ownerRouteId ?? '').trim()
+  const liveRoute = String(opts.liveRouteId ?? '').trim()
+  if (ownerRoute && liveRoute && ownerRoute !== liveRoute) return false
+  if (
+    opts.ownerEpoch != null &&
+    opts.currentEpoch != null &&
+    !isTrainingDraftEpochCurrent(opts.currentEpoch, opts.ownerEpoch)
+  ) {
+    return false
+  }
+  return true
+}

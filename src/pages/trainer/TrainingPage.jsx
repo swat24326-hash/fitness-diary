@@ -28,6 +28,7 @@ import {
   resolveTrainingFormRemountKey,
   resolveTrainingPersistTargetId,
   shouldApplyTrainingPersistUi,
+  shouldAcceptDraftWorkoutEdit,
 } from '../../lib/trainingDraftPageEpochCore.js'
 import {
   buildTrainingDraftSessionSnapshot,
@@ -214,6 +215,8 @@ export function TrainingPage() {
   const pendingLeavingTabFlushRef = useRef(null)
   /** Смена вкладки черновика: устаревший load/persist не пишет в чужой экран. */
   const pageEpochRef = useRef(0)
+  /** Хозяин ввода: не обновлять при смене вкладки — только по жесту на форме. */
+  const draftEditOwnerRef = useRef({ routeId: String(id ?? ''), epoch: 0 })
   /** Временный id буфера пульса до первого сохранения /workouts/new */
   const pendingHrScopeRef = useRef(null)
   const autosaveUiTimerRef = useRef(null)
@@ -283,12 +286,32 @@ export function TrainingPage() {
   }, [user?.id, user?.club_id])
 
   /** Синхронно в ref — переживает уход на главную до re-render (последний символ в textarea). */
-  const applyWorkoutState = useCallback((updater) => {
-    const prev = liveDraftRef.current.workoutState ?? emptyTrainingData()
+  const applyWorkoutState = useCallback((updater, owner = {}) => {
+    const live = liveDraftRef.current
+    if (
+      !shouldAcceptDraftWorkoutEdit({
+        ownerRouteId: owner.routeId ?? live.routeId,
+        liveRouteId: live.routeId,
+        ownerEpoch: owner.epoch ?? pageEpochRef.current,
+        currentEpoch: pageEpochRef.current,
+      })
+    ) {
+      return
+    }
+    const prev = live.workoutState ?? emptyTrainingData()
     const next = typeof updater === 'function' ? updater(prev) : updater
     liveDraftRef.current = { ...liveDraftRef.current, workoutState: next }
     setWorkoutState(next)
   }, [])
+
+  const claimDraftEditOwner = useCallback(() => {
+    draftEditOwnerRef.current = { routeId: String(id ?? ''), epoch: pageEpochRef.current }
+  }, [id])
+
+  const onWorkoutChange = useCallback(
+    (updater, owner) => applyWorkoutState(updater, owner ?? draftEditOwnerRef.current),
+    [applyWorkoutState],
+  )
 
   const writeDurableFromLiveGuarded = useCallback(async (live, revisedAt) => {
     const tid = String(live?.meta?.trainingId ?? '').trim()
@@ -443,6 +466,7 @@ export function TrainingPage() {
 
     const outgoing = draftSessionGateRef.current
     if (outgoing?.id && outgoing.id !== id) {
+      pageEpochRef.current += 1
       flushLeavingDraftSync(outgoing.id)
       pendingLeavingTabFlushRef.current = outgoing.id
       void flushLeavingDraftOnTabSwitch(outgoing.id)
@@ -2098,7 +2122,13 @@ export function TrainingPage() {
   }
 
   return (
-    <div className="grid training-page-root" style={{ gap: 16 }}>
+    <div
+      className="grid training-page-root"
+      style={{ gap: 16 }}
+      onPointerDown={claimDraftEditOwner}
+      onFocusCapture={claimDraftEditOwner}
+      onKeyDownCapture={claimDraftEditOwner}
+    >
       <div className="trainer-path-head training-page-head-title">
         <div className="trainer-path-head__left training-page-head-title__left">
           <h1 className="trainer-path-head__title training-page-head-name">{title}</h1>
@@ -2316,7 +2346,10 @@ export function TrainingPage() {
                   min={0}
                   step="0.1"
                   value={workoutState.pre_weight_kg ?? ''}
-                  onChange={(e) => setWorkoutState((w) => ({ ...w, pre_weight_kg: e.target.value }))}
+                  onChange={(e) => {
+                    const kg = e.target.value
+                    onWorkoutChange((w) => ({ ...w, pre_weight_kg: kg }))
+                  }}
                   aria-label="Вес до тренировки, кг"
                   title="Если уже указан в карте здоровья — подставляется автоматически, можно поправить"
                 />
@@ -2337,7 +2370,10 @@ export function TrainingPage() {
           <input
             className="input"
             value={workoutState.training_focus ?? ''}
-            onChange={(e) => setWorkoutState((w) => ({ ...w, training_focus: stripDirectionControls(e.target.value) }))}
+            onChange={(e) => {
+              const focus = stripDirectionControls(e.target.value)
+              onWorkoutChange((w) => ({ ...w, training_focus: focus }))
+            }}
           />
         </div>
       </div>
@@ -2348,7 +2384,8 @@ export function TrainingPage() {
           clientId: client?.id ?? clientIdParam,
         })}
         value={workoutState}
-        onChange={applyWorkoutState}
+        onChange={onWorkoutChange}
+        draftRouteId={id}
         trainingType={trainingType}
         clientId={client?.id ?? clientIdParam ?? ''}
         currentTrainingId={resolveTrainingFormPlaceKey({

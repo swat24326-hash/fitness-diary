@@ -6,6 +6,7 @@ import {
   resolveTrainingFormRemountKey,
   resolveTrainingPersistTargetId,
   shouldApplyTrainingPersistUi,
+  shouldAcceptDraftWorkoutEdit,
 } from '../src/lib/trainingDraftPageEpochCore.js'
 
 let failed = 0
@@ -71,6 +72,43 @@ ok(
 ok(
   !shouldApplyTrainingPersistUi({ currentEpoch: 6, persistEpoch: 5 }),
   'switched tab → no UI to foreign screen (disk still writes)',
+)
+
+ok(
+  shouldAcceptDraftWorkoutEdit({
+    ownerRouteId: 'draft-a',
+    liveRouteId: 'draft-a',
+    ownerEpoch: 3,
+    currentEpoch: 3,
+  }),
+  'edit accepted on same tab',
+)
+ok(
+  !shouldAcceptDraftWorkoutEdit({
+    ownerRouteId: 'draft-a',
+    liveRouteId: 'draft-b',
+    ownerEpoch: 3,
+    currentEpoch: 3,
+  }),
+  'CRITICAL: late blur after tab tap does not edit other draft',
+)
+ok(
+  !shouldAcceptDraftWorkoutEdit({
+    ownerRouteId: 'draft-a',
+    liveRouteId: 'draft-a',
+    ownerEpoch: 3,
+    currentEpoch: 4,
+  }),
+  'stale epoch edit dropped after tab switch',
+)
+ok(
+  !shouldAcceptDraftWorkoutEdit({
+    ownerRouteId: 'draft-a',
+    liveRouteId: 'draft-b',
+    ownerEpoch: 2,
+    currentEpoch: 5,
+  }),
+  'form instance of A + header blur after tap B: both route and epoch reject',
 )
 
 if (failed) {

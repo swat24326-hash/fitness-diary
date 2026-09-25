@@ -30,7 +30,7 @@
 | Слой | Путь |
 |------|------|
 | UI вкладок | `src/components/DraftTabsBar.jsx`, `src/pages/trainer/TrainingPage.jsx` |
-| Сессия / epoch | `src/lib/trainingDraftSessionCache.js`, `src/lib/trainingDraftTabSwitchCore.js`, `src/lib/trainingDraftRestoreCore.js` |
+| Сессия / epoch | `src/lib/trainingDraftSessionCache.js`, `src/lib/trainingDraftTabSwitchCore.js`, `src/lib/trainingDraftPageEpochCore.js` (`shouldAcceptDraftWorkoutEdit`), `src/lib/trainingDraftRestoreCore.js` |
 | Диск (durable) | `src/lib/trainingDraftDurableStorage.js`, `src/lib/trainingDraftDurableHydrate.js` |
 | Скрытие вкладки | `src/hooks/useTrainingDraftHideFlush.js` |
 | Verify | `scripts/verify-training-draft-tab-switch.mjs`, `scripts/verify-training-draft-page-epoch.mjs`, `scripts/verify-training-draft-restore.mjs`, `scripts/verify-training-draft-durable.mjs` |
