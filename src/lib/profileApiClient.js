@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
-import { ADMIN_FETCH_TIMEOUT_MS, fetchWithAppTimeout, noteAppNetworkResponse } from './networkReachability'
+import { fetchWithAppTimeout, noteAppNetworkResponse } from './networkReachability'
 
 async function parseJson(res) {
   const text = await res.text()
@@ -44,7 +44,7 @@ export async function fetchMyProfileViaApi() {
         credentials: 'same-origin',
         cache: 'no-store',
       },
-      ADMIN_FETCH_TIMEOUT_MS,
+      undefined,
     )
     if (res.status === 401) {
       const refreshed = await supabase.auth.refreshSession()
@@ -58,7 +58,7 @@ export async function fetchMyProfileViaApi() {
             credentials: 'same-origin',
             cache: 'no-store',
           },
-          ADMIN_FETCH_TIMEOUT_MS,
+          undefined,
         )
       }
     }

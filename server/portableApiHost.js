@@ -7,6 +7,7 @@ import { stat } from 'node:fs/promises'
 import { createReadStream, existsSync } from 'node:fs'
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { classifyServiceRoleKeyShape } from '../api/_lib/authCallerProfileCore.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
@@ -164,6 +165,7 @@ export function createPortableApiHost(opts = {}) {
             ok: true,
             service: 'portable-api',
             ts: new Date().toISOString(),
+            cloudKey: classifyServiceRoleKeyShape(process.env.SUPABASE_SERVICE_ROLE_KEY),
           }),
         )
         return

@@ -80,6 +80,7 @@
 | Слой | Путь |
 |------|------|
 | Auth UI | `src/context/AuthContext.jsx`, `src/App.jsx` |
+| UUID на http://IP | `src/lib/safeRandomUuid.js`, `src/lib/installSafeRandomUuid.js` (первый импорт `src/main.jsx`) |
 | Вход API | `api/auth-sign-in.js`, `api/_lib/authLoginResolveCore.js` |
 | Клиент входа | `src/lib/authSignInService.js`, `src/lib/authLoginResolveCore.js` |
 | SW / обновление | `src/lib/appLifecycle.js`, `src/lib/appUpdateApplyService.js`, `src/lib/appBuildInfo.js` |
@@ -161,7 +162,7 @@
 | Маршруты `/club` | `src/App.jsx` (`accessMode="supervisor"`) |
 | UI управляющего | `src/pages/admin/AdminDashboard.jsx`, `src/pages/admin/ClubSupervisorClients.jsx`, `src/pages/admin/ClubSupervisorSettings.jsx` |
 | Контекст клуба | `src/lib/clubContext.js` |
-| Правила доступа | `api/_lib/mutationAuth.js`, `api/_lib/adminSupabase.js` (`requireAdmin*`, `requireAuthUser`) |
+| Правила доступа | `api/_lib/mutationAuth.js`, `api/_lib/adminSupabase.js` (`requireAdmin*`, `requireAuthUser`), `api/_lib/authCallerProfileCore.js` (ошибка users ≠ пустая роль) |
 | Verify | `scripts/verify-security-l1-audit.mjs` (роли) |
 | Docs | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), INCIDENTS **L** |
 

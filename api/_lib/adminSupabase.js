@@ -3,6 +3,85 @@ import { isAdminByRole } from '../../src/lib/admin/adminRoleCore.js'
 import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
 import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
 import { AUTH_ENV_MISSING_RU, verifyBearer } from './authPort.js'
+import {
+  AUTH_PROFILE_CLOUD_UNAVAILABLE_RU,
+  AUTH_PROFILE_MEMO_MAX,
+  AUTH_PROFILE_QUERY_TIMEOUT_MS,
+  AUTH_PROFILE_RETRY_DELAY_MS,
+  AUTH_PROFILE_STALE_MAX_MS,
+  AUTH_PROFILE_MEMO_TTL_MS,
+  coalesceByKey,
+  interpretUsersProfileQuery,
+  readAuthProfileMemoHit,
+} from './authCallerProfileCore.js'
+import { pruneVerifyBearerMemo } from './verifyBearerMemoCore.js'
+
+/** @type {Map<string, { flags: object, at: number }>} */
+const authProfileMemo = new Map()
+/** @type {Map<string, Promise<{ kind: string, profile: object | null, message: string | null }>>} */
+const authProfileInflight = new Map()
+
+const CALLER_PROFILE_FIELDS = 'id, role, email, club_id, name, phone, login'
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {string} fields
+ * @param {(q: import('@supabase/supabase-js').PostgrestFilterBuilder) => import('@supabase/supabase-js').PostgrestFilterBuilder} apply
+ */
+async function selectUsersProfile(supabaseAdmin, fields, apply) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), AUTH_PROFILE_QUERY_TIMEOUT_MS)
+  try {
+    let q = supabaseAdmin.from('users').select(fields)
+    q = apply(q)
+    return interpretUsersProfileQuery(await q.abortSignal(ctrl.signal).maybeSingle())
+  } catch (e) {
+    return interpretUsersProfileQuery({ data: null, error: { message: e?.message || 'fetch failed' } })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {{ id: string, email?: string }} user
+ */
+async function loadCallerProfileOnce(supabaseAdmin, user) {
+  const byId = await selectUsersProfile(supabaseAdmin, CALLER_PROFILE_FIELDS, (q) => q.eq('id', user.id))
+  if (byId.kind === 'query_error') return byId
+  let profile = byId.profile
+  const callerEmail = String(user.email ?? '')
+    .trim()
+    .toLowerCase()
+  if (!profile?.role && callerEmail) {
+    const byEmail = await selectUsersProfile(supabaseAdmin, CALLER_PROFILE_FIELDS, (q) =>
+      q.ilike('email', callerEmail),
+    )
+    if (byEmail.kind === 'query_error') return byEmail
+    if (byEmail.profile) profile = byEmail.profile
+  }
+  return { kind: 'ok', profile, message: null }
+}
+
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {{ id: string, email?: string }} user
+ */
+async function loadCallerProfile(supabaseAdmin, user) {
+  let last = await loadCallerProfileOnce(supabaseAdmin, user)
+  if (last.kind !== 'query_error') return last
+  await wait(AUTH_PROFILE_RETRY_DELAY_MS)
+  last = await loadCallerProfileOnce(supabaseAdmin, user)
+  if (last.kind !== 'query_error') return last
+  await wait(AUTH_PROFILE_RETRY_DELAY_MS)
+  return loadCallerProfileOnce(supabaseAdmin, user)
+}
 
 export function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -66,26 +145,41 @@ export async function requireAuthUser(req, res) {
   }
 
   const supabaseAdmin = createClient(url, serviceKey)
-
-  const callerEmail = String(user.email ?? '')
-    .trim()
-    .toLowerCase()
-  let profile = (
-    await supabaseAdmin.from('users').select('id, role, email, club_id, name').eq('id', user.id).maybeSingle()
-  ).data
-  if (!profile?.role && callerEmail) {
-    profile = (
-      await supabaseAdmin.from('users').select('id, role, email, club_id, name').ilike('email', callerEmail).maybeSingle()
-    ).data
+  const now = Date.now()
+  const memoFlags = readAuthProfileMemoHit(user.id, authProfileMemo.get(user.id), now)
+  if (memoFlags) {
+    return { supabaseAdmin, user, ...memoFlags }
   }
+
+  const loaded = await coalesceByKey(authProfileInflight, user.id, () => loadCallerProfile(supabaseAdmin, user))
+  if (loaded.kind === 'query_error') {
+    const staleFlags = readAuthProfileMemoHit(
+      user.id,
+      authProfileMemo.get(user.id),
+      now,
+      AUTH_PROFILE_MEMO_TTL_MS,
+      AUTH_PROFILE_STALE_MAX_MS,
+    )
+    if (staleFlags) {
+      return { supabaseAdmin, user, ...staleFlags }
+    }
+    console.warn('[auth-profile]', loaded.message || AUTH_PROFILE_CLOUD_UNAVAILABLE_RU)
+    sendJson(res, 503, { error: AUTH_PROFILE_CLOUD_UNAVAILABLE_RU })
+    return null
+  }
+
+  const profile = loaded.profile
   const roleNorm = normalizeRole(profile?.role)
   const isAdmin = isAdminByRole(roleNorm)
   const isSalesManager = isSalesManagerRoleNorm(roleNorm)
   const isSupervisor = isSupervisorRoleNorm(roleNorm)
   // Пустая role не даёт прав тренера — только явная роль trainer / «тренер».
   const isTrainer = isTrainerRole(roleNorm)
+  const flags = { profile, roleNorm, isAdmin, isTrainer, isSalesManager, isSupervisor }
+  authProfileMemo.set(user.id, { flags, at: now })
+  pruneVerifyBearerMemo(authProfileMemo, AUTH_PROFILE_MEMO_MAX)
 
-  return { supabaseAdmin, user, profile, roleNorm, isAdmin, isTrainer, isSalesManager, isSupervisor }
+  return { supabaseAdmin, user, ...flags }
 }
 
 /** Доступ к list-trainers и trainer-pull: админ или явная роль тренера. */

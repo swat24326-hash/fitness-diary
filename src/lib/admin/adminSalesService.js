@@ -6,6 +6,7 @@ import {
   saveClubSalesPlanViaSupabase,
 } from './adminSalesLocalService.js'
 import { isCloudReachable, fetchWithAppTimeout } from '../networkReachability.js'
+import { resolveAdminFetchTimeoutMs } from '../adminFetchTimeoutCore.js'
 import { humanizeNetworkError } from '../supabaseRetry.js'
 import { salesTrainerLabelsNeedEnrich } from './salesTrainerLabelsCore.js'
 import { hydrateTrainingsMatrixInputMap, normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
@@ -57,12 +58,16 @@ function isApiTransportError(err) {
 async function adminApiGet(path, token) {
   let res
   try {
-    res = await fetchWithAppTimeout(`${apiOrigin()}${path}`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: 'same-origin',
-      cache: 'no-store',
-    })
+    res = await fetchWithAppTimeout(
+      `${apiOrigin()}${path}`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
+        cache: 'no-store',
+      },
+      resolveAdminFetchTimeoutMs(undefined, apiOrigin()),
+    )
   } catch (e) {
     throw new Error(e?.message ?? 'Сеть')
   }
@@ -76,16 +81,20 @@ async function adminApiGet(path, token) {
 async function adminApiPost(path, token, body) {
   let res
   try {
-    res = await fetchWithAppTimeout(`${apiOrigin()}${path}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+    res = await fetchWithAppTimeout(
+      `${apiOrigin()}${path}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify(body ?? {}),
       },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      body: JSON.stringify(body ?? {}),
-    })
+      resolveAdminFetchTimeoutMs(undefined, apiOrigin()),
+    )
   } catch (e) {
     throw new Error(e?.message ?? 'Сеть')
   }

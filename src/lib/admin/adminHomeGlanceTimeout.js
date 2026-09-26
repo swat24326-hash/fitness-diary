@@ -3,12 +3,22 @@
  * облако (Supabase) не должно вешать «Продажи», сводку дня и сводку смены.
  */
 import { withFastTimeout } from '../supabaseRetry.js'
+import { isPortableAdminOrigin, PORTABLE_ADMIN_FETCH_TIMEOUT_MS } from '../adminFetchTimeoutCore.js'
 
 /** Единый потолок для home-glance сетевых вызовов. */
 export const HOME_GLANCE_CLOUD_MS = 8000
 
 /** Продажи на главной тянут больше данных — чуть шире. */
 export const HOME_SALES_GLANCE_MS = 16000
+
+/** Hybrid A (IP:порт): сервер ещё ходит в Supabase — 8 с мало. */
+export function resolveHomeGlanceCloudMs(explicitMs) {
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
+  if (isPortableAdminOrigin(origin)) return PORTABLE_ADMIN_FETCH_TIMEOUT_MS
+  const n = Number(explicitMs)
+  if (Number.isFinite(n) && n > 0) return n
+  return HOME_GLANCE_CLOUD_MS
+}
 
 /**
  * @template T
@@ -17,7 +27,7 @@ export const HOME_SALES_GLANCE_MS = 16000
  * @returns {Promise<T>}
  */
 export function withHomeGlanceTimeout(promise, ms = HOME_GLANCE_CLOUD_MS) {
-  return withFastTimeout(promise, ms)
+  return withFastTimeout(promise, resolveHomeGlanceCloudMs(ms))
 }
 
 /**

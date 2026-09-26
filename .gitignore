@@ -10,3 +10,4 @@ vercel-deploy-log.txt
 qa-screenshots/
 .cursor/hooks/.state/
 .env*
+.local/

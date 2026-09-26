@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { getHealthCard, getLocalClient, listClubsLocal, listMemberships, listTrainingsForClient, LOCAL_DATA_CHANGED } from '../../lib/dataAccess'
 import { clampIsoDateToToday, formatDateRu, isIsoDateAfterToday, todayLocalIso } from '../../lib/dateRu'
 import { getDb } from '../../lib/localDb'
+import { safeRandomUuid } from '../../lib/safeRandomUuid.js'
 import {
   applyEarlyMembershipActivation,
   applyLateMembershipStart,
@@ -1172,7 +1173,7 @@ export function TrainingPage() {
       draftRefId: draftTrainingIdRef.current,
     })
     if (!trainingId) {
-      trainingId = crypto.randomUUID()
+      trainingId = safeRandomUuid()
       draftTrainingIdRef.current = trainingId
       // meta только если экран ещё этот черновик — иначе чужая вкладка получит чужой id
       if (shouldApplyTrainingPersistUi({ currentEpoch: pageEpochRef.current, persistEpoch })) {
@@ -1898,7 +1899,7 @@ export function TrainingPage() {
     if (!cid) return
     let tid = meta.trainingId || draftTrainingIdRef.current
     if (!tid || tid === 'new') {
-      if (!pendingHrScopeRef.current) pendingHrScopeRef.current = crypto.randomUUID()
+      if (!pendingHrScopeRef.current) pendingHrScopeRef.current = safeRandomUuid()
       tid = pendingHrScopeRef.current
     }
     hr.bindTrainingScope(cid, tid)

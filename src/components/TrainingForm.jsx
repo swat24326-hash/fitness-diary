@@ -31,6 +31,7 @@ import {
   toggleSupersetWithPrevious,
 } from '../lib/trainingSuperset'
 import { TrainingHrSessionSummary } from './trainer/TrainingHrSessionSummary.jsx'
+import { safeRandomUuid } from '../lib/safeRandomUuid.js'
 import {
   filterCollapsedIdsForExercises,
   escapeTrainingExerciseSelectorId,
@@ -43,7 +44,7 @@ import {
 
 function newEmptyExerciseRow(format = 'Силовая', laterality = null) {
   const row = {
-    id: crypto.randomUUID(),
+    id: safeRandomUuid(),
     name: '',
     /** UUID из таблицы exercises; только выбор из справочника, при наборе текста без совпадения — null */
     catalog_exercise_id: null,

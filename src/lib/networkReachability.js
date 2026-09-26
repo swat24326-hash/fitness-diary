@@ -1,3 +1,5 @@
+import { resolveAdminFetchTimeoutMs } from './adminFetchTimeoutCore.js'
+
 /**
  * «Сеть» в UI = Wi‑Fi/интернет устройства (navigator.onLine).
  * «Облако» = отдельная проверка origin/API (Vercel может быть недоступен при живом Wi‑Fi).
@@ -87,13 +89,15 @@ export function firstSuccessfulPromise(tasks) {
 }
 
 /** Обрывает зависшие fetch после сна ноутбука (без бесконечного ожидания). */
-export async function fetchWithAppTimeout(url, init = {}, timeoutMs = ADMIN_FETCH_TIMEOUT_MS) {
+export async function fetchWithAppTimeout(url, init = {}, timeoutMs = undefined) {
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
+  const ms = resolveAdminFetchTimeoutMs(timeoutMs, origin)
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
   const timer =
     ctrl &&
     setTimeout(() => {
       ctrl.abort()
-    }, timeoutMs)
+    }, ms)
   try {
     const res = await fetch(url, { ...init, signal: ctrl?.signal })
     noteAppNetworkResponse(res)

@@ -124,6 +124,8 @@
 | Переименование code типа карты (уникальность в клубе) | `verify-membership-type-code.mjs` |
 | R2 / bare PG: порядок migrate + stub auth.* + SSL | `verify-pg-migrate-order.mjs` |
 | Portable host: `/api/health` | `verify-portable-host.mjs` |
+| Hybrid A: таймаут /api на IP:порт + кэш verifyBearer + ошибка users ≠ 403 | `verify-admin-fetch-timeout.mjs` |
+| Hybrid A: UUID на http://IP без crypto.randomUUID | `verify-safe-random-uuid.mjs` |
 | R1: нет prod URL в `src/`/`api/` | `verify-r1-portability.mjs` |
 | Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
 | Управляющий: club scope / один на клуб / без журнала удалений | `verify-supervisor-access.mjs` |

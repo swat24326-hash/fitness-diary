@@ -4,6 +4,10 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { normalizePasswordInput } from './authLoginResolveCore.js'
+import { pruneVerifyBearerMemo, readVerifyBearerMemoHit } from './verifyBearerMemoCore.js'
+
+/** @type {Map<string, { value: { user: object, error: null }, at: number }>} */
+const verifyBearerMemo = new Map()
 
 /**
  * @param {string} url
@@ -13,6 +17,9 @@ import { normalizePasswordInput } from './authLoginResolveCore.js'
 export async function verifyBearerSupabase(url, anonKey, bearerToken) {
   const token = String(bearerToken ?? '').trim()
   if (!token) return { user: null, error: 'Unauthorized' }
+  const now = Date.now()
+  const cached = readVerifyBearerMemoHit(token, verifyBearerMemo.get(token), now)
+  if (cached) return { user: cached.user, error: null }
   const supabaseAsCaller = createClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
@@ -23,6 +30,8 @@ export async function verifyBearerSupabase(url, anonKey, bearerToken) {
   if (error || !user) {
     return { user: null, error: error?.message || 'Сессия недействительна — войдите снова' }
   }
+  verifyBearerMemo.set(token, { value: { user, error: null }, at: now })
+  pruneVerifyBearerMemo(verifyBearerMemo)
   return { user, error: null }
 }
 

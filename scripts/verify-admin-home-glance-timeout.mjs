@@ -9,7 +9,9 @@ import {
   HOME_GLANCE_CLOUD_MS,
   HOME_SALES_GLANCE_MS,
   homeGlanceCloudFailMessage,
+  resolveHomeGlanceCloudMs,
 } from '../src/lib/admin/adminHomeGlanceTimeout.js'
+import { PORTABLE_ADMIN_FETCH_TIMEOUT_MS } from '../src/lib/adminFetchTimeoutCore.js'
 import { buildClubCallShiftSummary, buildClubCallShiftSummaryCards } from '../src/lib/admin/clubCallShiftSummaryCore.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -25,6 +27,8 @@ function ok(cond, msg) {
 
 ok(HOME_GLANCE_CLOUD_MS === 8000, 'home glance cloud = 8s')
 ok(HOME_SALES_GLANCE_MS === 16000, 'sales glance = 16s')
+ok(resolveHomeGlanceCloudMs(HOME_GLANCE_CLOUD_MS) === HOME_GLANCE_CLOUD_MS, 'no window → keep 8s')
+ok(PORTABLE_ADMIN_FETCH_TIMEOUT_MS === 20_000, 'portable fetch 20s')
 ok(
   homeGlanceCloudFailMessage(new Error('timeout')).includes('не отвечает'),
   'timeout → русское сообщение',

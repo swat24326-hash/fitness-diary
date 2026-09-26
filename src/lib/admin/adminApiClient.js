@@ -1,6 +1,7 @@
 import { supabase } from '../supabase'
 import { sleep } from '../supabaseRetry'
 import { fetchWithAppTimeout, CLUB_STATS_FETCH_TIMEOUT_MS } from '../networkReachability.js'
+import { resolveAdminFetchTimeoutMs } from '../adminFetchTimeoutCore.js'
 
 async function parseJsonResponse(res) {
   const text = await res.text()
@@ -74,7 +75,7 @@ export async function fetchTrainersViaAdminApi(opts = {}) {
   for (let attempt = 0; attempt < 3; attempt++) {
     let res
     try {
-      res = await fetch(url, {
+      res = await fetchWithAppTimeout(url, {
         method: 'GET',
         headers,
         credentials: 'same-origin',
@@ -327,7 +328,7 @@ async function adminApiGet(path, token, timeoutMs = undefined) {
         credentials: 'same-origin',
         cache: 'no-store',
       },
-      timeoutMs,
+      resolveAdminFetchTimeoutMs(timeoutMs, apiOrigin()),
     )
   } catch (e) {
     throw new Error(e?.message ?? 'Сеть')
