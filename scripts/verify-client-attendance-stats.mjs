@@ -20,6 +20,7 @@ import {
   ATTENDANCE_MAX_WEEK_BUCKETS,
   resolveAttendanceRegularity,
   attendanceRegularityLabelRu,
+  attendanceChartSignature,
 } from '../src/lib/clientAttendanceStatsCore.js'
 import {
   earliestCompletedTrainingDate,
@@ -31,6 +32,7 @@ import {
   resolveClientStatsMode,
   DEFAULT_CLIENT_STATS_MODE,
   resolveClientStatsAllTimeRange,
+  resolveClientStatsViewRange,
   shouldForceClientTrainingsEnsureOnReload,
   shouldReloadClientStatsTrainingsLocalOnly,
   shouldReloadTrainerClientStatsForClient,
@@ -282,6 +284,23 @@ const rareAssessment = buildClientAttendanceAssessment(rareStats, {
 })
 ok(rareAssessment.regularity === 'rare', 'assessment rare')
 ok(rareAssessment.factors.some((f) => f.tone === 'bad'), 'rare has bad factor')
+
+{
+  const all = { min: '2026-09-28', max: '2026-09-29' }
+  const base = { dateFrom: '2026-08-30', dateTo: '2026-09-29', allTimeRange: all }
+  const auto = resolveClientStatsViewRange({ ...base, mode: 'attendance', rangeEdited: false })
+  ok(auto.from === all.min && auto.to === all.max, 'посещаемость без ручных дат → сразу «за всё время», без кадра «30 дней»')
+  const manual = resolveClientStatsViewRange({ ...base, mode: 'attendance', rangeEdited: true })
+  ok(manual.from === '2026-08-30', 'тренер сам выбрал даты → его период')
+  ok(resolveClientStatsViewRange({ ...base, mode: 'attendance', rangeEdited: false, allTimeRange: null }).from === '2026-08-30', 'нет тренировок → стандартный период')
+  ok(resolveClientStatsViewRange({ ...base, mode: 'measurements', rangeEdited: false }).from === '2026-08-30', 'обмеры → свой период, не авто')
+
+  const b1 = [{ start: '2026-09-28', end: '2026-10-04', count: 2, dates: ['2026-09-28'] }]
+  const b1copy = b1.map((b) => ({ ...b, dates: [...b.dates] }))
+  ok(attendanceChartSignature(b1, 'week') === attendanceChartSignature(b1copy, 'week'), 'те же столбики в новом массиве → тот же ключ (без повторной анимации)')
+  ok(attendanceChartSignature(b1, 'week') !== attendanceChartSignature([{ ...b1[0], count: 3 }], 'week'), 'число сменилось → новый ключ')
+  ok(attendanceChartSignature(b1, 'week') !== attendanceChartSignature(b1, 'month'), 'недели ↔ месяцы → новый ключ')
+}
 
 ok(clientCardTabFromUrlChange('loyalty', 'loyalty') === null, 'URL tab не сменился (ре-рендер, URL ещё в transition) → не откатывать клик')
 ok(clientCardTabFromUrlChange('loyalty', 'stats') === 'stats', 'URL tab сменился (назад / deep link) → применить')

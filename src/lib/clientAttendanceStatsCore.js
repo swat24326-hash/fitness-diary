@@ -313,6 +313,15 @@ export function formatAttendanceBucketDatesCellRu(dates, formatDateRu) {
 }
 
 /**
+ * Ключ содержимого графика: тот же ключ → те же столбики, перерисовывать (и анимировать) не нужно.
+ * @param {Array<{ start?: string, end?: string, count?: number }>} buckets
+ * @param {AttendanceBucketKind} kind
+ */
+export function attendanceChartSignature(buckets, kind) {
+  return `${kind}|${(buckets ?? []).map((b) => `${b.start}:${b.end}:${b.count}`).join(',')}`
+}
+
+/**
  * Подпись оси X: диапазон недели/месяца; при >14 периодов — номер, диапазон в tooltip.
  * @param {Array<{ index: number, labelRu: string }>} buckets
  * @param {AttendanceBucketKind} kind

@@ -101,6 +101,16 @@ export function resolveClientStatsAllTimeRange(mode, data, todayIso) {
   return { min: String(min), max: String(max) }
 }
 
+/**
+ * Период на экране. Пока тренер не трогал даты, посещаемость сразу «за всё время» —
+ * без первого кадра «последние 30 дней» (график иначе перестраивается у тренера на глазах).
+ * @param {{ mode: string, rangeEdited: boolean, allTimeRange: { min: string, max: string } | null, dateFrom: string, dateTo: string }} p
+ * @returns {{ from: string, to: string }}
+ */
+export function resolveClientStatsViewRange({ mode, rangeEdited, allTimeRange, dateFrom, dateTo }) {
+  if (mode === 'attendance' && !rangeEdited && allTimeRange) return { from: allTimeRange.min, to: allTimeRange.max }
+  return { from: dateFrom, to: dateTo }
+}
 
 /**
  * @param {string} clientId

@@ -22,6 +22,7 @@ import {
   persistClientStatsMode,
   resolveClientStatsMode,
   resolveClientStatsAllTimeRange,
+  resolveClientStatsViewRange,
   shouldForceClientTrainingsEnsureOnReload,
   shouldReloadClientStatsTrainingsLocalOnly,
   shouldReloadTrainerClientStatsForClient,
@@ -90,11 +91,7 @@ export function Statistics({ clientId, initialMode = null }) {
   const todayIso = todayLocalIso()
   const [mode, setModeState] = useState(() => resolveClientStatsMode(clientId, initialMode))
   const appliedAllTimeKeyRef = useRef(null)
-  const userEditedRangeRef = useRef(false)
-
-  const markRangeEdited = useCallback(() => {
-    userEditedRangeRef.current = true
-  }, [])
+  const [rangeEdited, setRangeEdited] = useState(false)
 
   const setMode = useCallback(
     (next) => {
@@ -128,7 +125,8 @@ export function Statistics({ clientId, initialMode = null }) {
   const [membershipStartDates, setMembershipStartDates] = useState([])
   const [trainingsOnline, setTrainingsOnline] = useState(true)
   const [trainingsEnsureOk, setTrainingsEnsureOk] = useState(true)
-  const [trainingsLoading, setTrainingsLoading] = useState(false)
+  // До первого чтения IDB — «Загрузка», а не пустой график, который через миг перерисуется с данными.
+  const [trainingsLoading, setTrainingsLoading] = useState(() => clientStatsModeNeedsTrainingsEnsure(mode))
 
   const inD = useCallback((dateStr, from, to) => dateStr && dateStr >= from && dateStr <= to, [])
 
@@ -136,10 +134,17 @@ export function Statistics({ clientId, initialMode = null }) {
     () => resolveClientStatsAllTimeRange(mode, { measurements, trainings }, todayLocalIso()),
     [mode, measurements, trainings],
   )
+  const viewRange = resolveClientStatsViewRange({ mode, rangeEdited, allTimeRange, dateFrom, dateTo })
+
+  const markRangeEdited = useCallback(() => {
+    setRangeEdited(true)
+    setDateFrom(viewRange.from)
+    setDateTo(viewRange.to)
+  }, [viewRange.from, viewRange.to])
 
   const applyAllTime = useCallback(() => {
     if (!allTimeRange) return
-    userEditedRangeRef.current = false
+    setRangeEdited(false)
     setDateFrom(allTimeRange.min)
     setDateTo(allTimeRange.max)
     appliedAllTimeKeyRef.current = `${allTimeRange.min}:${allTimeRange.max}`
@@ -150,8 +155,6 @@ export function Statistics({ clientId, initialMode = null }) {
     const forceEnsure = opts.forceEnsure === true
     const localTrainingsOnly = opts.localTrainingsOnly === true
     const useEnsure = needEnsure && !localTrainingsOnly
-    let showTrainingsLoading = useEnsure
-    if (showTrainingsLoading) setTrainingsLoading(true)
     try {
       const [measures, mems, localTrainings] = await Promise.all([
         listMeasurements(clientId),
@@ -180,18 +183,20 @@ export function Statistics({ clientId, initialMode = null }) {
         setTrainingsEnsureOk(true)
         return
       }
-      // Дневник с устройства — сразу, без «Загрузка…»: иначе вкладка прыгает по высоте на каждом открытии.
+      // Дневник с устройства — сразу; «Загрузка» только если на устройстве пусто. Фоновый reload не
+      // прячет график (иначе он пересоздаётся и столбики растут заново).
       if (localTrainings.length) {
         setTrainings(localTrainings)
         setTrainingsLoading(false)
-        showTrainingsLoading = false
+      } else {
+        setTrainingsLoading(true)
       }
       const cached = await ensureClientTrainingsCachedWithStatus(clientId, { force: forceEnsure })
       setTrainings(cached.trainings)
       setTrainingsOnline(cached.online)
       setTrainingsEnsureOk(cached.ensureOk)
     } finally {
-      if (showTrainingsLoading) setTrainingsLoading(false)
+      setTrainingsLoading(false)
     }
   }, [clientId, mode])
 
@@ -205,19 +210,19 @@ export function Statistics({ clientId, initialMode = null }) {
     setModeState(next)
     if (fromUrl) persistClientStatsMode(clientId, fromUrl)
     appliedAllTimeKeyRef.current = null
-    userEditedRangeRef.current = false
+    setRangeEdited(false)
   }, [clientId, initialMode])
 
   useEffect(() => {
     if (mode !== 'attendance') return
     if (trainingsLoading || !allTimeRange) return
-    if (userEditedRangeRef.current) return
+    if (rangeEdited) return
     const key = `${allTimeRange.min}:${allTimeRange.max}`
     if (appliedAllTimeKeyRef.current === key) return
     setDateFrom(allTimeRange.min)
     setDateTo(allTimeRange.max)
     appliedAllTimeKeyRef.current = key
-  }, [mode, trainingsLoading, allTimeRange, clientId])
+  }, [mode, trainingsLoading, allTimeRange, clientId, rangeEdited])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -569,11 +574,11 @@ export function Statistics({ clientId, initialMode = null }) {
           <div className="stats-range-row">
             <div className="field stats-range-field" style={{ marginBottom: 0 }}>
               <label className="sr-only">С даты</label>
-              <input className="input" aria-label="С даты" type="date" value={dateFrom} onChange={(e) => { markRangeEdited(); setDateFrom(e.target.value) }} />
+              <input className="input" aria-label="С даты" type="date" value={viewRange.from} onChange={(e) => { markRangeEdited(); setDateFrom(e.target.value) }} />
             </div>
             <div className="field stats-range-field" style={{ marginBottom: 0 }}>
               <label className="sr-only">По дату</label>
-              <input className="input" aria-label="По дату" type="date" value={dateTo} onChange={(e) => { markRangeEdited(); setDateTo(e.target.value) }} />
+              <input className="input" aria-label="По дату" type="date" value={viewRange.to} onChange={(e) => { markRangeEdited(); setDateTo(e.target.value) }} />
             </div>
             <div className="field stats-range-action" style={{ marginBottom: 0 }}>
               <button
@@ -592,8 +597,8 @@ export function Statistics({ clientId, initialMode = null }) {
         {mode === 'attendance' ? (
           <ClientAttendanceSection
             trainings={trainings}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
+            dateFrom={viewRange.from}
+            dateTo={viewRange.to}
             online={trainingsOnline}
             ensureOk={trainingsEnsureOk}
             membershipStartDates={membershipStartDates}
