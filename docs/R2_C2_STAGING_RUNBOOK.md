@@ -83,19 +83,17 @@ npm run db:migrate:pg -- --dry-run
 1. **Data-port API** — ✅ код 2026-09-28: `api/_lib/pgRest/` (построитель SQL, `scripts/verify-pg-rest.mjs`) + исполнитель `pg`. `createServiceDataClient()` в `adminSupabase.js` (и вход / создание тренера / вебхук звонков) отдаёт его при `DATA_BACKEND=pg`. Вызовы `.from()` в обработчиках не переписывались. Пока свой Auth не включён, `.auth.admin` на этом клиенте ещё ходит в Supabase. **Флаг на стенде не ставить**, пока нет шага 2 и тестовых пользователей: схема пустая, роли пропадут.
 2. **Свой Auth** — ✅ код 2026-09-28: `AUTH_PROVIDER=own` переключает порт на хеш пароля (scrypt, встроен в Node) и JWT (`JWT_SECRET`, от 32 символов). Создание тренера, менеджера и управляющего пишет хеш в `users.password_hash`. Портативный хост отвечает на `/auth/v1/token`, `/user`, `/logout`, чтобы клиент supabase принял сессию, когда адрес Auth — этот сервер. **На стенде флаг не ставить:** сборка всё ещё ходит в Supabase и за проверкой токена, и за частью данных. Включать вместе с `DATA_BACKEND=pg`, тестовыми пользователями и адресом Auth на наш хост.
 3. **Фронт** — ✅ код 2026-09-28: портативный хост отвечает на `/rest/v1/<таблица>` в формате supabase-js (`api/_lib/restV1Handler.js`, разбор `api/_lib/pgRest/restV1Parse.js`). Каждый запрос браузера идёт в отдельной транзакции под ролью `authenticated`, в неё кладутся `request.jwt.claims` / `request.jwt.claim.sub` из нашего токена (`rlsTx.js`), поэтому `auth.uid()` и политики RLS видят пользователя. Без нашего access-токена — 401. Маршрут открыт только при `AUTH_PROVIDER=own` **и** `DATA_BACKEND=pg`, иначе 404. Колонка `users.password_hash` для браузера закрыта полностью: её нельзя прочитать, отфильтровать или записать. Вложенные связи в `select` не поддержаны: фронт их и не использует.
-   - **Права в базе:** `--with-policies` теперь кладёт `policies.sql` **до** миграций. Так было на Supabase; если применить его последним, он откатит новые `fit_auth_*` и политики (роли supervisor / sales_manager). В конце всегда переприменяется `supabase/c2_rest_grants.sql`. Таблицы с RLS роль `authenticated` может читать и писать, дальше решают политики. Таблицы без RLS — только читать: иначе, например, тренер поменял бы себе `users.role`.
-   - **Уже мигрированная база** политики не «догоняет»: скрипт откажет. Стенд пустой, поэтому схему пересоздаём и накатываем с `--with-policies` с нуля.
+   - **Права в базе:** с `--with-policies` файл `policies.sql` идёт **после** миграций. Это актуальный снимок: он использует `fit_auth_*` из миграций (менеджер продаж), а его функции и общие с миграциями политики совпадают с последними версиями (сверено 2026-09-28). Следом всегда переприменяется `supabase/c2_rest_grants.sql`. Таблицы с RLS роль `authenticated` может читать и писать, дальше решают политики. Таблицы без RLS — только читать: иначе, например, тренер поменял бы себе `users.role`.
    - **Консоль (GrokBot):** пользователю `osapp` нужна роль `authenticated` (право `SET ROLE`), иначе каждый запрос браузера упадёт с «permission denied to set role».
    - **Сборка C2:** `VITE_SUPABASE_URL` = адрес стенда (тогда `/auth/v1` и `/rest/v1` идут к нам). `VITE_SUPABASE_ANON_KEY` — любой ключ вида `eyJ…`: наш сервер его не проверяет, доступ решают наш токен и RLS.
    - **Известная дыра до R3:** у `users` в репо нет RLS. Через `/rest/v1` любой вошедший прочитает список сотрудников (имена, телефоны, почты), но не хеши и без права записи. На стенде это тестовые данные. До живого клуба на C2 — политики на `users` (спринт §5.7).
 4. **Тестовые данные + прогон** — seed клуба/админа/тренера/клиентов (не прод-ПДн), затем пункты 3–8 волны 1 против PG. Скрипты в репо (2026-09-28), на ВМ всё через `scripts/r2-vm-db-run.sh` (адрес базы из `.env`, не печатается):
    1. Консоль: `osapp` получает роль `authenticated`.
    2. Код шагов 1–4 на ВМ (ветка из GitHub).
-   3. `sudo bash scripts/r2-vm-db-run.sh scripts/pg-reset-empty-schema.mjs --yes-empty-staging` очищает `public`: удаляет таблицы, функции и типы, но расширения не трогает, потому что `pgcrypto` включён из консоли и заново его не создать. Откажет, если хоть в одной таблице есть строки.
-   4. `sudo bash scripts/r2-pg-migrate-vm.sh --with-policies`.
-   5. `sudo bash scripts/r2-vm-db-run.sh scripts/c2-seed-staging.mjs`: клуб, `c2-admin` / `c2-trainer` / `c2-sales` / `c2-supervisor`, 3 клиента с абонементами. Пароли лежат в `/opt/fitness-diary/.c2-seed-credentials` (0600), в консоль не выводятся.
-   6. `.env`: `JWT_SECRET` (генерируется на ВМ, не печатается), `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`. Сборка с `VITE_SUPABASE_URL=<адрес стенда>`, перезапуск `os-hybrid`.
-   7. Проверки 3–8 волны 1 и `npm run qa:local` перед включением.
+   3. `sudo bash scripts/r2-pg-migrate-vm.sh --with-policies`: на уже мигрированной базе догоняет политики и права.
+   4. `sudo bash scripts/r2-vm-db-run.sh scripts/c2-seed-staging.mjs`: клуб, `c2-admin` / `c2-trainer` / `c2-sales` / `c2-supervisor`, 3 клиента с абонементами. Пароли лежат в `/opt/fitness-diary/.c2-seed-credentials` (0600), в консоль не выводятся.
+   5. `.env`: `JWT_SECRET` (генерируется на ВМ, не печатается), `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`. Сборка с `VITE_SUPABASE_URL=<адрес стенда>`, перезапуск `os-hybrid`.
+   6. Проверки 3–8 волны 1 и `npm run qa:local` перед включением.
 
 Это C2 (наш код на Node), не C1: Supabase-сервисы не разворачиваем.
 
@@ -229,11 +227,11 @@ DATABASE_URL=postgres://… npm run db:migrate:pg
 # RLS-файл: npm run db:migrate:pg -- --with-policies
 ```
 
-Порядок: **`c2_auth_stub.sql`** → `schema.sql` → `c2_auth_helpers.sql` → (с `--with-policies`) `policies.sql` → `supabase/migrations/*.sql` → (с `--with-policies`, каждый прогон) `c2_rest_grants.sql`.
+Порядок: **`c2_auth_stub.sql`** → `schema.sql` → `c2_auth_helpers.sql` → `supabase/migrations/*.sql` → (с `--with-policies`) `policies.sql` → (с `--with-policies`, каждый прогон) `c2_rest_grants.sql`.
 
 Stub создаёт `auth.users`, `auth.uid()` / `auth.jwt()`, роли `authenticated` / `anon` / `service_role` — иначе миграции с `REFERENCES auth.users` падают на голом Postgres.
 
-По умолчанию **`policies.sql` не применяется**. `--with-policies` нужен для True C2 с браузером на `/rest/v1`: без RLS браузер работать не будет. Только на **пустой** базе. Если миграции уже прошли без политик, скрипт откажет (см. волну 2, шаг 3).
+По умолчанию **`policies.sql` не применяется**. `--with-policies` нужен для True C2 с браузером на `/rest/v1`: без RLS браузер работать не будет. Можно запускать и на уже мигрированной базе.
 
 Повторный прогон идемпотентен (`_schema_migrations`; stub переприменяется безопасно).
 

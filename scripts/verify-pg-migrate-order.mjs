@@ -9,10 +9,7 @@ import {
   buildPgMigratePlan,
   filterPendingMigrateSteps,
   findSupabaseAuthSqlMarkers,
-  PG_RESET_CONFIRM_FLAG,
   pgClientSslOption,
-  pgResetGuardError,
-  policiesOutOfOrderError,
   sortMigrationFilenames,
 } from '../src/lib/pgMigrateOrderCore.js'
 
@@ -50,19 +47,9 @@ const plan = buildPgMigratePlan({
 ok(plan[0].id === 'c2_auth_stub.sql' && plan[0].kind === 'auth_stub', 'auth stub first')
 ok(plan[1].id === 'schema.sql' && plan[1].kind === 'schema', 'schema second')
 ok(plan[2].id === 'c2_auth_helpers.sql' && plan[2].kind === 'auth_helpers', 'auth helpers before migrations')
-ok(plan[3].id === 'policies.sql', 'policies before migrations (иначе откатит новые fit_auth_*)')
-ok(plan[4].id === 'migrations/20260210120000_users_club_id.sql', 'migration path id')
+ok(plan[3].id === 'migrations/20260210120000_users_club_id.sql', 'migration path id')
+ok(plan[plan.length - 2].id === 'policies.sql', 'policies после миграций (опирается на их fit_auth_*)')
 ok(plan[plan.length - 1].id === 'c2_rest_grants.sql', 'rest grants last (после всех таблиц)')
-
-ok(policiesOutOfOrderError(plan, []) === null, 'empty db → policies ok')
-ok(
-  policiesOutOfOrderError(plan, ['schema.sql', 'migrations/20260210120000_users_club_id.sql']) !== null,
-  'migrated db without policies → refuse',
-)
-ok(
-  policiesOutOfOrderError(plan, ['policies.sql', 'migrations/20260210120000_users_club_id.sql']) === null,
-  'policies already applied → ok',
-)
 
 const planNoPolicies = buildPgMigratePlan({
   hasAuthStub: true,
@@ -72,11 +59,6 @@ const planNoPolicies = buildPgMigratePlan({
 })
 ok(!planNoPolicies.some((s) => s.kind === 'policies'), 'can omit policies')
 ok(!planNoPolicies.some((s) => s.kind === 'rest_grants'), 'no rest grants without policies')
-ok(policiesOutOfOrderError(planNoPolicies, ['a.sql', 'migrations/a.sql']) === null, 'no policies → no order error')
-
-ok(pgResetGuardError({ nonEmptyTables: [], argv: [] }) !== null, 'reset без флага → отказ')
-ok(pgResetGuardError({ nonEmptyTables: ['clients'], argv: [PG_RESET_CONFIRM_FLAG] }) !== null, 'reset с данными → отказ')
-ok(pgResetGuardError({ nonEmptyTables: [], argv: ['node', 'x', PG_RESET_CONFIRM_FLAG] }) === null, 'reset пустой базы с флагом → ok')
 
 const grantsSql = await readFile(join(SUPABASE_DIR, 'c2_rest_grants.sql'), 'utf8')
 ok(/relrowsecurity/.test(grantsSql), 'grants: запись только в таблицы с RLS')
@@ -137,6 +119,13 @@ for (const name of migrationNames) {
   for (const f of defined) helperFns.add(f)
 }
 ok(earlyUsers.length === 0, `fit_auth_* defined before use on bare PG${earlyUsers.length ? ` (${earlyUsers.join(', ')})` : ''}`)
+
+const policiesUses = [...new Set([...policiesSql.matchAll(/public\.(fit_auth_\w+)\(\)/g)].map((m) => m[1]))]
+const policiesMissing = policiesUses.filter((f) => !helperFns.has(f) && !policyFns.includes(f))
+ok(
+  policiesMissing.length === 0,
+  `policies.sql после миграций находит все fit_auth_*${policiesMissing.length ? ` (нет: ${policiesMissing.join(', ')})` : ''}`,
+)
 
 let filesWithAuthMarkers = 0
 for (const name of migrationNames) {

@@ -5,7 +5,7 @@
  * Usage: DATABASE_URL=postgres://... npm run db:migrate:pg
  * Flags:
  *   --dry-run         только план
- *   --with-policies   policies.sql до миграций + c2_rest_grants.sql (RLS для /rest/v1); только на пустой базе
+ *   --with-policies   policies.sql после миграций + c2_rest_grants.sql (RLS для /rest/v1 браузера)
  *   --skip-policies   устаревший синоним «без policies» (это и так дефолт)
  */
 import { readFile, readdir } from 'node:fs/promises'
@@ -16,7 +16,6 @@ import {
   buildPgMigratePlan,
   filterPendingMigrateSteps,
   pgClientSslOption,
-  policiesOutOfOrderError,
   sortMigrationFilenames,
 } from '../src/lib/pgMigrateOrderCore.js'
 
@@ -99,8 +98,6 @@ async function main() {
     if (stubStep) {
       await applySqlFile(client, join(SUPABASE_DIR, stubStep.file), stubStep.id)
     }
-    const orderErr = policiesOutOfOrderError(plan, applied)
-    if (orderErr) throw new Error(orderErr)
     const pending = filterPendingMigrateSteps(
       plan.filter((s) => s.kind !== 'auth_stub' && s.kind !== 'rest_grants'),
       applied,

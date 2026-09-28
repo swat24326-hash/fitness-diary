@@ -48,34 +48,15 @@ export function buildPgMigratePlan(opts = {}) {
   if (opts.hasAuthHelpers !== false) {
     steps.push({ id: 'c2_auth_helpers.sql', kind: 'auth_helpers', file: 'c2_auth_helpers.sql' })
   }
-  // policies.sql — старый базовый слой: миграции поверх него обновляют fit_auth_* и политики.
-  // Последним он откатил бы их (роли supervisor / sales_manager), поэтому — до миграций, как на Supabase.
-  const withPolicies = opts.hasPolicies !== false
-  if (withPolicies) {
-    steps.push({ id: 'policies.sql', kind: 'policies', file: 'policies.sql' })
-  }
   for (const name of sortMigrationFilenames(opts.migrationFiles ?? [])) {
     steps.push({ id: `migrations/${name}`, kind: 'migration', file: `migrations/${name}` })
   }
-  if (withPolicies) {
+  // policies.sql — актуальный снимок и опирается на fit_auth_* из миграций (sales_manager), поэтому после них.
+  if (opts.hasPolicies !== false) {
+    steps.push({ id: 'policies.sql', kind: 'policies', file: 'policies.sql' })
     steps.push({ id: 'c2_rest_grants.sql', kind: 'rest_grants', file: 'c2_rest_grants.sql' })
   }
   return steps
-}
-
-/**
- * policies.sql нельзя догнать на базе, где миграции уже прошли: он перезапишет новые политики старыми.
- * @param {{ id: string, kind: string }[]} plan
- * @param {Iterable<string>} appliedIds
- * @returns {string | null}
- */
-export function policiesOutOfOrderError(plan, appliedIds) {
-  const done = new Set([...(appliedIds ?? [])].map(String))
-  const policies = (plan ?? []).find((s) => s.kind === 'policies')
-  if (!policies || done.has(policies.id)) return null
-  const migrated = (plan ?? []).some((s) => s.kind === 'migration' && done.has(s.id))
-  if (!migrated) return null
-  return 'policies.sql идёт до миграций, а здесь миграции уже применены. Пересоздайте пустую базу стенда и запустите --with-policies с нуля.'
 }
 
 /**
@@ -96,23 +77,6 @@ export function filterPendingMigrateSteps(plan, appliedIds) {
 export function findSupabaseAuthSqlMarkers(sql) {
   const lower = String(sql ?? '').toLowerCase()
   return PG_SUPABASE_AUTH_SQL_MARKERS.filter((m) => lower.includes(m))
-}
-
-export const PG_RESET_CONFIRM_FLAG = '--yes-empty-staging'
-
-/**
- * Сброс схемы public (чтобы накатить policies.sql в правильном порядке) — только пустая база и явный флаг.
- * @param {{ nonEmptyTables: string[], argv: string[] }} input
- * @returns {string | null}
- */
-export function pgResetGuardError({ nonEmptyTables, argv }) {
-  if (!(argv ?? []).includes(PG_RESET_CONFIRM_FLAG)) {
-    return `Сброс схемы стирает всё в public. Если база стенда пустая — добавьте ${PG_RESET_CONFIRM_FLAG}.`
-  }
-  if ((nonEmptyTables ?? []).length) {
-    return `В базе есть данные (${nonEmptyTables.join(', ')}) — сброс отменён.`
-  }
-  return null
 }
 
 /**
