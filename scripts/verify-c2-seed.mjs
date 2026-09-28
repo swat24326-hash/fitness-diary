@@ -4,6 +4,7 @@
  */
 import {
   buildC2SeedRows,
+  buildC2StaffRow,
   C2_SEED_EMAIL_DOMAIN,
   C2_SEED_STAFF,
   C2_SEED_TABLE_ORDER,
@@ -53,6 +54,14 @@ ok(C2_SEED_TABLE_ORDER.indexOf('users') < C2_SEED_TABLE_ORDER.indexOf('clients')
 
 ok(c2SeedGuardError({ users: 0, clubs: 0 }) === null, 'пустая база → можно')
 ok(/users/.test(c2SeedGuardError({ users: 2, clubs: 0 }) ?? ''), 'непустая база → отказ с таблицей')
+
+const base = { role: 'admin', name: 'Дмитрий', clubId: 'club-1', id: 'u-1', passwordHash: 'scrypt$x' }
+const staff = buildC2StaffRow({ ...base, login: ' Dmitry ' })
+ok(staff.row?.login === 'dmitry' && staff.row.email === `dmitry@${C2_SEED_EMAIL_DOMAIN}`, 'сотрудник: логин в нижнем регистре, почта .invalid')
+ok(staff.row?.club_id === 'club-1' && staff.row.is_active, 'сотрудник в клубе стенда и активен')
+ok(Boolean(buildC2StaffRow({ ...base, login: 'dm itry' }).error), 'логин с пробелом → отказ')
+ok(Boolean(buildC2StaffRow({ ...base, login: 'dmitry', role: 'root' }).error), 'чужая роль → отказ')
+ok(Boolean(buildC2StaffRow({ ...base, login: 'dmitry', clubId: null }).error), 'без клуба → отказ')
 
 if (failed) process.exit(1)
 console.log('verify-c2-seed: all passed')

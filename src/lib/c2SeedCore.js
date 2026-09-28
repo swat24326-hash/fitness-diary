@@ -71,5 +71,27 @@ export function buildC2SeedRows({ today, newId, passwordHashes }) {
   }
 }
 
+const C2_STAFF_ROLES = ['admin', 'trainer', 'sales_manager', 'supervisor']
+
+/** Один сотрудник на стенд (scripts/c2-add-staff.mjs): ошибка или строка users. */
+export function buildC2StaffRow({ login, role, name, clubId, id, passwordHash }) {
+  const cleanLogin = String(login ?? '').trim().toLowerCase()
+  if (!/^[a-z0-9._-]{3,32}$/.test(cleanLogin)) return { error: 'Логин: 3–32 символа, латиница, цифры, . _ -' }
+  if (!C2_STAFF_ROLES.includes(role)) return { error: `Роль одна из: ${C2_STAFF_ROLES.join(', ')}` }
+  if (!clubId) return { error: 'На стенде нет клуба — сначала seed' }
+  return {
+    row: {
+      id,
+      name: String(name ?? '').trim() || cleanLogin,
+      email: `${cleanLogin}@${C2_SEED_EMAIL_DOMAIN}`,
+      role,
+      login: cleanLogin,
+      password_hash: passwordHash,
+      is_active: true,
+      club_id: clubId,
+    },
+  }
+}
+
 /** Порядок вставки по внешним ключам. */
 export const C2_SEED_TABLE_ORDER = ['clubs', 'users', 'membership_types', 'clients', 'memberships']

@@ -91,7 +91,7 @@ npm run db:migrate:pg -- --dry-run
    1. Консоль: `osapp` получает роль `authenticated`.
    2. Код шагов 1–4 на ВМ (ветка из GitHub).
    3. `sudo bash scripts/r2-pg-migrate-vm.sh --with-policies`: на уже мигрированной базе догоняет политики и права.
-   4. `sudo bash scripts/r2-vm-db-run.sh scripts/c2-seed-staging.mjs`: клуб, `c2-admin` / `c2-trainer` / `c2-sales` / `c2-supervisor`, 3 клиента с абонементами. Пароли лежат в `/opt/fitness-diary/.c2-seed-credentials` (0600), в консоль не выводятся.
+   4. `sudo bash scripts/r2-vm-db-run.sh scripts/c2-seed-staging.mjs`: клуб, `c2-admin` / `c2-trainer` / `c2-sales` / `c2-supervisor`, 3 клиента с абонементами. Пароли лежат в `/opt/fitness-diary/.c2-seed-credentials` (0600), в консоль не выводятся. Свой логин на стенд: `sudo bash scripts/r2-vm-db-run.sh scripts/c2-add-staff.mjs <login> <role> [имя]`, пароль дописывается в тот же файл.
    5. `.env`: `JWT_SECRET` (генерируется на ВМ, не печатается), `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`. Сборка с `VITE_SUPABASE_URL=<адрес стенда>`, перезапуск `os-hybrid`.
    **Статус 2026-09-28: C2 на стенде включён.** Код — ветка `r2-c2`; роль выдана; база с политиками и тестовым клубом; флаги стоят; сборка смотрит на `http://158.160.190.61:8080`.
    - Пробник на ВМ (тот же supabase-js, что в сайте) прошёл все проверки:
