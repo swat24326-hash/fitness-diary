@@ -150,19 +150,13 @@ export function Statistics({ clientId, initialMode = null }) {
     const forceEnsure = opts.forceEnsure === true
     const localTrainingsOnly = opts.localTrainingsOnly === true
     const useEnsure = needEnsure && !localTrainingsOnly
-    const showTrainingsLoading = useEnsure
+    let showTrainingsLoading = useEnsure
     if (showTrainingsLoading) setTrainingsLoading(true)
     try {
-      const [measures, mems, cached] = await Promise.all([
+      const [measures, mems, localTrainings] = await Promise.all([
         listMeasurements(clientId),
         listMemberships(clientId),
-        useEnsure
-          ? ensureClientTrainingsCachedWithStatus(clientId, { force: forceEnsure })
-          : listTrainingsByClientId(clientId).then((trainings) => ({
-              trainings,
-              online: Boolean(isSupabaseConfigured() && isAppOnline()),
-              ensureOk: true,
-            })),
+        listTrainingsByClientId(clientId),
       ])
       setMeasurements(measures)
       setMemberships(mems ?? [])
@@ -180,6 +174,19 @@ export function Statistics({ clientId, initialMode = null }) {
       } else {
         setMembershipTypes([])
       }
+      if (!useEnsure) {
+        setTrainings(localTrainings)
+        setTrainingsOnline(Boolean(isSupabaseConfigured() && isAppOnline()))
+        setTrainingsEnsureOk(true)
+        return
+      }
+      // Дневник с устройства — сразу, без «Загрузка…»: иначе вкладка прыгает по высоте на каждом открытии.
+      if (localTrainings.length) {
+        setTrainings(localTrainings)
+        setTrainingsLoading(false)
+        showTrainingsLoading = false
+      }
+      const cached = await ensureClientTrainingsCachedWithStatus(clientId, { force: forceEnsure })
       setTrainings(cached.trainings)
       setTrainingsOnline(cached.online)
       setTrainingsEnsureOk(cached.ensureOk)
