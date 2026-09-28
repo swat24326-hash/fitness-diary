@@ -1,7 +1,7 @@
 # R2 / C2 — стенд на Yandex (приложение уже подготовлено)
 
-**Актуально:** 2026-09-26 (волна 1 Hybrid A закрыта).  
-**Статус:** стенд волны 1 **принят**. Origin: `http://158.160.190.61:8080`. Прод клуба **не** переключаем. Волна 2 (своя база) — только по новой команде.
+**Актуально:** 2026-09-28 (волна 2 стартовала: своя база на тесте).  
+**Статус:** волна 1 ✅. Идёт **True C2** — Managed PostgreSQL только на стенде. Прод клуба и планшеты **не** переключаем.
 
 Связано: [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) §5.4 R2, [AUTH_C2_MAP.md](./AUTH_C2_MAP.md), [SYNC.md](./SYNC.md), [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md).
 
@@ -40,7 +40,7 @@ node scripts/verify-pg-migrate-order.mjs
 npm run db:migrate:pg -- --dry-run
 ```
 
-Ожидание: нет prod-URL в `src/`/`api/`; `/api/health` отвечает; план **94 шага** (stub + schema + 92 миграции). Повторить в день команды R2 — если после этой даты добавились миграции, число шагов вырастет само.
+Ожидание: нет prod-URL в `src/`/`api/`; `/api/health` отвечает; план **95 шагов** (stub + schema + auth helpers + 92 миграции). Повторить в день команды R2 — если после этой даты добавились миграции, число шагов вырастет само.
 
 Дополнительно перед стендом (не блокер Hybrid): `npm run lint` и `npm run qa:critical` на текущем коде.
 
@@ -76,6 +76,17 @@ npm run db:migrate:pg -- --dry-run
 - свой JWT за `authPort` ещё не включён (шов есть, живой вход — Supabase);
 - клиентский сеанс всё ещё держится на `supabase.auth.*` (`AuthContext`).
 
+**Замер 2026-09-28:** API — 334 вызова `.from()` в 54 файлах (без вложенных связей в `select`; фильтры `eq/in/gte/lte/lt/is/ilike/not/or`, `order/limit/range`, `single/maybeSingle`, `count: 'exact'`, `upsert onConflict`), `auth.*` — 7. Фронт — 63 прямых `.from()` в 10 файлах (`src/lib/admin/*`, `AuthContext`, `pullReferenceData`), `supabase.auth.*` — 17. Realtime/Storage не используются.
+
+**План волны 2 (предложение агента, ждёт «да» владельца):** не переписывать 400 вызовов, а поднять в `server/` + `api/_lib/` **совместимый слой** — тот же контракт, что у supabase-js, поверх `pg`:
+
+1. **Data-port API** — `api/_lib/pgRest/`: построитель SQL (чистый, `verify-pg-rest-*.mjs`) + исполнитель; `adminSupabase.js` отдаёт его при `DATA_BACKEND=pg`. 54 файла API не меняются.
+2. **Свой Auth** — `authPort` own: пароли (bcrypt) + наш JWT; совместимые `/auth/v1/token|user|logout`, чтобы `AuthContext` работал без переписывания.
+3. **Фронт** — совместимый `/rest/v1/*` на нашем сервере с RLS: `SET LOCAL role authenticated` + `request.jwt.claims` (стаб `auth.uid()` уже читает их), `policies.sql` через `--with-policies`. Нужна роль `authenticated` у `osapp` — задача GrokBot в консоли.
+4. **Тестовые данные + прогон** — seed клуба/админа/тренера/клиентов (не прод-ПДн), затем пункты 3–8 волны 1 против PG.
+
+Это C2 (наш код на Node), не C1: Supabase-сервисы не разворачиваем.
+
 Когда кластер **Alive** и схема накатана (`DATABASE_URL=… npm run db:migrate:pg`):
 
 1. Реализовать data-port + минимальный Auth по [AUTH_C2_MAP.md](./AUTH_C2_MAP.md).
@@ -107,7 +118,7 @@ npm run db:migrate:pg -- --dry-run
 | Portable API + статика | `server/` → `npm run build && npm start` |
 | Health | `GET /health` и `GET /api/health` |
 | Docker | `Dockerfile` (+ build-args `VITE_*`) |
-| Миграции bare PG | `npm run db:migrate:pg` + stub `supabase/c2_auth_stub.sql` |
+| Миграции bare PG | `npm run db:migrate:pg` + stub `supabase/c2_auth_stub.sql` + `supabase/c2_auth_helpers.sql` (базовые `fit_auth_*`, на Supabase пришли из `policies.sql`); на ВМ — `scripts/r2-pg-migrate-vm.sh` |
 | Шов Auth | `api/_lib/authPort.js` (сейчас Supabase) |
 | Env-заготовки | `.env.example` (блок C2) |
 | Verify | `verify-pg-migrate-order.mjs`, `verify-portable-host.mjs` |
@@ -131,7 +142,44 @@ npm run db:migrate:pg -- --dry-run
 9. SSH-ключ: создайте в консоли или вставьте свой. Пароль от ключа — в сейф, не в чат.
 10. Создать → дождаться **RUNNING** → скопировать **публичный IPv4**.
 
-**Сделано 2026-09-25:** ВМ `os-hybrid-staging` Running, IP `158.160.190.61`, порты 22 и 8080 открыты. Сайт и `/api/health` отвечают. Дальше — ручной smoke на этом адресе, не на проде.
+**Сделано 2026-09-25:** ВМ `os-hybrid-staging` Running, IP `158.160.190.61`, порты 22 и 8080 открыты.
+
+**Закрыто 2026-09-26:** волна 1 принята (admin, тренер, Закончить + Sync).
+
+## День 1 волны 2 — кластер Postgres (только тест)
+
+Сотрудников и прод **не трогаем**. Кластер в той же сети, что ВМ. Базу **не** открывать в интернет.
+
+1. [console.yandex.cloud](https://console.yandex.cloud) → каталог `default`.
+2. **Managed Service for PostgreSQL** → **Создать кластер**.
+3. Имя: `os-c2-staging`.
+4. Версия PostgreSQL: **16** (если нет в списке — 15).
+5. Класс хоста: самый маленький (часто **s2.micro** / аналог 2 vCPU, 8 ГБ — если микро недоступен, не брать высокую доступность).
+6. Хостов: **1** (без запасного — экономия гранта).
+7. Диск: **20 ГБ** network-SSD.
+8. Сеть: **default**, та же что у `os-hybrid-staging`.
+9. Публичный доступ к БД: **выкл**. Доступ только из ВМ.
+10. Пользователь БД: например `osapp`. Пароль — в сейф, **не в чат**.
+11. База: `fitness_diary`.
+12. Создать → дождаться статуса **Alive**.
+
+В чат напишите только: **«кластер Alive»**. Строку подключения и пароль не присылайте.
+
+**Кластер Alive 2026-09-28:** `os-c2-staging`, порт 6432, база `fitness_diary`, пользователь `osapp`, публичный доступ выкл.
+
+**Схема накатана 2026-09-28:** `db:migrate:pg done` с ВМ; 38 таблиц в `public`, 94 записи в `_schema_migrations` (пустая миграция не пишется), повторный прогон — `nothing to apply`/`done`. RLS (`policies.sql`) не применяли. Сайт стенда по-прежнему пишет в Supabase — дальше data-port + свой Auth.
+
+### Схема на кластер (с ВМ)
+
+1. **Роли-заглушки.** Владелец БД в Managed PG не может `CREATE ROLE`. В консоли кластера → Пользователи создать `authenticated`, `anon`, `service_role` (любой длинный пароль, **без** доступа к базам). Иначе stub остановится с понятной ошибкой.
+1a. **Расширение `pgcrypto`.** В консоли кластера → база `fitness_diary` → Расширения → добавить `pgcrypto`. Из SQL владелец БД его не создаст (`permission denied to create extension`).
+2. **Сертификат** Яндекса уже на ВМ: `/etc/ssl/yandex/CA.pem` (публичный, не секрет).
+3. **`DATABASE_URL`** в `/opt/fitness-diary/.env` через защищённую форму, не в чат:
+   `postgres://osapp:<пароль>@<хост>:6432/fitness_diary?sslmode=verify-full&sslrootcert=/etc/ssl/yandex/CA.pem`
+   Проще всего с ПК владельца: `powershell -ExecutionPolicy Bypass -File scripts\r2-set-database-url.ps1` — пароль вводится скрыто, кодируется и уходит на ВМ по SSH. Вручную — спецсимволы пароля URL-кодировать. `sslmode=require` не подходит: `pg` всё равно сверяет сертификат, без CA будет `self-signed certificate in certificate chain`.
+4. На ВМ: `sudo bash /opt/fitness-diary/scripts/r2-pg-migrate-vm.sh --dry-run`, затем без флага. Пароль скрипт не печатает.
+
+Работающий сайт `DATABASE_URL` не читает: после миграции стенд **по-прежнему пишет в Supabase**, пока не сделаны data-port и свой Auth.
 
 **Smoke 25–26.09:** ключ `cloudKey=ok`; admin и список тренера ок. Тренировка на `http://IP` открывается (`safeRandomUuid`). Владелец 26.09 ~19:28: начал → Закончил → Sync, ошибок нет. Прод и True C2 не трогаем.
 
@@ -164,7 +212,7 @@ DATABASE_URL=postgres://… npm run db:migrate:pg
 # RLS-файл: npm run db:migrate:pg -- --with-policies
 ```
 
-Порядок: **`c2_auth_stub.sql`** → `schema.sql` → `supabase/migrations/*.sql` → (опционально) `policies.sql`.
+Порядок: **`c2_auth_stub.sql`** → `schema.sql` → `c2_auth_helpers.sql` → `supabase/migrations/*.sql` → (опционально) `policies.sql`.
 
 Stub создаёт `auth.users`, `auth.uid()` / `auth.jwt()`, роли `authenticated` / `anon` / `service_role` — иначе миграции с `REFERENCES auth.users` падают на голом Postgres.
 

@@ -34,16 +34,20 @@ AS $$
   );
 $$;
 
+-- Managed PG (Yandex) не даёт CREATE ROLE владельцу БД: роли заводят в консоли как
+-- пользователей без доступа к базам. BYPASSRLS не нужен — API ходит владельцем таблиц.
 DO $$
+DECLARE
+  r text;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    CREATE ROLE authenticated NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    CREATE ROLE anon NOLOGIN;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    CREATE ROLE service_role NOLOGIN BYPASSRLS;
-  END IF;
+  FOREACH r IN ARRAY ARRAY['authenticated', 'anon', 'service_role'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      BEGIN
+        EXECUTE format('CREATE ROLE %I NOLOGIN', r);
+      EXCEPTION WHEN insufficient_privilege THEN
+        RAISE EXCEPTION 'Нет роли % и права CREATE ROLE. Создайте в консоли кластера пользователей authenticated, anon, service_role (без доступа к базам) и повторите.', r;
+      END;
+    END IF;
+  END LOOP;
 END
 $$;

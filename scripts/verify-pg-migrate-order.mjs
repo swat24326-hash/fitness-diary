@@ -46,7 +46,8 @@ const plan = buildPgMigratePlan({
 })
 ok(plan[0].id === 'c2_auth_stub.sql' && plan[0].kind === 'auth_stub', 'auth stub first')
 ok(plan[1].id === 'schema.sql' && plan[1].kind === 'schema', 'schema second')
-ok(plan[2].id === 'migrations/20260210120000_users_club_id.sql', 'migration path id')
+ok(plan[2].id === 'c2_auth_helpers.sql' && plan[2].kind === 'auth_helpers', 'auth helpers before migrations')
+ok(plan[3].id === 'migrations/20260210120000_users_club_id.sql', 'migration path id')
 ok(plan[plan.length - 1].id === 'policies.sql', 'policies last')
 
 const planNoPolicies = buildPgMigratePlan({
@@ -59,7 +60,7 @@ ok(!planNoPolicies.some((s) => s.kind === 'policies'), 'can omit policies')
 
 const pending = filterPendingMigrateSteps(plan, ['c2_auth_stub.sql', 'schema.sql'])
 ok(pending.length === plan.length - 2, 'skip applied stub+schema')
-ok(pending[0].kind === 'migration', 'next is migration')
+ok(pending[0].kind === 'auth_helpers', 'next is auth helpers')
 
 const emptyPending = filterPendingMigrateSteps(
   plan,
@@ -82,9 +83,35 @@ ok(stubSql.includes('CREATE SCHEMA IF NOT EXISTS auth'), 'stub creates auth sche
 ok(stubSql.includes('auth.users'), 'stub creates auth.users')
 ok(stubSql.includes('auth.uid()'), 'stub creates auth.uid')
 ok(stubSql.toLowerCase().includes('authenticated'), 'stub creates authenticated role')
+ok(!/\bBYPASSRLS\b/i.test(stubSql.replace(/--.*$/gm, '')), 'stub avoids BYPASSRLS (superuser-only on Managed PG)')
+ok(stubSql.includes('insufficient_privilege'), 'stub explains missing CREATE ROLE')
+
+const fnNames = (sql) =>
+  [...sql.matchAll(/CREATE OR REPLACE FUNCTION public\.(fit_auth_\w+)\(/gi)].map((m) => m[1])
+const helpersSql = await readFile(join(SUPABASE_DIR, 'c2_auth_helpers.sql'), 'utf8')
+const policiesSql = await readFile(join(SUPABASE_DIR, 'policies.sql'), 'utf8')
+const helperFns = new Set(fnNames(helpersSql))
+const policyFns = fnNames(policiesSql)
+ok(policyFns.length > 0, 'policies.sql defines fit_auth_* helpers')
+ok(
+  policyFns.every((f) => helperFns.has(f)),
+  `c2_auth_helpers.sql covers policies.sql helpers (${policyFns.join(', ')})`,
+)
 
 const migrationNames = sortMigrationFilenames(await readdir(join(SUPABASE_DIR, 'migrations')))
 ok(migrationNames.length > 0, 'real migrations present')
+
+const earlyUsers = []
+for (const name of migrationNames) {
+  const sql = await readFile(join(SUPABASE_DIR, 'migrations', name), 'utf8')
+  const defined = new Set(fnNames(sql))
+  const used = [...sql.matchAll(/public\.(fit_auth_\w+)\(\)/g)].map((m) => m[1])
+  for (const f of used) {
+    if (!defined.has(f) && !helperFns.has(f)) earlyUsers.push(`${name}:${f}`)
+  }
+  for (const f of defined) helperFns.add(f)
+}
+ok(earlyUsers.length === 0, `fit_auth_* defined before use on bare PG${earlyUsers.length ? ` (${earlyUsers.join(', ')})` : ''}`)
 
 let filesWithAuthMarkers = 0
 for (const name of migrationNames) {
@@ -101,6 +128,7 @@ const dryPlan = buildPgMigratePlan({
 })
 ok(dryPlan[0].kind === 'auth_stub', 'dry plan starts with stub')
 ok(dryPlan.some((s) => s.kind === 'schema'), 'dry plan has schema')
+ok(dryPlan.some((s) => s.kind === 'auth_helpers'), 'dry plan has auth helpers')
 ok(!dryPlan.some((s) => s.kind === 'policies'), 'default C2 plan skips policies')
 
 if (failed) process.exit(1)

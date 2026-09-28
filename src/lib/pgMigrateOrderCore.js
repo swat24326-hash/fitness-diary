@@ -32,17 +32,21 @@ export function sortMigrationFilenames(filenames) {
  *   migrationFiles?: string[],
  *   hasPolicies?: boolean,
  *   hasAuthStub?: boolean,
+ *   hasAuthHelpers?: boolean,
  * }} opts
- * @returns {{ id: string, kind: 'auth_stub'|'schema'|'migration'|'policies', file: string }[]}
+ * @returns {{ id: string, kind: 'auth_stub'|'schema'|'auth_helpers'|'migration'|'policies', file: string }[]}
  */
 export function buildPgMigratePlan(opts = {}) {
-  /** @type {{ id: string, kind: 'auth_stub'|'schema'|'migration'|'policies', file: string }[]} */
+  /** @type {{ id: string, kind: 'auth_stub'|'schema'|'auth_helpers'|'migration'|'policies', file: string }[]} */
   const steps = []
   if (opts.hasAuthStub !== false) {
     steps.push({ id: 'c2_auth_stub.sql', kind: 'auth_stub', file: 'c2_auth_stub.sql' })
   }
   if (opts.hasSchema !== false) {
     steps.push({ id: 'schema.sql', kind: 'schema', file: 'schema.sql' })
+  }
+  if (opts.hasAuthHelpers !== false) {
+    steps.push({ id: 'c2_auth_helpers.sql', kind: 'auth_helpers', file: 'c2_auth_helpers.sql' })
   }
   for (const name of sortMigrationFilenames(opts.migrationFiles ?? [])) {
     steps.push({ id: `migrations/${name}`, kind: 'migration', file: `migrations/${name}` })

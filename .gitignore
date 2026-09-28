@@ -11,3 +11,4 @@ qa-screenshots/
 .cursor/hooks/.state/
 .env*
 .local/
+bridge/

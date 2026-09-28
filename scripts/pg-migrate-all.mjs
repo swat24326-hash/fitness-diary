@@ -64,12 +64,13 @@ async function main() {
   const plan = buildPgMigratePlan({
     hasAuthStub: true,
     hasSchema: true,
+    hasAuthHelpers: true,
     migrationFiles: migrationNames,
     hasPolicies: !skipPolicies,
   })
 
   console.log(
-    `plan: ${plan.length} steps (auth stub + schema + ${migrationNames.length} migrations${skipPolicies ? '' : ' + policies'})`,
+    `plan: ${plan.length} steps (auth stub + schema + auth helpers + ${migrationNames.length} migrations${skipPolicies ? '' : ' + policies'})`,
   )
   if (skipPolicies) {
     console.log('note: policies.sql skipped (default). Pass --with-policies if you need RLS on bare PG.')
