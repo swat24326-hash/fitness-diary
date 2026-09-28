@@ -112,5 +112,5 @@ Auth helpers: `api/_lib/adminSupabase.js` (`requireAdmin`, `requireAdminOrSalesM
 - **Методы:** GET, HEAD, POST (insert / upsert с `on_conflict`), PATCH, DELETE.
 - **Фильтры:** `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `is`, `in`, `not.*`, `or=(…)`, плюс `order`, `limit`/`offset`.
 - **Заголовки:** `Prefer` понимает `return`, `count=exact`, `resolution`, `missing=default`. Одна строка — через `Accept: application/vnd.pgrst.object+json`. Счётчик возвращается в `Content-Range`.
-- **Доступ:** нужен наш access-токен в Bearer, иначе 401. Запрос выполняется под ролью `authenticated` с claims пользователя, поэтому решают политики RLS. `users.password_hash` для браузера закрыт.
+- **Доступ:** аноним (нет Bearer или Bearer = `apikey`, так supabase-js ходит до входа) — чтение отдаёт пустой результат, как RLS на Supabase; запись — 401. Любой другой Bearer должен быть нашим живым токеном, иначе 401 (сайт обновит сессию). Запрос выполняется под ролью `authenticated` с claims пользователя, поэтому решают политики RLS. `users.password_hash` для браузера закрыт.
 - **Код:** `api/_lib/restV1Handler.js`, `api/_lib/pgRest/restV1*.js`, `rlsTx.js`.
