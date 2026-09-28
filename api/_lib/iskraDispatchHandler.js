@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { sendJson } from './adminSupabase.js'
+import { isOwnAuthProvider } from './authPort.js'
 import {
   canCreateClubDispatch,
   canDeleteClubDispatch,
@@ -84,7 +85,7 @@ async function resolveDispatchSenderUserId(supabaseAdmin, ctx) {
     email: email || 'admin@fit-city.ru',
     login: loginBase || 'admin',
     role: 'admin',
-    password_hash: 'supabase-auth',
+    password_hash: isOwnAuthProvider() ? 'own-auth-unset' : 'supabase-auth',
     is_active: true,
     club_id: null,
   }

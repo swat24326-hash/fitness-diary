@@ -5,7 +5,7 @@
  * Usage: DATABASE_URL=postgres://... npm run db:migrate:pg
  * Flags:
  *   --dry-run         только план
- *   --with-policies   применить policies.sql (по умолчанию пропускаем — на C2 опора API, не RLS)
+ *   --with-policies   policies.sql до миграций + c2_rest_grants.sql (RLS для /rest/v1); только на пустой базе
  *   --skip-policies   устаревший синоним «без policies» (это и так дефолт)
  */
 import { readFile, readdir } from 'node:fs/promises'
@@ -16,6 +16,7 @@ import {
   buildPgMigratePlan,
   filterPendingMigrateSteps,
   pgClientSslOption,
+  policiesOutOfOrderError,
   sortMigrationFilenames,
 } from '../src/lib/pgMigrateOrderCore.js'
 
@@ -98,18 +99,21 @@ async function main() {
     if (stubStep) {
       await applySqlFile(client, join(SUPABASE_DIR, stubStep.file), stubStep.id)
     }
+    const orderErr = policiesOutOfOrderError(plan, applied)
+    if (orderErr) throw new Error(orderErr)
     const pending = filterPendingMigrateSteps(
-      plan.filter((s) => s.kind !== 'auth_stub'),
+      plan.filter((s) => s.kind !== 'auth_stub' && s.kind !== 'rest_grants'),
       applied,
     )
-    if (!pending.length) {
-      console.log('nothing to apply — already up to date')
-      return
-    }
-    console.log(`pending: ${pending.length}`)
+    console.log(pending.length ? `pending: ${pending.length}` : 'nothing to apply — already up to date')
     for (const step of pending) {
       const abs = join(SUPABASE_DIR, step.file)
       await applySqlFile(client, abs, step.id)
+    }
+    // права /rest/v1 переприменяем всегда: новые таблицы из миграций тоже должны их получить
+    const grantsStep = plan.find((s) => s.kind === 'rest_grants')
+    if (grantsStep) {
+      await applySqlFile(client, join(SUPABASE_DIR, grantsStep.file), grantsStep.id)
     }
     console.log('db:migrate:pg done')
   } finally {

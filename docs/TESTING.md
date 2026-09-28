@@ -123,6 +123,10 @@
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Переименование code типа карты (уникальность в клубе) | `verify-membership-type-code.mjs` |
 | R2 / bare PG: порядок migrate + stub auth.* + SSL | `verify-pg-migrate-order.mjs` |
+| R2 data-port: SQL supabase-js → Postgres (`DATA_BACKEND=pg`) | `verify-pg-rest.mjs` |
+| R2 свой вход: хеш пароля + JWT, `/auth/v1` закрыт без флага | `verify-auth-own.mjs` |
+| R2 тестовый клуб стенда C2: роли, связи, только хеши, отказ на непустой базе | `verify-c2-seed.mjs` |
+| R2 `/rest/v1` для браузера: настоящие запросы supabase-js → разбор → SQL → ответ, скрытый `password_hash`, claims RLS, выключатель own+pg | `verify-pg-rest-v1.mjs` |
 | Portable host: `/api/health` | `verify-portable-host.mjs` |
 | Hybrid A: таймаут /api на IP:порт + кэш verifyBearer + ошибка users ≠ 403 | `verify-admin-fetch-timeout.mjs` |
 | Hybrid A: UUID на http://IP без crypto.randomUUID | `verify-safe-random-uuid.mjs` |

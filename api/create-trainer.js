@@ -3,9 +3,9 @@
  * Секреты только на сервере API: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
  * (или VITE_* для URL/anon — service role без префикса VITE_).
  */
-import { createClient } from '@supabase/supabase-js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { AUTH_ENV_MISSING_RU, adminCreateUser, adminDeleteUser, verifyBearer } from './_lib/authPort.js'
+import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
+import { authRuntimeEnvError, adminCreateUser, adminDeleteUser, passwordHashForUsersRow, verifyBearer } from './_lib/authPort.js'
 import { formatClientName } from '../src/lib/clientNameFormat.js'
 import { isAdminByRole } from '../src/lib/admin/adminRoleCore.js'
 import { normalizeLoginInput, normalizePasswordInput } from './_lib/authLoginResolveCore.js'
@@ -39,13 +39,12 @@ async function handler(req, res) {
     return
   }
 
-  const { url, serviceKey, anonKey } = readEnv()
-  if (!url || !serviceKey || !anonKey) {
-    sendJson(res, 500, {
-      error: `${AUTH_ENV_MISSING_RU} Ключ service role — в настройках Auth/БД хостинга.`,
-    })
+  const envErr = authRuntimeEnvError()
+  if (envErr) {
+    sendJson(res, 500, { error: envErr })
     return
   }
+  const { url, anonKey } = readEnv()
 
   const authHeader = req.headers.authorization || req.headers.Authorization
   if (!authHeader || !String(authHeader).startsWith('Bearer ')) {
@@ -60,7 +59,7 @@ async function handler(req, res) {
     return
   }
 
-  const supabaseAdmin = createClient(url, serviceKey)
+  const supabaseAdmin = createServiceDataClient()
 
   const callerEmail = String(user.email ?? '')
     .trim()
@@ -120,11 +119,13 @@ async function handler(req, res) {
     email = `${login}@trainer.local`
   }
 
-  const { user: created, error: auErr } = await adminCreateUser(supabaseAdmin, {
+  const createdResult = await adminCreateUser(supabaseAdmin, {
     email,
     password,
     email_confirm: true,
   })
+  const created = createdResult.user
+  const auErr = createdResult.error
 
   if (auErr || !created) {
     sendJson(res, 400, { error: auErr ?? 'Не удалось создать пользователя в Auth' })
@@ -140,7 +141,7 @@ async function handler(req, res) {
     email,
     login,
     role: 'trainer',
-    password_hash: 'supabase-auth',
+    password_hash: passwordHashForUsersRow(createdResult),
     is_active: true,
     // Новый: по умолчанию без планшета; явно uses_tablet: true → с планшетом
     uses_tablet: body.uses_tablet === true || body.uses_tablet === 'true',
@@ -155,7 +156,8 @@ async function handler(req, res) {
     return
   }
 
-  sendJson(res, 200, { ok: true, id: uid, trainer: insertRow })
+  const { password_hash: _hash, ...trainerPublic } = insertRow
+  sendJson(res, 200, { ok: true, id: uid, trainer: trainerPublic })
 }
 
 export default withSafeApiHandler(handler, { label: 'create-trainer' })

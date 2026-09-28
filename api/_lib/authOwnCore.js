@@ -1,0 +1,151 @@
+import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto'
+
+/** Включение своего входа. По умолчанию выключено — прод остаётся на Supabase Auth. */
+export function isOwnAuthProvider() {
+  return String(process.env.AUTH_PROVIDER ?? '').trim().toLowerCase() === 'own'
+}
+
+const MIN_SECRET = 32
+const SCRYPT_N = 16384
+const SCRYPT_R = 8
+const SCRYPT_P = 1
+const KEYLEN = 32
+export const OWN_ACCESS_TTL_SEC = 60 * 60
+export const OWN_REFRESH_TTL_SEC = 60 * 60 * 24 * 30
+
+export function ownAuthSecret() {
+  return String(process.env.JWT_SECRET ?? '')
+}
+
+/** @returns {string | null} */
+export function ownAuthEnvError() {
+  if (!isOwnAuthProvider()) return null
+  if (ownAuthSecret().length < MIN_SECRET) {
+    return 'AUTH_PROVIDER=own: задайте JWT_SECRET длиной от 32 символов.'
+  }
+  return null
+}
+
+function scrypt(password, salt) {
+  return new Promise((resolve, reject) => {
+    scryptCb(password, salt, KEYLEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P }, (err, key) => {
+      if (err) reject(err)
+      else resolve(key)
+    })
+  })
+}
+
+/** Хеш пароля. Параметры зашиты, чтобы строка из базы не могла задать огромную стоимость. */
+export async function hashOwnPassword(password) {
+  const plain = String(password ?? '')
+  if (!plain) throw new Error('Пустой пароль')
+  const salt = randomBytes(16)
+  const key = await scrypt(plain, salt)
+  return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64url')}$${key.toString('base64url')}`
+}
+
+export async function verifyOwnPassword(password, stored) {
+  const parts = String(stored ?? '').split('$')
+  if (parts.length !== 6 || parts[0] !== 'scrypt') return false
+  if (Number(parts[1]) !== SCRYPT_N || Number(parts[2]) !== SCRYPT_R || Number(parts[3]) !== SCRYPT_P) {
+    return false
+  }
+  const salt = Buffer.from(parts[4], 'base64url')
+  const expected = Buffer.from(parts[5], 'base64url')
+  if (!salt.length || expected.length !== KEYLEN) return false
+  const key = await scrypt(String(password ?? ''), salt)
+  if (key.length !== expected.length) return false
+  return timingSafeEqual(key, expected)
+}
+
+/**
+ * В строку users. Пароль Supabase по-прежнему живёт в Auth, в колонке остаётся метка.
+ * @param {{ passwordHash?: string } | null | undefined} created
+ */
+export function passwordHashForUsersRow(created) {
+  const hash = created?.passwordHash
+  if (typeof hash === 'string' && hash.startsWith('scrypt$')) return hash
+  return 'supabase-auth'
+}
+
+function b64urlJson(value) {
+  return Buffer.from(JSON.stringify(value)).toString('base64url')
+}
+
+export function signOwnJwt(payload, secret) {
+  const header = b64urlJson({ alg: 'HS256', typ: 'JWT' })
+  const body = b64urlJson(payload)
+  const sig = createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url')
+  return `${header}.${body}.${sig}`
+}
+
+/**
+ * @param {string} token
+ * @param {string} secret
+ * @param {number} [nowSec]
+ * @returns {{ payload: object | null, error: string | null }}
+ */
+export function verifyOwnJwt(token, secret, nowSec = Math.floor(Date.now() / 1000)) {
+  const parts = String(token ?? '').split('.')
+  if (parts.length !== 3 || !secret) {
+    return { payload: null, error: 'Сессия недействительна — войдите снова' }
+  }
+  const [header, body, sig] = parts
+  const expected = createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url')
+  const got = Buffer.from(sig)
+  const want = Buffer.from(expected)
+  if (got.length !== want.length || !timingSafeEqual(got, want)) {
+    return { payload: null, error: 'Сессия недействительна — войдите снова' }
+  }
+  let payload
+  try {
+    payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'))
+  } catch {
+    return { payload: null, error: 'Сессия недействительна — войдите снова' }
+  }
+  if (!payload?.exp || Number(payload.exp) <= nowSec) {
+    return { payload: null, error: 'Сессия недействительна — войдите снова' }
+  }
+  return { payload, error: null }
+}
+
+export function ownAuthUser(id, email) {
+  const now = new Date().toISOString()
+  return {
+    id: String(id),
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: String(email ?? ''),
+    email_confirmed_at: now,
+    app_metadata: { provider: 'email', providers: ['email'] },
+    user_metadata: { email: String(email ?? '') },
+    created_at: now,
+    updated_at: now,
+  }
+}
+
+/**
+ * @param {{ id: string, email?: string }} user
+ * @param {string} secret
+ * @param {number} [nowSec]
+ */
+export function buildOwnSession(user, secret, nowSec = Math.floor(Date.now() / 1000)) {
+  const accessExp = nowSec + OWN_ACCESS_TTL_SEC
+  const refreshExp = nowSec + OWN_REFRESH_TTL_SEC
+  const access_token = signOwnJwt(
+    { sub: user.id, email: user.email ?? '', aud: 'authenticated', role: 'authenticated', typ: 'access', iat: nowSec, exp: accessExp },
+    secret,
+  )
+  const refresh_token = signOwnJwt(
+    { sub: user.id, email: user.email ?? '', typ: 'refresh', iat: nowSec, exp: refreshExp },
+    secret,
+  )
+  return {
+    access_token,
+    refresh_token,
+    expires_in: OWN_ACCESS_TTL_SEC,
+    expires_at: accessExp,
+    token_type: 'bearer',
+    user: ownAuthUser(user.id, user.email),
+  }
+}

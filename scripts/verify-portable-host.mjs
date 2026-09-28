@@ -34,6 +34,17 @@ try {
 
   const missing = await fetch(`http://127.0.0.1:${port}/api/___no_such_handler___`)
   ok(missing.status === 404, 'unknown api → 404')
+
+  const authOff = await fetch(`http://127.0.0.1:${port}/auth/v1/token`, { method: 'POST' })
+  ok(authOff.status === 404, 'GET-less /auth/v1 закрыт, пока AUTH_PROVIDER не own')
+
+  const restOff = await fetch(`http://127.0.0.1:${port}/rest/v1/clients?select=id`)
+  ok(restOff.status === 404, '/rest/v1 закрыт, пока нет AUTH_PROVIDER=own и DATA_BACKEND=pg')
+  const restPreflight = await fetch(`http://127.0.0.1:${port}/rest/v1/clients`, { method: 'OPTIONS' })
+  ok(
+    restPreflight.status === 204 && /prefer/.test(restPreflight.headers.get('access-control-allow-headers') || ''),
+    '/rest/v1 OPTIONS отдаёт CORS с prefer',
+  )
 } finally {
   await new Promise((resolve, reject) => {
     server.close((err) => (err ? reject(err) : resolve()))

@@ -82,8 +82,8 @@ if (existsSync(distIndex)) {
   ok(html.includes('sw.js') || existsSync(join(root, 'dist/sw.js')), 'PWA service worker present')
 }
 
-const syncOrphansSrc = readFileSync(join(root, 'src/lib/syncQueueOrphans.js'), 'utf8')
-const maxRetriesMatch = syncOrphansSrc.match(/SYNC_QUEUE_MAX_RETRIES\s*=\s*(\d+)/)
+const syncRetriesSrc = readFileSync(join(root, 'src/lib/syncFlushResult.js'), 'utf8')
+const maxRetriesMatch = syncRetriesSrc.match(/SYNC_QUEUE_MAX_RETRIES\s*=\s*(\d+)/)
 const maxRetries = maxRetriesMatch ? Number(maxRetriesMatch[1]) : 0
 ok(maxRetries >= 8, `sync queue max retries (${maxRetries})`)
 

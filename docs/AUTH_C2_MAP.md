@@ -1,10 +1,10 @@
 # Вход в приложение: сейчас и на Yandex (C2)
 
-**Актуально:** 2026-08-09.  
+**Актуально:** 2026-09-28.  
 **Для кого:** владелец и разработчик перед стендом R2.  
-**Статус:** карта + **шов Auth в коде** (`api/_lib/authPort.js` → Supabase). **Свой JWT / хеши паролей ещё не включаем** — только после «стартуем R2…» и живой БД. Runbook: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).
+**Статус:** свой вход **в коде** (`AUTH_PROVIDER=own`: хеш scrypt + JWT). На проде и на стенде флаг **выключен** — браузер всё ещё проверяет сессию у Supabase. Runbook: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).
 
-Простыми словами: сейчас «охранник на входе» — сервис Supabase Auth. На российском хостинге (вариант C2) охранник будет **наш**: логин/пароль проверяет наш сервер, выдаёт свой «пропуск» (токен). Остальное приложение (тренировки, Sync, админка) почти не меняется — меняется только как выдают и проверяют пропуск. Вызовы уже идут через порт — на R2 подменим реализацию.
+Простыми словами: на проде «охранник на входе» — сервис Supabase Auth. На российском хостинге охранник наш: сервер проверяет пароль и выдаёт свой пропуск (токен). Это уже в коде и включается флагом `AUTH_PROVIDER=own`. На проде и на стенде флаг выключен, зал работает как раньше.
 
 Связано: [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) (C2 + Yandex), [API.md](./API.md).
 
@@ -16,7 +16,7 @@
 |-----|------------|-------|
 | Логин в браузере | `src/context/AuthContext.jsx` | Сначала `/api/auth-sign-in`, запасной путь — `supabase.auth.signInWithPassword` |
 | Нормализация логина | `api/_lib/authLoginResolveCore.js` + `src/lib/` | Логин → email для Auth |
-| Порт Auth | `api/_lib/authPort.js` → `authPortSupabase.js` | Единая точка: verify / sign-in / admin create-update-delete |
+| Порт Auth | `api/_lib/authPort.js` → Supabase или `authPortOwn.js` при `AUTH_PROVIDER=own` | Единая точка: verify / sign-in / admin create-update-delete |
 | Проверка «кто вы» на API | `api/_lib/adminSupabase.js` → `requireAuthUser` → `verifyBearer` | Bearer через порт |
 | Роли (admin / trainer / …) | таблица `public.users` + `requireAdmin` и др. | Права на действия |
 | Создание тренера | `/api/create-trainer` | Auth user + строка в `users` (через порт) |
@@ -37,7 +37,7 @@
 | Проверка API | Реализация `verifyBearer` проверяет **наш** токен |
 | Роли | По-прежнему `users.role` (+ club_id) |
 | Клиент | `AuthContext` ходит в `/api/*`; прямой `supabase.auth.*` убрать или оставить только как временный мост |
-| RLS | На C2 доступ к данным в основном через наш API (service role / пул); политики Supabase-стиля не копируем «как есть» без нужды |
+| RLS | API ходит в базу владельцем таблиц через пул. Прямые запросы браузера (`/rest/v1` на нашем хосте) идут под ролью `authenticated` с claims нашего JWT, поэтому работают те же политики, что на Supabase (`policies.sql` + миграции). Права выдаёт `supabase/c2_rest_grants.sql`: без RLS — только чтение. См. runbook, волна 2, шаг 3 |
 
 **Не трогаем в том же PR, что Auth:** правила Sync, абонементы, IndexedDB.
 

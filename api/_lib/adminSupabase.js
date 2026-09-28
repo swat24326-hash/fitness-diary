@@ -1,8 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
 import { isAdminByRole } from '../../src/lib/admin/adminRoleCore.js'
 import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
 import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
-import { AUTH_ENV_MISSING_RU, verifyBearer } from './authPort.js'
+import { authRuntimeEnvError, verifyBearer } from './authPort.js'
 import {
   AUTH_PROFILE_CLOUD_UNAVAILABLE_RU,
   AUTH_PROFILE_MEMO_MAX,
@@ -14,6 +13,7 @@ import {
   interpretUsersProfileQuery,
   readAuthProfileMemoHit,
 } from './authCallerProfileCore.js'
+import { createServiceDataClient } from './pgRest/serviceClient.js'
 import { pruneVerifyBearerMemo } from './verifyBearerMemoCore.js'
 
 /** @type {Map<string, { flags: object, at: number }>} */
@@ -125,11 +125,13 @@ function isSupervisorRoleNorm(roleNorm) {
  * @returns {Promise<{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient, user: object, profile: object | null, roleNorm: string, isAdmin: boolean, isTrainer: boolean, isSalesManager: boolean, isSupervisor: boolean } | null>}
  */
 export async function requireAuthUser(req, res) {
-  const { url, serviceKey, anonKey } = readEnv()
-  if (!url || !serviceKey || !anonKey) {
-    sendJson(res, 500, { error: AUTH_ENV_MISSING_RU })
+  const envErr = authRuntimeEnvError()
+  if (envErr) {
+    sendJson(res, 500, { error: envErr })
     return null
   }
+
+  const { url, anonKey } = readEnv()
 
   const authHeader = req.headers.authorization || req.headers.Authorization
   if (!authHeader || !String(authHeader).startsWith('Bearer ')) {
@@ -144,7 +146,7 @@ export async function requireAuthUser(req, res) {
     return null
   }
 
-  const supabaseAdmin = createClient(url, serviceKey)
+  const supabaseAdmin = createServiceDataClient()
   const now = Date.now()
   const memoFlags = readAuthProfileMemoHit(user.id, authProfileMemo.get(user.id), now)
   if (memoFlags) {

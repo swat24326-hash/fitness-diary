@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
 import { sendJson, readEnv } from './adminSupabase.js'
+import { createServiceDataClient, isPgDataBackend, pgDataBackendEnvError } from './pgRest/serviceClient.js'
 import { parseStoredMoiZvonkiClubConfig } from '../../src/lib/admin/moiZvonkiClubConfigCore.js'
 import {
   buildClubCallFinishPatch,
@@ -26,11 +26,16 @@ export function readMoiZvonkiWebhookSecretFromRequest(req) {
 }
 
 function createWebhookServiceClient() {
+  if (isPgDataBackend()) {
+    const pgErr = pgDataBackendEnvError()
+    if (pgErr) throw new Error(pgErr)
+    return createServiceDataClient()
+  }
   const { url, serviceKey } = readEnv()
   if (!url || !serviceKey) {
     throw new Error('Нет SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY на сервере')
   }
-  return createClient(url, serviceKey)
+  return createServiceDataClient()
 }
 
 /**

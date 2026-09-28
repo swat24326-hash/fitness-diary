@@ -70,20 +70,32 @@ npm run db:migrate:pg -- --dry-run
 
 ### Волна 2 — True C2 (то же окно R2, не ночь cutover)
 
-Блокеры в коде на 2026-09-25 (это **не** мешает волне 1):
+Блокеры в коде (волна 1 это не держит):
 
-- нет runtime data-port (`pg` вместо PostgREST в API);
-- свой JWT за `authPort` ещё не включён (шов есть, живой вход — Supabase);
-- клиентский сеанс всё ещё держится на `supabase.auth.*` (`AuthContext`).
+- runtime data-port **в репо** (`api/_lib/pgRest/`, флаг `DATA_BACKEND=pg`), на стенде **выключен**;
+- свой JWT **в репо** (`AUTH_PROVIDER=own`), на стенде **выключен** — текущая сборка после входа всё ещё спрашивает Supabase;
+- клиентский сеанс всё ещё держится на `supabase.auth.*` (`AuthContext`), пока адрес Auth не смотрит на наш `/auth/v1`.
 
 **Замер 2026-09-28:** API — 334 вызова `.from()` в 54 файлах (без вложенных связей в `select`; фильтры `eq/in/gte/lte/lt/is/ilike/not/or`, `order/limit/range`, `single/maybeSingle`, `count: 'exact'`, `upsert onConflict`), `auth.*` — 7. Фронт — 63 прямых `.from()` в 10 файлах (`src/lib/admin/*`, `AuthContext`, `pullReferenceData`), `supabase.auth.*` — 17. Realtime/Storage не используются.
 
 **План волны 2 (предложение агента, ждёт «да» владельца):** не переписывать 400 вызовов, а поднять в `server/` + `api/_lib/` **совместимый слой** — тот же контракт, что у supabase-js, поверх `pg`:
 
-1. **Data-port API** — `api/_lib/pgRest/`: построитель SQL (чистый, `verify-pg-rest-*.mjs`) + исполнитель; `adminSupabase.js` отдаёт его при `DATA_BACKEND=pg`. 54 файла API не меняются.
-2. **Свой Auth** — `authPort` own: пароли (bcrypt) + наш JWT; совместимые `/auth/v1/token|user|logout`, чтобы `AuthContext` работал без переписывания.
-3. **Фронт** — совместимый `/rest/v1/*` на нашем сервере с RLS: `SET LOCAL role authenticated` + `request.jwt.claims` (стаб `auth.uid()` уже читает их), `policies.sql` через `--with-policies`. Нужна роль `authenticated` у `osapp` — задача GrokBot в консоли.
-4. **Тестовые данные + прогон** — seed клуба/админа/тренера/клиентов (не прод-ПДн), затем пункты 3–8 волны 1 против PG.
+1. **Data-port API** — ✅ код 2026-09-28: `api/_lib/pgRest/` (построитель SQL, `scripts/verify-pg-rest.mjs`) + исполнитель `pg`. `createServiceDataClient()` в `adminSupabase.js` (и вход / создание тренера / вебхук звонков) отдаёт его при `DATA_BACKEND=pg`. Вызовы `.from()` в обработчиках не переписывались. Пока свой Auth не включён, `.auth.admin` на этом клиенте ещё ходит в Supabase. **Флаг на стенде не ставить**, пока нет шага 2 и тестовых пользователей: схема пустая, роли пропадут.
+2. **Свой Auth** — ✅ код 2026-09-28: `AUTH_PROVIDER=own` переключает порт на хеш пароля (scrypt, встроен в Node) и JWT (`JWT_SECRET`, от 32 символов). Создание тренера, менеджера и управляющего пишет хеш в `users.password_hash`. Портативный хост отвечает на `/auth/v1/token`, `/user`, `/logout`, чтобы клиент supabase принял сессию, когда адрес Auth — этот сервер. **На стенде флаг не ставить:** сборка всё ещё ходит в Supabase и за проверкой токена, и за частью данных. Включать вместе с `DATA_BACKEND=pg`, тестовыми пользователями и адресом Auth на наш хост.
+3. **Фронт** — ✅ код 2026-09-28: портативный хост отвечает на `/rest/v1/<таблица>` в формате supabase-js (`api/_lib/restV1Handler.js`, разбор `api/_lib/pgRest/restV1Parse.js`). Каждый запрос браузера идёт в отдельной транзакции под ролью `authenticated`, в неё кладутся `request.jwt.claims` / `request.jwt.claim.sub` из нашего токена (`rlsTx.js`), поэтому `auth.uid()` и политики RLS видят пользователя. Без нашего access-токена — 401. Маршрут открыт только при `AUTH_PROVIDER=own` **и** `DATA_BACKEND=pg`, иначе 404. Колонка `users.password_hash` для браузера закрыта полностью: её нельзя прочитать, отфильтровать или записать. Вложенные связи в `select` не поддержаны: фронт их и не использует.
+   - **Права в базе:** `--with-policies` теперь кладёт `policies.sql` **до** миграций. Так было на Supabase; если применить его последним, он откатит новые `fit_auth_*` и политики (роли supervisor / sales_manager). В конце всегда переприменяется `supabase/c2_rest_grants.sql`. Таблицы с RLS роль `authenticated` может читать и писать, дальше решают политики. Таблицы без RLS — только читать: иначе, например, тренер поменял бы себе `users.role`.
+   - **Уже мигрированная база** политики не «догоняет»: скрипт откажет. Стенд пустой, поэтому схему пересоздаём и накатываем с `--with-policies` с нуля.
+   - **Консоль (GrokBot):** пользователю `osapp` нужна роль `authenticated` (право `SET ROLE`), иначе каждый запрос браузера упадёт с «permission denied to set role».
+   - **Сборка C2:** `VITE_SUPABASE_URL` = адрес стенда (тогда `/auth/v1` и `/rest/v1` идут к нам). `VITE_SUPABASE_ANON_KEY` — любой ключ вида `eyJ…`: наш сервер его не проверяет, доступ решают наш токен и RLS.
+   - **Известная дыра до R3:** у `users` в репо нет RLS. Через `/rest/v1` любой вошедший прочитает список сотрудников (имена, телефоны, почты), но не хеши и без права записи. На стенде это тестовые данные. До живого клуба на C2 — политики на `users` (спринт §5.7).
+4. **Тестовые данные + прогон** — seed клуба/админа/тренера/клиентов (не прод-ПДн), затем пункты 3–8 волны 1 против PG. Скрипты в репо (2026-09-28), на ВМ всё через `scripts/r2-vm-db-run.sh` (адрес базы из `.env`, не печатается):
+   1. Консоль: `osapp` получает роль `authenticated`.
+   2. Код шагов 1–4 на ВМ (ветка из GitHub).
+   3. `sudo bash scripts/r2-vm-db-run.sh scripts/pg-reset-empty-schema.mjs --yes-empty-staging` очищает `public`: удаляет таблицы, функции и типы, но расширения не трогает, потому что `pgcrypto` включён из консоли и заново его не создать. Откажет, если хоть в одной таблице есть строки.
+   4. `sudo bash scripts/r2-pg-migrate-vm.sh --with-policies`.
+   5. `sudo bash scripts/r2-vm-db-run.sh scripts/c2-seed-staging.mjs`: клуб, `c2-admin` / `c2-trainer` / `c2-sales` / `c2-supervisor`, 3 клиента с абонементами. Пароли лежат в `/opt/fitness-diary/.c2-seed-credentials` (0600), в консоль не выводятся.
+   6. `.env`: `JWT_SECRET` (генерируется на ВМ, не печатается), `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`. Сборка с `VITE_SUPABASE_URL=<адрес стенда>`, перезапуск `os-hybrid`.
+   7. Проверки 3–8 волны 1 и `npm run qa:local` перед включением.
 
 Это C2 (наш код на Node), не C1: Supabase-сервисы не разворачиваем.
 
@@ -119,9 +131,12 @@ npm run db:migrate:pg -- --dry-run
 | Health | `GET /health` и `GET /api/health` |
 | Docker | `Dockerfile` (+ build-args `VITE_*`) |
 | Миграции bare PG | `npm run db:migrate:pg` + stub `supabase/c2_auth_stub.sql` + `supabase/c2_auth_helpers.sql` (базовые `fit_auth_*`, на Supabase пришли из `policies.sql`); на ВМ — `scripts/r2-pg-migrate-vm.sh` |
-| Шов Auth | `api/_lib/authPort.js` (сейчас Supabase) |
+| Порт Auth | `api/_lib/authPort.js` — Supabase, либо `AUTH_PROVIDER=own` (`authOwnCore.js`, `authPortOwn.js`) |
+| Совместимый `/auth/v1` | `api/_lib/authV1Handler.js` на портативном хосте (token, user, logout). Пока флаг не own — 404 |
 | Env-заготовки | `.env.example` (блок C2) |
-| Verify | `verify-pg-migrate-order.mjs`, `verify-portable-host.mjs` |
+| Data-port API | `api/_lib/pgRest/` + `DATA_BACKEND=pg` (на стенде флаг выключен) |
+| Совместимый `/rest/v1` | `api/_lib/restV1Handler.js` + `pgRest/restV1Parse.js`, `restV1Shape.js`, `rlsTx.js`; права — `supabase/c2_rest_grants.sql`. Открыт только при own + pg |
+| Verify | `verify-pg-migrate-order.mjs`, `verify-pg-rest.mjs`, `verify-auth-own.mjs`, `verify-pg-rest-v1.mjs`, `verify-portable-host.mjs` |
 
 ---
 
@@ -167,7 +182,7 @@ npm run db:migrate:pg -- --dry-run
 
 **Кластер Alive 2026-09-28:** `os-c2-staging`, порт 6432, база `fitness_diary`, пользователь `osapp`, публичный доступ выкл.
 
-**Схема накатана 2026-09-28:** `db:migrate:pg done` с ВМ; 38 таблиц в `public`, 94 записи в `_schema_migrations` (пустая миграция не пишется), повторный прогон — `nothing to apply`/`done`. RLS (`policies.sql`) не применяли. Сайт стенда по-прежнему пишет в Supabase — дальше data-port + свой Auth.
+**Схема накатана 2026-09-28:** `db:migrate:pg done` с ВМ; 38 таблиц в `public`, 94 записи в `_schema_migrations` (пустая миграция не пишется), повторный прогон — `nothing to apply`/`done`. RLS (`policies.sql`) не применяли. Сайт стенда по-прежнему пишет в Supabase. Data-port в коде есть, флаг не включён — дальше свой Auth и тестовые пользователи.
 
 ### Схема на кластер (с ВМ)
 
@@ -179,7 +194,7 @@ npm run db:migrate:pg -- --dry-run
    Проще всего с ПК владельца: `powershell -ExecutionPolicy Bypass -File scripts\r2-set-database-url.ps1` — пароль вводится скрыто, кодируется и уходит на ВМ по SSH. Вручную — спецсимволы пароля URL-кодировать. `sslmode=require` не подходит: `pg` всё равно сверяет сертификат, без CA будет `self-signed certificate in certificate chain`.
 4. На ВМ: `sudo bash /opt/fitness-diary/scripts/r2-pg-migrate-vm.sh --dry-run`, затем без флага. Пароль скрипт не печатает.
 
-Работающий сайт `DATABASE_URL` не читает: после миграции стенд **по-прежнему пишет в Supabase**, пока не сделаны data-port и свой Auth.
+Работающий сайт `DATABASE_URL` не читает, пока в `.env` нет `DATA_BACKEND=pg`. Data-port уже в коде; включать флаг на стенде — только вместе со своим Auth и тестовыми пользователями, не на живом Hybrid.
 
 **Smoke 25–26.09:** ключ `cloudKey=ok`; admin и список тренера ок. Тренировка на `http://IP` открывается (`safeRandomUuid`). Владелец 26.09 ~19:28: начал → Закончил → Sync, ошибок нет. Прод и True C2 не трогаем.
 
@@ -201,8 +216,10 @@ npm run db:migrate:pg -- --dry-run
 
 **True C2 (+ к Hybrid):**
 
-- `DATABASE_URL` — Yandex Managed PostgreSQL (`sslmode=require` обычно уже в URL кабинета)
-- Позже: `JWT_SECRET`, `AUTH_PROVIDER=own` — когда включим свой Auth ([AUTH_C2_MAP.md](./AUTH_C2_MAP.md))
+- `DATABASE_URL` — Yandex Managed PostgreSQL (`sslmode=verify-full` и `sslrootcert` на стенде)
+- `DATA_BACKEND=pg` — API пишет в эту базу через `api/_lib/pgRest/`. Без флага (или `supabase`) — как раньше, PostgREST. На Hybrid-стенде не включать раньше своего Auth.
+- `JWT_SECRET` — секрет подписи нашего JWT, когда `AUTH_PROVIDER=own` (не короче 32 символов). На Hybrid не включать раньше тестовых пользователей.
+- `AUTH_PROVIDER=own` — вход и проверка Bearer наши. Без флага (или `supabase`) — как раньше, Supabase Auth. См. [AUTH_C2_MAP.md](./AUTH_C2_MAP.md).
 
 ### 2. Схема БД (только True C2 / репетиция PG)
 
@@ -212,11 +229,11 @@ DATABASE_URL=postgres://… npm run db:migrate:pg
 # RLS-файл: npm run db:migrate:pg -- --with-policies
 ```
 
-Порядок: **`c2_auth_stub.sql`** → `schema.sql` → `c2_auth_helpers.sql` → `supabase/migrations/*.sql` → (опционально) `policies.sql`.
+Порядок: **`c2_auth_stub.sql`** → `schema.sql` → `c2_auth_helpers.sql` → (с `--with-policies`) `policies.sql` → `supabase/migrations/*.sql` → (с `--with-policies`, каждый прогон) `c2_rest_grants.sql`.
 
 Stub создаёт `auth.users`, `auth.uid()` / `auth.jwt()`, роли `authenticated` / `anon` / `service_role` — иначе миграции с `REFERENCES auth.users` падают на голом Postgres.
 
-По умолчанию **`policies.sql` не применяется** (на C2 опора — наш API, не копия RLS «как на Supabase»). Флаг `--with-policies` — только если осознанно нужны политики на стенде.
+По умолчанию **`policies.sql` не применяется**. `--with-policies` нужен для True C2 с браузером на `/rest/v1`: без RLS браузер работать не будет. Только на **пустой** базе. Если миграции уже прошли без политик, скрипт откажет (см. волну 2, шаг 3).
 
 Повторный прогон идемпотентен (`_schema_migrations`; stub переприменяется безопасно).
 
@@ -253,7 +270,7 @@ docker run --env-file .env -p 8080:8080 os-c2
 
 ### 5. Auth на C2
 
-Шов готов (`authPort`). **Живой** JWT / хеши паролей — отдельный шаг по [AUTH_C2_MAP.md](./AUTH_C2_MAP.md), в том же окне R2 после живой БД, **не** в ночь cutover клуба.
+Шов и реализация в коде (`authPort`, `AUTH_PROVIDER=own`). **На стенде не включено.** Включать в том же окне R2 после тестовых пользователей, вместе с data-port, **не** в ночь cutover клуба. Карта: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md).
 
 ---
 
@@ -262,7 +279,7 @@ docker run --env-file .env -p 8080:8080 os-c2
 - Менять DNS / URL рабочего клуба (это R3).  
 - Security-спринт §5.7 и оплаты/кассу.  
 - Ломать модель Sync «под хостинг».  
-- Считать «migrate:pg прошёл» = «API уже пишет в Yandex PG» — без data-port runtime всё ещё ходит в Supabase.
+- Считать «migrate:pg прошёл» = «API уже пишет в Yandex PG» — без `DATA_BACKEND=pg` стенд по-прежнему ходит в Supabase. Флаг не включать на Hybrid раньше своего Auth.
 
 ---
 

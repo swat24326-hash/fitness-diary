@@ -102,3 +102,15 @@
 4. Обновить этот файл + при необходимости handoff.
 
 Auth helpers: `api/_lib/adminSupabase.js` (`requireAdmin`, `requireAdminOrSalesManager`, `requireAdminOrSupervisor`, `requireAuthUser`).
+
+Клиент базы для API: `createServiceDataClient()` (`api/_lib/pgRest/serviceClient.js`). Без `DATA_BACKEND` или при `DATA_BACKEND=supabase` это Supabase service role. `DATA_BACKEND=pg` — тот же контракт `.from()` поверх Postgres (`DATABASE_URL`). Прод этот флаг не ставит.
+
+Вход: `api/_lib/authPort.js`. `AUTH_PROVIDER=own` — свой JWT и хеш пароля в `users.password_hash`; проверка Bearer наша. Без флага — Supabase Auth. На портативном хосте тогда же открываются `POST /auth/v1/token`, `GET /auth/v1/user`, `POST /auth/v1/logout`.
+
+`/rest/v1/<таблица>` (только портативный хост, только при `AUTH_PROVIDER=own` **и** `DATA_BACKEND=pg`, иначе 404) — совместимый с supabase-js кусок PostgREST для браузера:
+
+- **Методы:** GET, HEAD, POST (insert / upsert с `on_conflict`), PATCH, DELETE.
+- **Фильтры:** `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `is`, `in`, `not.*`, `or=(…)`, плюс `order`, `limit`/`offset`.
+- **Заголовки:** `Prefer` понимает `return`, `count=exact`, `resolution`, `missing=default`. Одна строка — через `Accept: application/vnd.pgrst.object+json`. Счётчик возвращается в `Content-Range`.
+- **Доступ:** нужен наш access-токен в Bearer, иначе 401. Запрос выполняется под ролью `authenticated` с claims пользователя, поэтому решают политики RLS. `users.password_hash` для браузера закрыт.
+- **Код:** `api/_lib/restV1Handler.js`, `api/_lib/pgRest/restV1*.js`, `rlsTx.js`.

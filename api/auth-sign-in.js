@@ -5,9 +5,9 @@
  * При недоступности PostgREST сначала пробуем Auth напрямую (login@trainer.local / email),
  * чтобы не зависать на lookup в users.
  */
-import { createClient } from '@supabase/supabase-js'
 import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
-import { AUTH_ENV_MISSING_RU, signInWithPassword } from './_lib/authPort.js'
+import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
+import { authRuntimeEnvError, signInWithPassword } from './_lib/authPort.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
 import { createFetchWithTimeout, isServerTimeoutError, withServerTimeout } from './_lib/serverFetchTimeout.js'
@@ -112,11 +112,12 @@ async function handler(req, res) {
     return
   }
 
-  const { url, serviceKey, anonKey } = readEnv()
-  if (!url || !serviceKey || !anonKey) {
-    sendJson(res, 500, { error: AUTH_ENV_MISSING_RU })
+  const envErr = authRuntimeEnvError()
+  if (envErr) {
+    sendJson(res, 500, { error: envErr })
     return
   }
+  const { url, anonKey } = readEnv()
 
   let body = req.body
   if (typeof body === 'string') {
@@ -136,7 +137,7 @@ async function handler(req, res) {
   }
 
   const fetchWithTimeout = createFetchWithTimeout(SUPABASE_FETCH_MS)
-  const supabaseAdmin = createClient(url, serviceKey, { global: { fetch: fetchWithTimeout } })
+  const supabaseAdmin = createServiceDataClient({ global: { fetch: fetchWithTimeout } })
 
   let sawTransportError = false
   let sawInvalidCredentials = false

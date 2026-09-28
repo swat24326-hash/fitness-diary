@@ -1,4 +1,5 @@
 import { sendJson } from '../adminSupabase.js'
+import { adminCreateUser, adminDeleteUser, passwordHashForUsersRow } from '../authPort.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../authLoginResolveCore.js'
 import { stripSalesBundleForManager } from '../../../src/lib/admin/salesAccessCore.js'
 import { aggregateMembershipTypeStats } from '../membershipTypeStatsAgg.js'
@@ -593,18 +594,20 @@ export async function handleCreateSalesManagerPost(ctx, res, body) {
     warning = `В клубе уже ${existingCount} менедж(ер/еров) по продажам — учётка всё равно будет создана.`
   }
 
-  const { data: created, error: auErr } = await supabaseAdmin.auth.admin.createUser({
+  const createdResult = await adminCreateUser(supabaseAdmin, {
     email,
     password,
     email_confirm: true,
   })
+  const created = createdResult.user
+  const auErr = createdResult.error
 
-  if (auErr || !created?.user) {
-    sendJson(res, 400, { error: auErr?.message ?? 'Не удалось создать пользователя в Auth' })
+  if (auErr || !created) {
+    sendJson(res, 400, { error: auErr ?? 'Не удалось создать пользователя в Auth' })
     return
   }
 
-  const uid = created.user.id
+  const uid = created.id
 
   const insertRow = {
     id: uid,
@@ -613,7 +616,7 @@ export async function handleCreateSalesManagerPost(ctx, res, body) {
     email,
     login,
     role: 'sales_manager',
-    password_hash: 'supabase-auth',
+    password_hash: passwordHashForUsersRow(createdResult),
     is_active: true,
     club_id,
   }
@@ -621,10 +624,11 @@ export async function handleCreateSalesManagerPost(ctx, res, body) {
   const { error: insErr } = await supabaseAdmin.from('users').insert(insertRow)
 
   if (insErr) {
-    await supabaseAdmin.auth.admin.deleteUser(uid)
+    await adminDeleteUser(supabaseAdmin, uid)
     sendJson(res, 400, { error: insErr.message })
     return
   }
 
-  sendJson(res, 200, { ok: true, id: uid, manager: insertRow, warning })
+  const { password_hash: _hash, ...managerPublic } = insertRow
+  sendJson(res, 200, { ok: true, id: uid, manager: managerPublic, warning })
 }

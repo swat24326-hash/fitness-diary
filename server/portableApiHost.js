@@ -8,6 +8,8 @@ import { createReadStream, existsSync } from 'node:fs'
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { classifyServiceRoleKeyShape } from '../api/_lib/authCallerProfileCore.js'
+import { handleAuthV1 } from '../api/_lib/authV1Handler.js'
+import { handleRestV1 } from '../api/_lib/restV1Handler.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
@@ -168,6 +170,22 @@ export function createPortableApiHost(opts = {}) {
             cloudKey: classifyServiceRoleKeyShape(process.env.SUPABASE_SERVICE_ROLE_KEY),
           }),
         )
+        return
+      }
+
+      if (pathname === '/auth/v1/token' || pathname === '/auth/v1/user' || pathname === '/auth/v1/logout') {
+        const req = await normalizeRequest(rawReq)
+        await handleAuthV1(req, res)
+        if (!res.writableEnded && !res.headersSent) {
+          res.statusCode = 204
+          res.end()
+        }
+        return
+      }
+
+      if (pathname.startsWith('/rest/v1/')) {
+        const req = await normalizeRequest(rawReq)
+        await handleRestV1(req, res)
         return
       }
 

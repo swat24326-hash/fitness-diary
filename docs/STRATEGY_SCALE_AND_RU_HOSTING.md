@@ -304,7 +304,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Карта Auth сейчас vs C2: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md); шов `api/_lib/authPort.js` (2026-08-09).
 - [x] Portable host + Docker + `db:migrate:pg` (+ `c2_auth_stub`, SSL, `/api/health`, verify): [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) (2026-08-09). День 1 R2 = **hybrid** (хост на РФ, данные пока Supabase) → затем True C2 (Managed PG + свой Auth). Прод Vercel не переключали.
 - [x] Сообщение «облако недоступно» без привязки к `status.supabase.com` (2026-08-22) — ок при смене BaaS.
-- [ ] Runtime data-port (`pg` вместо PostgREST в API) — после живой схемы на стенде; не блокер hybrid day-1.
+- [ ] Runtime data-port включён на стенде. Код есть (`api/_lib/pgRest/`, `DATA_BACKEND=pg`, 2026-09-28), флаг на Hybrid не стоит — иначе пустая база. Дальше свой Auth. Не блокер hybrid day-1.
 
 **Итог R1 (2026-08-22; перепроверка 2026-08-27; снова 2026-09-25):** код готов к команде «стартуем R2…» = Hybrid A. План `db:migrate:pg` — **94 шага** (stub + schema + 92 файла). Открытые пункты выше — только после staging / cutover. План проверки по волнам: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).
 
@@ -537,6 +537,9 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 | 2026-09-25 | Hybrid A ВМ жива | `os-hybrid-staging` `158.160.190.61:8080`; health ok; данные пока Supabase | Ручной smoke входа и офлайн→Sync на **тестовом** адресе. Прод не трогаем |
 | 2026-09-25 | INC-2026-09-25-01 | Smoke: вход ок, сводки 401/408 | В репо таймаут 20 с + memo getUser; нужен rebuild ВМ |
 | 2026-09-28 | Волна 2 стартовала | Команда владельца: своя база на тесте, сотрудников не трогать | Ждём Managed PG `os-c2-staging` Alive; прод / DNS не трогаем |
+| 2026-09-28 | Data-port в коде | `api/_lib/pgRest/`, флаг `DATA_BACKEND=pg`, verify без живой базы | На стенде флаг не включать раньше своего Auth. Прод не трогаем |
+| 2026-09-28 | Свой Auth в коде | `AUTH_PROVIDER=own`: хеш scrypt + JWT, `/auth/v1` на портативном хосте | Флаги на стенде не включать, пока браузер ходит в Supabase. Дальше `/rest/v1` |
+| 2026-09-28 | `/rest/v1` для браузера в коде | Запросы supabase-js на наш хост под RLS (роль `authenticated` + claims нашего JWT); `policies.sql` до миграций, права `c2_rest_grants.sql` | Нужны: роль для `osapp` в консоли, пересоздание пустой схемы, тестовые пользователи. У `users` нет RLS — закрыть до R3 |
 
 ---
 

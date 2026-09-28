@@ -1,5 +1,5 @@
 import { sendJson } from '../adminSupabase.js'
-import { adminCreateUser, adminDeleteUser } from '../authPort.js'
+import { adminCreateUser, adminDeleteUser, passwordHashForUsersRow } from '../authPort.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../authLoginResolveCore.js'
 import { assertCanCreateSupervisor } from '../../../src/lib/admin/supervisorAccessCore.js'
 import { USERS_SUPERVISOR_ROLES } from '../../../src/lib/userRoleConstants.js'
@@ -56,11 +56,13 @@ export async function handleCreateSupervisorPost(ctx, res, body) {
     return
   }
 
-  const { user: created, error: auErr } = await adminCreateUser(supabaseAdmin, {
+  const createdResult = await adminCreateUser(supabaseAdmin, {
     email,
     password,
     email_confirm: true,
   })
+  const created = createdResult.user
+  const auErr = createdResult.error
 
   if (auErr || !created) {
     sendJson(res, 400, { error: auErr ?? 'Не удалось создать пользователя в Auth' })
@@ -76,7 +78,7 @@ export async function handleCreateSupervisorPost(ctx, res, body) {
     email,
     login,
     role: 'supervisor',
-    password_hash: 'supabase-auth',
+    password_hash: passwordHashForUsersRow(createdResult),
     is_active: true,
     club_id,
   }
@@ -89,5 +91,6 @@ export async function handleCreateSupervisorPost(ctx, res, body) {
     return
   }
 
-  sendJson(res, 200, { ok: true, id: uid, supervisor: insertRow })
+  const { password_hash: _hash, ...supervisorPublic } = insertRow
+  sendJson(res, 200, { ok: true, id: uid, supervisor: supervisorPublic })
 }
