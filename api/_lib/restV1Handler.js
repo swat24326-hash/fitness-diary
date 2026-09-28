@@ -4,12 +4,23 @@ import { verifyBearerOwn } from './authPortOwn.js'
 import { isPgDataBackend, pgDataBackendEnvError } from './pgRest/backend.js'
 import { compilePgRestQuery } from './pgRest/buildSql.js'
 import { loadUdtOf } from './pgRest/pool.js'
-import { parseRestV1Request, stripHiddenColumns } from './pgRest/restV1Parse.js'
+import { isAnonRestV1Request, parseRestV1Request, stripHiddenColumns } from './pgRest/restV1Parse.js'
 import { restV1ErrorFromPg, shapeRestV1Response } from './pgRest/restV1Shape.js'
 import { executeCompiledAsUser } from './pgRest/rlsTx.js'
 
 function restError(res, status, code, message) {
   sendJson(res, status, { code, message, details: null, hint: null })
+}
+
+function writeShaped(res, method, shaped) {
+  res.statusCode = shaped.status
+  for (const [key, value] of Object.entries(shaped.headers)) res.setHeader(key, value)
+  if (shaped.body === undefined || method === 'HEAD') {
+    res.end()
+    return
+  }
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.end(JSON.stringify(shaped.body))
 }
 
 /** Включается только вместе: свой Auth (кто спрашивает) + своя база (куда спрашивает). */
@@ -44,14 +55,6 @@ export async function handleRestV1(req, res) {
     return
   }
 
-  const header = String(req.headers.authorization ?? '')
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
-  const { user, error: authErr } = await verifyBearerOwn(token)
-  if (authErr || !user) {
-    restError(res, 401, 'PGRST301', 'Сессия недействительна — войдите снова')
-    return
-  }
-
   const url = new URL(req.url || '/', 'http://localhost')
   const segments = url.pathname.replace(/\/+$/, '').split('/').filter(Boolean)
   if (segments.length !== 3 || segments[0] !== 'rest' || segments[1] !== 'v1') {
@@ -70,6 +73,22 @@ export async function handleRestV1(req, res) {
     return
   }
 
+  // Аноним как на Supabase: политики только TO authenticated, поэтому чтение пустое, запись — отказ.
+  if (isAnonRestV1Request(req.headers)) {
+    if (parsed.spec.op !== 'select') {
+      restError(res, 401, 'PGRST301', 'Войдите, чтобы сохранять данные')
+      return
+    }
+    writeShaped(res, req.method, shapeRestV1Response(parsed, [], parsed.spec.count ? 0 : null))
+    return
+  }
+  const header = String(req.headers.authorization ?? '')
+  const { user, error: authErr } = await verifyBearerOwn(header.slice(7).trim())
+  if (authErr || !user) {
+    restError(res, 401, 'PGRST301', 'Сессия недействительна — войдите снова')
+    return
+  }
+
   try {
     const udtOf = await loadUdtOf(parsed.spec.table)
     const compiled = compilePgRestQuery(parsed.spec, { udtOf })
@@ -79,15 +98,7 @@ export async function handleRestV1(req, res) {
     }
     const out = await executeCompiledAsUser(compiled, user)
     const rows = stripHiddenColumns(parsed.spec.table, out.rows)
-    const shaped = shapeRestV1Response(parsed, rows, out.count)
-    res.statusCode = shaped.status
-    for (const [key, value] of Object.entries(shaped.headers)) res.setHeader(key, value)
-    if (shaped.body === undefined || req.method === 'HEAD') {
-      res.end()
-      return
-    }
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.end(JSON.stringify(shaped.body))
+    writeShaped(res, req.method, shapeRestV1Response(parsed, rows, out.count))
   } catch (e) {
     const mapped = restV1ErrorFromPg(e)
     sendJson(res, mapped.status, mapped.body)

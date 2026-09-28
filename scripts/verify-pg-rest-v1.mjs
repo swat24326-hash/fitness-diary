@@ -4,7 +4,7 @@
  */
 import { PostgrestClient } from '@supabase/postgrest-js'
 import { compilePgRestQuery } from '../api/_lib/pgRest/buildSql.js'
-import { parsePreferHeader, parseRestV1Request, stripHiddenColumns } from '../api/_lib/pgRest/restV1Parse.js'
+import { isAnonRestV1Request, parsePreferHeader, parseRestV1Request, stripHiddenColumns } from '../api/_lib/pgRest/restV1Parse.js'
 import { restV1ContentRange, restV1ErrorFromPg, shapeRestV1Response } from '../api/_lib/pgRest/restV1Shape.js'
 import { buildRlsClaims, RLS_DB_ROLE } from '../api/_lib/pgRest/rlsTx.js'
 import { isRestV1Enabled } from '../api/_lib/restV1Handler.js'
@@ -193,6 +193,17 @@ function compile(req, udtOf) {
   ok(restV1ErrorFromPg({ code: '42501', message: 'rls' }).status === 403, 'RLS отказ → 403')
   ok(restV1ErrorFromPg({ code: '23505' }).status === 409, 'дубль → 409')
   ok(parsePreferHeader('return=representation, count=exact').count === 'exact', 'Prefer разбор')
+}
+
+// --- аноним (вход по логину до сессии: users?login=eq.x)
+{
+  ok(isAnonRestV1Request({}), 'без Bearer → аноним')
+  ok(isAnonRestV1Request({ authorization: 'Bearer eyJanon', apikey: 'eyJanon' }), 'Bearer = apikey → аноним (supabase-js без сессии)')
+  ok(!isAnonRestV1Request({ authorization: 'Bearer eyJuser', apikey: 'eyJanon' }), 'токен пользователя (даже просроченный) → не аноним, будет 401')
+  const req = await capture((c) => c.from('users').select('email, is_active').eq('login', 'dmitry').maybeSingle())
+  const parsed = parseRestV1Request(req)
+  const shaped = shapeRestV1Response(parsed, [], null)
+  ok(shaped.status === 200 && Array.isArray(shaped.body) && shaped.body.length === 0, 'аноним maybeSingle → пустой массив (клиент даст null, не ошибку)')
 }
 
 // --- RLS claims и выключатель

@@ -37,6 +37,19 @@ export function stripHiddenColumns(table, rows) {
   })
 }
 
+/**
+ * Аноним по правилам supabase-js: без сессии он шлёт Bearer = apikey (или не шлёт вовсе).
+ * Просроченный токен пользователя сюда не попадает — ему нужен 401, чтобы клиент обновил сессию.
+ * @param {Record<string, string | string[] | undefined>} headers
+ */
+export function isAnonRestV1Request(headers) {
+  const auth = String(headers?.authorization ?? '')
+  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
+  if (!token) return true
+  const apikey = String(headers?.apikey ?? '').trim()
+  return Boolean(apikey) && token === apikey
+}
+
 /** Заголовок Prefer может прийти несколькими значениями — Node склеивает их через запятую. */
 export function parsePreferHeader(raw) {
   const out = {}
