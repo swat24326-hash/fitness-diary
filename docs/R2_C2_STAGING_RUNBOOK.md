@@ -93,6 +93,15 @@ npm run db:migrate:pg -- --dry-run
    3. `sudo bash scripts/r2-pg-migrate-vm.sh --with-policies`: на уже мигрированной базе догоняет политики и права.
    4. `sudo bash scripts/r2-vm-db-run.sh scripts/c2-seed-staging.mjs`: клуб, `c2-admin` / `c2-trainer` / `c2-sales` / `c2-supervisor`, 3 клиента с абонементами. Пароли лежат в `/opt/fitness-diary/.c2-seed-credentials` (0600), в консоль не выводятся.
    5. `.env`: `JWT_SECRET` (генерируется на ВМ, не печатается), `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`. Сборка с `VITE_SUPABASE_URL=<адрес стенда>`, перезапуск `os-hybrid`.
+   **Статус 2026-09-28: C2 на стенде включён.** Код — ветка `r2-c2`; роль выдана; база с политиками и тестовым клубом; флаги стоят; сборка смотрит на `http://158.160.190.61:8080`.
+   - Пробник на ВМ (тот же supabase-js, что в сайте) прошёл все проверки:
+     - вход всех четырёх ролей;
+     - тренер видит своих 3 клиентов и 3 абонемента; `password_hash` и смена роли дают 403;
+     - запись тренировки через `/api/push-record` появляется в выгрузке;
+     - менеджер продаж видит 0 клиентов и тренировок;
+     - админ видит 3 клиента, тренировку и клуб.
+   - Управляющий через `/rest/v1` клиентов не видит, как и на проде: политик на `clients` у него нет, данные он берёт через API.
+   - **Откат на Hybrid:** `sudo cp -p /opt/fitness-diary/.env.bak-hybrid /opt/fitness-diary/.env`, затем `sudo -u osapp npm run build` и `sudo systemctl restart os-hybrid`.
    6. Проверки 3–8 волны 1 и `npm run qa:local` перед включением.
 
 Это C2 (наш код на Node), не C1: Supabase-сервисы не разворачиваем.
