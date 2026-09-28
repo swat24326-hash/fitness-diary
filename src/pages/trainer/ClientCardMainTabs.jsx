@@ -61,6 +61,7 @@ export function ClientCardMainTabs({
         ))}
       </div>
 
+      <div className="client-card-tabpanel" role="tabpanel">
       {tab === 'health' && tabOk(client, 'health', pnkCtx) && (
         <ClientOverview
           client={client}
@@ -120,6 +121,7 @@ export function ClientCardMainTabs({
           />
         </>
       )}
+      </div>
     </>
   )
 }
