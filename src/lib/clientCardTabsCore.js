@@ -24,6 +24,16 @@ export function normalizeClientCardTab(raw) {
 }
 
 /**
+ * Вкладку из ?tab= применяем, только когда сам параметр сменился (назад, deep link).
+ * Роутер обновляет URL в transition: ре-рендер карточки со старым ?tab= не должен откатывать клик по вкладке.
+ * @returns {ReturnType<typeof normalizeClientCardTab>}
+ */
+export function clientCardTabFromUrlChange(prevUrlTab, urlTab) {
+  const next = normalizeClientCardTab(urlTab)
+  return next && next !== normalizeClientCardTab(prevUrlTab) ? next : null
+}
+
+/**
  * @param {URLSearchParams} qs
  * @param {string} tab
  * @param {{ statsMode?: string | null, clearStatsMode?: boolean }} [opts]

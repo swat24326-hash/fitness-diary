@@ -64,7 +64,11 @@ import {
   clientCardUsesGlanceLocal,
   clientWorkspaceScopeForClient,
 } from '../../lib/admin/clientWorkspaceScopeCore.js'
-import { normalizeClientCardTab, writeClientCardTabToSearchParams } from '../../lib/clientCardTabsCore.js'
+import {
+  clientCardTabFromUrlChange,
+  normalizeClientCardTab,
+  writeClientCardTabToSearchParams,
+} from '../../lib/clientCardTabsCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
@@ -98,6 +102,7 @@ export function ClientCard() {
     const t = searchParams.get('tab')
     return normalizeClientCardTab(t) ?? 'health'
   })
+  const seenUrlTabRef = useRef(searchParams.get('tab'))
 
   const setTabWithUrl = useCallback(
     (nextTab) => {
@@ -361,11 +366,12 @@ export function ClientCard() {
   }, [id, canManageClubClients])
 
   useEffect(() => {
-    const normalized = normalizeClientCardTab(searchParams.get('tab'))
-    if (!normalized) return
     // Открытый ПНК: вкладку ведёт мастер (syncPnkTab), не ?tab= из URL.
     if (client && isOpenPnkClient(client)) return
-    setTab(normalized)
+    const urlTab = searchParams.get('tab')
+    const next = clientCardTabFromUrlChange(seenUrlTabRef.current, urlTab)
+    seenUrlTabRef.current = urlTab
+    if (next) setTab(next)
   }, [searchParams, client])
 
   const hydrateFromCloudInBackground = useCallback(async () => {

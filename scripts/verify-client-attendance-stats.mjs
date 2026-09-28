@@ -37,6 +37,7 @@ import {
 } from '../src/lib/clientStatsModeCore.js'
 import {
   buildClientAttendanceStatsPath,
+  clientCardTabFromUrlChange,
   normalizeClientCardTab,
   writeClientCardTabToSearchParams,
 } from '../src/lib/clientCardTabsCore.js'
@@ -281,6 +282,12 @@ const rareAssessment = buildClientAttendanceAssessment(rareStats, {
 })
 ok(rareAssessment.regularity === 'rare', 'assessment rare')
 ok(rareAssessment.factors.some((f) => f.tone === 'bad'), 'rare has bad factor')
+
+ok(clientCardTabFromUrlChange('loyalty', 'loyalty') === null, 'URL tab не сменился (ре-рендер, URL ещё в transition) → не откатывать клик')
+ok(clientCardTabFromUrlChange('loyalty', 'stats') === 'stats', 'URL tab сменился (назад / deep link) → применить')
+ok(clientCardTabFromUrlChange('stats', null) === null, 'tab убран из URL (здоровье) → не трогать')
+ok(clientCardTabFromUrlChange(null, 'stats') === 'stats', 'из «здоровья» по ссылке на статистику → применить')
+ok(clientCardTabFromUrlChange('loyalty', 'junk') === null, 'мусор в ?tab= → игнор')
 
 if (failed) process.exit(1)
 console.log('verify-client-attendance-stats: all ok')
