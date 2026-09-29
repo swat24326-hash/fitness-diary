@@ -106,7 +106,7 @@ export function AdminAzPriceListSection({ clubId }) {
     setBusy(true)
     try {
       const buf = await file.arrayBuffer()
-      const res = importAzPriceListFromExcelBuffer(buf, { clubId })
+      const res = await importAzPriceListFromExcelBuffer(buf, { clubId })
       if (!res.ok) {
         setToast(res.error || 'Импорт не удался')
         return

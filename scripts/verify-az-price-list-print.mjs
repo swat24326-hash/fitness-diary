@@ -26,7 +26,7 @@ function ok(cond, msg) {
 }
 
 const buf = readFileSync(join(root, 'scripts/fixtures/az-price-1kfs.xlsx'))
-const res = importAzPriceListFromExcelBuffer(buf, { clubId: 'club-test' })
+const res = await importAzPriceListFromExcelBuffer(buf, { clubId: 'club-test' })
 ok(res.ok, `fixture import (${res.error || ''})`)
 
 const sheets = buildAzPriceListPrintSheets(res.doc)

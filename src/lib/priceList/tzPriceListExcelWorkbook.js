@@ -1,8 +1,7 @@
 /**
- * Чтение .xls/.xlsx прайса ТЗ → документ.
+ * Чтение .xls/.xlsx прайса ТЗ → документ. `xlsx` грузится лениво (не в основном бандле).
  */
 
-import * as XLSX from 'xlsx'
 import {
   importTzPriceListFromSheetRows,
   pickTzPriceSheetNames,
@@ -12,7 +11,8 @@ import {
  * @param {ArrayBuffer | Buffer | Uint8Array} data
  * @param {{ clubId?: string }} [opts]
  */
-export function importTzPriceListFromExcelBuffer(data, opts = {}) {
+export async function importTzPriceListFromExcelBuffer(data, opts = {}) {
+  const XLSX = await import('xlsx')
   const wb = XLSX.read(data, { type: 'buffer', cellDates: true })
   const { month1, promo } = pickTzPriceSheetNames(wb.SheetNames)
   if (!month1 && !promo) {

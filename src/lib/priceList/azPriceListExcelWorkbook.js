@@ -1,8 +1,7 @@
 /**
- * Чтение .xlsx прайса АЗ → документ.
+ * Чтение .xlsx прайса АЗ → документ. `xlsx` грузится лениво (не в основном бандле).
  */
 
-import * as XLSX from 'xlsx'
 import {
   importAzPriceListFromSheetRows,
   pickAzPriceSheetNames,
@@ -12,7 +11,8 @@ import {
  * @param {ArrayBuffer | Buffer | Uint8Array} data
  * @param {{ clubId?: string }} [opts]
  */
-export function importAzPriceListFromExcelBuffer(data, opts = {}) {
+export async function importAzPriceListFromExcelBuffer(data, opts = {}) {
+  const XLSX = await import('xlsx')
   const wb = XLSX.read(data, { type: 'buffer', cellDates: true })
   const { result, classes, fees } = pickAzPriceSheetNames(wb.SheetNames)
   if (!result && !classes) {

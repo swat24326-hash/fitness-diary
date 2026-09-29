@@ -41,7 +41,7 @@ ok(parseTzValidFrom('Цены действительны с 25.01.2026') === '20
 ok(formatTzSessionsLabel(null) === 'без лимита', 'label unlimited')
 
 const buf = readFileSync(join(root, 'scripts/fixtures/tz-price-1kfs.xls'))
-const res = importTzPriceListFromExcelBuffer(buf, { clubId: 'club-test' })
+const res = await importTzPriceListFromExcelBuffer(buf, { clubId: 'club-test' })
 ok(res.ok, `import ok (${res.error || ''})`)
 ok(res.doc?.month1_rows?.length === 3, `month1 rows = 3 (got ${res.doc?.month1_rows?.length})`)
 ok(res.doc?.promo_rows?.length === 7, `promo rows = 7 (got ${res.doc?.promo_rows?.length})`)

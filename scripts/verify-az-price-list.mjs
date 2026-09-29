@@ -40,7 +40,7 @@ ok(slugAzDirection('Йога') === 'yoga', 'slug yoga')
 ok(azPriceListCellKey(4, 'r1plus') === '4:r1plus', 'cell key')
 
 const buf = readFileSync(join(root, 'scripts/fixtures/az-price-1kfs.xlsx'))
-const res = importAzPriceListFromExcelBuffer(buf, { clubId: 'club-test' })
+const res = await importAzPriceListFromExcelBuffer(buf, { clubId: 'club-test' })
 ok(res.ok, `import ok (${res.error || ''})`)
 ok(res.doc?.result_directions?.length === 3, `result dirs = 3 (got ${res.doc?.result_directions?.length})`)
 ok(res.doc?.class_directions?.length === 3, `class dirs = 3 (got ${res.doc?.class_directions?.length})`)

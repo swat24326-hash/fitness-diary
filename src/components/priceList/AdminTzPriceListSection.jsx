@@ -101,7 +101,7 @@ export function AdminTzPriceListSection({ clubId }) {
     setBusy(true)
     try {
       const buf = await file.arrayBuffer()
-      const res = importTzPriceListFromExcelBuffer(buf, { clubId })
+      const res = await importTzPriceListFromExcelBuffer(buf, { clubId })
       if (!res.ok) {
         setToast(res.error || 'Импорт не удался')
         return
