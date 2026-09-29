@@ -2,7 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { fetchPnkBundle } from '../../lib/pnk/pnkApiService.js'
-import { buildPnkManagerHomeGlanceCards } from '../../lib/pnk/pnkManagerHomeGlanceCore.js'
+import {
+  buildPnkManagerHomeGlanceCards,
+  resolvePnkHomeGlanceLoadError,
+} from '../../lib/pnk/pnkManagerHomeGlanceCore.js'
 import {
   PNK_HOME_GLANCE_CHANGED_EVENT,
   peekPnkHomeGlanceCards,
@@ -37,8 +40,13 @@ export function ManagerPnkHomeGlance({
   const [cards, setCards] = useState(() => (cid ? peekPnkHomeGlanceCards(cid) ?? [] : []))
   const [index, setIndex] = useState(0)
   const [loading, setLoading] = useState(() => (cid ? !(peekPnkHomeGlanceCards(cid)?.length) : false))
+  const [failed, setFailed] = useState(false)
   const touchRef = useRef({ startX: 0, moved: false })
   const presenceRef = useRef(null)
+  const expectVisibleRef = useRef(expectVisible)
+  useLayoutEffect(() => {
+    expectVisibleRef.current = expectVisible
+  }, [expectVisible])
 
   const reportPresence = useCallback(
     (visible) => {
@@ -55,6 +63,7 @@ export function ManagerPnkHomeGlance({
       setCards(next)
       setIndex((prev) => (prev >= next.length ? 0 : prev))
       setLoading(false)
+      setFailed(false)
       reportPresence(next.length > 0)
     },
     [reportPresence],
@@ -106,12 +115,19 @@ export function ManagerPnkHomeGlance({
         })
         writePnkHomeGlanceSession(cid, next)
         applySessionCards(next)
-      } catch {
-        if (!cached.length && !silent) {
+      } catch (e) {
+        console.warn('[pnk-home-glance] load', e)
+        const outcome = resolvePnkHomeGlanceLoadError({
+          hasCachedCards: cached.length > 0,
+          silent,
+          expectVisible: expectVisibleRef.current,
+        })
+        if (outcome !== 'keep') {
           setCards([])
           setIndex(0)
-          reportPresence(false)
         }
+        if (outcome === 'error') setFailed(true)
+        if (outcome === 'hide') reportPresence(false)
       } finally {
         setLoading(false)
       }
@@ -185,6 +201,19 @@ export function ManagerPnkHomeGlance({
         aria-label="Загрузка ПНК"
       >
         <div className="admin-home-skel manager-pnk-glance__skel-card" />
+      </section>
+    )
+  }
+  if (!cards.length && failed) {
+    return (
+      <section className="trainer-task-glance manager-pnk-glance" aria-label="ПНК">
+        <div className="os-empty-card u-col u-items-center" role="alert">
+          <p className="os-empty-card__title">Не удалось загрузить ПНК</p>
+          <p className="os-empty-card__hint">Проверьте сеть и повторите.</p>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void reload({ force: true })}>
+            Повторить
+          </button>
+        </div>
       </section>
     )
   }

@@ -4,6 +4,7 @@
 import {
   buildPnkManagerHomeGlance,
   buildPnkManagerHomeGlanceCards,
+  resolvePnkHomeGlanceLoadError,
 } from '../src/lib/pnk/pnkManagerHomeGlanceCore.js'
 import { syncPnkHomeGlanceFromBoard } from '../src/lib/pnk/pnkHomeGlanceSession.js'
 
@@ -80,6 +81,11 @@ const synced = syncPnkHomeGlanceFromBoard('club-x', clients, {
 })
 ok(synced.length === 2 && synced.every((c) => c.id === '1' || c.id === '2'), 'sync from board returns open cards')
 ok(syncPnkHomeGlanceFromBoard('club-x', [], { now }).length === 0, 'sync empty clears to zero cards')
+
+ok(resolvePnkHomeGlanceLoadError({ hasCachedCards: true, expectVisible: true }) === 'keep', 'load error: cache → keep last-good')
+ok(resolvePnkHomeGlanceLoadError({ silent: true, expectVisible: true }) === 'keep', 'load error: silent poll → keep')
+ok(resolvePnkHomeGlanceLoadError({ expectVisible: true }) === 'error', 'load error: slot was PNK → visible error')
+ok(resolvePnkHomeGlanceLoadError({ expectVisible: false }) === 'hide', 'load error: PNK not expected → hide, slot free')
 
 if (failed) {
   console.error(`\n${failed} failed`)

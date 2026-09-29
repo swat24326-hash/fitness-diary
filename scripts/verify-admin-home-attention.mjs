@@ -4,6 +4,7 @@
 import {
   assignAttentionSoftSlots,
   buildAdminHomeSoftSignals,
+  isCoachQualityHeroInAttentionRow,
   pickSoftSignalsForSlots,
 } from '../src/lib/admin/adminHomeSoftSignalsCore.js'
 import {
@@ -93,6 +94,19 @@ ok(emptySides.softForPnk?.id === 'inactive', 'assign: other soft fills pnk')
 const withPnk = assignAttentionSoftSlots(signals, { hasPnk: true, hasPlanerka: false })
 ok(withPnk.softForPlanerka?.id === 'coach-quality', 'assign: CQ stays on planerka when PNK appears')
 ok(withPnk.softForPnk == null, 'assign: no soft in pnk when PNK primary')
+ok(
+  isCoachQualityHeroInAttentionRow({ planerkaSlotOccupied: false, hasCoachQuality: true }),
+  'cq hero: slot free + data → in row',
+)
+ok(
+  isCoachQualityHeroInAttentionRow({ planerkaSlotOccupied: false, coachQualityLoading: true }),
+  'cq hero: slot free + loading → reserved in row',
+)
+ok(
+  !isCoachQualityHeroInAttentionRow({ planerkaSlotOccupied: true, hasCoachQuality: true }),
+  'cq hero: planerka/callToday occupies slot → not in row (summary shows full CQ)',
+)
+ok(!isCoachQualityHeroInAttentionRow({ planerkaSlotOccupied: false }), 'cq hero: no data, not loading → false')
 const both = assignAttentionSoftSlots(signals, { hasPnk: true, hasPlanerka: true })
 ok(both.softForPlanerka == null && both.softForPnk == null, 'assign: no soft when both primary')
 ok(

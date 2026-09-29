@@ -9,7 +9,10 @@ import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
 import { loadClubCallShiftSummary } from '../../lib/admin/clubCallShiftSummaryService'
 import { fetchCoachQualityViaApi } from '../../lib/admin/adminApiClient'
-import { buildAdminHomeSoftSignals } from '../../lib/admin/adminHomeSoftSignalsCore.js'
+import {
+  buildAdminHomeSoftSignals,
+  isCoachQualityHeroInAttentionRow,
+} from '../../lib/admin/adminHomeSoftSignalsCore.js'
 import { getDateRange } from '../../lib/period'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
@@ -86,6 +89,7 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
   const [attentionWidgets, setAttentionWidgets] = useState({
     hasPnk: false,
     hasPlanerka: false,
+    planerkaSlotOccupied: false,
     sideCount: 0,
   })
   const [callShiftNotice, setCallShiftNotice] = useState('')
@@ -250,6 +254,7 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
     setAttentionWidgets({
       hasPnk: Boolean(info?.hasPnk),
       hasPlanerka: Boolean(info?.hasPlanerka),
+      planerkaSlotOccupied: Boolean(info?.planerkaSlotOccupied),
       sideCount: Number(info?.sideCount) || 0,
     })
   }, [])
@@ -295,9 +300,14 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
               statsPath={`${basePath}/statistics`}
               loading={daySummaryLoading}
               noClub={!clubId}
+              onRetry={() => void reloadDaySummary({ force: true })}
               coachQuality={coachQualityHome}
               coachQualityLoading={coachQualityHomeLoading}
-              coachQualityHeroInAttention={Boolean(coachQualityHome) || coachQualityHomeLoading}
+              coachQualityHeroInAttention={isCoachQualityHeroInAttentionRow({
+                planerkaSlotOccupied: attentionWidgets.planerkaSlotOccupied,
+                hasCoachQuality: Boolean(coachQualityHome),
+                coachQualityLoading: coachQualityHomeLoading,
+              })}
             />
 
             <ClubCallShiftSummaryPanel

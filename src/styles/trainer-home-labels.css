@@ -1,0 +1,11 @@
+/*
+ * Главная тренера — подписи секций читаются с 60 см.
+ * Медиа-правила в index.css ужимают их до ~0.6rem; здесь нижняя граница для всех ширин.
+ */
+
+.app-shell--trainer .trainer-home .trainer-home__title-eyebrow,
+.app-shell--trainer .trainer-home .trainer-today-strip__block-title,
+.app-shell--trainer .trainer-home .trainer-challenges__title,
+.app-shell--trainer .trainer-home .trainer-home__tiles-heading {
+  font-size: 0.78rem;
+}

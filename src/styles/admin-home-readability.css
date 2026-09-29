@@ -1,0 +1,31 @@
+/*
+ * Главная управляющего (монитор) — цифры и подписи не мельче 12px.
+ * Только .admin-home--dashboard: шкала плана общая со страницей «Продажи», там размеры не трогаем.
+ */
+
+.admin-home--dashboard .admin-home-sales-plan__metric-label {
+  font-size: 0.8125rem;
+}
+
+.admin-home--dashboard .admin-home-sales-plan__metric-fact,
+.admin-home--dashboard .admin-home-sales-plan__metric-forecast {
+  font-size: 0.875rem;
+}
+
+.admin-home--dashboard .sales-report__plan-milestone-tag,
+.admin-home--dashboard .sales-report__plan-stats-label,
+.admin-home--dashboard .sales-report__plan-level-chip-label,
+.admin-home--dashboard .pnk-glance-face__step-kicker,
+.admin-home--dashboard .admin-home-cq-glance__band,
+.admin-home--dashboard .admin-home-cq-glance__ruler-end,
+.admin-home--dashboard .admin-home-cq-glance__ruler-num,
+.admin-home--dashboard .admin-home-cq-glance__fact span,
+.admin-home--dashboard .admin-day-summary__section-title,
+.admin-home--dashboard .admin-day-summary__card-hint,
+.admin-home--dashboard .admin-day-summary__card--compact .admin-day-summary__card-hint,
+.admin-home--dashboard .admin-day-summary__card-suffix,
+.admin-home--dashboard .club-call-shift__section-title,
+.admin-home--dashboard .club-call-shift__card-hint,
+.admin-home--dashboard .admin-home__tiles-heading {
+  font-size: 0.75rem;
+}

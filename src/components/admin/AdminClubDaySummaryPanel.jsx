@@ -68,6 +68,7 @@ function DaySummaryCard({ card }) {
  *   coachQuality?: object | null,
  *   coachQualityLoading?: boolean,
  *   coachQualityHeroInAttention?: boolean,
+ *   onRetry?: () => void,
  * }} props
  */
 export function AdminClubDaySummaryPanel({
@@ -80,6 +81,7 @@ export function AdminClubDaySummaryPanel({
   coachQuality = null,
   coachQualityLoading = false,
   coachQualityHeroInAttention = false,
+  onRetry,
 }) {
   const cards = useMemo(
     () =>
@@ -138,7 +140,26 @@ export function AdminClubDaySummaryPanel({
     )
   }
 
-  if (!summary) return null
+  if (!summary) {
+    return (
+      <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
+        <div className="admin-day-summary__head">
+          <h2 id="admin-day-summary-title" className="admin-day-summary__title">
+            Сводка дня клуба
+          </h2>
+        </div>
+        <div className="os-empty-card u-col u-items-center" role="alert">
+          <p className="os-empty-card__title">Сводка дня не загрузилась</p>
+          <p className="os-empty-card__hint">Нажмите «Повторить». Не помогло — синхронизируйте кнопкой в шапке.</p>
+          {onRetry ? (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onRetry}>
+              Повторить
+            </button>
+          ) : null}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section

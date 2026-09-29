@@ -5,7 +5,8 @@
 Полный маршрут: [`docs/AGENT_PLAYBOOK.md`](docs/AGENT_PLAYBOOK.md)  
 Как экономить лимиты **без потери качества**: [`docs/CURSOR_LIMITS.md`](docs/CURSOR_LIMITS.md)  
 Хуки (блок секретов, lint в конце ответа, карточка на опасных командах): [`docs/HOOKS.md`](docs/HOOKS.md)  
-Карта docs: [`docs/README.md`](docs/README.md)
+Карта docs: [`docs/README.md`](docs/README.md)  
+Дизайн-ревью экранов (канон Ядра, аудит в браузере, второе мнение Grok): скилл [`.cursor/skills/yadro-design-review/SKILL.md`](.cursor/skills/yadro-design-review/SKILL.md)
 
 ## Порядок
 

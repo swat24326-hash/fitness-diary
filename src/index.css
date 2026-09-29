@@ -7,11 +7,14 @@
 @import './styles/trainer-path.css';
 @import './styles/admin-path.css';
 @import './styles/admin-home-summaries.css';
+@import './styles/admin-home-readability.css';
 @import './styles/iskra-orb.css';
 @import './styles/training-hr.css';
 @import './styles/training-view.css';
 @import './styles/training-set-laterality.css';
 @import './styles/trainer-home-today.css';
+@import './styles/trainer-header-touch.css';
+@import './styles/trainer-home-labels.css';
 @import './styles/trainer-rating.css';
 @import './styles/price-list.css';
 @import './styles/az-price-list.css';
@@ -3173,18 +3176,6 @@ tr:last-child td {
   }
 }
 
-@keyframes trainer-home-glow-breathe {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.34;
-    transform: scale(1.04);
-  }
-}
-
 /* Главная тренера: hero + плитки — плотная доска под планшет */
 .trainer-home {
   display: flex;
@@ -3269,9 +3260,9 @@ tr:last-child td {
   position: absolute;
   inset: 5% 8% 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, rgba(0, 166, 81, 0.28) 0%, rgba(0, 166, 81, 0.08) 45%, transparent 72%);
+  background: radial-gradient(circle at 50% 45%, var(--premium-glow-soft) 0%, var(--premium-glow-ambient) 45%, transparent 72%);
   filter: blur(32px);
-  animation: trainer-home-glow-breathe 12.6s ease-in-out infinite;
+  opacity: 0.27;
   pointer-events: none;
 }
 
@@ -4150,7 +4141,6 @@ tr:last-child td {
   width: clamp(1.65rem, 4vw, 2rem);
   height: clamp(1.65rem, 4vw, 2rem);
   color: var(--accent-bright);
-  filter: drop-shadow(0 0 10px var(--accent-glow));
 }
 
 .admin-day-summary {
@@ -4378,102 +4368,6 @@ tr:last-child td {
   font-size: 13px;
 }
 
-.admin-home__hero {
-  container-type: inline-size;
-  container-name: admin-hero;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(44px, auto);
-  gap: 6px 8px;
-  align-items: center;
-  width: 100%;
-  max-width: min(288px, 92vw);
-  margin-inline: auto;
-  padding: 9px 10px 9px 12px;
-  border-radius: calc(var(--radius) * 0.85);
-  background:
-    radial-gradient(ellipse 120% 100% at 92% 40%, rgba(34, 197, 94, 0.14), transparent 55%),
-    linear-gradient(160deg, rgba(20, 28, 22, 0.98) 0%, rgba(5, 7, 6, 1) 55%, rgba(8, 12, 9, 1) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  overflow: hidden;
-}
-
-.admin-home__hero-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
-}
-
-.admin-home__title {
-  margin: 0;
-}
-
-.admin-home__title-display {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  font-size: clamp(1.2rem, 8.5cqi + 0.55rem, 1.82rem);
-  font-weight: 800;
-  letter-spacing: -0.055em;
-  line-height: 1.05;
-  white-space: nowrap;
-}
-
-.admin-home__title-display-accent {
-  color: var(--accent-bright);
-  text-shadow: 0 0 22px rgba(34, 197, 94, 0.42);
-}
-
-.admin-home__title-display-rest {
-  color: var(--text);
-}
-
-.admin-home__hero-visual {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  width: auto;
-}
-
-.admin-home__hero-glow {
-  position: absolute;
-  inset: -10% -20% -25%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 45%, rgba(0, 166, 81, 0.28) 0%, rgba(0, 166, 81, 0.08) 42%, transparent 68%);
-  filter: blur(14px);
-  animation: trainer-home-glow-breathe 12.6s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.admin-home__hero-float {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: trainer-home-float 10.5s ease-in-out infinite;
-  will-change: transform;
-}
-
-.admin-home__hero-icon-fa {
-  display: block;
-  font-size: clamp(40px, 20cqi, 56px);
-  line-height: 1;
-  color: var(--accent);
-  transition:
-    color 0.3s ease,
-    transform 0.3s ease;
-  filter: drop-shadow(0 0 10px var(--accent-glow)) drop-shadow(0 6px 14px rgba(0, 0, 0, 0.38));
-}
-
-.admin-home__hero-float:hover .admin-home__hero-icon-fa {
-  transform: scale(1.06);
-  color: var(--accent-bright);
-}
-
 .admin-home__tiles {
   width: 100%;
 }
@@ -4491,32 +4385,6 @@ tr:last-child td {
 .admin-home__tile-grid {
   margin-top: 0;
   max-width: 1040px;
-}
-
-/* Глобальный выбор клуба: под плитками, на всех вкладках админки */
-.admin-home__toolbar {
-  margin-top: 0;
-  padding: clamp(14px, 2.5vw, 20px) clamp(16px, 3vw, 24px);
-}
-
-.admin-home__toolbar-inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 14px 28px;
-}
-
-.admin-home__toolbar-field {
-  flex: 0 1 280px;
-  min-width: 200px;
-}
-
-.admin-home__toolbar-hint {
-  flex: 1 1 240px;
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.45;
-  padding-bottom: 4px;
 }
 
 .admin-home__outlet {
@@ -5713,24 +5581,6 @@ tr:last-child td {
 @media (max-width: 1050px) {
   .app-header__brand-slot {
     max-width: none;
-  }
-}
-
-/* На самых узких экранах не скрываем текст. */
-
-@media (max-width: 720px) {
-  .admin-home__hero {
-    max-width: min(288px, 94vw);
-    padding: 8px 9px 8px 11px;
-  }
-
-  .admin-home__title-display {
-    white-space: nowrap;
-    font-size: clamp(1.1rem, 7.5cqi + 0.45rem, 1.65rem);
-  }
-
-  .admin-home__hero-icon-fa {
-    font-size: clamp(36px, 18cqi, 52px);
   }
 }
 

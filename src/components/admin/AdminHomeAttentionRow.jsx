@@ -35,6 +35,7 @@ import '../../styles/admin-path.css'
  *     hasPlanerka: boolean,
  *     hasCallToday: boolean,
  *     hasCallTodayQueue: boolean,
+ *     planerkaSlotOccupied: boolean,
  *     sideCount: number,
  *   }) => void,
  * }} props
@@ -124,6 +125,7 @@ export function AdminHomeAttentionRow({
       hasPlanerka,
       hasCallToday: enableCallToday && placement.callTodayShown,
       hasCallTodayQueue: enableCallToday && hasCallTodayQueue && placement.callTodayShown,
+      planerkaSlotOccupied: softOcc.hasPlanerka,
       sideCount,
     })
   }, [
@@ -132,6 +134,7 @@ export function AdminHomeAttentionRow({
     hasCallTodayQueue,
     enableCallToday,
     placement.callTodayShown,
+    softOcc.hasPlanerka,
     sideCount,
     onWidgetsPresence,
   ])

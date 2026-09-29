@@ -171,3 +171,13 @@ export function assignAttentionSoftSlots(signals, opts = {}) {
 
   return { softForPnk, softForPlanerka }
 }
+
+/**
+ * CQ реально стоит в ряду внимания (слот планёрки свободен) — только тогда сводка дня
+ * сжимает свою карточку CQ с подсказкой «детали в ряду выше». Иначе подсказка врёт.
+ * @param {{ planerkaSlotOccupied?: boolean, hasCoachQuality?: boolean, coachQualityLoading?: boolean }} opts
+ */
+export function isCoachQualityHeroInAttentionRow(opts = {}) {
+  if (opts.planerkaSlotOccupied) return false
+  return Boolean(opts.hasCoachQuality) || Boolean(opts.coachQualityLoading)
+}

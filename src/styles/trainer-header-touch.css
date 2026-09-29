@@ -1,0 +1,64 @@
+/*
+ * Шапка тренера — зоны нажатия ≥44px (планшет в зале).
+ * Только .app-shell--trainer: менеджер и админ работают за монитором, их шапка не меняется.
+ */
+
+.app-shell--trainer .app-header__action {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.app-shell--trainer .app-header__stopwatch {
+  max-width: 44px;
+}
+
+.app-shell--trainer .app-header__stopwatch--open {
+  max-width: min(260px, 72vw);
+}
+
+.app-shell--trainer .app-header__stopwatch-toggle {
+  width: 44px;
+  min-width: 44px;
+}
+
+.app-shell--trainer .app-header__stopwatch-toggle,
+.app-shell--trainer .app-header__sync-btn:not(.app-header__sync-btn--labeled) {
+  padding: 0;
+}
+
+.app-shell--trainer .app-header__stopwatch-toggle svg,
+.app-shell--trainer .app-header__sync-btn svg {
+  flex-shrink: 0;
+}
+
+.app-shell--trainer .app-header__stopwatch:not(.app-header__stopwatch--open) .app-header__stopwatch-toggle,
+.app-shell--trainer .app-header__sync-btn--idle {
+  color: var(--text);
+}
+
+.app-shell--trainer .app-header__nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 6px;
+}
+
+.app-shell--trainer .app-header__inbox-btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+
+.app-shell--trainer .app-header__inbox-btn:not(.app-header__inbox-btn--active) {
+  background: transparent;
+}
+
+.app-shell--trainer .app-header__stopwatch-display {
+  min-height: 44px;
+}
+
+.app-shell--trainer .app-header__stopwatch-ctl {
+  width: 44px;
+  height: 44px;
+}

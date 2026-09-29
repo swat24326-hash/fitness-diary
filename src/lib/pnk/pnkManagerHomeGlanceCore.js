@@ -30,6 +30,18 @@ export function buildPnkManagerHomeGlance(clients, now = new Date(), opts = {}) 
 }
 
 /**
+ * Сеть не отдала ПНК для главной.
+ * `keep` — на экране last-good; `error` — слот уже был за ПНК, показываем ошибку и держим его
+ * (иначе ряд перестраивается и ошибка исчезает); `hide` — ПНК не ждали, слот не занимаем.
+ * @param {{ hasCachedCards?: boolean, silent?: boolean, expectVisible?: boolean }} opts
+ * @returns {'keep' | 'error' | 'hide'}
+ */
+export function resolvePnkHomeGlanceLoadError(opts = {}) {
+  if (opts.hasCachedCards || opts.silent) return 'keep'
+  return opts.expectVisible ? 'error' : 'hide'
+}
+
+/**
  * Карточки для карусели на главной (стрелки как у планёрки / тренера).
  * @param {object[]} clients
  * @param {{ boardHref?: string, now?: Date, bzCompletedByClient?: Record<string, number> | null }} [opts]

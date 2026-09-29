@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Users, Trophy, Swords, CalendarDays } from 'lucide-react'
+import { User, Users, Trophy, Swords, CalendarDays, WifiOff } from 'lucide-react'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { TrainerHomeTodayStrip } from '../../components/trainer/TrainerHomeTodayStrip.jsx'
 import { TrainerTaskGlanceWidget } from '../../components/iskra/TrainerTaskGlanceWidget.jsx'
@@ -41,6 +41,12 @@ import {
 } from '../../lib/useDebouncedStorageReload'
 import { useSyncOutboundPoll } from '../../hooks/useSyncOutboundPoll'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import {
+  INITIAL_CHALLENGES_VIEW,
+  challengesViewLoading,
+  challengesViewOnError,
+  challengesViewReady,
+} from '../../lib/trainer/trainerHomeChallengesViewCore.js'
 
 function daysLeftRu(endDate) {
   const end = String(endDate ?? '').slice(0, 10)
@@ -77,7 +83,18 @@ function ChallengesPlaceholder({ phase }) {
   )
 }
 
-const INITIAL_CHALLENGES_VIEW = { phase: 'loading', items: [] }
+function ChallengesLoadError({ onRetry }) {
+  return (
+    <div className="os-empty-card u-col u-items-center" role="alert">
+      <WifiOff size={28} aria-hidden className="os-empty-card__icon" />
+      <p className="os-empty-card__title">Не удалось загрузить челленджи</p>
+      <p className="os-empty-card__hint">Проверьте сеть и повторите.</p>
+      <button type="button" className="btn btn-ghost btn-touch" onClick={onRetry}>
+        Повторить
+      </button>
+    </div>
+  )
+}
 
 export function TrainerHome() {
   const { user } = useAuth()
@@ -213,10 +230,7 @@ export function TrainerHome() {
       const gen = ++loadGenRef.current
 
       if (!silent) {
-        setChallengesView((v) => ({
-          phase: 'loading',
-          items: v.items ?? [],
-        }))
+        setChallengesView(challengesViewLoading)
       }
 
       try {
@@ -227,7 +241,7 @@ export function TrainerHome() {
 
         const active = (challenges ?? []).filter((c) => isChallengeVisibleForTrainerHome(c))
         if (!clubIds.length) {
-          setChallengesView({ phase: 'ready', items: [] })
+          setChallengesView(challengesViewReady([]))
           return
         }
         void pull
@@ -291,10 +305,11 @@ export function TrainerHome() {
 
         if (gen !== loadGenRef.current) return
 
-        setChallengesView({ phase: 'ready', items })
-      } catch {
+        setChallengesView(challengesViewReady(items))
+      } catch (e) {
         if (gen !== loadGenRef.current) return
-        setChallengesView({ phase: 'ready', items: [] })
+        console.warn('[trainer-home] challenges load', e)
+        setChallengesView(challengesViewOnError)
       }
     },
     [clubId, trainerId],
@@ -370,7 +385,9 @@ export function TrainerHome() {
             Активные челленджи
           </h2>
         </div>
-        {showPlaceholder ? (
+        {challengesView.phase === 'error' ? (
+          <ChallengesLoadError onRetry={() => void loadChallenges()} />
+        ) : showPlaceholder ? (
           <ChallengesPlaceholder phase={challengesView.phase} />
         ) : (
           <ul className="trainer-challenges__list">
@@ -378,7 +395,7 @@ export function TrainerHome() {
               <li key={ch.id} className="trainer-challenge-card">
                 <div className="trainer-challenge-card__top">
                   <h3 className="trainer-challenge-card__name">{ch.name}</h3>
-                  <Link to={`/trainer/challenges/${ch.id}`} className="btn btn-sm btn-primary">
+                  <Link to={`/trainer/challenges/${ch.id}`} className="btn btn-ghost btn-touch">
                     Подробнее
                   </Link>
                 </div>

@@ -689,7 +689,6 @@
     color-mix(in srgb, var(--accent-bright) 55%, #f59e0b),
     var(--accent-bright)
   );
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-bright) 28%, transparent);
   transition: width 0.35s var(--ease-out, ease);
 }
 

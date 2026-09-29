@@ -53,6 +53,7 @@
 | Sync на планшете | flush + pull, pending не затираются |
 | Админ: упражнения создать/переименовать | форма не ждёт push 28 с — `verify-exercise-catalog-save.mjs`; очередь не drop после 12 таймаутов — `verify-sync-offline.mjs` |
 | Архив → Активные: список не обнуляется | `verify-trainer-archive-pull-prune.mjs`; [SYNC.md](./SYNC.md) §«Архив на планшете» |
+| Главная тренера: ошибка загрузки челленджей ≠ «пусто», last-good не стирается | `verify-trainer-home-challenges-view.mjs` |
 | Тип карты в журнале / ЗП / офлайн | `verify-membership-type-stats.mjs`, `verify-training-membership-link.mjs`, `verify-stats-agg-parity.mjs`; контур — [SYNC.md](./SYNC.md) §«Тип карты» |
 | Админ: статистика / ИСКРА | agg, snapshot |
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
