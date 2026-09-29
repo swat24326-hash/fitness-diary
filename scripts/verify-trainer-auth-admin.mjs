@@ -1,6 +1,7 @@
 import {
   assertTrainerDeletableByClientCount,
   parseTrainerIdForAdmin,
+  trainerCreateErrorRu,
   validateTrainerNameForAdmin,
   validateTrainerPasswordConfirm,
   validateTrainerPasswordForAdmin,
@@ -38,5 +39,11 @@ ok(validateTrainerNameForAdmin('   ').ok === false, 'blank name rejected')
 const nameOk = validateTrainerNameForAdmin('иванов иван')
 ok(nameOk.ok && nameOk.name === 'Иванов Иван', 'name normalized')
 ok(validateTrainerNameForAdmin('а'.repeat(200)).ok === false, 'too long name rejected')
+
+const dupRu = 'Такой логин или почта уже заняты — выберите другой'
+ok(trainerCreateErrorRu('duplicate key value violates unique constraint "users_login_key"') === dupRu, 'pg dup login → ru')
+ok(trainerCreateErrorRu('A user with this email address has already been registered') === dupRu, 'supabase dup email → ru')
+ok(trainerCreateErrorRu('connection refused') === 'connection refused', 'other error kept')
+ok(trainerCreateErrorRu(null) === 'Не удалось создать тренера', 'empty error → default')
 
 console.log('verify-trainer-auth-admin: all passed')

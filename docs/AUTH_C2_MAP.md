@@ -21,7 +21,7 @@
 | Роли (admin / trainer / …) | таблица `public.users` + `requireAdmin` и др. | Права на действия |
 | Создание тренера | `/api/create-trainer` | Auth user + строка в `users` (через порт) |
 | Удаление тренера | `/api/admin-data?action=delete-trainer` | То же без Edge Function |
-| Пароль / блок / планшет | `admin-data?action=reset-trainer-password` и соседние | Уже наш API |
+| Пароль / блок / планшет | `admin-data?action=reset-trainer-password` и соседние | Уже наш API. При `AUTH_PROVIDER=own` продление сессии (`/auth/v1/token?grant_type=refresh_token`) сверяется с `users`: удалён или `is_active=false` → вход заново; пропуск (access) живёт до часа |
 
 Планшет и офлайн **не зависят** от того, где живёт Auth: после входа данные пишутся в IndexedDB и очередь Sync.
 

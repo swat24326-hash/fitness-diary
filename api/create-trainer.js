@@ -8,6 +8,7 @@ import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
 import { authRuntimeEnvError, adminCreateUser, adminDeleteUser, passwordHashForUsersRow, verifyBearer } from './_lib/authPort.js'
 import { formatClientName } from '../src/lib/clientNameFormat.js'
 import { isAdminByRole } from '../src/lib/admin/adminRoleCore.js'
+import { trainerCreateErrorRu } from '../src/lib/admin/trainerAuthAdminCore.js'
 import { normalizeLoginInput, normalizePasswordInput } from './_lib/authLoginResolveCore.js'
 
 function readEnv() {
@@ -128,7 +129,7 @@ async function handler(req, res) {
   const auErr = createdResult.error
 
   if (auErr || !created) {
-    sendJson(res, 400, { error: auErr ?? 'Не удалось создать пользователя в Auth' })
+    sendJson(res, 400, { error: trainerCreateErrorRu(auErr) })
     return
   }
 
@@ -152,7 +153,7 @@ async function handler(req, res) {
 
   if (insErr) {
     await adminDeleteUser(supabaseAdmin, uid)
-    sendJson(res, 400, { error: insErr.message })
+    sendJson(res, 400, { error: trainerCreateErrorRu(insErr.message) })
     return
   }
 
