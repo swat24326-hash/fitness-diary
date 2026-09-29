@@ -11,6 +11,7 @@ import {
   isOwnAuthProvider,
   ownAuthEnvError,
   ownPasswordNeedsRehash,
+  ownRefreshDenial,
   passwordHashForUsersRow,
   signOwnJwt,
   verifyOwnJwt,
@@ -127,8 +128,20 @@ try {
   const asRefresh = await verifyBearerOwn(session.refresh_token)
   ok(!asRefresh.user && asRefresh.error, 'refresh нельзя подставить вместо access')
 
-  const refreshed = refreshOwnSession(session.refresh_token)
+  const liveUser = async (id) => ({ row: { id, email: 'a@b.c', is_active: true }, error: null })
+  const refreshed = await refreshOwnSession(session.refresh_token, liveUser)
   ok(refreshed.session?.access_token && refreshed.session.user.id === 'user-1', 'refresh выдаёт новую сессию')
+  const deleted = await refreshOwnSession(session.refresh_token, async () => ({ row: null, error: null }))
+  ok(!deleted.session && /войдите снова/.test(deleted.error), 'удалённый тренер: refresh не продлевает')
+  const blocked = await refreshOwnSession(session.refresh_token, async (id) => ({
+    row: { id, email: 'a@b.c', is_active: false },
+    error: null,
+  }))
+  ok(!blocked.session && /заблокирована/.test(blocked.error), 'заблокированный тренер: refresh не продлевает')
+  const dbDown = await refreshOwnSession(session.refresh_token, async () => ({ row: null, error: 'база недоступна' }))
+  ok(!dbDown.session && dbDown.error === 'база недоступна', 'ошибка базы: сессию не выдаём вслепую')
+  ok(ownRefreshDenial({ id: 'x' }) === null && ownRefreshDenial({ id: 'x', is_active: null }) === null, 'is_active не задан → можно')
+  ok(ownRefreshDenial(null) === 'missing' && ownRefreshDenial({ id: 'x', is_active: false }) === 'blocked', 'missing / blocked')
 
   const userRes = mockRes()
   await handleAuthV1(
@@ -153,6 +166,7 @@ try {
       body: { refresh_token: session.refresh_token },
     },
     refreshRes,
+    { loadUserById: liveUser },
   )
   const refreshBody = JSON.parse(refreshRes.body)
   ok(refreshRes.statusCode === 200 && refreshBody.access_token && refreshBody.refresh_token, 'POST /auth/v1/token refresh')

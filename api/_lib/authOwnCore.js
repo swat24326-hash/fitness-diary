@@ -55,6 +55,17 @@ export function isLegacyBcryptHash(stored) {
   return Boolean(m) && Number(m[1]) >= 4 && Number(m[1]) <= BCRYPT_MAX_COST
 }
 
+/**
+ * Продлевать сессию можно только живой и не заблокированной учётке: refresh живёт 30 дней,
+ * списка отзыва нет, поэтому удаление / блок тренера срабатывают на следующем продлении.
+ * @returns {'missing' | 'blocked' | null}
+ */
+export function ownRefreshDenial(row) {
+  if (!row?.id) return 'missing'
+  if (row.is_active === false) return 'blocked'
+  return null
+}
+
 /** После входа со старым паролем пересохраняем его в наш формат. */
 export function ownPasswordNeedsRehash(stored) {
   return isLegacyBcryptHash(stored)
