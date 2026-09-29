@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto'
+import bcrypt from 'bcryptjs'
 
 /** Включение своего входа. По умолчанию выключено — прод остаётся на Supabase Auth. */
 export function isOwnAuthProvider() {
@@ -44,7 +45,23 @@ export async function hashOwnPassword(password) {
   return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64url')}$${key.toString('base64url')}`
 }
 
+/** Хеш из Supabase Auth (auth.users.encrypted_password), перенесённый при переезде. */
+const BCRYPT_RE = /^\$2[aby]\$(\d{2})\$[./A-Za-z0-9]{53}$/
+/** Supabase ставит 10; потолок — чтобы строка из базы не заставила сервер считать минутами. */
+const BCRYPT_MAX_COST = 12
+
+export function isLegacyBcryptHash(stored) {
+  const m = BCRYPT_RE.exec(String(stored ?? ''))
+  return Boolean(m) && Number(m[1]) >= 4 && Number(m[1]) <= BCRYPT_MAX_COST
+}
+
+/** После входа со старым паролем пересохраняем его в наш формат. */
+export function ownPasswordNeedsRehash(stored) {
+  return isLegacyBcryptHash(stored)
+}
+
 export async function verifyOwnPassword(password, stored) {
+  if (isLegacyBcryptHash(stored)) return bcrypt.compare(String(password ?? ''), String(stored))
   const parts = String(stored ?? '').split('$')
   if (parts.length !== 6 || parts[0] !== 'scrypt') return false
   if (Number(parts[1]) !== SCRYPT_N || Number(parts[2]) !== SCRYPT_R || Number(parts[3]) !== SCRYPT_P) {
