@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { spawnSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export const QA_PREFIX = 'qa_auto_'
-export const QA_PASSWORD = 'QaAuto2026!'
+/** QA-учётки живут на проде (в т.ч. admin): пароль не в репо — env или случайный на запуск. */
+export const QA_PASSWORD = process.env.QA_PASSWORD?.trim() || `Qa-${randomBytes(18).toString('base64url')}`
 export const QA_CLUB_ID = 'd5cf1b9c-6fa5-4ece-bb00-d7a99aac71ea'
 export const PROD_ORIGIN = process.env.QA_ORIGIN ?? 'https://fitness-diary-bice.vercel.app'
 

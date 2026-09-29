@@ -8,6 +8,7 @@ import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
 import { authRuntimeEnvError, adminCreateUser, adminDeleteUser, passwordHashForUsersRow, verifyBearer } from './_lib/authPort.js'
 import { formatClientName } from '../src/lib/clientNameFormat.js'
 import { isAdminByRole } from '../src/lib/admin/adminRoleCore.js'
+import { ilikeExactPattern } from '../src/lib/ilikeExactCore.js'
 import { trainerCreateErrorRu } from '../src/lib/admin/trainerAuthAdminCore.js'
 import { normalizeLoginInput, normalizePasswordInput } from './_lib/authLoginResolveCore.js'
 
@@ -62,15 +63,13 @@ async function handler(req, res) {
 
   const supabaseAdmin = createServiceDataClient()
 
-  const callerEmail = String(user.email ?? '')
-    .trim()
-    .toLowerCase()
+  const callerEmailPattern = ilikeExactPattern(user.email)
   let profile = (
     await supabaseAdmin.from('users').select('role, email').eq('id', user.id).maybeSingle()
   ).data
-  if (!profile?.role && callerEmail) {
+  if (!profile?.role && callerEmailPattern) {
     profile = (
-      await supabaseAdmin.from('users').select('role, email').ilike('email', callerEmail).maybeSingle()
+      await supabaseAdmin.from('users').select('role, email').ilike('email', callerEmailPattern).maybeSingle()
     ).data
   }
   const isAdmin = isAdminByRole(profile?.role)

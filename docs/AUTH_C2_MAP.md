@@ -1,6 +1,6 @@
 # Вход в приложение: сейчас и на Yandex (C2)
 
-**Актуально:** 2026-09-28.  
+**Актуально:** 2026-09-29.  
 **Для кого:** владелец и разработчик перед стендом R2.  
 **Статус:** свой вход **в коде** (`AUTH_PROVIDER=own`: хеш scrypt + JWT). На проде и на стенде флаг **выключен** — браузер всё ещё проверяет сессию у Supabase. Runbook: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).
 
@@ -19,6 +19,7 @@
 | Порт Auth | `api/_lib/authPort.js` → Supabase или `authPortOwn.js` при `AUTH_PROVIDER=own` | Единая точка: verify / sign-in / admin create-update-delete |
 | Проверка «кто вы» на API | `api/_lib/adminSupabase.js` → `requireAuthUser` → `verifyBearer` | Bearer через порт |
 | Роли (admin / trainer / …) | таблица `public.users` + `requireAdmin` и др. | Права на действия |
+| Поиск сотрудника по email / логину | `src/lib/ilikeExactCore.js` (`ilikeExactPattern`) во всех `.ilike('email'\|'login')` | Точное совпадение без учёта регистра. `_` и `%` экранируются: иначе `a_min@…` находил профиль `admin@…` (эскалация при пустой роли). Проверка — `verify-ilike-exact.mjs` |
 | Создание тренера | `/api/create-trainer` | Auth user + строка в `users` (через порт) |
 | Удаление тренера | `/api/admin-data?action=delete-trainer` | То же без Edge Function |
 | Пароль / блок / планшет | `admin-data?action=reset-trainer-password` и соседние | Уже наш API. При `AUTH_PROVIDER=own` продление сессии (`/auth/v1/token?grant_type=refresh_token`) сверяется с `users`: удалён или `is_active=false` → вход заново; пропуск (access) живёт до часа |
@@ -57,4 +58,4 @@
 
 - Смена адреса сайта часто = **новый ярлык** на планшете.  
 - Пароли админов и доступы к облаку — список у себя, не в чате.  
-- Усиление безопасности (лимиты входа и т.п.) — **после** стабильного переезда, см. STRATEGY §5.7.
+- Лимит неудачных входов уже в коде (`api/_lib/authRateLimitCore.js`): на Supabase он встроенный, на нашем сервере — только этот. Ключ «логин + IP», поэтому ошибка одного тренера не закрывает вход всему залу. Остальное усиление — STRATEGY §5.7.

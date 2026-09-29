@@ -30,6 +30,7 @@ import {
 import { notifyDispatchPushForRecipients, notifyDispatchStatusPushToSender } from './webPushCore.js'
 import { persistClubLearningEvent } from './iskraLearningHandler.js'
 import { buildDispatchLearningEvent } from '../../src/lib/admin/iskraDispatchLearningCore.js'
+import { ilikeExactPattern } from '../../src/lib/ilikeExactCore.js'
 import { adviceBaselineToLearningEvent } from '../../src/lib/admin/iskraAdviceOutcomeCore.js'
 
 const DISPATCH_SELECT =
@@ -71,8 +72,9 @@ async function resolveDispatchSenderUserId(supabaseAdmin, ctx) {
   }
 
   const email = String(ctx.user?.email ?? ctx.profile?.email ?? '').trim().toLowerCase()
-  if (email) {
-    const { data } = await supabaseAdmin.from('users').select('id').ilike('email', email).maybeSingle()
+  const emailPattern = ilikeExactPattern(email)
+  if (emailPattern) {
+    const { data } = await supabaseAdmin.from('users').select('id').ilike('email', emailPattern).maybeSingle()
     if (data?.id) return String(data.id)
   }
 
@@ -92,8 +94,8 @@ async function resolveDispatchSenderUserId(supabaseAdmin, ctx) {
   const { error } = await supabaseAdmin.from('users').upsert(row, { onConflict: 'id' })
   if (!error) return authId
 
-  if (email) {
-    const { data } = await supabaseAdmin.from('users').select('id').ilike('email', email).maybeSingle()
+  if (emailPattern) {
+    const { data } = await supabaseAdmin.from('users').select('id').ilike('email', emailPattern).maybeSingle()
     if (data?.id) return String(data.id)
   }
 

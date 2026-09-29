@@ -9,6 +9,7 @@ import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
 import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
 import { authRuntimeEnvError, signInWithPassword } from './_lib/authPort.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from './_lib/authRateLimitCore.js'
 import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
 import { createFetchWithTimeout, isServerTimeoutError, withServerTimeout } from './_lib/serverFetchTimeout.js'
 import {
@@ -16,6 +17,7 @@ import {
   buildDirectAuthEmailCandidates,
   isInvalidCredentialsMessage,
 } from '../src/lib/authSignInCore.js'
+import { ilikeExactPattern } from '../src/lib/ilikeExactCore.js'
 
 const SUPABASE_FETCH_MS = 8000
 
@@ -23,20 +25,29 @@ async function resolveEmail(supabaseAdmin, raw) {
   const trimmed = normalizeLoginInput(raw)
   if (!trimmed) return null
   if (trimmed.includes('@')) {
-    const row = await supabaseAdmin.from('users').select('email, is_active').ilike('email', trimmed).maybeSingle()
+    const emailPattern = ilikeExactPattern(trimmed)
+    const row = emailPattern
+      ? await supabaseAdmin.from('users').select('email, is_active').ilike('email', emailPattern).maybeSingle()
+      : { data: null }
     const picked = emailFromLoginRow(row.data, trimmed)
     return picked ?? { email: trimmed, isActive: row.data?.is_active !== false }
   }
 
   const loginLower = trimmed.toLowerCase()
   const synthEmail = trainerLocalEmail(trimmed)
+  const loginPattern = ilikeExactPattern(trimmed)
+  const synthEmailPattern = ilikeExactPattern(synthEmail)
 
   const attempts = [
     () => supabaseAdmin.from('users').select('email, is_active').eq('login', loginLower).maybeSingle(),
-    () => supabaseAdmin.from('users').select('email, is_active').ilike('login', trimmed).maybeSingle(),
   ]
-  if (synthEmail) {
-    attempts.push(() => supabaseAdmin.from('users').select('email, is_active').ilike('email', synthEmail).maybeSingle())
+  if (loginPattern) {
+    attempts.push(() => supabaseAdmin.from('users').select('email, is_active').ilike('login', loginPattern).maybeSingle())
+  }
+  if (synthEmailPattern) {
+    attempts.push(() =>
+      supabaseAdmin.from('users').select('email, is_active').ilike('email', synthEmailPattern).maybeSingle(),
+    )
   }
 
   for (const run of attempts) {
@@ -326,4 +337,28 @@ async function handler(req, res) {
   }
 }
 
-export default withSafeApiHandler(handler, { label: 'auth-sign-in' })
+function parseLoginFromBody(body) {
+  if (typeof body !== 'string') return normalizeLoginInput(body?.login)
+  try {
+    return normalizeLoginInput(JSON.parse(body)?.login)
+  } catch {
+    return ''
+  }
+}
+
+async function rateLimitedHandler(req, res) {
+  if (req.method !== 'POST') return handler(req, res)
+  const login = parseLoginFromBody(req.body)
+  const ip = clientIpFromHeaders(req.headers)
+  const gate = authFailLimiter.check(login, ip)
+  if (!gate.ok) {
+    setCors(res, 'POST, OPTIONS')
+    res.setHeader('Retry-After', String(gate.retryAfterSec))
+    sendJson(res, 429, { error: authRateLimitedMessageRu(gate.retryAfterSec) })
+    return
+  }
+  await handler(req, res)
+  authFailLimiter.recordOutcome(login, ip, res.statusCode)
+}
+
+export default withSafeApiHandler(rateLimitedHandler, { label: 'auth-sign-in' })

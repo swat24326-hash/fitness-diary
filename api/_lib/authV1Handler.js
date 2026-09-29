@@ -1,6 +1,7 @@
 import { sendJson, setCors } from './adminSupabase.js'
 import { isOwnAuthProvider, ownAuthEnvError } from './authOwnCore.js'
 import { refreshOwnSession, signInWithPasswordOwn, verifyBearerOwn } from './authPortOwn.js'
+import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from './authRateLimitCore.js'
 
 function gotrueError(res, status, message) {
   sendJson(res, status, {
@@ -67,14 +68,23 @@ export async function handleAuthV1(req, res, deps = {}) {
       return
     }
     if (grant === 'password') {
+      const ip = clientIpFromHeaders(req.headers)
+      const gate = authFailLimiter.check(body.email, ip)
+      if (!gate.ok) {
+        res.setHeader('Retry-After', String(gate.retryAfterSec))
+        gotrueError(res, 429, authRateLimitedMessageRu(gate.retryAfterSec))
+        return
+      }
       const { session, error } = await signInWithPasswordOwn('', '', {
         email: body.email,
         password: body.password,
       })
       if (error || !session) {
+        authFailLimiter.recordOutcome(body.email, ip, /заблокирован/i.test(String(error ?? '')) ? 403 : 401)
         gotrueError(res, 400, error || 'Неверный логин или пароль')
         return
       }
+      authFailLimiter.recordOutcome(body.email, ip, 200)
       sendJson(res, 200, { ...session })
       return
     }

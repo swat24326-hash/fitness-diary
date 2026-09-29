@@ -10,6 +10,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { classifyServiceRoleKeyShape } from '../api/_lib/authCallerProfileCore.js'
 import { handleAuthV1 } from '../api/_lib/authV1Handler.js'
 import { handleRestV1 } from '../api/_lib/restV1Handler.js'
+import {
+  PAYLOAD_TOO_LARGE_RU,
+  PORTABLE_SECURITY_HEADERS,
+  portableMaxBodyBytes,
+  readBodyLimited,
+} from '../api/_lib/portableHostSecurityCore.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
@@ -37,6 +43,8 @@ const MIME = {
 /** @type {Map<string, (req: object, res: import('node:http').ServerResponse) => Promise<void>|void>} */
 const handlerCache = new Map()
 
+class PayloadTooLargeError extends Error {}
+
 /**
  * @param {import('node:http').IncomingMessage} req
  * @returns {Promise<{ method: string, url: string, headers: object, body: unknown, query: Record<string, string | string[]> }>}
@@ -56,9 +64,9 @@ async function normalizeRequest(req) {
     }
   }
 
-  const chunks = []
-  for await (const chunk of req) chunks.push(chunk)
-  const raw = Buffer.concat(chunks)
+  const read = await readBodyLimited(req, portableMaxBodyBytes(process.env.MAX_BODY_BYTES))
+  if (!read.ok) throw new PayloadTooLargeError()
+  const raw = read.raw
   let body = undefined
   if (raw.length) {
     const text = raw.toString('utf8')
@@ -155,6 +163,7 @@ export function createPortableApiHost(opts = {}) {
   const distDir = resolve(opts.distDir ?? process.env.STATIC_DIR ?? DEFAULT_DIST)
 
   const server = createServer(async (rawReq, res) => {
+    for (const [name, value] of Object.entries(PORTABLE_SECURITY_HEADERS)) res.setHeader(name, value)
     try {
       const pathname = new URL(rawReq.url || '/', `http://${rawReq.headers.host || 'localhost'}`).pathname
 
@@ -215,6 +224,16 @@ export function createPortableApiHost(opts = {}) {
 
       await serveStatic(distDir, pathname, res)
     } catch (e) {
+      if (e instanceof PayloadTooLargeError) {
+        if (!res.headersSent) {
+          res.statusCode = 413
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.setHeader('Connection', 'close')
+          res.end(JSON.stringify({ error: PAYLOAD_TOO_LARGE_RU }))
+        }
+        rawReq.resume()
+        return
+      }
       console.error('[portable-api]', e)
       if (!res.headersSent) {
         res.statusCode = 500

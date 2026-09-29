@@ -17,6 +17,7 @@
     "lint:hooks": "eslint --no-ignore .cursor/hooks",
     "lint:fix": "eslint . --fix",
     "db:migrate": "npx supabase db query --linked --file supabase/policies.sql",
+    "db:migrate:rls-gaps": "npx supabase db query --linked --file supabase/migrations/20260929130000_rls_gaps.sql",
     "db:migrate:sales": "node scripts/apply-club-sales-migration.mjs",
     "db:migrate:plan-matrix": "node scripts/apply-club-sales-plan-matrix.mjs",
     "db:migrate:scalability": "node scripts/apply-scalability-indexes.mjs",

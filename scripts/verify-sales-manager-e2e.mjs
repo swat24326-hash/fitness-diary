@@ -2,10 +2,15 @@
  * E2E smoke: менеджер по продажам на prod (auth + sales API).
  * Запуск: node scripts/verify-sales-manager-e2e.mjs
  * Другой хост: QA_ORIGIN=https://… node scripts/verify-sales-manager-e2e.mjs
+ * Пароль — QA_PASSWORD того же запуска, что создал qa_auto_sales (agent-qa передаёт сам).
  */
 const BASE = process.env.QA_ORIGIN ?? 'https://fitness-diary-bice.vercel.app'
 const LOGIN = process.env.QA_SALES_LOGIN ?? 'qa_auto_sales'
-const PASSWORD = process.env.QA_PASSWORD ?? 'QaAuto2026!'
+const PASSWORD = String(process.env.QA_PASSWORD ?? '').trim()
+if (!PASSWORD) {
+  console.error('FAIL: задайте QA_PASSWORD (тот же, с которым qa-roles-prod создал qa_auto_sales)')
+  process.exit(1)
+}
 const CLUB_ID = 'd5cf1b9c-6fa5-4ece-bb00-d7a99aac71ea'
 
 let failed = 0

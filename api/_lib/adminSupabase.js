@@ -1,6 +1,7 @@
 import { isAdminByRole } from '../../src/lib/admin/adminRoleCore.js'
 import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
 import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
+import { ilikeExactPattern } from '../../src/lib/ilikeExactCore.js'
 import { authRuntimeEnvError, verifyBearer } from './authPort.js'
 import {
   AUTH_PROFILE_CLOUD_UNAVAILABLE_RU,
@@ -56,12 +57,10 @@ async function loadCallerProfileOnce(supabaseAdmin, user) {
   const byId = await selectUsersProfile(supabaseAdmin, CALLER_PROFILE_FIELDS, (q) => q.eq('id', user.id))
   if (byId.kind === 'query_error') return byId
   let profile = byId.profile
-  const callerEmail = String(user.email ?? '')
-    .trim()
-    .toLowerCase()
-  if (!profile?.role && callerEmail) {
+  const callerEmailPattern = ilikeExactPattern(user.email)
+  if (!profile?.role && callerEmailPattern) {
     const byEmail = await selectUsersProfile(supabaseAdmin, CALLER_PROFILE_FIELDS, (q) =>
-      q.ilike('email', callerEmail),
+      q.ilike('email', callerEmailPattern),
     )
     if (byEmail.kind === 'query_error') return byEmail
     if (byEmail.profile) profile = byEmail.profile

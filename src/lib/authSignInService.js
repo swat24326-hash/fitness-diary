@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './authLoginResolveCore.js'
 import { buildDirectAuthEmailCandidates, isInvalidCredentialsMessage, SUPABASE_CLOUD_UNAVAILABLE_RU } from './authSignInCore.js'
+import { ilikeExactPattern } from './ilikeExactCore.js'
 import { firstSuccessfulPromise } from './networkReachability.js'
 import { withFastTimeout } from './supabaseRetry.js'
 
@@ -15,12 +16,17 @@ export async function resolveLoginEmailFromDb(raw) {
   const loginLower = trimmed.toLowerCase()
   const synthEmail = trainerLocalEmail(trimmed)
 
+  const loginPattern = ilikeExactPattern(trimmed)
+  const synthEmailPattern = ilikeExactPattern(synthEmail)
+
   const attempts = [
     () => supabase.from('users').select('email, is_active').eq('login', loginLower).maybeSingle(),
-    () => supabase.from('users').select('email, is_active').ilike('login', trimmed).maybeSingle(),
   ]
-  if (synthEmail) {
-    attempts.push(() => supabase.from('users').select('email, is_active').ilike('email', synthEmail).maybeSingle())
+  if (loginPattern) {
+    attempts.push(() => supabase.from('users').select('email, is_active').ilike('login', loginPattern).maybeSingle())
+  }
+  if (synthEmailPattern) {
+    attempts.push(() => supabase.from('users').select('email, is_active').ilike('email', synthEmailPattern).maybeSingle())
   }
 
   for (const run of attempts) {
@@ -114,6 +120,7 @@ export async function signInViaServerApi({ login, password }) {
     return {
       user: null,
       profile: null,
+      rateLimited: res.status === 429,
       error: new Error(data?.error ? String(data.error) : `Ошибка входа (${res.status})`),
     }
   }
@@ -189,12 +196,14 @@ export async function raceSignInAttempts({ login, password }) {
     }
   }
 
+  let rateLimitErr = null
   const tasks = [
     async () => {
       const viaServer = await signInViaServerApi({ login: raw, password: pwd })
       if (viaServer.user) {
         return { source: 'server', user: viaServer.user, profile: viaServer.profile ?? null }
       }
+      if (viaServer.rateLimited) rateLimitErr = viaServer.error
       if (viaServer.error && !viaServer.transportError) {
         throw viaServer.error
       }
@@ -211,5 +220,8 @@ export async function raceSignInAttempts({ login, password }) {
     })
   }
 
-  return firstSuccessfulPromise(tasks)
+  // «Подождите N мин.» с сервера важнее «неверный пароль» от прямого Auth, упавшего позже.
+  return firstSuccessfulPromise(tasks).catch((e) => {
+    throw rateLimitErr ?? e
+  })
 }

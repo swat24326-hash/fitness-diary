@@ -16,6 +16,8 @@ Production app: **https://fitness-diary-bice.vercel.app**
 - [ ] **Site URL** = `https://fitness-diary-bice.vercel.app`
 - [ ] **Redirect URLs** включают prod и при необходимости `http://localhost:5173`
 - [ ] У каждого админа в **Authentication → Users** есть пользователь; email совпадает с входом в приложение.
+- [x] **Sign In / Providers → «Allow new users to sign up» выключено** (prod, 29.09). Сотрудников создаёт только админ (`/api/create-trainer`). Открытая регистрация без подтверждения почты = любой из интернета получает сессию и может пробовать чужие профили.
+- [x] Нет забытых QA-учёток (prod 29.09: удалён `qa_auto_trainer`): `select login, role from public.users where login like 'qa_auto_%';` — пусто (после прод-QA их удаляет `qa-roles-cleanup`). Пароль QA больше не в репо: env `QA_PASSWORD` или случайный на запуск.
 
 ## 3. Таблица `public.users`
 
@@ -37,6 +39,7 @@ order by u.role, u.email;
 - [ ] Выполнен актуальный **`supabase/policies.sql`** (или `npm run db:migrate` после `supabase link`).
 - [ ] Таблицы приложения: clients, trainings, memberships, health_cards, body_measurements — политики из репозитория.
 - [ ] Для `clubs`, `exercises`, `challenges`, `membership_types` — политики соответствуют тому, что ожидает приложение (см. комментарии в `policies.sql`).
+- [x] RLS включён на таблицах, для которых в репо нет политик: `select relname, relrowsecurity from pg_class where relname in ('club_supervisor_expense','user_push_subscriptions','exercises','challenges');` — везде `true`. Иначе их читает anon key (на Supabase) или любой вошедший (на C2, `c2_rest_grants.sql`). 29.09 на prod было `false` у трёх (кроме `exercises`), в тот же день исправлено `npm run db:migrate:rls-gaps` (миграция `20260929130000_rls_gaps.sql`, INC-2026-09-29-01). Новая таблица без RLS ловится `verify-rls-coverage`.
 - [ ] `membership_types`: есть `fit_membership_types_sales_manager_read` (менеджер читает **все** типы своего клуба, включая АЗ) — миграция `20260729120000_membership_types_sales_manager_read.sql` или `npm run db:migrate:membership-types-sm -- --linked`.
 - [x] `membership_types.counts_toward_pay_plan`: галочка «В план» — `npm run db:migrate:counts-toward-pay-plan -- --linked` (миграция `20260810120000_membership_types_counts_toward_pay_plan.sql`). Применено на linked (2026-08-10).
 - [x] `membership_types`: колонки `trainer_pay_l1`, `trainer_pay_l2`, `trainer_pay_l3` — `npm run db:migrate:trainer-pay-tiers -- --linked` (миграция `20260808120000_membership_types_trainer_pay_tiers.sql`). Применено на linked (2026-08-08).

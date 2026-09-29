@@ -13,6 +13,7 @@ import {
   isSupabaseTransportMessage,
 } from '../lib/authSignInCore'
 import { fetchMyProfileViaApi } from '../lib/profileApiClient'
+import { ilikeExactPattern } from '../lib/ilikeExactCore'
 import { firstSuccessfulPromise, isCloudReachable } from '../lib/networkReachability'
 import { withSupabaseRetry } from '../lib/supabaseRetry'
 import {
@@ -257,9 +258,9 @@ export function AuthProvider({ children }) {
       const loadDirect = async () => {
         let row = await queryUserRow((q) => q.eq('id', uid))
         if (!row?.role && email) {
-          const em = String(email).trim().toLowerCase()
-          if (em) {
-            row = await queryUserRow((q) => q.ilike('email', em))
+          const emailPattern = ilikeExactPattern(email)
+          if (emailPattern) {
+            row = await queryUserRow((q) => q.ilike('email', emailPattern))
             if (row && row.id !== uid) {
               console.warn(
                 '[auth] public.users.id не совпадает с Auth UID. В Supabase: UPDATE public.users SET id = auth.uid() WHERE email = …',

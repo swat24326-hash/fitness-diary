@@ -3,6 +3,7 @@
  * node scripts/agent-qa.mjs [--skip-prod] [--skip-prod-roles] [--skip-lint]
  */
 import { spawnSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 
 const ORIGIN = process.env.QA_ORIGIN ?? 'https://fitness-diary-bice.vercel.app'
@@ -50,11 +51,17 @@ run('critical hall', 'node', ['scripts/verify-critical-hall.mjs'])
 run('network reachability', 'node', ['scripts/verify-network-reachability.mjs'])
 run('app stability', 'node', ['scripts/verify-app-stability.mjs'])
 run('cursor hooks', 'node', ['scripts/verify-hooks.mjs'])
+run('cursor hooks guards', 'node', ['scripts/verify-hooks-guards.mjs'])
 run('cursor rules', 'node', ['scripts/verify-rules.mjs'])
 run('qa fast plan', 'node', ['scripts/verify-qa-fast.mjs'])
 run('auth sign-in fallback', 'node', ['scripts/verify-auth-sign-in-fallback.mjs'])
 run('auth sign-in fast path', 'node', ['scripts/verify-auth-sign-in-fast-path.mjs'])
 run('auth login resolve', 'node', ['scripts/verify-auth-login-resolve.mjs'])
+run('auth ilike exact email', 'node', ['scripts/verify-ilike-exact.mjs'])
+run('qa password not hardcoded', 'node', ['scripts/verify-qa-password-not-hardcoded.mjs'])
+run('rls coverage', 'node', ['scripts/verify-rls-coverage.mjs'])
+run('auth rate limit', 'node', ['scripts/verify-auth-rate-limit.mjs'])
+run('portable host security', 'node', ['scripts/verify-portable-host-security.mjs'])
 run('auth session recover', 'node', ['scripts/verify-auth-session-recover.mjs'])
 run('pg migrate order', 'node', ['scripts/verify-pg-migrate-order.mjs'])
 run('pg rest data-port', 'node', ['scripts/verify-pg-rest.mjs'])
@@ -368,9 +375,12 @@ if (!skipProd) {
     }
 
     if (!skipProdRoles) {
-      run('prod roles API', 'node', ['scripts/qa-roles-prod.mjs', '--keep-users'])
-      run('sales manager e2e', 'node', ['scripts/verify-sales-manager-e2e.mjs'])
-      run('cleanup QA users', 'node', ['scripts/qa-roles-cleanup.mjs'])
+      const qaEnv = {
+        env: { ...process.env, QA_PASSWORD: process.env.QA_PASSWORD || `Qa-${randomBytes(18).toString('base64url')}` },
+      }
+      run('prod roles API', 'node', ['scripts/qa-roles-prod.mjs', '--keep-users'], qaEnv)
+      run('sales manager e2e', 'node', ['scripts/verify-sales-manager-e2e.mjs'], qaEnv)
+      run('cleanup QA users', 'node', ['scripts/qa-roles-cleanup.mjs'], qaEnv)
     }
     run('prod features', 'node', ['scripts/verify-prod-features.mjs'])
   } catch (e) {

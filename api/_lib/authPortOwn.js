@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { ilikeExactPattern } from '../../src/lib/ilikeExactCore.js'
 import { normalizePasswordInput } from './authLoginResolveCore.js'
 import {
   buildOwnSession,
@@ -20,11 +21,13 @@ const SESSION_RU = 'Сессия недействительна — войдит
 const verifyMemo = new Map()
 
 async function findUserByEmail(email) {
+  const emailPattern = ilikeExactPattern(email)
+  if (!emailPattern) return { row: null, error: null }
   const client = createServiceDataClient()
   const { data, error } = await client
     .from('users')
     .select('id, email, password_hash, is_active')
-    .ilike('email', String(email ?? '').trim())
+    .ilike('email', emailPattern)
     .maybeSingle()
   if (error) return { row: null, error: error.message || 'Не удалось проверить пользователя' }
   return { row: data ?? null, error: null }

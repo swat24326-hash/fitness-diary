@@ -16,7 +16,7 @@
 | `/api/trainer-pull` | Pull на планшет тренера: клиенты, **memberships** (своих клиентов), health_cards, trainings (опц. `skip_trainings=1`) |
 | `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |
-| `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path |
+| `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path. 10 неудач на «логин + IP» или 100 на IP за 15 мин → **429** + `Retry-After` («Подождите N мин.») — `authRateLimitCore.js` |
 | `/api/me-profile` | Профиль текущего пользователя |
 | `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба) |
 | `/api/list-trainers` | Список тренеров (admin / trainer; sales_manager — только свой клуб) |
