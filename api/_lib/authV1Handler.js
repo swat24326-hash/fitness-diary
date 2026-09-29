@@ -15,8 +15,9 @@ function gotrueError(res, status, message) {
  * когда адрес Auth смотрит на этот сервер. Пока AUTH_PROVIDER не own — 404.
  * @param {import('http').IncomingMessage & { query?: Record<string, string>, body?: unknown }} req
  * @param {import('http').ServerResponse} res
+ * @param {{ loadUserById?: Parameters<typeof refreshOwnSession>[1] }} [deps]
  */
-export async function handleAuthV1(req, res) {
+export async function handleAuthV1(req, res, deps = {}) {
   setCors(res, 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, apikey, x-client-info')
   if (req.method === 'OPTIONS') {
@@ -57,7 +58,7 @@ export async function handleAuthV1(req, res) {
     const grant = String(req.query?.grant_type ?? '')
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     if (grant === 'refresh_token') {
-      const { session, error } = refreshOwnSession(body.refresh_token)
+      const { session, error } = await refreshOwnSession(body.refresh_token, deps.loadUserById)
       if (error || !session) {
         gotrueError(res, 400, error || 'Сессия недействительна — войдите снова')
         return

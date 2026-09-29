@@ -5,6 +5,7 @@ import {
   hashOwnPassword,
   ownAuthSecret,
   ownPasswordNeedsRehash,
+  ownRefreshDenial,
   verifyOwnJwt,
   verifyOwnPassword,
 } from './authOwnCore.js'
@@ -113,15 +114,32 @@ export async function adminDeleteUserOwn() {
   return { error: null }
 }
 
+async function findUserById(id) {
+  const { data, error } = await createServiceDataClient()
+    .from('users')
+    .select('id, email, is_active')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) return { row: null, error: error.message || 'Не удалось проверить пользователя' }
+  return { row: data ?? null, error: null }
+}
+
 /**
- * Новый access по refresh-токену. Старый refresh остаётся годным до срока — списка отзыва нет.
+ * Новый access по refresh-токену. Старый refresh остаётся годным до срока — списка отзыва нет,
+ * поэтому каждое продление сверяется с users (удалён / заблокирован → вход заново).
  * @param {string} refreshToken
+ * @param {(id: string) => Promise<{ row: object | null, error: string | null }>} [loadUserById]
  */
-export function refreshOwnSession(refreshToken) {
+export async function refreshOwnSession(refreshToken, loadUserById = findUserById) {
   const { payload, error } = verifyOwnJwt(refreshToken, ownAuthSecret())
   if (error || payload?.typ !== 'refresh' || !payload?.sub) {
     return { session: null, error: error || SESSION_RU }
   }
-  const session = buildOwnSession({ id: String(payload.sub), email: payload.email ?? '' }, ownAuthSecret())
+  const { row, error: loadErr } = await loadUserById(String(payload.sub))
+  if (loadErr) return { session: null, error: loadErr }
+  const denial = ownRefreshDenial(row)
+  if (denial === 'blocked') return { session: null, error: BLOCKED_RU }
+  if (denial) return { session: null, error: SESSION_RU }
+  const session = buildOwnSession({ id: String(row.id), email: row.email || payload.email || '' }, ownAuthSecret())
   return { session, error: null }
 }
