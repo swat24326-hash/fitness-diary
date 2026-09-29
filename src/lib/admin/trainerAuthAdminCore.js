@@ -61,6 +61,19 @@ export function validateTrainerNameForAdmin(rawName) {
 }
 
 /**
+ * Ошибка создания тренера → текст для админа. Занятый логин/почта приходит из базы (users_login_key)
+ * или из Supabase Auth — по-английски.
+ * @param {string | null | undefined} message
+ */
+export function trainerCreateErrorRu(message) {
+  const raw = String(message ?? '')
+  if (/users_login_key|users_email_key|already (been )?registered|already exists/i.test(raw)) {
+    return 'Такой логин или почта уже заняты — выберите другой'
+  }
+  return raw || 'Не удалось создать тренера'
+}
+
+/**
  * Удалять тренера можно только без клиентов (клиент + сервер).
  * @param {number} clientCount
  */
