@@ -43,10 +43,12 @@ export function parseEslintErrors(stdout) {
 const CRITICAL = [
   [/sync|syncService|syncQueue|trainerPull|pullReference/i, 'sync и очередь'],
   [/membership|абонемент/i, 'абонементы'],
-  [/Agg\.js$|periodStats|MonthlyStats|trainerPay/i, 'статистика и агрегаты'],
+  [/localDb|dataAccess|idbRetention/i, 'локальная база планшета'],
+  [/Agg(Core)?\.js$|periodStats|MonthlyStats|trainerPay/i, 'статистика и агрегаты'],
   [/api[\\/](push-record|push-records|trainer-pull)/i, 'API записи и pull'],
-  [/pushRecordCore|authorizePush|requireAuth/i, 'запись и авторизация'],
-  [/TrainingForm|trainingComplete|finishTraining/i, 'завершение тренировки'],
+  [/pushRecordCore|authorizePush|mutationAuth|requireAuth/i, 'запись и авторизация'],
+  [/TrainingForm|TrainingPage|trainingComplete|finishTraining|trainingPersist|(hr|loyalty)[\\/]\w*Persist/i, 'завершение тренировки'],
+  [/trainingDraft|TrainingDraft/, 'черновик тренировки'],
 ]
 
 // Критический путь — это поведение, а не текст: правило `fitness-diary-sync.mdc`

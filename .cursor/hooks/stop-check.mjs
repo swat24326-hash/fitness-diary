@@ -55,7 +55,7 @@ runHook((input) => {
   if (zones.length > 0 && Number(input.loop_count || 0) === 0) {
     lines.push(
       `Хук проекта: тронут критический путь (${zones.join(', ')}).`,
-      'По fitness-diary-ship нужен npm run qa:critical или узкий verify-*.mjs — прогони и покажи результат.'
+      'По fitness-diary-ship: сейчас npm run qa:critical или узкий verify-*.mjs — прогони и покажи результат; перед «готово» — npm run qa:local.'
     )
   }
 

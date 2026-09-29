@@ -7,6 +7,8 @@ import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { resolveHookPath } from './pathEncoding.mjs'
+
 export const PROJECT_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 
 // CURSOR_HOOKS_STATE_FILE — только для тестов (scripts/verify-hooks.mjs),
@@ -31,5 +33,6 @@ export function takeEditedFiles() {
     // не критично: следующий запуск перечитает тот же список
   }
 
-  return [...new Set(raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))]
+  const paths = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  return [...new Set(paths.map((path) => resolveHookPath(path, existsSync)))]
 }

@@ -20,19 +20,31 @@ const GIT_ASK = {
   revert: 'git revert добавляет коммит с откатом.',
 }
 
+/** git-подкоманды, опасные только с определёнными флагами */
+const GIT_FLAG_ASK = {
+  push: [/\s(--force\S*|-f)(\s|$)|\s\+\S/, 'git push --force перезаписывает историю на сервере.'],
+  branch: [/\s(-D|--delete\s+--force)(\s|$)/, 'git branch -D удаляет ветку без проверки слияния.'],
+  stash: [/\s(clear|drop)(\s|$)/i, 'git stash clear/drop удаляет отложенные правки без возврата.'],
+}
+
 const PATTERN_ASK = [
   [/\bnpm\s+run\s+db:migrate/i, 'Миграция меняет схему прод-базы Supabase.'],
   [/\bnode\s+\S*scripts[\\/]+apply-/i, 'Скрипт apply-* применяет миграцию к прод-базе.'],
   [/\bnode\s+\S*scripts[\\/]+pg-migrate/i, 'Скрипт применяет миграции к базе.'],
-  [/\bsupabase\s+db\b/i, 'Команда supabase db меняет прод-базу.'],
+  [/\bsupabase\s+(db|migration)\b/i, 'Команда supabase db/migration меняет прод-базу.'],
   [/\bpsql\b/i, 'Прямое подключение psql пишет в базу.'],
   [/\bgh\s+(pr|release|repo|api|workflow|run)\b/i, 'Команда gh меняет данные в GitHub.'],
   [/\bnpm\s+run\s+qa(?!:local\b)(?![:\w])/i, 'npm run qa без --skip-prod работает с прод-данными.'],
   [/\bnpm\s+run\s+qa:(roles|deep)/i, 'Этот QA-сценарий пишет и чистит данные на проде.'],
   [/\bnode\s+\S*scripts[\\/]+qa-\S*prod/i, 'Прод-QA скрипт создаёт и удаляет данные на проде.'],
-  [/\brm\s+-rf?\b/i, 'Рекурсивное удаление файлов.'],
+  [/\bnode\s+\S*scripts[\\/]+agent-qa\.mjs(?![^\n]*--skip-prod)/i, 'agent-qa без --skip-prod работает с прод-данными.'],
+  [/\bnode\s+\S*scripts[\\/]+deep-qa/i, 'Этот QA-сценарий пишет и чистит данные на проде.'],
+  [/\brm\b[^\n]*\s-([a-z]*r[a-z]*|recurse)\b/i, 'Рекурсивное удаление файлов.'],
   [/Remove-Item\b(?=[^\n]*-Recurse)/i, 'Рекурсивное удаление файлов.'],
+  [/(^|[\s"'])(ri|rd|rmdir|del|erase)\s[^\n]*[-/](r|recurse|s)\b/i, 'Рекурсивное удаление файлов.'],
   [/\bnpm\s+(uninstall|prune)\b/i, 'Команда меняет зависимости проекта.'],
+  [/\bvercel\s+(env\s+rm|rm|remove)\b/i, 'Команда удаляет переменные или деплой на Vercel.'],
+  [/(^|[\s"'=\\/])\.env(\.(?!example\b)[\w.-]+)?(?=$|[\s"'])/i, 'Команда трогает .env с боевыми ключами.'],
 ]
 
 /**
@@ -43,6 +55,8 @@ export function classifyShellCommand(command) {
   for (const segment of splitSegments(command)) {
     const sub = gitSubcommand(segment)
     if (sub && GIT_ASK[sub]) return { ask: true, reason: GIT_ASK[sub] }
+    const flagRule = sub && GIT_FLAG_ASK[sub]
+    if (flagRule && flagRule[0].test(segment)) return { ask: true, reason: flagRule[1] }
 
     for (const [pattern, reason] of PATTERN_ASK) {
       if (pattern.test(segment)) return { ask: true, reason }

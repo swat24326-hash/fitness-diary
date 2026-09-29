@@ -37,7 +37,8 @@ assert(splitSegments('npm run lint && git push').length === 2, 'сегменты
 /* --- спрашиваем подтверждение --- */
 assert(!asks('git commit -m "feat"'), 'коммит -> allow (уже сказано «заливай»)')
 assert(!asks('git push origin main'), 'push -> allow')
-assert(!asks('npm run lint; git push --force'), 'push во втором сегменте -> allow')
+assert(!asks('npm run lint; git push origin main'), 'push во втором сегменте -> allow')
+assert(asks('npm run lint; git push --force'), 'force push во втором сегменте -> ask')
 assert(!asks('npx vercel --prod --yes'), 'деплой prod -> allow')
 assert(asks('npm run db:migrate:loyalty'), 'миграция базы -> ask')
 assert(asks('node scripts/apply-loyalty-migration.mjs'), 'apply-* миграция -> ask')

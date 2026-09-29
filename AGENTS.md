@@ -20,8 +20,8 @@
 | Ситуация | Обязательно |
 |----------|-------------|
 | Жалоба / «опять» / баг на проде | `docs/INCIDENTS.md` → `docs/CODE_TRACE.md` |
-| Sync / черновик / Закончить / абон | `docs/SYNC.md` или domain; после кода — `npm run qa:critical` (или узкий verify) |
-| Новая фича / развитие функции | `.cursor/rules/fitness-diary-features.mdc` **до** плана и кода + playbook §3 |
+| Sync / черновик / Закончить / абон | `docs/SYNC.md` или domain; на итерации — `npm run qa:critical` (или узкий verify), перед «готово» — `npm run qa:local` |
+| Новая фича / развитие функции | `.cursor/rules/fitness-diary-features.mdc` **до** плана и кода + playbook §3; большая фича — начать в Plan mode Cursor |
 | Приоритет, «что делать», оплаты / переезд РФ | `.cursor/rules/fitness-diary-north-star-lead.mdc` + `docs/PATH_TO_GOAL.md` |
 | Трогаете sync/domain | не обходить `saveLocalWithSync` / очередь |
 
