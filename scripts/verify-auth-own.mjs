@@ -2,11 +2,15 @@
  * Свой Auth: хеш пароля и JWT без базы и без сети.
  * node scripts/verify-auth-own.mjs
  */
+import bcrypt from 'bcryptjs'
+import { parseAuthExport, planAuthHashImport } from '../api/_lib/authHashImportCore.js'
 import {
   buildOwnSession,
   hashOwnPassword,
+  isLegacyBcryptHash,
   isOwnAuthProvider,
   ownAuthEnvError,
+  ownPasswordNeedsRehash,
   passwordHashForUsersRow,
   signOwnJwt,
   verifyOwnJwt,
@@ -55,6 +59,45 @@ try {
   ok(!(await verifyOwnPassword('secret-pass', 'supabase-auth')), 'метка supabase-auth не подходит')
   ok(!(await verifyOwnPassword('secret-pass', 'scrypt$1048576$8$1$aa$bb')), 'чужая стоимость scrypt отвергается')
   ok(passwordHashForUsersRow({ passwordHash: hash }) === hash, 'в users пишется хеш')
+
+  // Пароли из Supabase Auth (bcrypt) после переезда R3
+  const legacy = bcrypt.hashSync('old-supabase-pass', 10)
+  ok(isLegacyBcryptHash(legacy), 'хеш Supabase (bcrypt $2a$10$) распознан')
+  ok(await verifyOwnPassword('old-supabase-pass', legacy), 'старый пароль Supabase подходит')
+  ok(!(await verifyOwnPassword('wrong', legacy)), 'чужой пароль к хешу Supabase не подходит')
+  ok(ownPasswordNeedsRehash(legacy) && !ownPasswordNeedsRehash(hash), 'bcrypt → пересохранить в scrypt; scrypt не трогать')
+  const tooCostly = legacy.replace(/^\$2([aby])\$10\$/, '$2$1$13$')
+  ok(!isLegacyBcryptHash(tooCostly) && !(await verifyOwnPassword('old-supabase-pass', tooCostly)), 'bcrypt дороже 12 отвергается (не грузим сервер)')
+  ok(!isLegacyBcryptHash('') && !isLegacyBcryptHash('supabase-auth'), 'пустой хеш и метка — не bcrypt')
+
+  {
+    const b1 = bcrypt.hashSync('p1', 4)
+    const b2 = bcrypt.hashSync('p2', 4)
+    const users = [
+      { id: 'u1', email: 'a@x.ru', login: 'anna', password_hash: 'supabase-auth' },
+      { id: 'u2', email: 'B@x.ru', login: 'boris', password_hash: 'supabase-auth' },
+      { id: 'u3', email: 'c@x.ru', login: 'cyril', password_hash: hash },
+      { id: 'u4', email: 'd@x.ru', login: 'dina', password_hash: null },
+    ]
+    const plan = planAuthHashImport(
+      [
+        { id: 'u1', email: 'a@x.ru', encrypted_password: b1 },
+        { id: 'auth-old-b', email: 'b@X.ru', encrypted_password: b2 },
+        { id: 'u3', email: 'c@x.ru', encrypted_password: b1 },
+        { id: 'u9', email: 'nobody@x.ru', encrypted_password: b1 },
+        { id: 'u4', email: 'd@x.ru', encrypted_password: '' },
+      ],
+      users,
+    )
+    const byUser = Object.fromEntries(plan.updates.map((u) => [u.userId, u]))
+    ok(byUser.u1?.via === 'id' && byUser.u1.passwordHash === b1, 'перенос по id')
+    ok(byUser.u2?.via === 'email' && byUser.u2.passwordHash === b2, 'старая строка (id ≠ auth.uid) — по почте без учёта регистра')
+    ok(!byUser.u3 && plan.keptOwn === 1, 'пароль, заданный уже на новом сервере, не перезаписывается')
+    ok(plan.unmatchedAuth.length === 1 && plan.noHash === 1, 'чужие и пустые строки auth пропущены и посчитаны')
+    ok(plan.staffWithoutPassword.join(',') === 'dina', 'кому пароль задать вручную — по логину')
+    const csv = parseAuthExport(`id,email,encrypted_password\nu1,a@x.ru,${b1}\n`)
+    ok(csv.length === 1 && csv[0].encrypted_password === b1, 'CSV из SQL Editor читается')
+  }
 
   process.env.AUTH_PROVIDER = 'own'
   delete process.env.JWT_SECRET

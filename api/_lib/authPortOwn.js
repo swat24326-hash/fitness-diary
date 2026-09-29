@@ -4,6 +4,7 @@ import {
   buildOwnSession,
   hashOwnPassword,
   ownAuthSecret,
+  ownPasswordNeedsRehash,
   verifyOwnJwt,
   verifyOwnPassword,
 } from './authOwnCore.js'
@@ -28,6 +29,16 @@ async function findUserByEmail(email) {
   return { row: data ?? null, error: null }
 }
 
+async function rehashAfterLegacyLogin(userId, password) {
+  try {
+    const passwordHash = await hashOwnPassword(password)
+    const { error } = await createServiceDataClient().from('users').update({ password_hash: passwordHash }).eq('id', userId)
+    if (error) console.warn('[auth-own] rehash after legacy login:', error.message)
+  } catch (e) {
+    console.warn('[auth-own] rehash after legacy login:', e?.message || e)
+  }
+}
+
 /**
  * @param {string} _url
  * @param {string} _anonKey
@@ -43,6 +54,7 @@ export async function signInWithPasswordOwn(_url, _anonKey, creds) {
   if (row.is_active === false) return { session: null, user: null, error: BLOCKED_RU }
   const ok = await verifyOwnPassword(password, row.password_hash)
   if (!ok) return { session: null, user: null, error: INVALID_RU }
+  if (ownPasswordNeedsRehash(row.password_hash)) await rehashAfterLegacyLogin(row.id, password)
   const session = buildOwnSession({ id: String(row.id), email: row.email || email }, ownAuthSecret())
   return { session, user: session.user, error: null }
 }
