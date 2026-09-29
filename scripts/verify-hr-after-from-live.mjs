@@ -4,9 +4,13 @@
  */
 import {
   HR_AFTER_DOUBLE_TAP_MS,
+  applyHrAfterFillFromLive,
   hrAfterFillUserMessage,
   hrAfterFromLiveSlot,
 } from '../src/lib/hr/hrAfterFromLiveSlot.js'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -37,5 +41,39 @@ ok(hrAfterFromLiveSlot({ bpm: 999 }).reason === 'no_bpm', 'bpm вне диапа
 
 ok(hrAfterFillUserMessage('no_slot').includes('пульсометр'), 'текст no_slot')
 ok(hrAfterFillUserMessage('lost').includes('сигнала'), 'текст lost')
+
+{
+  const calls = { change: [], blur: 0 }
+  const r = applyHrAfterFillFromLive({ bpm: 155, status: 'live' }, {
+    onChange: (v) => calls.change.push(v),
+    blur: () => {
+      calls.blur += 1
+    },
+  })
+  ok(r.filled === true && r.value === '155' && r.blurred === true, 'успех → filled+blurred')
+  ok(calls.change.join(',') === '155' && calls.blur === 1, 'успех вызывает onChange и blur')
+}
+
+{
+  const calls = { change: [], blur: 0 }
+  const r = applyHrAfterFillFromLive({ status: 'lost' }, {
+    onChange: (v) => calls.change.push(v),
+    blur: () => {
+      calls.blur += 1
+    },
+  })
+  ok(r.filled === false && r.reason === 'lost' && r.blurred === false, 'нет сигнала → не fill')
+  ok(calls.change.length === 0 && calls.blur === 0, 'нет сигнала — без onChange/blur')
+}
+
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  const sw = readFileSync(join(root, 'src/components/HeaderStopwatch.jsx'), 'utf8')
+  ok(!sw.includes('requestAnimationFrame'), 'секундомер без rAF setState')
+  ok(sw.includes('setInterval(paint'), 'секундомер: DOM paint через setInterval')
+  ok(sw.includes('STOPWATCH_PAINT_MS'), 'секундомер: интервал из core')
+  const field = readFileSync(join(root, 'src/components/trainer/TrainingSetHrField.jsx'), 'utf8')
+  ok(field.includes('applyHrAfterFillFromLive'), 'ячейка Пульс — applyHrAfterFillFromLive')
+}
 
 console.log('verify-hr-after-from-live: all ok')

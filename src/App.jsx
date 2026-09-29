@@ -111,22 +111,22 @@ function LoggedInLayout() {
   const shellRole = isAdmin ? 'admin' : isSalesManager ? 'sales' : isSupervisor ? 'admin' : 'trainer'
 
   return (
-    <div className={`app-shell app-shell--${shellRole}`}>
-      <HeartRateSessionsProvider>
-        <IskraPanelProvider>
-          <AppChromeTop>
-            <AppHeader />
-            {role === 'trainer' ? <DraftTabsBar /> : null}
-          </AppChromeTop>
-          <BreadcrumbsBar />
-          <main className="app-main">
-            <AppErrorBoundary>
+    <AppErrorBoundary>
+      <div className={`app-shell app-shell--${shellRole}`}>
+        <HeartRateSessionsProvider>
+          <IskraPanelProvider>
+            <AppChromeTop>
+              <AppHeader />
+              {role === 'trainer' ? <DraftTabsBar /> : null}
+            </AppChromeTop>
+            <BreadcrumbsBar />
+            <main className="app-main">
               <Outlet />
-            </AppErrorBoundary>
-          </main>
-        </IskraPanelProvider>
-      </HeartRateSessionsProvider>
-    </div>
+            </main>
+          </IskraPanelProvider>
+        </HeartRateSessionsProvider>
+      </div>
+    </AppErrorBoundary>
   )
 }
 

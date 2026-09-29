@@ -1,52 +1,60 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pause, Play, RotateCcw, Timer } from 'lucide-react'
+import {
+  STOPWATCH_PAINT_MS,
+  formatStopwatch,
+  stopwatchElapsedMs,
+} from '../lib/headerStopwatchCore.js'
 
-function formatStopwatch(ms) {
-  const t = Math.max(0, Math.floor(ms))
-  const tenths = Math.floor((t % 1000) / 100)
-  const sec = Math.floor(t / 1000) % 60
-  const min = Math.floor(t / 60000) % 60
-  const hour = Math.floor(t / 3600000)
-  if (hour > 0) {
-    return `${hour}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-  }
-  return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${tenths}`
-}
-
+/**
+ * Секундомер в шапке. Пока идёт — цифры пишем в DOM напрямую (не setState каждый кадр),
+ * иначе на планшете вместе с тапом по «Пульс» экран может «осыпаться».
+ */
 export function HeaderStopwatch() {
   const [open, setOpen] = useState(false)
   const [running, setRunning] = useState(false)
-  const [displayMs, setDisplayMs] = useState(0)
+  const displayRef = useRef(null)
   const baseMsRef = useRef(0)
   const startedAtRef = useRef(null)
-  const rafRef = useRef(null)
+  const intervalRef = useRef(null)
 
-  const tick = useCallback(() => {
-    const start = startedAtRef.current
-    if (start == null) return
-    setDisplayMs(baseMsRef.current + (performance.now() - start))
-    rafRef.current = requestAnimationFrame(tick)
+  const paint = useCallback(() => {
+    const el = displayRef.current
+    if (!el) return
+    el.textContent = formatStopwatch(
+      stopwatchElapsedMs({
+        baseMs: baseMsRef.current,
+        startedAt: startedAtRef.current,
+        now: performance.now(),
+      }),
+    )
   }, [])
 
   useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
     if (!running) {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
-      return
+      paint()
+      return undefined
     }
     startedAtRef.current = performance.now()
-    rafRef.current = requestAnimationFrame(tick)
+    paint()
+    intervalRef.current = window.setInterval(paint, STOPWATCH_PAINT_MS)
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
-  }, [running, tick])
+  }, [running, paint])
 
   const toggleRun = () => {
     if (running) {
       const start = startedAtRef.current ?? performance.now()
       baseMsRef.current += performance.now() - start
       startedAtRef.current = null
-      setDisplayMs(baseMsRef.current)
       setRunning(false)
       return
     }
@@ -56,8 +64,9 @@ export function HeaderStopwatch() {
   const reset = () => {
     baseMsRef.current = 0
     startedAtRef.current = null
-    setDisplayMs(0)
     setRunning(false)
+    const el = displayRef.current
+    if (el) el.textContent = formatStopwatch(0)
   }
 
   const toggleOpen = () => {
@@ -81,12 +90,13 @@ export function HeaderStopwatch() {
       <div id="app-header-stopwatch-panel" className="app-header__stopwatch-panel" aria-hidden={!open}>
         <button
           type="button"
+          ref={displayRef}
           className="app-header__stopwatch-display"
           onClick={toggleRun}
           title="Старт / пауза"
           aria-label={running ? 'Пауза' : 'Старт'}
         >
-          {formatStopwatch(displayMs)}
+          {formatStopwatch(0)}
         </button>
         <button
           type="button"

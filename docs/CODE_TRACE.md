@@ -103,7 +103,8 @@
 |------|------|
 | Форма | `src/components/TrainingForm.jsx`, `src/lib/trainingFormStepMemory.js` |
 | Пульс / HR | [TRAINING_HR.md](./TRAINING_HR.md), agg в trainer/admin stats |
-| Verify | `scripts/verify-training-set-laterality.mjs`, `scripts/verify-exercise-format.mjs` |
+| Секундомер шапки | `src/components/HeaderStopwatch.jsx`, `src/lib/headerStopwatchCore.js` — INC **G** 09-29 |
+| Verify | `scripts/verify-training-set-laterality.mjs`, `scripts/verify-exercise-format.mjs`, `scripts/verify-hr-after-from-live.mjs`, `scripts/verify-header-stopwatch.mjs` |
 | Docs | INCIDENTS **G** |
 
 ### H — абон блокирует старт / сохранение

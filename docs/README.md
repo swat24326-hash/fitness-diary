@@ -36,6 +36,7 @@
 | [SUPABASE_FIRST_DEPLOY.md](./SUPABASE_FIRST_DEPLOY.md) | Краткая шпаргалка: env + schema + RLS |
 | [RELEASE.md](./RELEASE.md) | Чеклист перед merge и prod-деплоем |
 | [RUNBOOK.md](./RUNBOOK.md) | **Что делать сейчас:** sync, PWA, клубы ≠ облако (процедуры) |
+| [PRE_R3_OWNER.md](./PRE_R3_OWNER.md) | **До пилота РФ:** биллинг Yandex, дожим INC, чеклист ночи R3 |
 | [INCIDENTS.md](./INCIDENTS.md) | **Журнал кейсов:** контуры (зал / админ / продажи / связь / инфра) + коды A–Q; ведёт агент по чату |
 | [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Auth, RLS, `users.id` перед крупным клубом |
 | [PUSH_SETUP.md](./PUSH_SETUP.md) | Web Push / VAPID (планёрка, задания) |
@@ -71,6 +72,7 @@
 | [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт P1–P3 §5.8; стек/TS vs переезд **§5.9** |
 | [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Вход сейчас (Supabase) vs свой Auth на Yandex; шов `authPort` готов; JWT — по команде R2 |
 | [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) | Стенд R2: волна 1 Hybrid A ✅ 2026-09-26; волны 2–3, migrate:pg, portable host / Docker |
+| [PRE_R3_OWNER.md](./PRE_R3_OWNER.md) | **Владелец до R3:** биллинг Yandex, дожим INC зала, чеклист ночи пилота |
 | [GROKBOT_CONTEXT.md](./GROKBOT_CONTEXT.md) | Память GrokBot (исполнитель в Yandex Cloud) вне подписки: роли, риски, состояние стенда, журнал |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Фазы 0–4: что сделано и ongoing |
 | [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов и платные тарифы |

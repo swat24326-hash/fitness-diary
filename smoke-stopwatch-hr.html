@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smoke: секундомер + пульс</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #061210;
+        color: #f6f4ef;
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(520px, 100%);
+        border: 1px solid rgba(46, 255, 184, 0.22);
+        border-radius: 16px;
+        padding: 20px;
+        background: rgba(8, 32, 24, 0.72);
+      }
+      .display {
+        font: 600 1.4rem/1.2 ui-monospace, monospace;
+        letter-spacing: 0.04em;
+        color: #2effb8;
+        margin: 12px 0 18px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(10, 14, 12, 0.85);
+        color: #f6f4ef;
+        font-size: 16px;
+      }
+      #log {
+        margin-top: 16px;
+        white-space: pre-wrap;
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+      .ok {
+        color: #86efac;
+      }
+      .fail {
+        color: #fca5a5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Smoke: секундомер + заполнение пульса</h1>
+      <p>Без входа: тик секундомера в DOM + подстановка BPM с blur.</p>
+      <div id="sw" class="display" aria-live="off">00:00.0</div>
+      <label>
+        Пульс
+        <input id="hr" inputmode="numeric" placeholder="Пульс" />
+      </label>
+      <div id="log">Запуск…</div>
+    </div>
+    <script type="module">
+      import {
+        STOPWATCH_PAINT_MS,
+        formatStopwatch,
+        stopwatchElapsedMs,
+      } from '/src/lib/headerStopwatchCore.js'
+      import { applyHrAfterFillFromLive } from '/src/lib/hr/hrAfterFromLiveSlot.js'
+
+      const logEl = document.getElementById('log')
+      const swEl = document.getElementById('sw')
+      const hrEl = document.getElementById('hr')
+      const lines = []
+      const fail = (msg) => {
+        lines.push('FAIL: ' + msg)
+        logEl.className = 'fail'
+        logEl.textContent = lines.join('\n')
+        throw new Error(msg)
+      }
+      const ok = (cond, msg) => {
+        if (!cond) fail(msg)
+        lines.push('ok: ' + msg)
+        logEl.textContent = lines.join('\n')
+      }
+
+      ok(STOPWATCH_PAINT_MS === 100, 'интервал 100 мс')
+
+      const baseMs = 0
+      const startedAt = performance.now()
+      let paints = 0
+      await new Promise((resolve) => {
+        const id = setInterval(() => {
+          paints += 1
+          swEl.textContent = formatStopwatch(
+            stopwatchElapsedMs({ baseMs, startedAt, now: performance.now() }),
+          )
+          if (paints >= 8) {
+            clearInterval(id)
+            resolve()
+          }
+        }, STOPWATCH_PAINT_MS)
+      })
+      ok(paints >= 8, `DOM-тик отработал ${paints} раз`)
+      ok(/^\d{2}:\d{2}\.\d$/.test(swEl.textContent), `цифры на экране: ${swEl.textContent}`)
+
+      hrEl.focus()
+      ok(document.activeElement === hrEl, 'поле пульса в фокусе')
+
+      const r = applyHrAfterFillFromLive(
+        { bpm: 148, status: 'live' },
+        {
+          onChange: (v) => {
+            hrEl.value = v
+          },
+          blur: () => hrEl.blur(),
+        },
+      )
+      ok(r.filled && r.blurred && r.value === '148', 'fill+blur')
+      ok(hrEl.value === '148', 'в поле 148')
+      ok(document.activeElement !== hrEl, 'фокус снят после fill')
+
+      const shellAlive = Boolean(document.querySelector('.card') && swEl.isConnected && hrEl.isConnected)
+      ok(shellAlive, 'экран не осыпался: карточка и поля на месте')
+
+      logEl.className = 'ok'
+      lines.push('SMOKE PASS')
+      logEl.textContent = lines.join('\n')
+      document.title = 'SMOKE PASS'
+    </script>
+  </body>
+</html>

@@ -88,7 +88,9 @@
 | Ручной Sync: flush в шапке, pull по ролям | `verify-sync-header-pull.mjs` (продажи/админ/тренер; сбой справочника и клиентов — не «готово»; менеджер без клуба) |
 | Критический контур зала (сшивка) | `verify-critical-hall.mjs` (complete/абон/Sync/ПНК/роли; баллы не в очереди и не в качестве ведения) |
 | Пульс при завершении: снимок в дневник, живой буфер не остаётся | `verify-hr-session-persist.mjs` |
-| Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
+| Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` (в т.ч. fill→blur; без rAF в секундомере) |
+| Секундомер шапки: формат / тик без React setState | `verify-header-stopwatch.mjs` |
+| Smoke в браузере без входа (тик DOM + fill/blur) | при `npm run dev` открыть `/smoke-stopwatch-hr.html` — в заголовке `SMOKE PASS` |
 | Шаг/место формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Изоляция load/persist при смене вкладки черновика | `verify-training-draft-page-epoch.mjs` |
 | Сессионный кэш вкладок черновика (без «Загрузка…») | `verify-training-draft-session-cache.mjs` |

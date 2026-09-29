@@ -25,6 +25,26 @@ export function hrAfterFromLiveSlot(slot) {
 }
 
 /**
+ * Успешная подстановка: onChange + blur (клавиатура не должна висеть рядом с секундомером).
+ * @param {{ bpm?: number|null, status?: string } | null | undefined} slot
+ * @param {{ onChange?: (v: string) => void, blur?: () => void }} handlers
+ * @returns {{ filled: true, value: string, blurred: boolean } | { filled: false, reason: string, blurred: false }}
+ */
+export function applyHrAfterFillFromLive(slot, handlers = {}) {
+  const result = hrAfterFromLiveSlot(slot)
+  if (!result.ok) {
+    return { filled: false, reason: result.reason, blurred: false }
+  }
+  if (typeof handlers.onChange === 'function') handlers.onChange(result.value)
+  let blurred = false
+  if (typeof handlers.blur === 'function') {
+    handlers.blur()
+    blurred = true
+  }
+  return { filled: true, value: result.value, blurred }
+}
+
+/**
  * @param {'no_slot'|'connecting'|'lost'|'no_bpm'|string} reason
  * @returns {string}
  */

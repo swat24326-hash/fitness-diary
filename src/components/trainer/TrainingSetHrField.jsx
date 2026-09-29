@@ -1,10 +1,11 @@
 import { useRef } from 'react'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext'
-import { HR_AFTER_DOUBLE_TAP_MS, hrAfterFromLiveSlot } from '../../lib/hr/hrAfterFromLiveSlot.js'
+import { HR_AFTER_DOUBLE_TAP_MS, applyHrAfterFillFromLive } from '../../lib/hr/hrAfterFromLiveSlot.js'
 
 /**
  * Ячейка «Пульс» подхода: ручной ввод + двойной тап → текущий BPM с датчика клиента.
- * Визуал как у обычного input — без тостов и вспышек (при нет сигнала просто не подставляем).
+ * После подстановки снимаем фокус — иначе на планшете вместе с секундомером
+ * открывается клавиатура и экран может «осыпаться» в пустой зелёный фон.
  *
  * @param {{
  *   value: string,
@@ -32,10 +33,14 @@ export function TrainingSetHrField({
     title ||
     'Пульс после подхода (уд/мин). Двойной тап — текущий пульс с датчика'
 
-  const tryFillFromLive = () => {
+  const tryFillFromLive = (inputEl) => {
     const slot = hr.slotForClient?.(clientId) ?? null
-    const result = hrAfterFromLiveSlot(slot)
-    if (result.ok) onChange(result.value)
+    applyHrAfterFillFromLive(slot, {
+      onChange,
+      blur: () => {
+        if (inputEl && typeof inputEl.blur === 'function') inputEl.blur()
+      },
+    })
   }
 
   const onPointerDown = (e) => {
@@ -44,7 +49,7 @@ export function TrainingSetHrField({
     if (now - lastTapAtRef.current <= HR_AFTER_DOUBLE_TAP_MS) {
       lastTapAtRef.current = 0
       e.preventDefault()
-      tryFillFromLive()
+      tryFillFromLive(e.currentTarget)
       return
     }
     lastTapAtRef.current = now
