@@ -33,6 +33,10 @@
   min-height: 1.4em;
 }
 
+.admin-home-summaries .admin-day-summary__head {
+  justify-content: flex-start;
+}
+
 .admin-home-summaries .admin-day-summary__title,
 .admin-home-summaries .club-call-shift__title {
   margin: 0;

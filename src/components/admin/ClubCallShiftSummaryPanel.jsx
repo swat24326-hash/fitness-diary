@@ -90,7 +90,7 @@ export function ClubCallShiftSummaryPanel({
     ? errText
     : summary?.has_activity
       ? `Связь за ${dayLabel}${summary.connect_rate_pct != null ? ` · дозвон ${summary.connect_rate_pct}%` : ''}`
-      : `За ${dayLabel} звонков и SMS пока нет`
+      : dayLabel
 
   return (
     <section
