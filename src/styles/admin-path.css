@@ -851,6 +851,15 @@
   .admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-levels-grid {
     margin-top: 0.15rem;
   }
+
+  .admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-stats {
+    text-align: center;
+    align-items: center;
+  }
+
+  .admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-fraction {
+    justify-content: center;
+  }
 }
 
 @media (min-width: 900px) {
