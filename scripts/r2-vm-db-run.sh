@@ -19,6 +19,11 @@ case "$url" in
 esac
 echo "target: $(printf '%s' "$url" | sed -E 's#//([^:]+):[^@]*@#//\1:***@#')"
 
+env_val() { (grep -E "^$1=" "$ENV_FILE" || true) | tail -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/'; }
+# Источник для r3-copy-data.mjs (облако Supabase); другим скриптам не мешает.
+SUPABASE_URL=$(env_val SUPABASE_URL)
+SUPABASE_SERVICE_ROLE_KEY=$(env_val SUPABASE_SERVICE_ROLE_KEY)
+
 cd "$APP"
-export DATABASE_URL="$url"
-sudo --preserve-env=DATABASE_URL -u osapp node "$SCRIPT" "$@"
+export DATABASE_URL="$url" SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY
+sudo --preserve-env=DATABASE_URL,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY -u osapp node "$SCRIPT" "$@"

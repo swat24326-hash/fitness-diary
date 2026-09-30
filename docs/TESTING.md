@@ -135,6 +135,7 @@
 | R2 data-port: SQL supabase-js → Postgres (`DATA_BACKEND=pg`) | `verify-pg-rest.mjs` |
 | R2 свой вход: хеш пароля + JWT, `/auth/v1` закрыт без флага; R3 пароли Supabase (bcrypt, потолок стоимости, пересохранение в scrypt) и план переноса `auth.users` → `users` | `verify-auth-own.mjs` |
 | R2 тестовый клуб стенда C2: роли, связи, только хеши, отказ на непустой базе | `verify-c2-seed.mjs` |
+| R3 перенос Supabase → Managed PG: порядок по FK, колонки, пачки, сверка counts, запрет цели Supabase | `verify-r3-data-copy.mjs` |
 | RLS на `users`: только вошедшие, писать — админ, тренер видит себя, функции прав объявлены раньше | `verify-users-rls.mjs` |
 | R2 `/rest/v1` для браузера: настоящие запросы supabase-js → разбор → SQL → ответ, скрытый `password_hash`, claims RLS, выключатель own+pg | `verify-pg-rest-v1.mjs` |
 | Portable host: `/api/health` | `verify-portable-host.mjs` |

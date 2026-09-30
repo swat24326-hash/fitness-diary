@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [{ "source": "/(.*)", "destination": "https://app-core.ru/$1", "permanent": false }],
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "functions": {
     "api/admin-data.js": { "maxDuration": 60 },

@@ -28,7 +28,7 @@
 - статистика клуба, продажи / финансы, **ИСКРА** (AI-советник админки), качество ведения;
 - офлайн: **IndexedDB** + **очередь sync** → `/api/push-record(s)` → pull (`trainer-pull`, `admin-data`).
 
-Production: https://fitness-diary-bice.vercel.app
+Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`, Caddy — [R3_NIGHT.md](./R3_NIGHT.md)). Старый `https://fitness-diary-bice.vercel.app` — redirect 307; Supabase — копия для отката до R4.
 
 ---
 
