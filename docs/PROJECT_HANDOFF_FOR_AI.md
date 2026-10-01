@@ -135,7 +135,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 Карточка клиента (`ClientCard`) общая для тренера и админа.
 
-**Главная админа / менеджера / управляющего:** ряд «внимание» — `AdminHomeAttentionRow`. Управляющий: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) (миграция `20260805220000_users_supervisor_role.sql`). Куратор сети — позже ([ISKRA_CURATOR.md](./ISKRA_CURATOR.md)).
+**Главная админа / управляющего:** фиксированный ряд `AdminHomeGlanceRow` — Продажи | ПНК | Качество ведения | Планёрка, карточки видны всегда (пустое состояние вместо скрытия). **Главная менеджера продаж:** «плавающий» ряд `AdminHomeAttentionRow` (звонки, soft-сигналы). Управляющий: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) (миграция `20260805220000_users_supervisor_role.sql`). Куратор сети — позже ([ISKRA_CURATOR.md](./ISKRA_CURATOR.md)).
 
 ---
 

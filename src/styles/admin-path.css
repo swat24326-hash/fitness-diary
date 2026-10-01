@@ -457,6 +457,49 @@
   box-sizing: border-box;
 }
 
+/* Главная админа: Продажи | ПНК | Качество ведения | Планёрка — всегда на своих местах */
+@media (min-width: 720px) {
+  .admin-home-attention--fixed {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .admin-home-attention--fixed {
+    grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+    min-height: 12.5rem;
+  }
+}
+
+.admin-home-attention--fixed .admin-home-attention__side {
+  min-height: 9rem;
+}
+
+.admin-home-attention--fixed .manager-pnk-glance > .os-empty-card {
+  height: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.admin-home-soft-signal--empty {
+  border-color: var(--border);
+  background: var(--bg-elevated, var(--bg-card));
+}
+
+.admin-home-soft-signal--empty .admin-home-soft-signal__icon {
+  color: var(--text-muted, currentColor);
+}
+
+.admin-home-soft-signal__empty-text {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
 .admin-home-sales-plan--compact {
   padding: 10px 12px;
 }

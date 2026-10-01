@@ -3,16 +3,12 @@ import { useCallback, useMemo, useState } from 'react'
 import { BarChart3, Building2, CalendarDays, ClipboardList, FileSpreadsheet, Gift, Phone, Settings, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
-import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
+import { AdminHomeGlanceRow } from '../../components/admin/AdminHomeGlanceRow'
 import { ClubCallShiftSummaryPanel } from '../../components/admin/ClubCallShiftSummaryPanel'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
 import { loadClubCallShiftSummary } from '../../lib/admin/clubCallShiftSummaryService'
 import { fetchCoachQualityViaApi } from '../../lib/admin/adminApiClient'
-import {
-  buildAdminHomeSoftSignals,
-  isCoachQualityHeroInAttentionRow,
-} from '../../lib/admin/adminHomeSoftSignalsCore.js'
 import { getDateRange } from '../../lib/period'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
@@ -86,12 +82,6 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
     return p === basePath
   }, [location.pathname, basePath])
 
-  const [attentionWidgets, setAttentionWidgets] = useState({
-    hasPnk: false,
-    hasPlanerka: false,
-    planerkaSlotOccupied: false,
-    sideCount: 0,
-  })
   const [callShiftNotice, setCallShiftNotice] = useState('')
 
   const clubDayIso = todayInTimeZoneIso()
@@ -238,26 +228,7 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
     fetcher: fetchShiftSummary,
   })
 
-  const softSignals = useMemo(
-    () =>
-      buildAdminHomeSoftSignals({
-        summary: daySummary,
-        coachQuality: coachQualityHome,
-        clubId,
-        clientsPath: `${basePath}/clients`,
-        statsPath: `${basePath}/statistics`,
-      }),
-    [daySummary, coachQualityHome, clubId, basePath],
-  )
-
-  const onWidgetsPresence = useCallback((info) => {
-    setAttentionWidgets({
-      hasPnk: Boolean(info?.hasPnk),
-      hasPlanerka: Boolean(info?.hasPlanerka),
-      planerkaSlotOccupied: Boolean(info?.planerkaSlotOccupied),
-      sideCount: Number(info?.sideCount) || 0,
-    })
-  }, [])
+  const glanceRowShown = Boolean(clubId)
 
   useDebouncedStorageReload(
     () => {
@@ -282,13 +253,14 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
             </p>
           </div>
 
-          {clubId ? (
-            <AdminHomeAttentionRow
+          {glanceRowShown ? (
+            <AdminHomeGlanceRow
               clubId={clubId}
               hrefPnk={tab('pnk')}
               hrefPlanerka={tab('club-tasks')}
-              softSignals={softSignals}
-              onWidgetsPresence={onWidgetsPresence}
+              statsPath={`${basePath}/statistics`}
+              coachQuality={coachQualityHome}
+              coachQualityLoading={coachQualityHomeLoading}
             />
           ) : null}
 
@@ -303,11 +275,7 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
               onRetry={() => void reloadDaySummary({ force: true })}
               coachQuality={coachQualityHome}
               coachQualityLoading={coachQualityHomeLoading}
-              coachQualityHeroInAttention={isCoachQualityHeroInAttentionRow({
-                planerkaSlotOccupied: attentionWidgets.planerkaSlotOccupied,
-                hasCoachQuality: Boolean(coachQualityHome),
-                coachQualityLoading: coachQualityHomeLoading,
-              })}
+              coachQualityHeroInAttention={glanceRowShown}
             />
 
             <ClubCallShiftSummaryPanel
@@ -326,9 +294,9 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
               <NavLink
                 to={tab('pnk')}
                 className={({ isActive }) =>
-                  `${adminTileClass({ isActive })} feature-tile--pnk${attentionWidgets.hasPnk ? ' feature-tile--echo' : ''}`
+                  `${adminTileClass({ isActive })} feature-tile--pnk${glanceRowShown ? ' feature-tile--echo' : ''}`
                 }
-                title={attentionWidgets.hasPnk ? 'ПНК уже на главной выше' : undefined}
+                title={glanceRowShown ? 'ПНК уже на главной выше' : undefined}
               >
                 <div className="feature-tile__icon">
                   <UserPlus size={44} aria-hidden />
@@ -413,9 +381,9 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
               <NavLink
                 to={tab('club-tasks')}
                 className={({ isActive }) =>
-                  `${adminTileClass({ isActive })}${attentionWidgets.hasPlanerka ? ' feature-tile--echo' : ''}`
+                  `${adminTileClass({ isActive })}${glanceRowShown ? ' feature-tile--echo' : ''}`
                 }
-                title={attentionWidgets.hasPlanerka ? 'Планёрка уже на главной выше' : undefined}
+                title={glanceRowShown ? 'Планёрка уже на главной выше' : undefined}
               >
                 <div className="feature-tile__icon">
                   <ClipboardList size={44} aria-hidden />

@@ -304,6 +304,7 @@ run('safe random uuid (http IP)', 'node', ['scripts/verify-safe-random-uuid.mjs'
 run('client name format', 'node', ['scripts/verify-client-name-format.mjs'])
 run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
 run('admin home attention', 'node', ['scripts/verify-admin-home-attention.mjs'])
+run('admin home glance row', 'node', ['scripts/verify-admin-home-glance-row.mjs'])
 run('admin client quick filters', 'node', ['scripts/verify-admin-client-quick-filters.mjs'])
 run('trainer clients browse filters', 'node', ['scripts/verify-trainer-clients-browse-filters.mjs'])
 run('admin clients az direction filter', 'node', ['scripts/verify-admin-clients-az-direction-filter.mjs'])

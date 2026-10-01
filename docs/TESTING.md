@@ -111,6 +111,7 @@
 | Код 124578 перед жёстким удалением клиента | `verify-client-hard-delete-confirm.mjs` |
 | Профиль тренера: ФИО в «Не активные» из локального кэша | `verify-enrich-inactive-clients-local.mjs` |
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
+| Главная админа: фиксированный ряд (пустые состояния ПНК / CQ / планёрки) | `verify-admin-home-glance-row.mjs` |
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
 | Список клиентов: код типа абона (Dm/El) | `verify-client-list-membership-type.mjs` |
 | Ранняя / поздняя активация абона (сдвиг дат, дневник vs used, overlap, inspect) | `verify-membership-early-activate.mjs` |

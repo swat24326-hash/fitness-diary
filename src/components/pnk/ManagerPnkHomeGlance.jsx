@@ -26,6 +26,7 @@ const SWIPE_THRESHOLD_PX = 42
  *   compact?: boolean,
  *   expectVisible?: boolean,
  *   onPresenceChange?: (visible: boolean) => void,
+ *   emptyFallback?: import('react').ReactNode,
  * }} props
  */
 export function ManagerPnkHomeGlance({
@@ -34,6 +35,7 @@ export function ManagerPnkHomeGlance({
   compact = false,
   expectVisible = false,
   onPresenceChange,
+  emptyFallback = null,
 }) {
   const navigate = useNavigate()
   const cid = String(clubId || '').trim()
@@ -217,7 +219,7 @@ export function ManagerPnkHomeGlance({
       </section>
     )
   }
-  if (!cards.length) return null
+  if (!cards.length) return emptyFallback
 
   const card = cards[index] ?? cards[0]
   const hasMany = cards.length > 1

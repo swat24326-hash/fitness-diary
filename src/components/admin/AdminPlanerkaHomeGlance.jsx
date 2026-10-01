@@ -28,6 +28,7 @@ const SWIPE_THRESHOLD_PX = 42
  *   expectVisible?: boolean,
  *   suppressCard?: boolean,
  *   onPresenceChange?: (visible: boolean) => void,
+ *   emptyFallback?: import('react').ReactNode,
  * }} props
  */
 export function AdminPlanerkaHomeGlance({
@@ -37,6 +38,7 @@ export function AdminPlanerkaHomeGlance({
   expectVisible = false,
   suppressCard = false,
   onPresenceChange,
+  emptyFallback = null,
 }) {
   const navigate = useNavigate()
   const cid = String(clubId || '').trim()
@@ -173,7 +175,7 @@ export function AdminPlanerkaHomeGlance({
       </section>
     )
   }
-  if (!tasks.length) return null
+  if (!tasks.length) return emptyFallback
 
   const task = tasks[index] ?? tasks[0]
   const caption = buildDispatchGlanceCaption(task)
