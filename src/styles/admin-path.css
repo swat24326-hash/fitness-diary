@@ -486,16 +486,35 @@
   background: var(--bg-elevated, var(--bg-card));
 }
 
-.admin-home-soft-signal--empty .admin-home-soft-signal__icon {
-  color: var(--text-muted, currentColor);
+.admin-home-soft-signal__empty-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.admin-home-soft-signal__empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent-bright) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-bright) 26%, transparent);
+  transition: background 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+}
+
+.admin-home-soft-signal--empty:hover .admin-home-soft-signal__empty-icon {
+  background: color-mix(in srgb, var(--accent-bright) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent-bright) 40%, transparent);
 }
 
 .admin-home-soft-signal__empty-text {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
   font-size: 0.88rem;
   line-height: 1.35;
 }

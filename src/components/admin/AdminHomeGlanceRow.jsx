@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ClipboardList, Gauge, UserPlus } from 'lucide-react'
+import { ClipboardCheck, Gauge, UserPlus } from 'lucide-react'
 import { AdminHomeSalesPlanGlance } from './AdminHomeSalesPlanGlance.jsx'
 import { AdminPlanerkaHomeGlance } from './AdminPlanerkaHomeGlance.jsx'
 import { AdminHomeSoftSignalGlance } from './AdminHomeSoftSignalGlance.jsx'
@@ -93,7 +93,7 @@ export function AdminHomeGlanceRow({
           compact
           expectVisible
           emptyFallback={
-            <AdminHomeEmptyGlance href={hrefPlanerka} icon={ClipboardList} {...ADMIN_HOME_GLANCE_EMPTY.planerka} />
+            <AdminHomeEmptyGlance href={hrefPlanerka} icon={ClipboardCheck} {...ADMIN_HOME_GLANCE_EMPTY.planerka} />
           }
         />
       </div>
