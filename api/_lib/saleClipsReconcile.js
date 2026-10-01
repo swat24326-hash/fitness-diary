@@ -25,12 +25,14 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
 
   /** @type {Map<string, object>} */
   const clientsByCard = new Map()
+  let cardLookupOk = true
   if (clubIds.length && cards.length) {
-    const { data: clients } = await supabaseAdmin
+    const { data: clients, error: cardErr } = await supabaseAdmin
       .from('clients')
       .select('id, card_number, club_id, name, archived_at')
       .in('club_id', clubIds.slice(0, 20))
       .in('card_number', cards.slice(0, 200))
+    if (cardErr || clubIds.length > 20 || cards.length > 200) cardLookupOk = false
     for (const row of clients ?? []) {
       if (row?.archived_at) continue
       const card = normalizeSalesCardNumber(row.card_number) || String(row.card_number ?? '').trim()
@@ -99,6 +101,7 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
     clientsByCard,
     clientsById,
     membershipTypes,
+    cancelUnboundOrphans: cardLookupOk,
   })
   if (!plan.length) return clips
 

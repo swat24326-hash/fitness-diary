@@ -349,6 +349,32 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
     'orphan clip binds client by card',
   )
 
+  const goneClip = {
+    id: 'clip-gone',
+    status: 'awaiting',
+    client_id: null,
+    card_number: '5886',
+    created_at: '2026-09-22T18:00:00.000Z',
+  }
+  const gonePlan = planSupersededAwaitingSaleClips([goneClip], {}, {
+    clientsByCard: new Map(),
+    cancelUnboundOrphans: true,
+  })
+  ok(
+    gonePlan.some((p) => p.clipId === 'clip-gone' && p.action === 'cancel'),
+    'awaiting без клиента и без карты в базе → cancel (удалённый дубль)',
+  )
+  const goneUnsure = planSupersededAwaitingSaleClips([goneClip], {}, { clientsByCard: new Map() })
+  ok(!goneUnsure.length, 'без уверенного поиска по карте заявку не снимаем')
+  const goneBind = planSupersededAwaitingSaleClips([goneClip], {}, {
+    clientsByCard: new Map([['5886', { id: 'c-keep' }]]),
+    cancelUnboundOrphans: true,
+  })
+  ok(
+    goneBind.length === 1 && goneBind[0].action === 'bind_client',
+    'карта нашлась → привязка, не отмена',
+  )
+
   const archivedPlan = planSupersededAwaitingSaleClips(
     [
       {
