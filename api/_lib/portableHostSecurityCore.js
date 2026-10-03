@@ -10,6 +10,8 @@ export const PAYLOAD_TOO_LARGE_RU = 'Слишком большой запрос 
 /**
  * Permissions-Policy не задаём: пульсометры подключаются через Web Bluetooth.
  * CSP пока report-only — боевой только после проверки PWA/Service Worker на стенде.
+ * media-src: голос ИСКРЫ — blob:, записи звонков — https у провайдера телефонии.
+ * frame-src blob: — скрытый iframe печати прайса ПЗ/ТЗ/АЗ.
  */
 export const PORTABLE_SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
@@ -18,7 +20,8 @@ export const PORTABLE_SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000',
   'Content-Security-Policy-Report-Only':
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; " +
-    "connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; " +
+    "connect-src 'self' https: wss:; font-src 'self' data:; media-src 'self' data: blob: https:; frame-src 'self' blob:; " +
+    "worker-src 'self'; manifest-src 'self'; " +
     "object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
 }
 

@@ -41,6 +41,9 @@ try {
   const csp = health.headers.get('content-security-policy-report-only') ?? ''
   ok(/default-src 'self'/.test(csp), 'CSP пока report-only (PWA не ломаем)')
   ok(!health.headers.get('content-security-policy'), 'боевой CSP не включён')
+  ok(/media-src [^;]*blob:[^;]*https:/.test(csp), 'CSP media-src: голос ИСКРЫ (blob:) и записи звонков (https)')
+  ok(/frame-src [^;]*blob:/.test(csp), 'CSP frame-src blob: — печать прайса')
+  ok(/font-src 'self' data:;/.test(csp), 'CSP font-src без внешних доменов — Inter свой')
   ok(!health.headers.get('permissions-policy'), 'Permissions-Policy не режет Web Bluetooth пульсометров')
 
   const huge = await fetch(`${base}/rest/v1/clients`, {
