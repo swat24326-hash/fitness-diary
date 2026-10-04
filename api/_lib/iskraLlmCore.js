@@ -9,19 +9,39 @@ export const YANDEX_LLM_CHAT_URL = 'https://ai.api.cloud.yandex.net/v1/chat/comp
 /** DeepSeek V4 Flash (контекст 1M, РФ-контур) — основная; YandexGPT 5.1 (32k) — запасная. */
 export const YANDEX_LLM_DEFAULT_MODELS = ['deepseek-v4-flash', 'yandexgpt-5.1']
 
+/** Токен сервисного аккаунта, привязанного к ВМ Yandex Cloud — без хранения секрета в .env. */
+export const YANDEX_METADATA_TOKEN_URL =
+  'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token'
+
 /**
+ * Вход: API-ключ (любой хостинг) или `YANDEX_LLM_AUTH=metadata` (ВМ Yandex Cloud с сервисным аккаунтом).
  * @param {Record<string, string | undefined>} env
- * @returns {{ provider: 'yandex', apiKey: string, folderId: string, models: string[] } | { provider: 'gemini', apiKey: string }}
+ * @returns {{ provider: 'yandex', auth: 'api_key' | 'metadata', apiKey: string, folderId: string, models: string[] } | { provider: 'gemini', apiKey: string }}
  */
 export function resolveIskraLlmConfig(env) {
   const explicit = String(env.ISKRA_LLM_PROVIDER ?? '').trim().toLowerCase()
   const yandexKey = String(env.YANDEX_LLM_API_KEY ?? '').trim()
   const folderId = String(env.YANDEX_FOLDER_ID ?? '').trim()
-  const useYandex = explicit === 'yandex' || (explicit !== 'gemini' && Boolean(yandexKey && folderId))
+  const metadata = String(env.YANDEX_LLM_AUTH ?? '').trim().toLowerCase() === 'metadata'
+  const yandexReady = Boolean(folderId && (yandexKey || metadata))
+  const useYandex = explicit === 'yandex' || (explicit !== 'gemini' && yandexReady)
   if (!useYandex) return { provider: 'gemini', apiKey: String(env.GEMINI_API_KEY ?? '').trim() }
   const preferred = String(env.YANDEX_LLM_MODEL ?? '').trim()
   const models = [...new Set([preferred, ...YANDEX_LLM_DEFAULT_MODELS].filter(Boolean))]
-  return { provider: 'yandex', apiKey: yandexKey, folderId, models }
+  return { provider: 'yandex', auth: yandexKey ? 'api_key' : 'metadata', apiKey: yandexKey, folderId, models }
+}
+
+/** @param {{ auth: string, apiKey: string }} cfg @param {string} [iamToken] */
+export function yandexLlmAuthHeader(cfg, iamToken = '') {
+  return cfg.auth === 'api_key' ? `Api-Key ${cfg.apiKey}` : `Bearer ${iamToken}`
+}
+
+/**
+ * Кэш IAM-токена: живёт ~12 ч, обновляем за 5 мин до конца.
+ * @param {{ token: string, expiresAt: number } | null} cached
+ */
+export function isIamTokenFresh(cached, nowMs) {
+  return Boolean(cached?.token && cached.expiresAt - nowMs > 5 * 60_000)
 }
 
 /** DeepSeek у Яндекса по умолчанию «размышляет» — платно и до минуты; ИСКРЕ не нужно. */
@@ -78,7 +98,7 @@ export function isYandexLlmRetryable(status, message) {
 /** Человеческий текст для админа вместо ответа API. Ключ в текст не попадает. */
 export function formatYandexLlmUserError(status, message) {
   if (status === 401 || status === 403) {
-    return 'ИСКРА: ключ Yandex AI Studio не принят — проверьте ключ и роль сервисного аккаунта (ai.languageModels.user).'
+    return 'ИСКРА: Yandex AI Studio не пустил — проверьте ключ или сервисный аккаунт ВМ и роль ai.languageModels.user.'
   }
   if (status === 429) return 'ИСКРА: лимит запросов к модели — подождите 10–20 сек и спросите снова.'
   if (status >= 500 || status === 0) return 'ИСКРА: модель временно недоступна — спросите снова через минуту.'

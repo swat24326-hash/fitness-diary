@@ -5,9 +5,11 @@ import {
   buildYandexChatRequest,
   extractYandexChatReply,
   formatYandexLlmUserError,
+  isIamTokenFresh,
   isYandexLlmRetryable,
   resolveIskraLlmConfig,
   YANDEX_LLM_DEFAULT_MODELS,
+  yandexLlmAuthHeader,
 } from '../api/_lib/iskraLlmCore.js'
 import { isGeminiReplyIncomplete } from '../src/lib/admin/geminiAnalyticsPrompt.js'
 
@@ -30,6 +32,15 @@ const cfg = resolveIskraLlmConfig(yEnv)
 ok(cfg.models.join() === YANDEX_LLM_DEFAULT_MODELS.join(), 'модели по умолчанию: DeepSeek V4 Flash, затем YandexGPT')
 const custom = resolveIskraLlmConfig({ ...yEnv, YANDEX_LLM_MODEL: 'yandexgpt-5.1' })
 ok(custom.models[0] === 'yandexgpt-5.1' && custom.models.length === 2, 'YANDEX_LLM_MODEL — первой, без дубля')
+ok(cfg.auth === 'api_key' && yandexLlmAuthHeader(cfg) === 'Api-Key k', 'ключ → Api-Key')
+const meta = resolveIskraLlmConfig({ YANDEX_FOLDER_ID: 'b1g', YANDEX_LLM_AUTH: 'metadata' })
+ok(meta.provider === 'yandex' && meta.auth === 'metadata', 'ВМ без ключа: YANDEX_LLM_AUTH=metadata — Яндекс')
+ok(yandexLlmAuthHeader(meta, 't0k') === 'Bearer t0k', 'metadata → Bearer IAM-токен')
+ok(resolveIskraLlmConfig({ YANDEX_LLM_AUTH: 'metadata' }).provider === 'gemini', 'metadata без каталога — не Яндекс')
+const now = 1_000_000
+ok(isIamTokenFresh({ token: 'a', expiresAt: now + 3600_000 }, now), 'токен на час — свежий')
+ok(!isIamTokenFresh({ token: 'a', expiresAt: now + 60_000 }, now), 'за минуту до конца — обновить')
+ok(!isIamTokenFresh(null, now), 'нет кэша — запросить')
 
 console.log('request')
 const payload = {
@@ -66,7 +77,7 @@ console.log('errors')
 ok(isYandexLlmRetryable(429, '') && isYandexLlmRetryable(503, ''), '429/5xx — следующая модель')
 ok(isYandexLlmRetryable(404, ''), 'модели нет в каталоге — следующая')
 ok(!isYandexLlmRetryable(401, '') && !isYandexLlmRetryable(400, 'bad'), 'ключ/запрос — не перебираем')
-ok(/ключ Yandex AI Studio/.test(formatYandexLlmUserError(401, 'x')), '401 — понятный текст про ключ')
+ok(/Yandex AI Studio не пустил/.test(formatYandexLlmUserError(401, 'x')), '401 — понятный текст про ключ / аккаунт ВМ')
 ok(formatYandexLlmUserError(400, 'x'.repeat(300)).length <= 220, 'длинная ошибка обрезается')
 
 if (failed) {

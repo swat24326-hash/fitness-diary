@@ -97,7 +97,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 Только сервер (Vercel / Edge, **без** `VITE_`):
 
 - `SUPABASE_SERVICE_ROLE_KEY`, опционально `SUPABASE_URL` / `SUPABASE_ANON_KEY`
-- ИСКРА (модель ответа, `api/_lib/iskraLlmCore.js`): `YANDEX_LLM_API_KEY` + `YANDEX_FOLDER_ID` → Yandex AI Studio (прод в РФ; опционально `YANDEX_LLM_MODEL`, по умолчанию `deepseek-v4-flash`, запасная `yandexgpt-5.1`). Без них — `GEMINI_API_KEY` (+ `GEMINI_MODEL`); Gemini из РФ не работает. Принудительно — `ISKRA_LLM_PROVIDER=yandex|gemini`
+- ИСКРА (модель ответа, `api/_lib/iskraLlmCore.js`): `YANDEX_FOLDER_ID` + (`YANDEX_LLM_AUTH=metadata` — токен сервисного аккаунта ВМ `iskra-llm`, так на проде; или `YANDEX_LLM_API_KEY` вне Yandex Cloud) → Yandex AI Studio (прод в РФ; опционально `YANDEX_LLM_MODEL`, по умолчанию `deepseek-v4-flash`, запасная `yandexgpt-5.1`). Без них — `GEMINI_API_KEY` (+ `GEMINI_MODEL`); Gemini из РФ не работает. Принудительно — `ISKRA_LLM_PROVIDER=yandex|gemini`
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
 - клубные SMS и звонки «Мои Звонки»: **сначала** `club_iskra_settings.moizvonki` на клуб (Структура → Max и SMS); запасной общий `MOIZVONKI_*` в env; журналы `club_sms_log` / `club_call_log` — [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md)
 
