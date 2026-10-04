@@ -130,7 +130,8 @@
 ## Технические границы (не ломаем)
 
 - **Vercel ≤12 functions** — всё через `admin-data?action=`
-- **Офлайн-first** — бриф и KPI из кэша; Gemini только online
+- **Офлайн-first** — бриф и KPI из кэша; модель только online
+- **Модель — сменный транспорт** (2026-10-04): промпт и снимок одни, поставщик выбирает `api/_lib/iskraLlmCore.js` — Yandex AI Studio в РФ (DeepSeek V4 Flash → YandexGPT 5.1) или Gemini. Gemini API не обслуживает РФ, на проде app-core.ru — только Яндекс
 - **Тонкий UI, толстая lib** — визуал в компонентах, логика в `iskra*.js` + verify
 - **Один snapshot** — `clubMonthAnalyticsCore`, без дублирования agg
 

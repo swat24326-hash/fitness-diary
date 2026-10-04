@@ -320,7 +320,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 | **Auth** (логин, сессия) | Supabase Auth + `/api/auth-sign-in`, `/api/me-profile` | Site URL / Redirect на новый origin; при C2 — свой слой |
 | **Service role** | `SUPABASE_SERVICE_ROLE_KEY` на API | Тот же секрет на новом хосте |
 | **Edge Functions** | `create-trainer`, `delete-trainer`, (legacy) `gemini-analytics` | create — уже `/api/create-trainer`; delete — уже `admin-data?action=delete-trainer` (2026-08-06). Edge можно не деплоить на РФ |
-| **Gemini** | `GEMINI_API_KEY` → `admin-data?action=gemini-analytics` | Проверить доступ из РФ; ключ в env API |
+| **Gemini** | `GEMINI_API_KEY` → `admin-data?action=gemini-analytics` | Из РФ **не работает** (проверено 04.10). Прод — Yandex AI Studio: `YANDEX_LLM_API_KEY` + `YANDEX_FOLDER_ID` (`api/_lib/iskraLlmCore.js`) |
 | **Web Push** | `VAPID_*` на API; клиент с того же origin | Новые ключи ок; origin сменится → пользователи заново разрешают уведомления |
 | **Prod smoke** | `QA_ORIGIN` (дефолт `fitness-diary-bice.vercel.app`) | Сменить env на новый URL |
 | **Auth (карта)** | Supabase Auth + `/api/auth-sign-in` + порт `authPort` | План замены: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md); стенд: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) |

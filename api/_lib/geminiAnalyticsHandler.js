@@ -2,10 +2,9 @@ import { readEnv, sendJson } from './adminSupabase.js'
 import { loadClubIskraSettings } from './iskraSettingsHandler.js'
 import { getCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 import { loadGeminiAnalyticsContext, loadGeminiSnapshotForMonth } from './geminiAnalyticsData.js'
-import {
-  buildGeminiGeneratePayload,
-  callGeminiGenerateContent,
-} from './geminiApiClient.js'
+import { buildGeminiGeneratePayload } from './geminiApiClient.js'
+import { callIskraLlm } from './iskraLlmClient.js'
+import { resolveIskraLlmConfig } from './iskraLlmCore.js'
 import {
   getCachedGeminiResponse,
   setCachedGeminiResponse,
@@ -145,12 +144,13 @@ async function tryEdgeGemini(authHeader, payload) {
   }
 }
 
-async function callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, opts = {}) {
+async function callGeminiForReply(authHeader, geminiPayload, edgeBody, opts = {}) {
   let text = ''
   let source = 'vercel'
   let edgeResult = null
+  const viaYandex = resolveIskraLlmConfig(process.env).provider === 'yandex'
 
-  if (!opts.skipEdge) {
+  if (!opts.skipEdge && !viaYandex) {
     edgeResult = await tryEdgeGemini(authHeader, edgeBody)
     if (edgeResult?.ok && edgeResult.data?.text) {
       const edgeText = String(edgeResult.data.text)
@@ -162,9 +162,9 @@ async function callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, o
   }
 
   if (!text) {
-    const gemini = await callGeminiGenerateContent(apiKey, geminiPayload)
-    text = gemini.text
-    if (edgeResult?.ok || edgeResult?.error) source = 'vercel'
+    const reply = await callIskraLlm(geminiPayload)
+    text = reply.text
+    source = reply.provider === 'yandex' ? 'yandex' : 'vercel'
   }
 
   return { text, source }
@@ -716,8 +716,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       system_prompt: geminiPayload.systemInstruction.parts[0].text,
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || ''
-    let { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, {
+    let { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, {
       skipEdge: (offTopicQuestion && !keepClubOnOffTopic) || shouldSkipGeminiEdge(responseMode),
     })
 

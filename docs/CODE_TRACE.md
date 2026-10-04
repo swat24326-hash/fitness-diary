@@ -142,8 +142,9 @@
 |------|------|
 | UI | `src/components/GeminiAnalyticsPanel.jsx`, `src/components/iskra/IskraDispatchModal.jsx` |
 | Handler | `api/_lib/geminiAnalyticsHandler.js`, `api/_lib/geminiAnalyticsData.js` |
+| Модель (Яндекс / Gemini) | `api/_lib/iskraLlmCore.js`, `api/_lib/iskraLlmClient.js`, `api/_lib/yandexLlmClient.js` |
 | KB | `src/lib/admin/iskraKnowledgeBaseArticles.js` |
-| Verify | по зоне (prompt, snapshot) — см. [TESTING.md](./TESTING.md) |
+| Verify | `scripts/verify-iskra-llm-provider.mjs`; по зоне (prompt, snapshot) — см. [TESTING.md](./TESTING.md) |
 | Docs | `docs/ISKRA_*.md`, INCIDENTS **J** |
 
 ### K — клиенты админки, импорт, пустые вкладки
