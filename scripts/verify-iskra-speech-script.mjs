@@ -13,7 +13,7 @@ import {
   truncateYandexTtsText,
   YANDEX_TTS_MAX_CHARS,
 } from '../api/_lib/yandexTtsCore.js'
-import { prepareTextForNeuralSpeech } from '../src/lib/geminiAnalyticsSpeech.js'
+import { prepareTextForNeuralSpeech, splitSpeechChunks } from '../src/lib/geminiAnalyticsSpeech.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -59,6 +59,15 @@ ok(/14/.test(neural) && /20/.test(neural), 'серверному голосу �
 ok(/ПНК/.test(neural), 'серверному голосу — сокращения как есть (расшифрует модель)')
 ok(!/[*[\]()]|https?:/.test(neural), 'серверному голосу — без разметки и ссылок')
 ok(/отчёт/.test(neural) && /пункт/.test(neural), 'текст ссылок и пунктов сохранён')
+
+const longReply =
+  'По данным за октябрь ПНК 14 при плане 20, это 70%. Выручка 450 тыс ₽ из 600 тыс ₽. ДК 312, УК 41. ' +
+  'У 3 тренеров нет тренировок за 5 дней. Рекомендую обзвонить 41 УК до пятницы и поставить Иванову 6 пробных. ' +
+  'Ближайшие продления: 27 абонементов до 15 октября, из них 9 годовые.'
+const parts = splitSpeechChunks(longReply, 220)
+ok(parts.length >= 2, 'длинный ответ серверному голосу — кусками, первый звучит быстро')
+ok(parts.every((p) => p.length <= 220), 'кусок не длиннее 220 символов')
+ok(parts.join(' ').replace(/\s+/g, ' ') === longReply, 'куски без потерь текста')
 
 if (failed) {
   console.error(`verify-iskra-speech-script: ${failed} fail`)

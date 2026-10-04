@@ -29,7 +29,7 @@ export async function fetchIskraNeuralTts(text, gender = 'female') {
           gender: gender === 'male' ? 'male' : 'female',
         }),
       },
-      25_000,
+      15_000,
     )
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data?.ok || !data?.audio_base64) {

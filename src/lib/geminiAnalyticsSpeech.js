@@ -21,6 +21,9 @@ let neuralObjectUrl = null
 let unlockedAudioEl = null
 
 const SPEECH_CHUNK_MAX = 150
+/** Кусок для сервера: 1–2 предложения — модель и SpeechKit укладываются в 2–3 с. */
+const NEURAL_CHUNK_MAX = 220
+const NEURAL_LOOKAHEAD = 2
 const SPEECH_RESUME_MS = 200
 const SPEECH_CHUNK_PAUSE_MS = 150
 const SPEECH_CHUNK_PAUSE_SENTENCE_MS = 240
@@ -653,16 +656,38 @@ function stopNeuralAudioPlayback() {
 }
 
 /**
+ * Серверный голос кусками: первый кусок звучит через 2–3 с, следующие готовятся,
+ * пока играет текущий (целиком длинный ответ — 20–30 с тишины).
  * @param {string} text
  * @param {'male'|'female'|string} gender
  * @param {number} generation
+ * @returns {Promise<{ spoken: number, chunks: string[] }>}
  */
 async function speakWithNeuralTts(text, gender, generation) {
   const { fetchIskraNeuralTts } = await import('./admin/iskraTtsService.js')
-  const result = await fetchIskraNeuralTts(text, gender)
-  if (generation !== speechGeneration) return false
-  if (!result.ok) return false
+  const chunks = splitSpeechChunks(text, NEURAL_CHUNK_MAX)
+  /** @type {Promise<any>[]} */
+  const requests = []
+  const request = (i) => {
+    if (i < chunks.length && !requests[i]) requests[i] = fetchIskraNeuralTts(chunks[i], gender)
+  }
+  for (let i = 0; i < chunks.length; i += 1) {
+    for (let k = 0; k <= NEURAL_LOOKAHEAD; k += 1) request(i + k)
+    const result = await requests[i]
+    if (generation !== speechGeneration) return { spoken: i, chunks }
+    if (!result?.ok) return { spoken: i, chunks }
+    try {
+      await playNeuralAudio(result)
+    } catch {
+      return { spoken: i, chunks }
+    }
+    if (generation !== speechGeneration) return { spoken: i + 1, chunks }
+  }
+  return { spoken: chunks.length, chunks }
+}
 
+/** @param {{ base64: string, mime?: string }} result */
+async function playNeuralAudio(result) {
   stopNeuralAudioPlayback()
   const binary = atob(result.base64)
   const bytes = new Uint8Array(binary.length)
@@ -684,7 +709,6 @@ async function speakWithNeuralTts(text, gender, generation) {
       p.catch(reject)
     }
   })
-  return generation === speechGeneration
 }
 
 /**
@@ -821,7 +845,7 @@ export async function speakGeminiText(text, gender = 'female') {
   if (typeof window === 'undefined') return false
 
   const neuralText = prepareTextForNeuralSpeech(text)
-  const clean = prepareTextForSpeech(text)
+  let clean = prepareTextForSpeech(text)
   if (!clean || !neuralText) return false
 
   const generation = ++speechGeneration
@@ -838,12 +862,14 @@ export async function speakGeminiText(text, gender = 'female') {
 
   // 1) Серверный голос с правильными падежами. 2) Microsoft в браузере. 3) Google — крайний случай.
   try {
-    const ok = await speakWithNeuralTts(neuralText, gender, generation)
-    if (ok) return true
+    const { spoken, chunks } = await speakWithNeuralTts(neuralText, gender, generation)
+    if (generation !== speechGeneration) return false
+    if (spoken >= chunks.length) return true
+    if (spoken > 0) clean = prepareTextForSpeech(chunks.slice(spoken).join(' '))
   } catch {
     /* fall through */
   }
-  if (generation !== speechGeneration) return false
+  if (generation !== speechGeneration || !clean) return false
 
   let voices = await getVoicesCached()
   voices = getLiveVoices(voices)
