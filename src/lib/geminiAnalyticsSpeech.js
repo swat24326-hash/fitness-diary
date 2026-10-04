@@ -315,17 +315,31 @@ function waitForVoices() {
   })
 }
 
-/** Текст для TTS: разговорная форма без символов, которые читаются коряво. */
+function stripLinksForSpeech(text) {
+  return polishIskraReplyText(text)
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/([А-ЯЁ]{2,4})\/([А-ЯЁ]{2,4})(?:\/([А-ЯЁ]{2,4}))?/g, (_, a, b, c) =>
+      c ? `${a}, ${b}, ${c}` : `${a}, ${b}`)
+    .replace(/~\s*/g, 'около ')
+}
+
+/**
+ * Для серверного голоса: без разметки, но цифры и сокращения как есть —
+ * сервер сам перепишет их словами в нужном падеже.
+ */
+export function prepareTextForNeuralSpeech(text) {
+  return stripLinksForSpeech(text)
+    .replace(/[*_`#|\\]+/g, ' ')
+    .replace(/^\s*[-•·▪►]+\s*/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Текст для браузерного TTS (запасной путь): цифры и сокращения словами локально. */
 export function prepareTextForSpeech(text) {
-  let s = prepareNumbersForSpeech(
-    polishIskraReplyText(text)
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-      .replace(/https?:\/\/\S+/gi, ' ')
-      .replace(/([А-ЯЁ]{2,4})\/([А-ЯЁ]{2,4})(?:\/([А-ЯЁ]{2,4}))?/g, (_, a, b, c) =>
-        c ? `${a}, ${b}, ${c}` : `${a}, ${b}`)
-      .replace(/~\s*/g, 'около '),
-  )
+  let s = prepareNumbersForSpeech(stripLinksForSpeech(text))
     .replace(/\s*[—–]\s*/g, ', ')
     .replace(/:\s+/g, ', ')
     .replace(/;\s*/g, ', ')
@@ -806,8 +820,9 @@ function speakBrowserMicrosoftChunks(clean, gender, startTier, generation) {
 export async function speakGeminiText(text, gender = 'female') {
   if (typeof window === 'undefined') return false
 
+  const neuralText = prepareTextForNeuralSpeech(text)
   const clean = prepareTextForSpeech(text)
-  if (!clean) return false
+  if (!clean || !neuralText) return false
 
   const generation = ++speechGeneration
   stopNeuralAudioPlayback()
@@ -819,13 +834,21 @@ export async function speakGeminiText(text, gender = 'female') {
     }
   }
 
+  primeGeminiSpeechPlayback()
+
+  // 1) Серверный голос с правильными падежами. 2) Microsoft в браузере. 3) Google — крайний случай.
+  try {
+    const ok = await speakWithNeuralTts(neuralText, gender, generation)
+    if (ok) return true
+  } catch {
+    /* fall through */
+  }
+  if (generation !== speechGeneration) return false
+
   let voices = await getVoicesCached()
   voices = getLiveVoices(voices)
   if (generation !== speechGeneration) return false
 
-  primeGeminiSpeechPlayback()
-
-  // 1) Edge + VPN: Microsoft Online Natural. 2) Desktop. 3) Neural API. Google — только в самом конце.
   const startTier = resolveInitialSpeechVoiceTier(gender, voices)
   if (startTier && window.speechSynthesis) {
     const browserResult = await speakBrowserMicrosoftChunks(clean, gender, startTier, generation)
@@ -834,15 +857,7 @@ export async function speakGeminiText(text, gender = 'female') {
     if (browserResult === 'aborted') return false
   }
 
-  try {
-    const ok = await speakWithNeuralTts(clean, gender, generation)
-    if (ok) return true
-  } catch {
-    /* fall through */
-  }
-  if (generation !== speechGeneration) return false
-
-  // Крайний случай: только Google в браузере (neural недоступен).
+  // Крайний случай: только Google в браузере.
   if (!window.speechSynthesis || !pickGeminiSpeechFallbackVoice(gender, voices)) return false
   const googleResult = await speakBrowserMicrosoftChunks(clean, gender, 'google', generation)
   return googleResult === 'done'

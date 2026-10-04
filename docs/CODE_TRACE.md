@@ -143,8 +143,9 @@
 | UI | `src/components/GeminiAnalyticsPanel.jsx`, `src/components/iskra/IskraDispatchModal.jsx` |
 | Handler | `api/_lib/geminiAnalyticsHandler.js`, `api/_lib/geminiAnalyticsData.js` |
 | Модель (Яндекс / Gemini) | `api/_lib/iskraLlmCore.js`, `api/_lib/iskraLlmClient.js`, `api/_lib/yandexLlmClient.js` |
+| Голос (озвучка ответа) | клиент `src/lib/geminiAnalyticsSpeech.js` (серверный голос → Microsoft в браузере → Google); сервер `api/_lib/iskraTtsHandler.js` → `iskraSpeechScript.js` (модель пишет числа/сокращения словами в падеже) → `yandexTtsClient.js` (SpeechKit) или `iskraTtsEdgeCore.js` вне Yandex Cloud |
 | KB | `src/lib/admin/iskraKnowledgeBaseArticles.js` |
-| Verify | `scripts/verify-iskra-llm-provider.mjs`; по зоне (prompt, snapshot) — см. [TESTING.md](./TESTING.md) |
+| Verify | `scripts/verify-iskra-llm-provider.mjs`, `scripts/verify-iskra-speech-script.mjs`; по зоне (prompt, snapshot) — см. [TESTING.md](./TESTING.md) |
 | Docs | `docs/ISKRA_*.md`, INCIDENTS **J** |
 
 ### K — клиенты админки, импорт, пустые вкладки

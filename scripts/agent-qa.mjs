@@ -203,6 +203,7 @@ run('iskra trainer routing', 'node', ['scripts/verify-iskra-trainer-routing.mjs'
 run('iskra advisor', 'node', ['scripts/verify-iskra-advisor.mjs'])
 run('iskra response mode', 'node', ['scripts/verify-iskra-response-mode.mjs'])
 run('iskra llm provider', 'node', ['scripts/verify-iskra-llm-provider.mjs'])
+run('iskra speech script', 'node', ['scripts/verify-iskra-speech-script.mjs'])
 run('iskra panel segment', 'node', ['scripts/verify-iskra-panel-segment.mjs'])
 run('iskra panel contour', 'node', ['scripts/verify-iskra-panel-contour.mjs'])
 run('iskra business playbooks', 'node', ['scripts/verify-iskra-business-playbooks.mjs'])

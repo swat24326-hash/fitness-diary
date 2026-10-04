@@ -25,7 +25,7 @@ export async function fetchIskraNeuralTts(text, gender = 'female') {
         credentials: 'same-origin',
         cache: 'no-store',
         body: JSON.stringify({
-          text: String(text ?? '').slice(0, 1200),
+          text: String(text ?? '').slice(0, 1500),
           gender: gender === 'male' ? 'male' : 'female',
         }),
       },
