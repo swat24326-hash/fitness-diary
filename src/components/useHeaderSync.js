@@ -28,6 +28,7 @@ import {
 } from '../lib/syncMotivationCore'
 import { resolveHeaderSyncForceFromCloud, runHeaderSyncPull } from '../lib/syncHeaderPullService'
 import { SYNC_NOW_REQUEST } from '../lib/syncUiBridge'
+import { isQueueAuthStuck, syncQueueLeftMessage } from '../lib/syncAuthStuck.js'
 
 export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, searchParams, menuOpen, closeMenu }) {
   const [pendingSync, setPendingSync] = useState(0)
@@ -299,7 +300,8 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
       const { pruneRedundantSyncQueue } = await import('../lib/syncQueueOrphans')
       await pruneRedundantSyncQueue()
       await refreshSyncOutbound()
-      const queueLeft = (await listSyncQueue()).length
+      const queueRows = await listSyncQueue()
+      const queueLeft = queueRows.length
       const clubId =
         isAdmin || isSalesManager
           ? String(searchParams?.get('club')?.trim() || user?.club_id || '')
@@ -316,8 +318,9 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
           status: top?.status,
         })
         bumpSyncProgress(98, `В очереди: ${queueLeft}`)
-        const warnMsg = `Не всё ушло в облако: в очереди ${queueLeft} ${queueLeft === 1 ? 'запись' : 'записей'}. Данные на устройстве сохранены — проверьте сеть и нажмите Sync снова.`
-        showSyncFeedback(warnMsg, 'warn')
+        const authStuck = isQueueAuthStuck(queueRows, top)
+        const warnMsg = syncQueueLeftMessage(queueLeft, authStuck)
+        showSyncFeedback(warnMsg, authStuck ? 'err' : 'warn')
         saveTechReport('warn', warnMsg)
       } else if (hadError) {
         bumpSyncProgress(100, 'Готово с замечаниями')

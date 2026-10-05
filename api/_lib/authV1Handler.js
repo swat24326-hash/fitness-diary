@@ -59,7 +59,13 @@ export async function handleAuthV1(req, res, deps = {}) {
     const grant = String(req.query?.grant_type ?? '')
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     if (grant === 'refresh_token') {
-      const { session, error } = await refreshOwnSession(body.refresh_token, deps.loadUserById)
+      const { session, error, transient } = await refreshOwnSession(body.refresh_token, deps.loadUserById)
+      if (transient) {
+        // supabase-js стирает сессию на 4xx/500 и повторяет только 502–504.
+        console.error('[auth-v1] refresh: база недоступна', error)
+        sendJson(res, 503, { error: 'temporarily_unavailable', msg: 'Сервер занят — повторите через минуту' })
+        return
+      }
       if (error || !session) {
         gotrueError(res, 400, error || 'Сессия недействительна — войдите снова')
         return

@@ -140,6 +140,7 @@ try {
   ok(!blocked.session && /заблокирована/.test(blocked.error), 'заблокированный тренер: refresh не продлевает')
   const dbDown = await refreshOwnSession(session.refresh_token, async () => ({ row: null, error: 'база недоступна' }))
   ok(!dbDown.session && dbDown.error === 'база недоступна', 'ошибка базы: сессию не выдаём вслепую')
+  ok(dbDown.transient === true && !deleted.transient && !blocked.transient, 'ошибка базы — временная, удалён/блок — нет')
   ok(ownRefreshDenial({ id: 'x' }) === null && ownRefreshDenial({ id: 'x', is_active: null }) === null, 'is_active не задан → можно')
   ok(ownRefreshDenial(null) === 'missing' && ownRefreshDenial({ id: 'x', is_active: false }) === 'blocked', 'missing / blocked')
 
@@ -170,6 +171,40 @@ try {
   )
   const refreshBody = JSON.parse(refreshRes.body)
   ok(refreshRes.statusCode === 200 && refreshBody.access_token && refreshBody.refresh_token, 'POST /auth/v1/token refresh')
+
+  const refreshDbDownRes = mockRes()
+  const prevConsoleError = console.error
+  console.error = () => {}
+  try {
+    await handleAuthV1(
+      {
+        method: 'POST',
+        url: '/auth/v1/token?grant_type=refresh_token',
+        headers: {},
+        query: { grant_type: 'refresh_token' },
+        body: { refresh_token: session.refresh_token },
+      },
+      refreshDbDownRes,
+      { loadUserById: async () => ({ row: null, error: 'база недоступна' }) },
+    )
+  } finally {
+    console.error = prevConsoleError
+  }
+  ok(refreshDbDownRes.statusCode === 503, 'refresh при сбое базы → 503: клиент повторит, сессию не сотрёт')
+
+  const refreshBadRes = mockRes()
+  await handleAuthV1(
+    {
+      method: 'POST',
+      url: '/auth/v1/token?grant_type=refresh_token',
+      headers: {},
+      query: { grant_type: 'refresh_token' },
+      body: { refresh_token: 'garbage' },
+    },
+    refreshBadRes,
+    { loadUserById: liveUser },
+  )
+  ok(refreshBadRes.statusCode === 400, 'битый refresh → 400 (войти заново)')
 } finally {
   if (prevProvider == null) delete process.env.AUTH_PROVIDER
   else process.env.AUTH_PROVIDER = prevProvider

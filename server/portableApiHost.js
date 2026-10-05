@@ -16,6 +16,11 @@ import {
   portableMaxBodyBytes,
   readBodyLimited,
 } from '../api/_lib/portableHostSecurityCore.js'
+import {
+  formatPortableResponseLog,
+  shouldLogPortableResponse,
+  userIdFromBearerForLog,
+} from '../api/_lib/portableRequestLog.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
@@ -164,8 +169,21 @@ export function createPortableApiHost(opts = {}) {
 
   const server = createServer(async (rawReq, res) => {
     for (const [name, value] of Object.entries(PORTABLE_SECURITY_HEADERS)) res.setHeader(name, value)
+    const startedAt = Date.now()
     try {
       const pathname = new URL(rawReq.url || '/', `http://${rawReq.headers.host || 'localhost'}`).pathname
+      res.once('finish', () => {
+        if (!shouldLogPortableResponse(pathname, res.statusCode)) return
+        console.warn(
+          formatPortableResponseLog({
+            method: rawReq.method,
+            pathname,
+            status: res.statusCode,
+            ms: Date.now() - startedAt,
+            userId: userIdFromBearerForLog(rawReq.headers.authorization),
+          }),
+        )
+      })
 
       if (pathname === '/health' || pathname === '/api/health') {
         res.statusCode = 200

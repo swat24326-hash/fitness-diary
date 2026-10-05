@@ -139,7 +139,7 @@ export async function refreshOwnSession(refreshToken, loadUserById = findUserByI
     return { session: null, error: error || SESSION_RU }
   }
   const { row, error: loadErr } = await loadUserById(String(payload.sub))
-  if (loadErr) return { session: null, error: loadErr }
+  if (loadErr) return { session: null, error: loadErr, transient: true }
   const denial = ownRefreshDenial(row)
   if (denial === 'blocked') return { session: null, error: BLOCKED_RU }
   if (denial) return { session: null, error: SESSION_RU }

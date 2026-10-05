@@ -7,6 +7,7 @@ import {
 } from './appErrorJournal.js'
 import { getClientBundleId, getClientBuildTimeIso, getClientBuildTimeLabel, getClientBuildAgeLabel, getPwaControllerState } from './appBuildInfo.js'
 import { getAppUpdatePending } from './appUpdateState.js'
+import { isQueueAuthStuck } from './syncAuthStuck.js'
 import { readIdentityCacheLatest } from './userIdentityCache.js'
 
 function isRecoverableSyncErrorForFixes(e) {
@@ -318,11 +319,7 @@ export function resolveQuickFixes({ errors = [], queue = [], localOnly = 0, syst
     })
   }
 
-  const queueAuthStuck = q.some((item) => {
-    const err = `${item?.last_error ?? ''}`.toLowerCase()
-    return /нет сессии|нет токена|unauthorized|jwt|401|войдите снова/i.test(err)
-  })
-  if (queueAuthStuck) {
+  if (isQueueAuthStuck(q)) {
     fixes.push({
       id: 'queue-relogin',
       tone: 'warn',
