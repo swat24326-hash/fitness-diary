@@ -30,6 +30,7 @@ import {
   maybeInsertCycleOpen,
   upsertLoyaltySettingsRow,
 } from './loyaltyAccountQuery.js'
+import { logDbError } from '../dbErrorPublicCore.js'
 
 function migrationRes(res) {
   sendJson(res, 503, {
@@ -81,7 +82,8 @@ export async function handleLoyaltySettingsGet(ctx, req, res) {
     sendJson(res, 200, { ok: true, club_id: clubId, settings })
   } catch (e) {
     if (failQuery(res, e)) return
-    sendJson(res, 500, { error: e?.message ? String(e.message) : 'Не удалось загрузить настройки' })
+    logDbError('loyalty', e)
+    sendJson(res, 500, { error: 'Не удалось загрузить настройки' })
   }
 }
 
@@ -101,7 +103,8 @@ export async function handleLoyaltySettingsPost(ctx, req, res, body) {
     sendJson(res, 200, { ok: true, club_id: clubId, settings })
   } catch (e) {
     if (failQuery(res, e)) return
-    sendJson(res, 500, { error: e?.message ? String(e.message) : 'Не удалось сохранить настройки' })
+    logDbError('loyalty', e)
+    sendJson(res, 500, { error: 'Не удалось сохранить настройки' })
   }
 }
 
@@ -134,7 +137,8 @@ export async function handleLoyaltyAccountGet(ctx, req, res) {
     sendJson(res, 200, { ok: true, club_id: clubId, client_id: clientId, snapshot, ledger })
   } catch (e) {
     if (failQuery(res, e)) return
-    sendJson(res, 500, { error: e?.message ? String(e.message) : 'Не удалось загрузить баллы' })
+    logDbError('loyalty', e)
+    sendJson(res, 500, { error: 'Не удалось загрузить баллы' })
   }
 }
 
@@ -174,7 +178,8 @@ export async function handleLoyaltyGlanceGet(ctx, req, res) {
     sendJson(res, 200, { ok: true, club_id: clubId, as_of: todayInTimeZoneIso(CLUB_OPS_TIMEZONE), by_id })
   } catch (e) {
     if (failQuery(res, e)) return
-    sendJson(res, 500, { error: e?.message ? String(e.message) : 'Не удалось загрузить баллы списка' })
+    logDbError('loyalty', e)
+    sendJson(res, 500, { error: 'Не удалось загрузить баллы списка' })
   }
 }
 
@@ -221,7 +226,8 @@ export async function handleLoyaltyRedeemPost(ctx, req, res, body) {
     sendJson(res, 200, { ok: true, club_id: clubId, client_id: clientId, snapshot: after.snapshot })
   } catch (e) {
     if (failQuery(res, e)) return
-    sendJson(res, 500, { error: e?.message ? String(e.message) : 'Не удалось списать баллы' })
+    logDbError('loyalty', e)
+    sendJson(res, 500, { error: 'Не удалось списать баллы' })
   }
 }
 
@@ -256,6 +262,7 @@ export async function handleLoyaltyJournalGet(ctx, req, res) {
     })
   } catch (e) {
     if (failQuery(res, e)) return
-    sendJson(res, 500, { error: e?.message ? String(e.message) : 'Не удалось загрузить журнал' })
+    logDbError('loyalty', e)
+    sendJson(res, 500, { error: 'Не удалось загрузить журнал' })
   }
 }

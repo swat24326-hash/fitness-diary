@@ -1,3 +1,5 @@
+import { pgErrorPublic } from '../dbErrorPublicCore.js'
+
 /**
  * Content-Range в формате PostgREST: `0-9/120`; на пустой странице вместо диапазона звёздочка.
  * @param {number | null} offset
@@ -43,26 +45,15 @@ export function shapeRestV1Response(parsed, rows, count) {
   return { status: created ? 201 : 200, headers, body: rows }
 }
 
-const PG_STATUS = {
-  42501: 403,
-  23505: 409,
-  23503: 409,
-  '42P01': 404,
-}
-
 /**
  * Ошибка pg → ответ в духе PostgREST (supabase-js читает code/message/details/hint).
- * @param {{ code?: string, message?: string, detail?: string, hint?: string }} e
+ * Сырые message/detail/hint наружу не идут — их пишет в лог restV1Handler.
+ * @param {{ code?: string }} e
  */
 export function restV1ErrorFromPg(e) {
-  const code = e?.code ? String(e.code) : 'PGRST000'
+  const pub = pgErrorPublic(e)
   return {
-    status: PG_STATUS[code] ?? 400,
-    body: {
-      code,
-      message: e?.message || 'Ошибка запроса к базе',
-      details: e?.detail ?? null,
-      hint: e?.hint ?? null,
-    },
+    status: pub.status,
+    body: { code: pub.code, message: pub.message, details: null, hint: null },
   }
 }

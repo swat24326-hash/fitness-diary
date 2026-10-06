@@ -18,6 +18,7 @@ import {
   SCHEDULE_PULL_DAYS_BACK,
   SCHEDULE_PULL_DAYS_FORWARD,
 } from '../src/lib/trainer/trainerScheduleCore.js'
+import { publicDbErrorMessage } from './_lib/dbErrorPublicCore.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -39,7 +40,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
     .maybeSingle()
   const clubId = String(profileRes.data?.club_id ?? '').trim()
   if (profileRes.error) {
-    sendJson(res, 400, { error: profileRes.error.message })
+    sendJson(res, 400, { error: publicDbErrorMessage(profileRes.error, 'trainer-pull') })
     return
   }
   if (!clubId) {
@@ -65,7 +66,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
 
   const err = typesRes.error || dailyRes.error
   if (err) {
-    sendJson(res, 400, { error: err.message })
+    sendJson(res, 400, { error: publicDbErrorMessage(err, 'trainer-pull') })
     return
   }
 
@@ -173,7 +174,7 @@ async function handler(req, res) {
     }
     const { data, error } = await q.order('name', { ascending: true }).range(from, from + PAGE - 1)
     if (error) {
-      sendJson(res, 400, { error: error.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(error, 'trainer-pull') })
       return
     }
     const rows = data ?? []
@@ -192,14 +193,14 @@ async function handler(req, res) {
 
     const { data: mem, error: me } = await supabaseAdmin.from('memberships').select('*').in('client_id', chunk)
     if (me) {
-      sendJson(res, 400, { error: me.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(me, 'trainer-pull') })
       return
     }
     memberships.push(...(mem ?? []))
 
     const { data: hc, error: he } = await supabaseAdmin.from('health_cards').select('*').in('client_id', chunk)
     if (he) {
-      sendJson(res, 400, { error: he.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(he, 'trainer-pull') })
       return
     }
     health_cards.push(...(hc ?? []))
@@ -222,7 +223,7 @@ async function handler(req, res) {
       .gte('date', measurementsSinceIso)
       .order('date', { ascending: false })
     if (bme) {
-      sendJson(res, 400, { error: bme.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(bme, 'trainer-pull') })
       return
     }
     for (const row of bm ?? []) {
@@ -252,7 +253,7 @@ async function handler(req, res) {
       .gte('date', weightSinceIso)
       .order('date', { ascending: false })
     if (wee) {
-      sendJson(res, 400, { error: wee.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(wee, 'trainer-pull') })
       return
     }
     for (const row of we ?? []) {
@@ -283,7 +284,7 @@ async function handler(req, res) {
         .gte('date', dateFromIso)
         .order('date', { ascending: false })
       if (te) {
-        sendJson(res, 400, { error: te.message })
+        sendJson(res, 400, { error: publicDbErrorMessage(te, 'trainer-pull') })
         return
       }
       for (const row of tr ?? []) {

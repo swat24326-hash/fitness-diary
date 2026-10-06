@@ -1,3 +1,4 @@
+import { publicDbErrorMessage } from './_lib/dbErrorPublicCore.js'
 /**
  * Список клиентов клуба для админки / менеджера продаж (service role).
  * GET ?club_id=<uuid> — менеджер только свой клуб.
@@ -57,7 +58,7 @@ async function handler(req, res) {
       .range(cappedOffset, cappedOffset + pageLimit - 1)
 
     if (error) {
-      sendJson(res, 400, { error: error.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(error, 'list-clients') })
       return
     }
 
@@ -94,7 +95,7 @@ async function handler(req, res) {
     const { data, error } = await q.order('name', { ascending: true }).range(from, from + PAGE - 1)
 
     if (error) {
-      sendJson(res, 400, { error: error.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(error, 'list-clients') })
       return
     }
 

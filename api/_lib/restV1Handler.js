@@ -1,5 +1,6 @@
 import { sendJson, setCors } from './adminSupabase.js'
 import { isOwnAuthProvider, ownAuthEnvError } from './authOwnCore.js'
+import { logDbError } from './dbErrorPublicCore.js'
 import { verifyBearerOwn } from './authPortOwn.js'
 import { isPgDataBackend, pgDataBackendEnvError } from './pgRest/backend.js'
 import { compilePgRestQuery } from './pgRest/buildSql.js'
@@ -100,6 +101,7 @@ export async function handleRestV1(req, res) {
     const rows = stripHiddenColumns(parsed.spec.table, out.rows)
     writeShaped(res, req.method, shapeRestV1Response(parsed, rows, out.count))
   } catch (e) {
+    logDbError(`rest-v1 ${parsed.spec.table}`, e)
     const mapped = restV1ErrorFromPg(e)
     sendJson(res, mapped.status, mapped.body)
   }

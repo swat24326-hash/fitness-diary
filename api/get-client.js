@@ -9,6 +9,7 @@ import {
   clientWorkspaceIncludes,
   normalizeClientWorkspaceScope,
 } from '../src/lib/admin/clientWorkspaceScopeCore.js'
+import { publicDbErrorMessage } from './_lib/dbErrorPublicCore.js'
 
 const PAGE = 500
 
@@ -50,7 +51,7 @@ async function handler(req, res) {
 
   const { data: client, error: ce } = await supabaseAdmin.from('clients').select('*').eq('id', clientId).maybeSingle()
   if (ce) {
-    sendJson(res, 400, { error: ce.message })
+    sendJson(res, 400, { error: publicDbErrorMessage(ce, 'get-client') })
     return
   }
   if (!client) {
@@ -72,7 +73,7 @@ async function handler(req, res) {
 
   const { data: memberships, error: me } = await supabaseAdmin.from('memberships').select('*').eq('client_id', clientId)
   if (me) {
-    sendJson(res, 400, { error: me.message })
+    sendJson(res, 400, { error: publicDbErrorMessage(me, 'get-client') })
     return
   }
 
@@ -95,7 +96,7 @@ async function handler(req, res) {
     .eq('client_id', clientId)
     .maybeSingle()
   if (he) {
-    sendJson(res, 400, { error: he.message })
+    sendJson(res, 400, { error: publicDbErrorMessage(he, 'get-client') })
     return
   }
 
@@ -110,7 +111,7 @@ async function handler(req, res) {
       .order('id', { ascending: false })
       .range(mFrom, mFrom + PAGE - 1)
     if (be) {
-      sendJson(res, 400, { error: be.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(be, 'get-client') })
       return
     }
     const chunk = mRows ?? []
@@ -130,7 +131,7 @@ async function handler(req, res) {
       .order('created_at', { ascending: false })
       .range(wFrom, wFrom + PAGE - 1)
     if (we) {
-      sendJson(res, 400, { error: we.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(we, 'get-client') })
       return
     }
     const chunk = wRows ?? []
@@ -150,7 +151,7 @@ async function handler(req, res) {
       .order('id', { ascending: false })
       .range(from, from + PAGE - 1)
     if (te) {
-      sendJson(res, 400, { error: te.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(te, 'get-client') })
       return
     }
     const rows = trains ?? []
