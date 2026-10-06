@@ -39,6 +39,8 @@ const BLOCKS = [
   { id: 'A2e', label: 'training draft tab switch', script: 'scripts/verify-training-draft-tab-switch.mjs' },
   // A3 — security
   { id: 'A3', label: 'security L1 audit', script: 'scripts/verify-security-l1-audit.mjs' },
+  { id: 'A3b', label: 'push auth behavior (club, errors)', script: 'scripts/verify-security-audit-behavior.mjs' },
+  { id: 'A3c', label: 'auth rate limit', script: 'scripts/verify-auth-rate-limit.mjs' },
   // A4 — даты МСК
   { id: 'A4', label: 'date ru / MSK', script: 'scripts/verify-date-ru.mjs' },
   // A5 — главная

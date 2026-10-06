@@ -274,6 +274,9 @@
 
 | Тема | Симптом | Статус |
 |------|---------|--------|
+| **INC-2026-10-07-01** | Аудит (F1, High): лимит перебора пароля обходится подменой `X-Forwarded-For` — ключ «логин + IP», IP брался из левого значения заголовка | 🔧 | IP — правый адрес XFF только от Caddy на localhost, иначе адрес сокета; Caddy `header_up X-Forwarded-For {remote_host}`; лимиты «логин + IP» 10, логин 30 (знакомый IP успешного входа не блокируется), IP 100 — `verify-auth-rate-limit`. Деплой: код + перезапуск `r3-https-vm.sh` на ВМ |
+| **INC-2026-10-07-02** | Аудит (F2): тренер через `/api/push-record` пишет clients / trainings / memberships с чужим `club_id` (service role в обход RLS); на update тренировки и абонемента клуб тоже не сверялся | 🔧 | `trainerPushClubBindingCore.js`: указанный клуб = клуб профиля / своего клиента / самой строки, иначе 403; пустой не трогаем — `verify-push-club-binding` |
+| **INC-2026-10-07-03** | Аудит (F3): сырой текст ошибок Postgres (значения строк в `detail`, эхо ввода) в ответах `/api/*` и `/rest/v1` | 🔧 | `dbErrorPublicCore.js`: русский текст по SQLSTATE + имя ограничения (для подсказок «Помощи»), `detail`/`hint` не отдаём, сырой — в лог; push, get-client, list-clients, trainer-pull, лояльность, `/rest/v1` — `verify-api-error-sanitize` |
 | **INC-2026-09-29-01** | Аудит: 3 таблицы на проде без RLS (расходы, push-подписки, челленджи) — открыты anon key | ✅ | миграция `20260929130000_rls_gaps.sql` накатана на prod 29.09 (`relrowsecurity` = true у всех 4); `verify-rls-coverage` |
 | Supabase timeout | Нули, IDB fallback | инфра | RUNBOOK §4b |
 | Без VPN нет облака | HTTP 0, «не достучаться до базы»; с VPN ок | инфра | RUNBOOK §4c; INC-2026-09-24-04 |
@@ -285,6 +288,22 @@
 ---
 
 ## 6. Детальные записи
+
+### INC-2026-10-07-01..03 — повторный аудит безопасности прод-Ядра (app-core.ru, свой Auth)
+
+| Поле | Значение |
+|------|----------|
+| Контур | инфра |
+| Направление | Q (Auth / RLS / облако) |
+| Статус | 🔧 fix in repo (все три) |
+| Кто / когда | агент-аудит, 07.10 |
+| Сценарий | F1: 10+ неверных паролей, каждый раз новый `X-Forwarded-For` → новый бакет. F2: тренер шлёт push insert / update clients, trainings, memberships с `club_id` другого клуба. F3: любая ошибка БД в push / pull / `/rest/v1` → клиент получает message/detail Postgres |
+| Root cause | F1: `clientIpFromHeaders` верил самому левому значению XFF (его пишет клиент), лимита на логин поверх всех IP не было. F2: `authorizePush` не сверял клуб (insert всех трёх таблиц, update тренировки и абонемента), а запись идёт service role, поэтому RLS `WITH CHECK` не срабатывает. F3: ответы собирались из `error.message` / `detail` напрямую |
+| Фикс | F1 `authRateLimitCore.js` + `r3-https-vm.sh`; F2 `src/lib/trainer/trainerPushClubBindingCore.js` + `mutationAuth.js`; F3 `api/_lib/dbErrorPublicCore.js` |
+| Решения после самопроверки | F1: ключ «только логин» давал любому извне держать вход закрытым 10 запросами → три счётчика + «знакомый IP»; доверие прокси сужено до localhost. F2: подстановка пустого клуба сервером расходилась с копией на планшете (следующий update с `null` → 403 у клиента / стирание клуба у тренировки) → пустой не трогаем. F3: полная замена текста убила подсказки «Помощи» по `*_fkey` / `trainings_type_check` → имя ограничения оставлено (схема, не данные) |
+| Остаток F3 | админ-хендлеры (`trainerAuthAdmin`, `list-trainers`, `list-memberships`, ИСКРА, прайсы, клипы, ПНК, расписание) ещё отдают `error.message` — доступны только ролям персонала; отдельный проход по тому же `publicDbErrorMessage` |
+| Проверка | `verify-auth-rate-limit`, `verify-push-club-binding`, `verify-api-error-sanitize`, `verify-security-audit-behavior` (поведение на базе в памяти; на коде до фикса — 5 fail); `qa:critical` A3b/A3c; `npm run qa:local` 07.10 зелёный |
+| После деплоя (prod) | 1) ВМ: `grep header_up /etc/caddy/Caddyfile` — строка есть (иначе перезапустить `r3-https-vm.sh`). 2) 11× POST `/api/auth-sign-in` с выдуманным логином `qa-rl-probe-<дата>` и разными `X-Forwarded-For` → 10× 401, 11-й **429** (настоящие логины не трогать). 3) Планшет: новая тренировка → «Закончить» → Sync — очередь 0, тренировка у админа, абонемент списан. 4) `journalctl -u fitness-diary` за час — нет всплеска `[push-auth]` / `[push]` |
 
 ### INC-2026-10-05-01 — очередь 5 не уходит, прошлые тренировки не грузятся (один планшет)
 

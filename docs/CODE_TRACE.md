@@ -218,10 +218,11 @@
 
 | Слой | Путь |
 |------|------|
-| Auth | `api/auth-sign-in.js`, `src/context/AuthContext.jsx` |
-| Push auth | `api/_lib/mutationAuth.js`, `api/_lib/pushRecordCore.js` |
+| Auth | `api/auth-sign-in.js`, `src/context/AuthContext.jsx`, лимит входа `api/_lib/authRateLimitCore.js` (+ Caddy в `scripts/r3-https-vm.sh`) |
+| Push auth | `api/_lib/mutationAuth.js`, `api/_lib/pushRecordCore.js`, клуб тренера `src/lib/trainer/trainerPushClubBindingCore.js` |
+| Ошибки БД наружу | `api/_lib/dbErrorPublicCore.js` (push, pull, `/rest/v1`) |
 | RLS | `supabase/policies.sql`, `supabase/migrations/` |
-| Verify | `scripts/verify-security-l1-audit.mjs` |
+| Verify | `verify-security-l1-audit`, `verify-auth-rate-limit`, `verify-push-club-binding`, `verify-api-error-sanitize` |
 | Docs | [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md), [RUNBOOK.md](./RUNBOOK.md) §3–4, INCIDENTS **Q** |
 
 ---

@@ -13,6 +13,11 @@ import {
   canRolePushTrainerSchedule,
   listTrainerScheduleClientIds,
 } from '../../src/lib/trainer/trainerSchedulePushAuthCore.js'
+import {
+  assertTrainerClubId,
+  needsClientClubForTrainerCheck,
+} from '../../src/lib/trainer/trainerPushClubBindingCore.js'
+import { logDbError } from './dbErrorPublicCore.js'
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -67,6 +72,16 @@ function assertPayloadClientMatchesExisting(payload, existingClientId) {
     return { ok: false, error: 'Нельзя переназначить запись другому клиенту' }
   }
   return { ok: true }
+}
+
+/** Тренер: club_id из payload — только свой клуб (trainerPushClubBindingCore). */
+async function trainerClubCheck(ctx, payload, clientId, existingClubId) {
+  const args = { profileClubId: ctx.profile?.club_id, existingClubId, payloadClubId: payload?.club_id }
+  let clientClubId = null
+  if (clientId && needsClientClubForTrainerCheck(args)) {
+    clientClubId = (await getClientRow(ctx.supabaseAdmin, clientId))?.club_id ?? null
+  }
+  return assertTrainerClubId({ ...args, clientClubId })
 }
 
 async function getMembershipExistingClientId(supabaseAdmin, remote_id) {
@@ -236,7 +251,8 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
 
     return { ok: false, error: 'Нет доступа' }
   } catch (e) {
-    return { ok: false, error: e?.message ? String(e.message) : 'Ошибка проверки доступа' }
+    logDbError('push-auth', e)
+    return { ok: false, error: 'Ошибка проверки доступа' }
   }
 }
 
@@ -421,7 +437,8 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
 
     return { ok: false, error: 'Нет доступа' }
   } catch (e) {
-    return { ok: false, error: e?.message ? String(e.message) : 'Ошибка проверки доступа' }
+    logDbError('push-auth', e)
+    return { ok: false, error: 'Ошибка проверки доступа' }
   }
 }
 
@@ -505,7 +522,8 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       }
       return { ok: true }
     } catch (e) {
-      return { ok: false, error: e?.message ? String(e.message) : 'Ошибка проверки доступа' }
+      logDbError('push-auth', e)
+    return { ok: false, error: 'Ошибка проверки доступа' }
     }
   }
 
@@ -541,7 +559,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         if (payload.desk_hall === 'tz' || payload.desk_hall === 'az') {
           return { ok: false, error: 'Desk ТЗ/АЗ может создавать только администратор' }
         }
-        return { ok: true }
+        return trainerClubCheck(ctx, payload, null, null)
       }
       if (!(await canAccessClient(ctx, id))) return { ok: false, error: 'Нет доступа к клиенту' }
       if (op === 'update') {
@@ -575,7 +593,10 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         return (await canAccessClient(ctx, m.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
       if (op === 'update') {
-        const existingClientId = await getMembershipExistingClientId(supabaseAdmin, remote_id)
+        const { data: existingRow } = remote_id
+          ? await supabaseAdmin.from('memberships').select('client_id, club_id').eq('id', remote_id).maybeSingle()
+          : { data: null }
+        const existingClientId = existingRow?.client_id ?? null
         if (!existingClientId) return { ok: false, error: 'Абонемент не найден' }
         if (!(await canAccessClient(ctx, existingClientId))) return { ok: false, error: 'Нет доступа к клиенту' }
         const reassign = assertPayloadClientMatchesExisting(payload, existingClientId)
@@ -591,9 +612,11 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
             return { ok: false, error: 'Этот тип абонемента недоступен для оформления тренером' }
           }
         }
-        return { ok: true }
+        return trainerClubCheck(ctx, payload, existingClientId, existingRow?.club_id)
       }
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+      const membershipClub = await trainerClubCheck(ctx, payload, clientId, null)
+      if (!membershipClub.ok) return membershipClub
       const typeId = payload.membership_type_id
       if (typeId) {
         const { data: mt } = await supabaseAdmin
@@ -656,10 +679,14 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         if (payload.client_id && !(await canAccessClient(ctx, payload.client_id))) {
           return { ok: false, error: 'Нет доступа к клиенту' }
         }
-        return { ok: true }
+        return trainerClubCheck(ctx, payload, payload.client_id, null)
       }
       const tid = remote_id || payload.id
-      const { data: t } = await supabaseAdmin.from('trainings').select('trainer_id, client_id').eq('id', tid).maybeSingle()
+      const { data: t } = await supabaseAdmin
+        .from('trainings')
+        .select('trainer_id, client_id, club_id')
+        .eq('id', tid)
+        .maybeSingle()
       if (!t) return op === 'delete' ? { ok: true } : { ok: false, error: 'Тренировка не найдена' }
       if (String(t.trainer_id) !== String(user.id)) return { ok: false, error: 'Нет доступа' }
       if (op === 'update') {
@@ -673,6 +700,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         }
         const reassign = assertPayloadClientMatchesExisting(payload, t.client_id)
         if (!reassign.ok) return reassign
+        return trainerClubCheck(ctx, payload, t.client_id, t.club_id)
       }
       return { ok: true }
     }
@@ -773,6 +801,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
 
     return { ok: false, error: 'Нет доступа' }
   } catch (e) {
-    return { ok: false, error: e?.message ? String(e.message) : 'Ошибка проверки доступа' }
+    logDbError('push-auth', e)
+    return { ok: false, error: 'Ошибка проверки доступа' }
   }
 }

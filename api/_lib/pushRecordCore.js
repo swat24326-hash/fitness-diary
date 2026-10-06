@@ -2,6 +2,7 @@
  * Одна запись очереди → Supabase (используется push-record и push-records).
  */
 import { authorizePush } from './mutationAuth.js'
+import { logDbError, publicDbErrorMessage } from './dbErrorPublicCore.js'
 import {
   isMissingTrainingsUpdatedAtError,
   prepareTrainingPushPayload,
@@ -61,7 +62,7 @@ function friendlyExerciseDbError(error, operation) {
       return 'Нельзя удалить: упражнение используется в челлендже. Сначала измените или удалите челлендж.'
     }
   }
-  return msg || 'Ошибка базы данных'
+  return publicDbErrorMessage(error, 'push')
 }
 
 async function prepareChallengePayload(supabaseAdmin, data) {
@@ -111,7 +112,7 @@ function friendlyMembershipTypeDbError(error) {
   if (/aerobic_pay_amount|trainer_assignable/i.test(msg) && /schema cache|could not find/i.test(msg)) {
     return 'Колонки АЗ не созданы в Supabase — выполните миграцию membership_types_aerobic'
   }
-  return msg || 'Ошибка базы данных'
+  return publicDbErrorMessage(error, 'push')
 }
 
 function friendlyClientsDbError(error) {
@@ -131,7 +132,7 @@ function friendlyClientsDbError(error) {
   if (/updated_at/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
     return 'Лишнее поле updated_at у клиента — обновите приложение и повторите Sync'
   }
-  return msg || 'Ошибка базы данных'
+  return publicDbErrorMessage(error, 'push')
 }
 
 /** clients/memberships в проде без колонки updated_at */
@@ -147,7 +148,7 @@ async function prepareWeightEntryPayload(supabaseAdmin, payload) {
   const tid = String(row.training_id ?? '').trim()
   if (!tid) return { ok: true, data: row }
   const { data: tr, error } = await supabaseAdmin.from('trainings').select('id').eq('id', tid).maybeSingle()
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: publicDbErrorMessage(error, 'push') }
   return { ok: true, data: sanitizeWeightEntryTrainingLink(row, { trainingExists: Boolean(tr?.id) }) }
 }
 
@@ -160,7 +161,7 @@ async function validateMembershipTypeLink(supabaseAdmin, payload, operation, opt
     .select('id, club_id, is_active, trainer_assignable')
     .eq('id', typeId)
     .maybeSingle()
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: publicDbErrorMessage(error, 'push') }
   if (!mt) return { ok: false, error: 'Тип абонемента не найден' }
   if (clubId && String(mt.club_id) !== clubId) {
     return { ok: false, error: 'Тип абонемента принадлежит другому клубу' }
@@ -204,7 +205,7 @@ async function insertTrainingRow(supabaseAdmin, payload) {
     }
     return { ok: true, duplicate: true }
   }
-  if (result.error) return { ok: false, status: 400, error: result.error.message }
+  if (result.error) return { ok: false, status: 400, error: publicDbErrorMessage(result.error, 'push') }
   return { ok: true, record: result.data && typeof result.data === 'object' ? result.data : undefined }
 }
 
@@ -214,7 +215,7 @@ async function insertTrainingIfUpdateMissed(supabaseAdmin, payload, remote_id) {
     .select('*')
     .eq('id', remote_id)
     .maybeSingle()
-  if (existingErr) return { ok: false, status: 400, error: existingErr.message }
+  if (existingErr) return { ok: false, status: 400, error: publicDbErrorMessage(existingErr, 'push') }
   if (
     !shouldInsertTrainingAfterEmptyUpdate({
       operation: 'update',
@@ -248,7 +249,7 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
         .select('*')
         .eq('id', remote_id)
         .maybeSingle()
-      if (existingErr) return { ok: false, status: 400, error: existingErr.message }
+      if (existingErr) return { ok: false, status: 400, error: publicDbErrorMessage(existingErr, 'push') }
       if (existing) return { ok: true, record: existing, skipped_obsolete_draft: true }
       return insertTrainingIfUpdateMissed(supabaseAdmin, payload, remote_id)
     }
@@ -274,7 +275,7 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
           .select('*')
           .eq('id', remote_id)
           .maybeSingle()
-        if (existingErr) return { ok: false, status: 400, error: existingErr.message }
+        if (existingErr) return { ok: false, status: 400, error: publicDbErrorMessage(existingErr, 'push') }
         if (existing) return { ok: true, record: existing, skipped_obsolete_draft: true }
         return insertTrainingIfUpdateMissed(supabaseAdmin, stripped, remote_id)
       }
@@ -295,7 +296,7 @@ async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
       }
       return { ok: true, duplicate: true }
     }
-    return { ok: false, status: 400, error: result.error.message }
+    return { ok: false, status: 400, error: publicDbErrorMessage(result.error, 'push') }
   }
 
   if (result.data && typeof result.data === 'object') {
@@ -394,7 +395,7 @@ export async function executePushRecord(ctx, item) {
         if (!prev.error && prev.data) lifeBefore = prev.data
         const up = await supabaseAdmin.from(table_name).upsert(payload, { onConflict: 'client_id,hall' })
         if (up.error) {
-          return { ok: false, status: 400, error: up.error.message }
+          return { ok: false, status: 400, error: publicDbErrorMessage(up.error, 'push') }
         }
         await applyLoyaltyHallLifecyclePushSideEffects({
           supabaseAdmin,
@@ -447,7 +448,7 @@ export async function executePushRecord(ctx, item) {
               ? friendlyMembershipTypeDbError(error)
               : table_name === 'clients'
                 ? friendlyClientsDbError(error)
-                : error.message
+                : publicDbErrorMessage(error, 'push')
         return { ok: false, status: 400, error: errMsg }
       }
       if (table_name === 'clients') {
@@ -578,7 +579,7 @@ export async function executePushRecord(ctx, item) {
               ? friendlyMembershipTypeDbError(error)
               : table_name === 'clients'
                 ? friendlyClientsDbError(error)
-                : error.message
+                : publicDbErrorMessage(error, 'push')
         return { ok: false, status: 400, error: errMsg }
       }
       if (table_name === 'clients' && clientBeforeReady) {
@@ -613,7 +614,7 @@ export async function executePushRecord(ctx, item) {
       }
       const { error } = await supabaseAdmin.from(table_name).delete().eq('id', remote_id)
       if (error) {
-        const errMsg = table_name === 'exercises' ? friendlyExerciseDbError(error, 'delete') : error.message
+        const errMsg = table_name === 'exercises' ? friendlyExerciseDbError(error, 'delete') : publicDbErrorMessage(error, 'push')
         return { ok: false, status: 400, error: errMsg }
       }
       return { ok: true }
@@ -621,6 +622,7 @@ export async function executePushRecord(ctx, item) {
 
     return { ok: false, status: 400, error: 'Некорректные operation / remote_id' }
   } catch (e) {
-    return { ok: false, status: 500, error: e?.message ? String(e.message) : 'Server error' }
+    logDbError('push', e)
+    return { ok: false, status: 500, error: 'Внутренняя ошибка сервера' }
   }
 }

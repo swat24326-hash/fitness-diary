@@ -30,6 +30,8 @@
 | A2b | Черновик: уход / удаление с карточки | `verify-training-draft-restore`, `verify-training-draft-delete`, `verify-training-draft-tab-switch` | Не откат текста; delete не воскрешает; сплит вкладок не теряет первого клиента |
 | A2c | Дневник: hydrate/prune при слабой сети | `verify-client-trainings-prune`, `verify-sync-pull-merge` | Пропали тренировки у клиента после карточки/Sync |
 | A3 | Доступ / push | `verify-security-l1-audit` | IDOR, supervisor без `club_id` |
+| A3b | Push тренера: клуб и ошибки | `verify-security-audit-behavior` | «Закончить» / списание / перевод тренера проходят; чужой клуб — 403; ответ без значений БД; число запросов не выросло |
+| A3c | Вход | `verify-auth-rate-limit` | подмена XFF, распределённый перебор, знакомый IP зала не блокируется |
 | A4 | Даты МСК (клуб) | `verify-date-ru` | «Сегодня» съезжает по TZ браузера |
 | A5 | Главная: день + смена + таймауты | `verify-admin-club-day-summary`, `verify-club-call-shift-summary`, `verify-admin-home-glance-timeout` | Вечный скелетон, пустые сводки |
 | A6 | Call / SMS чипы | `verify-club-call-funnel-chips`, `verify-club-outreach-stats` | Пометки, статистика связи |
