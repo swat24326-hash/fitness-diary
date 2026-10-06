@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # R3 на ВМ: HTTPS для своего домена через Caddy (сертификат Let's Encrypt получает и продлевает сам).
-# Прокси на приложение 127.0.0.1:8080. Caddy подменяет X-Forwarded-For адресом клиента —
-# на нём держится лимит неудачных входов (authRateLimitCore.clientIpFromHeaders).
+# Прокси на приложение 127.0.0.1:8080. header_up перезаписывает X-Forwarded-For адресом TCP-клиента
+# (заголовок от клиента не дописывается) — на нём держится лимит входов по IP
+# (authRateLimitCore.clientIpFromHeaders берёт правый адрес и только от локального прокси).
+# trusted_proxies не задаём: перед Caddy нет балансировщика, доверять чужому XFF некому.
 # После проверки https: HOST=127.0.0.1 в .env, чтобы :8080 не был виден снаружи в обход лимита.
 # Usage: sudo bash scripts/r3-https-vm.sh app-core.ru
 set -euo pipefail
@@ -11,7 +13,9 @@ command -v caddy >/dev/null || { echo "Нет caddy: поставить паке
 cat > /etc/caddy/Caddyfile <<EOF
 $DOMAIN {
 	encode gzip
-	reverse_proxy 127.0.0.1:8080
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
 www.$DOMAIN {

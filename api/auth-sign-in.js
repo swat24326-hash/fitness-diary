@@ -347,7 +347,7 @@ function parseLoginFromBody(body) {
 async function rateLimitedHandler(req, res) {
   if (req.method !== 'POST') return handler(req, res)
   const login = parseLoginFromBody(req.body)
-  const ip = clientIpFromHeaders(req.headers)
+  const ip = clientIpFromHeaders(req.headers, req.remoteAddress ?? req.socket?.remoteAddress)
   const gate = authFailLimiter.check(login, ip)
   if (!gate.ok) {
     setCors(res, 'POST, OPTIONS')

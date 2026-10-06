@@ -81,7 +81,7 @@ export async function handleAuthV1(req, res, deps = {}) {
       return
     }
     if (grant === 'password') {
-      const ip = clientIpFromHeaders(req.headers)
+      const ip = clientIpFromHeaders(req.headers, req.remoteAddress ?? req.socket?.remoteAddress)
       const gate = authFailLimiter.check(body.email, ip)
       if (!gate.ok) {
         res.setHeader('Retry-After', String(gate.retryAfterSec))

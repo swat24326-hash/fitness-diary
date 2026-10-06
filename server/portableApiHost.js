@@ -90,6 +90,7 @@ async function normalizeRequest(req) {
     method: req.method || 'GET',
     url: rawUrl,
     headers: req.headers,
+    remoteAddress: req.socket?.remoteAddress,
     body,
     query,
   }
