@@ -1,6 +1,7 @@
 import { sendJson } from '../adminSupabase.js'
 import { adminCreateUser, adminDeleteUser, passwordHashForUsersRow } from '../authPort.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../authLoginResolveCore.js'
+import { newPasswordError } from '../../../src/lib/passwordPolicyCore.js'
 import { stripSalesBundleForManager } from '../../../src/lib/admin/salesAccessCore.js'
 import { aggregateMembershipTypeStats } from '../membershipTypeStatsAgg.js'
 import {
@@ -570,8 +571,9 @@ export async function handleCreateSalesManagerPost(ctx, res, body) {
     sendJson(res, 400, { error: 'Укажите имя, логин и пароль' })
     return
   }
-  if (password.length < 6) {
-    sendJson(res, 400, { error: 'Пароль не короче 6 символов' })
+  const passwordErr = newPasswordError(password)
+  if (passwordErr) {
+    sendJson(res, 400, { error: passwordErr })
     return
   }
   if (!club_id) {

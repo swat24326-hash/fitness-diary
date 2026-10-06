@@ -2,8 +2,8 @@
 
 import { formatClientName } from '../clientNameFormat.js'
 import { normalizePasswordInput } from '../authLoginResolveCore.js'
+import { newPasswordError } from '../passwordPolicyCore.js'
 
-export const TRAINER_PASSWORD_MIN_LEN = 6
 export const TRAINER_NAME_MAX_LEN = 120
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -25,9 +25,8 @@ export function parseTrainerIdForAdmin(trainerId) {
  */
 export function validateTrainerPasswordForAdmin(password) {
   const p = normalizePasswordInput(password)
-  if (p.length < TRAINER_PASSWORD_MIN_LEN) {
-    return { ok: false, password: p, error: `Пароль не короче ${TRAINER_PASSWORD_MIN_LEN} символов` }
-  }
+  const error = newPasswordError(p)
+  if (error) return { ok: false, password: p, error }
   return { ok: true, password: p, error: null }
 }
 

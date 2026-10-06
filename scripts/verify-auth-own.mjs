@@ -17,8 +17,49 @@ import {
   verifyOwnJwt,
   verifyOwnPassword,
 } from '../api/_lib/authOwnCore.js'
-import { refreshOwnSession, verifyBearerOwn } from '../api/_lib/authPortOwn.js'
+import { logoutOwnSession, refreshOwnSession, revokeAllOwnSessions, verifyBearerOwn } from '../api/_lib/authPortOwn.js'
 import { handleAuthV1 } from '../api/_lib/authV1Handler.js'
+import { ownLogoutScope, ownSessionDenial } from '../api/_lib/authSessionsCore.js'
+import { AUTH_PROFILE_BLOCKED_RU, isCallerProfileBlocked } from '../api/_lib/authCallerProfileCore.js'
+import { isUnrecoverablePushError } from '../src/lib/syncFlushResult.js'
+
+/** auth_sessions в памяти вместо базы. */
+function memorySessions({ failCreate = false, failLoad = false } = {}) {
+  const rows = new Map()
+  let n = 0
+  return {
+    rows,
+    touched: [],
+    async create(userId) {
+      if (failCreate) return { sid: null, error: 'relation "auth_sessions" does not exist' }
+      n += 1
+      const id = `sid-${n}`
+      rows.set(id, { id, user_id: userId, revoked_at: null })
+      return { sid: id, error: null }
+    },
+    async load(sid) {
+      if (failLoad) return { row: null, error: 'база недоступна' }
+      return { row: rows.get(sid) ?? null, error: null }
+    },
+    async touch(sid) {
+      this.touched.push(sid)
+      return { error: null }
+    },
+    async revoke(sid, userId) {
+      const r = rows.get(sid)
+      if (r && r.user_id === userId) r.revoked_at = 'now'
+      return { error: null }
+    },
+    async revokeAllForUser(userId) {
+      for (const r of rows.values()) if (r.user_id === userId) r.revoked_at = 'now'
+      return { error: null }
+    },
+  }
+}
+
+function jwtPayload(token) {
+  return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8'))
+}
 
 const SECRET = 'verify-auth-own-secret-32chars-min'
 
@@ -129,20 +170,90 @@ try {
   ok(!asRefresh.user && asRefresh.error, 'refresh нельзя подставить вместо access')
 
   const liveUser = async (id) => ({ row: { id, email: 'a@b.c', is_active: true }, error: null })
-  const refreshed = await refreshOwnSession(session.refresh_token, liveUser)
+  const mem = memorySessions()
+  const refreshed = await refreshOwnSession(session.refresh_token, liveUser, mem)
   ok(refreshed.session?.access_token && refreshed.session.user.id === 'user-1', 'refresh выдаёт новую сессию')
-  const deleted = await refreshOwnSession(session.refresh_token, async () => ({ row: null, error: null }))
+  const deleted = await refreshOwnSession(session.refresh_token, async () => ({ row: null, error: null }), mem)
   ok(!deleted.session && /войдите снова/.test(deleted.error), 'удалённый тренер: refresh не продлевает')
-  const blocked = await refreshOwnSession(session.refresh_token, async (id) => ({
-    row: { id, email: 'a@b.c', is_active: false },
-    error: null,
-  }))
+  const blocked = await refreshOwnSession(
+    session.refresh_token,
+    async (id) => ({ row: { id, email: 'a@b.c', is_active: false }, error: null }),
+    mem,
+  )
   ok(!blocked.session && /заблокирована/.test(blocked.error), 'заблокированный тренер: refresh не продлевает')
-  const dbDown = await refreshOwnSession(session.refresh_token, async () => ({ row: null, error: 'база недоступна' }))
+  const dbDown = await refreshOwnSession(session.refresh_token, async () => ({ row: null, error: 'база недоступна' }), mem)
   ok(!dbDown.session && dbDown.error === 'база недоступна', 'ошибка базы: сессию не выдаём вслепую')
   ok(dbDown.transient === true && !deleted.transient && !blocked.transient, 'ошибка базы — временная, удалён/блок — нет')
   ok(ownRefreshDenial({ id: 'x' }) === null && ownRefreshDenial({ id: 'x', is_active: null }) === null, 'is_active не задан → можно')
   ok(ownRefreshDenial(null) === 'missing' && ownRefreshDenial({ id: 'x', is_active: false }) === 'blocked', 'missing / blocked')
+
+  // Сессии: «Выйти», отзыв админом, токены до 06.10 без sid
+  {
+    const s = memorySessions()
+    const legacy = await refreshOwnSession(session.refresh_token, liveUser, s)
+    const legacySid = jwtPayload(legacy.session.refresh_token).sid
+    ok(legacySid === 'sid-1' && s.rows.has('sid-1'), 'токен без sid → на продлении заводится сессия')
+    ok(jwtPayload(legacy.session.access_token).sid === legacySid, 'sid и в access')
+
+    const again = await refreshOwnSession(legacy.session.refresh_token, liveUser, s)
+    ok(again.session && jwtPayload(again.session.refresh_token).sid === legacySid, 'продление живой сессии сохраняет sid')
+    ok(s.touched.includes(legacySid) && s.rows.size === 1, 'продление отмечает сессию, новую не плодит')
+
+    const second = buildOwnSession({ id: 'user-1', email: 'a@b.c', sid: (await s.create('user-1')).sid }, SECRET)
+    const out = await logoutOwnSession([legacy.session.refresh_token], 'local', s)
+    ok(out.revoked && s.rows.get(legacySid).revoked_at, '«Выйти» отзывает свою сессию')
+    const afterLogout = await refreshOwnSession(legacy.session.refresh_token, liveUser, s)
+    ok(!afterLogout.session && /войдите снова/.test(afterLogout.error) && !afterLogout.transient, 'после «Выйти» refresh не продлевает (400, не 503)')
+    ok((await refreshOwnSession(second.refresh_token, liveUser, s)).session, 'второе устройство при local-выходе остаётся')
+
+    await logoutOwnSession([second.refresh_token], 'global', s)
+    ok(!(await refreshOwnSession(second.refresh_token, liveUser, s)).session, 'global — все устройства')
+
+    const expiredAccess = signOwnJwt({ sub: 'user-1', typ: 'access', sid: 'sid-9', iat: 1, exp: 2 }, SECRET)
+    const third = buildOwnSession({ id: 'user-1', email: 'a@b.c', sid: (await s.create('user-1')).sid }, SECRET)
+    const viaRefresh = await logoutOwnSession([third.refresh_token, expiredAccess], 'local', s)
+    ok(viaRefresh.revoked, 'истёкший access не мешает: отзыв по refresh')
+    ok(!(await logoutOwnSession(['garbage'], 'local', s)).revoked, 'мусорный токен ничего не отзывает')
+
+    const foreign = buildOwnSession({ id: 'user-2', email: 'x@y.z', sid: 'sid-1' }, SECRET)
+    ok(!(await refreshOwnSession(foreign.refresh_token, liveUser, s)).session, 'чужой sid не продлевает')
+
+    const loadDown = await refreshOwnSession(third.refresh_token, liveUser, memorySessions({ failLoad: true }))
+    ok(!loadDown.session && loadDown.transient, 'сбой базы на проверке сессии → временная ошибка (503)')
+
+    const prevWarn = console.warn
+    console.warn = () => {}
+    const noTable = await refreshOwnSession(session.refresh_token, liveUser, memorySessions({ failCreate: true }))
+    console.warn = prevWarn
+    ok(noTable.session && !jwtPayload(noTable.session.refresh_token).sid, 'нет таблицы — вход не ломается (без sid)')
+
+    const blockedSessions = memorySessions()
+    const b = buildOwnSession({ id: 'user-1', email: 'a@b.c', sid: (await blockedSessions.create('user-1')).sid }, SECRET)
+    await revokeAllOwnSessions('user-1', blockedSessions)
+    ok(!(await refreshOwnSession(b.refresh_token, liveUser, blockedSessions)).session, 'блок / смена пароля админом отзывает все сессии')
+
+    ok(ownSessionDenial(null, 'u') === 'missing' && ownSessionDenial({ id: 's', user_id: 'u', revoked_at: 'x' }, 'u') === 'revoked', 'denial: missing / revoked')
+    ok(ownSessionDenial({ id: 's', user_id: 'u', revoked_at: null }, 'u') === null, 'denial: живая')
+    ok(ownLogoutScope('global') === 'global' && ownLogoutScope('local') === 'local' && ownLogoutScope(undefined) === 'local', 'scope по умолчанию local')
+
+    ok(isCallerProfileBlocked({ is_active: false }) && !isCallerProfileBlocked({ is_active: null }) && !isCallerProfileBlocked(null), 'API: блок только при is_active=false')
+    ok(!isUnrecoverablePushError(403, AUTH_PROFILE_BLOCKED_RU), 'планшет не снимает очередь при «заблокирована»')
+  }
+
+  {
+    const s = memorySessions()
+    const live = buildOwnSession({ id: 'user-1', email: 'a@b.c', sid: (await s.create('user-1')).sid }, SECRET)
+    const logoutRes = mockRes()
+    await handleAuthV1(
+      { method: 'POST', url: '/auth/v1/logout?scope=local', headers: {}, query: { scope: 'local' }, body: { refresh_token: live.refresh_token } },
+      logoutRes,
+      { sessions: s },
+    )
+    ok(logoutRes.statusCode === 204 && s.rows.get('sid-1').revoked_at, 'POST /auth/v1/logout → 204 и отзыв')
+    const badRes = mockRes()
+    await handleAuthV1({ method: 'POST', url: '/auth/v1/logout', headers: {}, query: {}, body: {} }, badRes, { sessions: s })
+    ok(badRes.statusCode === 204, 'logout без токена всё равно 204 (выход на планшете не блокируем)')
+  }
 
   const userRes = mockRes()
   await handleAuthV1(
@@ -167,7 +278,7 @@ try {
       body: { refresh_token: session.refresh_token },
     },
     refreshRes,
-    { loadUserById: liveUser },
+    { loadUserById: liveUser, sessions: memorySessions() },
   )
   const refreshBody = JSON.parse(refreshRes.body)
   ok(refreshRes.statusCode === 200 && refreshBody.access_token && refreshBody.refresh_token, 'POST /auth/v1/token refresh')
@@ -185,7 +296,7 @@ try {
         body: { refresh_token: session.refresh_token },
       },
       refreshDbDownRes,
-      { loadUserById: async () => ({ row: null, error: 'база недоступна' }) },
+      { loadUserById: async () => ({ row: null, error: 'база недоступна' }), sessions: memorySessions() },
     )
   } finally {
     console.error = prevConsoleError
@@ -202,7 +313,7 @@ try {
       body: { refresh_token: 'garbage' },
     },
     refreshBadRes,
-    { loadUserById: liveUser },
+    { loadUserById: liveUser, sessions: memorySessions() },
   )
   ok(refreshBadRes.statusCode === 400, 'битый refresh → 400 (войти заново)')
 } finally {

@@ -27,6 +27,7 @@ import {
   shouldShowUnassignedStaff,
 } from '../../lib/admin/filterStaffByClub'
 import { formatClientName } from '../../lib/clientNameFormat.js'
+import { PASSWORD_MIN_LEN, newPasswordError } from '../../lib/passwordPolicyCore.js'
 import {
   resetTrainerPasswordForAdmin,
   setTrainerActiveForAdmin,
@@ -410,8 +411,9 @@ export function AdminOrganization({ mode = 'both' } = {}) {
       setCreateErr('Заполните ФИО, логин и пароль.')
       return
     }
-    if (password.length < 6) {
-      setCreateErr('Пароль не короче 6 символов.')
+    const passwordPolicyErr = newPasswordError(password)
+    if (passwordPolicyErr) {
+      setCreateErr(passwordPolicyErr)
       return
     }
 
@@ -1069,7 +1071,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                   onChange={(e) => setPasswordForm((f) => ({ ...f, password: e.target.value }))}
                   disabled={passwordBusy}
                   required
-                  minLength={6}
+                  minLength={PASSWORD_MIN_LEN}
                 />
               </div>
               <div className="field">
@@ -1085,7 +1087,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                   onChange={(e) => setPasswordForm((f) => ({ ...f, confirm: e.target.value }))}
                   disabled={passwordBusy}
                   required
-                  minLength={6}
+                  minLength={PASSWORD_MIN_LEN}
                 />
               </div>
               {passwordErr ? (

@@ -3,6 +3,7 @@ import { adminCreateUser, adminDeleteUser, passwordHashForUsersRow } from '../au
 import { normalizeLoginInput, normalizePasswordInput } from '../authLoginResolveCore.js'
 import { assertCanCreateSupervisor } from '../../../src/lib/admin/supervisorAccessCore.js'
 import { USERS_SUPERVISOR_ROLES } from '../../../src/lib/userRoleConstants.js'
+import { newPasswordError } from '../../../src/lib/passwordPolicyCore.js'
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -26,8 +27,9 @@ export async function handleCreateSupervisorPost(ctx, res, body) {
     sendJson(res, 400, { error: 'Укажите имя, логин и пароль' })
     return
   }
-  if (password.length < 6) {
-    sendJson(res, 400, { error: 'Пароль не короче 6 символов' })
+  const passwordErr = newPasswordError(password)
+  if (passwordErr) {
+    sendJson(res, 400, { error: passwordErr })
     return
   }
   if (!club_id) {

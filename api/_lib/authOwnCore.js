@@ -56,8 +56,8 @@ export function isLegacyBcryptHash(stored) {
 }
 
 /**
- * Продлевать сессию можно только живой и не заблокированной учётке: refresh живёт 30 дней,
- * списка отзыва нет, поэтому удаление / блок тренера срабатывают на следующем продлении.
+ * Продлевать сессию можно только живой и не заблокированной учётке: удаление / блок тренера
+ * срабатывают на следующем продлении (отзыв конкретной сессии — auth_sessions).
  * @returns {'missing' | 'blocked' | null}
  */
 export function ownRefreshDenial(row) {
@@ -153,19 +153,20 @@ export function ownAuthUser(id, email) {
 }
 
 /**
- * @param {{ id: string, email?: string }} user
+ * @param {{ id: string, email?: string, sid?: string | null }} user sid — строка auth_sessions (отзыв при «Выйти»)
  * @param {string} secret
  * @param {number} [nowSec]
  */
 export function buildOwnSession(user, secret, nowSec = Math.floor(Date.now() / 1000)) {
   const accessExp = nowSec + OWN_ACCESS_TTL_SEC
   const refreshExp = nowSec + OWN_REFRESH_TTL_SEC
+  const sid = user.sid ? { sid: String(user.sid) } : {}
   const access_token = signOwnJwt(
-    { sub: user.id, email: user.email ?? '', aud: 'authenticated', role: 'authenticated', typ: 'access', iat: nowSec, exp: accessExp },
+    { sub: user.id, email: user.email ?? '', aud: 'authenticated', role: 'authenticated', typ: 'access', ...sid, iat: nowSec, exp: accessExp },
     secret,
   )
   const refresh_token = signOwnJwt(
-    { sub: user.id, email: user.email ?? '', typ: 'refresh', iat: nowSec, exp: refreshExp },
+    { sub: user.id, email: user.email ?? '', typ: 'refresh', ...sid, iat: nowSec, exp: refreshExp },
     secret,
   )
   return {

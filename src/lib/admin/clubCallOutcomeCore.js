@@ -276,5 +276,9 @@ export function moiZvonkiWebhookSecretMatches(expected, got) {
   const a = String(expected ?? '').trim()
   const b = String(got ?? '').trim()
   if (!a || a.length < 16) return false
-  return a === b
+  let diff = a.length ^ b.length
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i % (b.length || 1))
+  }
+  return diff === 0
 }

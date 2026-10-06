@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { RefreshCw, UserPlus } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import { PASSWORD_MIN_LEN } from '../../lib/passwordPolicyCore.js'
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient'
 import { createSupervisorForAdmin } from '../../lib/admin/createSupervisorService'
 import {
@@ -229,7 +230,7 @@ export function AdminSupervisors() {
                 className="input"
                 type="password"
                 required
-                minLength={6}
+                minLength={PASSWORD_MIN_LEN}
                 value={form.password}
                 disabled={saving}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}

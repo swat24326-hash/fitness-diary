@@ -1,9 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { ilikeExactPattern } from '../../src/lib/ilikeExactCore.js'
+import { newPasswordError } from '../../src/lib/passwordPolicyCore.js'
 import { normalizePasswordInput } from './authLoginResolveCore.js'
+import { ownSessionDenial } from './authSessionsCore.js'
+import { authSessionsStore } from './authSessionsStore.js'
 import {
   buildOwnSession,
   hashOwnPassword,
+  isOwnAuthProvider,
   ownAuthSecret,
   ownPasswordNeedsRehash,
   ownRefreshDenial,
@@ -59,8 +63,62 @@ export async function signInWithPasswordOwn(_url, _anonKey, creds) {
   const ok = await verifyOwnPassword(password, row.password_hash)
   if (!ok) return { session: null, user: null, error: INVALID_RU }
   if (ownPasswordNeedsRehash(row.password_hash)) await rehashAfterLegacyLogin(row.id, password)
-  const session = buildOwnSession({ id: String(row.id), email: row.email || email }, ownAuthSecret())
+  const sid = await createSessionSid(authSessionsStore, String(row.id))
+  const session = buildOwnSession({ id: String(row.id), email: row.email || email, sid }, ownAuthSecret())
   return { session, user: session.user, error: null }
+}
+
+/** Без таблицы auth_sessions (миграция не накатана) вход работает, но «Выйти» не отзывает refresh. */
+async function createSessionSid(sessions, userId) {
+  try {
+    const { sid, error } = await sessions.create(userId)
+    if (error) console.warn('[auth-own] auth_sessions:', error)
+    return sid
+  } catch (e) {
+    console.warn('[auth-own] auth_sessions:', e?.message || e)
+    return null
+  }
+}
+
+/** Отозвать все сессии (блок, смена пароля). Сбой не валит основное действие. */
+export async function revokeAllOwnSessions(userId, sessions = authSessionsStore) {
+  if (!isOwnAuthProvider() || !userId) return
+  try {
+    const { error } = await sessions.revokeAllForUser(String(userId))
+    if (error) console.warn('[auth-own] revoke all sessions:', error)
+  } catch (e) {
+    console.warn('[auth-own] revoke all sessions:', e?.message || e)
+  }
+}
+
+/**
+ * «Выйти»: отозвать сессию по refresh (access к этому моменту мог истечь) или access.
+ * @param {string[]} tokens
+ * @param {'local' | 'global'} scope
+ */
+export async function logoutOwnSession(tokens, scope, sessions = authSessionsStore) {
+  const secret = ownAuthSecret()
+  let payload = null
+  for (const t of tokens) {
+    const v = verifyOwnJwt(t, secret)
+    if (v.payload?.sub && (v.payload.typ === 'refresh' || v.payload.typ === 'access')) {
+      payload = v.payload
+      break
+    }
+  }
+  if (!payload) return { revoked: false }
+  const userId = String(payload.sub)
+  try {
+    if (scope === 'global') {
+      const { error } = await sessions.revokeAllForUser(userId)
+      return { revoked: !error, error: error ?? null }
+    }
+    if (!payload.sid) return { revoked: false }
+    const { error } = await sessions.revoke(String(payload.sid), userId)
+    return { revoked: !error, error: error ?? null }
+  } catch (e) {
+    return { revoked: false, error: e?.message || String(e) }
+  }
 }
 
 /**
@@ -90,7 +148,8 @@ export async function adminCreateUserOwn(_supabaseAdmin, attrs) {
   const email = String(attrs?.email ?? '').trim()
   const password = normalizePasswordInput(attrs?.password)
   if (!email || !password) return { user: null, passwordHash: null, error: 'Укажите email и пароль' }
-  if (password.length < 6) return { user: null, passwordHash: null, error: 'Пароль не короче 6 символов' }
+  const passwordErr = newPasswordError(password)
+  if (passwordErr) return { user: null, passwordHash: null, error: passwordErr }
   const passwordHash = await hashOwnPassword(password)
   return {
     user: { id: randomUUID(), email },
@@ -106,9 +165,11 @@ export async function adminCreateUserOwn(_supabaseAdmin, attrs) {
  */
 export async function adminUpdatePasswordOwn(supabaseAdmin, userId, password) {
   const plain = normalizePasswordInput(password)
-  if (!plain || plain.length < 6) return { error: 'Пароль не короче 6 символов' }
+  const passwordErr = newPasswordError(plain)
+  if (passwordErr) return { error: passwordErr }
   const passwordHash = await hashOwnPassword(plain)
   const { error } = await supabaseAdmin.from('users').update({ password_hash: passwordHash }).eq('id', userId)
+  if (!error) await revokeAllOwnSessions(userId)
   return { error: error?.message ?? null }
 }
 
@@ -128,12 +189,14 @@ async function findUserById(id) {
 }
 
 /**
- * Новый access по refresh-токену. Старый refresh остаётся годным до срока — списка отзыва нет,
- * поэтому каждое продление сверяется с users (удалён / заблокирован → вход заново).
+ * Новый access по refresh-токену. Каждое продление сверяется с users (удалён / заблокирован)
+ * и с auth_sessions (вышел / отозвано админом → вход заново). Токен без sid (выдан до 06.10)
+ * получает новую сессию на первом продлении.
  * @param {string} refreshToken
  * @param {(id: string) => Promise<{ row: object | null, error: string | null }>} [loadUserById]
+ * @param {typeof authSessionsStore} [sessions]
  */
-export async function refreshOwnSession(refreshToken, loadUserById = findUserById) {
+export async function refreshOwnSession(refreshToken, loadUserById = findUserById, sessions = authSessionsStore) {
   const { payload, error } = verifyOwnJwt(refreshToken, ownAuthSecret())
   if (error || payload?.typ !== 'refresh' || !payload?.sub) {
     return { session: null, error: error || SESSION_RU }
@@ -143,6 +206,21 @@ export async function refreshOwnSession(refreshToken, loadUserById = findUserByI
   const denial = ownRefreshDenial(row)
   if (denial === 'blocked') return { session: null, error: BLOCKED_RU }
   if (denial) return { session: null, error: SESSION_RU }
-  const session = buildOwnSession({ id: String(row.id), email: row.email || payload.email || '' }, ownAuthSecret())
+
+  let sid = payload.sid ? String(payload.sid) : null
+  if (sid) {
+    let loaded
+    try {
+      loaded = await sessions.load(sid)
+    } catch (e) {
+      loaded = { row: null, error: e?.message || String(e) }
+    }
+    if (loaded.error) return { session: null, error: loaded.error, transient: true }
+    if (ownSessionDenial(loaded.row, row.id)) return { session: null, error: SESSION_RU }
+    sessions.touch(sid).catch(() => {})
+  } else {
+    sid = await createSessionSid(sessions, String(row.id))
+  }
+  const session = buildOwnSession({ id: String(row.id), email: row.email || payload.email || '', sid }, ownAuthSecret())
   return { session, error: null }
 }

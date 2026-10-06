@@ -22,7 +22,7 @@
 | Поиск сотрудника по email / логину | `src/lib/ilikeExactCore.js` (`ilikeExactPattern`) во всех `.ilike('email'\|'login')` | Точное совпадение без учёта регистра. `_` и `%` экранируются: иначе `a_min@…` находил профиль `admin@…` (эскалация при пустой роли). Проверка — `verify-ilike-exact.mjs` |
 | Создание тренера | `/api/create-trainer` | Auth user + строка в `users` (через порт) |
 | Удаление тренера | `/api/admin-data?action=delete-trainer` | То же без Edge Function |
-| Пароль / блок / планшет | `admin-data?action=reset-trainer-password` и соседние | Уже наш API. При `AUTH_PROVIDER=own` продление сессии (`/auth/v1/token?grant_type=refresh_token`) сверяется с `users`: удалён или `is_active=false` → вход заново; пропуск (access) живёт до часа |
+| Пароль / блок / планшет | `admin-data?action=reset-trainer-password` и соседние | Уже наш API. При `AUTH_PROVIDER=own` продление сессии (`/auth/v1/token?grant_type=refresh_token`) сверяется с `users`: удалён или `is_active=false` → вход заново; с 06.10 ещё и с `auth_sessions` («Выйти», блок, смена пароля отзывают `sid`). Пропуск (access) живёт до часа, но `/api/*` отказывает заблокированному сразу (кэш роли 30 с) |
 
 Планшет и офлайн **не зависят** от того, где живёт Auth: после входа данные пишутся в IndexedDB и очередь Sync.
 

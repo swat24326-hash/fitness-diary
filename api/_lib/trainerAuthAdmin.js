@@ -1,5 +1,6 @@
 import { sendJson } from './adminSupabase.js'
 import { adminDeleteUser, adminUpdatePassword } from './authPort.js'
+import { revokeAllOwnSessions } from './authPortOwn.js'
 import {
   assertTrainerDeletableByClientCount,
   parseTrainerIdForAdmin,
@@ -98,6 +99,7 @@ export async function handleSetTrainerActivePost(ctx, res, body) {
     sendJson(res, 400, { error: updErr.message })
     return
   }
+  if (!isActive) await revokeAllOwnSessions(parsed.id)
 
   sendJson(res, 200, {
     ok: true,

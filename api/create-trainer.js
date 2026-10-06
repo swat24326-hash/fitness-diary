@@ -10,6 +10,7 @@ import { formatClientName } from '../src/lib/clientNameFormat.js'
 import { isAdminByRole } from '../src/lib/admin/adminRoleCore.js'
 import { ilikeExactPattern } from '../src/lib/ilikeExactCore.js'
 import { trainerCreateErrorRu } from '../src/lib/admin/trainerAuthAdminCore.js'
+import { newPasswordError } from '../src/lib/passwordPolicyCore.js'
 import { normalizeLoginInput, normalizePasswordInput } from './_lib/authLoginResolveCore.js'
 
 function readEnv() {
@@ -107,8 +108,9 @@ async function handler(req, res) {
     sendJson(res, 400, { error: 'Укажите ФИО, логин и пароль' })
     return
   }
-  if (password.length < 6) {
-    sendJson(res, 400, { error: 'Пароль не короче 6 символов' })
+  const passwordErr = newPasswordError(password)
+  if (passwordErr) {
+    sendJson(res, 400, { error: passwordErr })
     return
   }
   if (!club_id) {

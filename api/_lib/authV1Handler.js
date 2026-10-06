@@ -1,6 +1,7 @@
 import { sendJson, setCors } from './adminSupabase.js'
 import { isOwnAuthProvider, ownAuthEnvError } from './authOwnCore.js'
-import { refreshOwnSession, signInWithPasswordOwn, verifyBearerOwn } from './authPortOwn.js'
+import { logoutOwnSession, refreshOwnSession, signInWithPasswordOwn, verifyBearerOwn } from './authPortOwn.js'
+import { ownLogoutScope } from './authSessionsCore.js'
 import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from './authRateLimitCore.js'
 
 function gotrueError(res, status, message) {
@@ -16,7 +17,7 @@ function gotrueError(res, status, message) {
  * когда адрес Auth смотрит на этот сервер. Пока AUTH_PROVIDER не own — 404.
  * @param {import('http').IncomingMessage & { query?: Record<string, string>, body?: unknown }} req
  * @param {import('http').ServerResponse} res
- * @param {{ loadUserById?: Parameters<typeof refreshOwnSession>[1] }} [deps]
+ * @param {{ loadUserById?: Parameters<typeof refreshOwnSession>[1], sessions?: Parameters<typeof refreshOwnSession>[2] }} [deps]
  */
 export async function handleAuthV1(req, res, deps = {}) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -38,6 +39,12 @@ export async function handleAuthV1(req, res, deps = {}) {
 
   const path = new URL(req.url || '/', 'http://localhost').pathname.replace(/\/+$/, '')
   if (path.endsWith('/logout') && req.method === 'POST') {
+    // Всегда 204: supabase-js не стирает локальную сессию при ошибке, выход на планшете важнее отзыва.
+    const header = String(req.headers.authorization || req.headers.Authorization || '')
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const tokens = [body.refresh_token, header.startsWith('Bearer ') ? header.slice(7).trim() : ''].filter(Boolean)
+    const out = await logoutOwnSession(tokens, ownLogoutScope(req.query?.scope), deps.sessions)
+    if (out.error) console.warn('[auth-v1] logout:', out.error)
     res.statusCode = 204
     res.end()
     return
@@ -59,7 +66,7 @@ export async function handleAuthV1(req, res, deps = {}) {
     const grant = String(req.query?.grant_type ?? '')
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     if (grant === 'refresh_token') {
-      const { session, error, transient } = await refreshOwnSession(body.refresh_token, deps.loadUserById)
+      const { session, error, transient } = await refreshOwnSession(body.refresh_token, deps.loadUserById, deps.sessions)
       if (transient) {
         // supabase-js стирает сессию на 4xx/500 и повторяет только 502–504.
         console.error('[auth-v1] refresh: база недоступна', error)

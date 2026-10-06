@@ -212,7 +212,7 @@ npm run db:migrate:pg -- --dry-run
 
 **Smoke 25–26.09:** ключ `cloudKey=ok`; admin и список тренера ок. Тренировка на `http://IP` открывается (`safeRandomUuid`). Владелец 26.09 ~19:28: начал → Закончил → Sync, ошибок нет. Прод и True C2 не трогаем.
 
-На машине (после IP) ставится Node 22 и приложение: `scripts/r2-hybrid-vm-setup.sh`. Секреты (`VITE_*`, `SUPABASE_*`) владелец кладёт в `.env` на сервере сам, из панели Vercel / сейфа. `SUPABASE_SERVICE_ROLE_KEY` — длинная строка с `eyJ…`, не заглушка. Проверка без секрета: `/api/health` → `cloudKey` должен быть `ok`. Ключ в чат не присылать.
+На машине (после IP) ставится Node 22 и приложение: `scripts/r2-hybrid-vm-setup.sh`. Секреты (`VITE_*`, `SUPABASE_*`) владелец кладёт в `.env` на сервере сам, из панели Vercel / сейфа. `SUPABASE_SERVICE_ROLE_KEY` — длинная строка с `eyJ…`, не заглушка. Проверка без секрета: строка `[portable-api] cloudKey: ok` в `journalctl -u <сервис>` после старта (с 06.10 не в публичном `/api/health`). Ключ в чат не присылать.
 
 ---
 

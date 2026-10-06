@@ -85,6 +85,10 @@ ok(match?.id === 'a', 'pick match')
 
 ok(moiZvonkiWebhookSecretMatches('1234567890123456', '1234567890123456'), 'secret ok')
 ok(!moiZvonkiWebhookSecretMatches('short', 'short'), 'secret too short rejected')
+ok(!moiZvonkiWebhookSecretMatches('1234567890123456', '1234567890123457'), 'secret last char differs')
+ok(!moiZvonkiWebhookSecretMatches('1234567890123456', '123456789012345'), 'secret prefix rejected')
+ok(!moiZvonkiWebhookSecretMatches('1234567890123456', '12345678901234567'), 'secret longer rejected')
+ok(!moiZvonkiWebhookSecretMatches('1234567890123456', ''), 'empty secret rejected')
 
 const sum = summarizeClubCallLogRows([
   { status: 'ok', outcome: 'pending' },

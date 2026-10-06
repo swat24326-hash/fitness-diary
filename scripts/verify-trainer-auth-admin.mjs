@@ -6,6 +6,7 @@ import {
   validateTrainerPasswordConfirm,
   validateTrainerPasswordForAdmin,
 } from '../src/lib/admin/trainerAuthAdminCore.js'
+import { PASSWORD_MIN_LEN, newPasswordError } from '../src/lib/passwordPolicyCore.js'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -15,12 +16,16 @@ function ok(cond, msg) {
   console.log('OK:', msg)
 }
 
-ok(validateTrainerPasswordForAdmin('12345').ok === false, 'short password rejected')
-ok(validateTrainerPasswordForAdmin('123456').ok === true, 'min password ok')
-ok(validateTrainerPasswordForAdmin('  123456  ').password === '123456', 'password edges trimmed')
-ok(validateTrainerPasswordConfirm('secret1', 'secret2').ok === false, 'mismatch rejected')
-ok(validateTrainerPasswordConfirm('secret1', 'secret1').ok === true, 'match ok')
-ok(validateTrainerPasswordConfirm('  secret1  ', 'secret1').ok === true, 'confirm after trim')
+ok(PASSWORD_MIN_LEN === 8, 'policy: min 8')
+ok(newPasswordError('1234567') === 'Пароль не короче 8 символов', 'policy: short → ru error')
+ok(newPasswordError('12345678') === null, 'policy: 8 chars ok')
+ok(newPasswordError(null) !== null, 'policy: empty rejected')
+ok(validateTrainerPasswordForAdmin('1234567').ok === false, 'short password rejected')
+ok(validateTrainerPasswordForAdmin('12345678').ok === true, 'min password ok')
+ok(validateTrainerPasswordForAdmin('  12345678  ').password === '12345678', 'password edges trimmed')
+ok(validateTrainerPasswordConfirm('secret12', 'secret21').ok === false, 'mismatch rejected')
+ok(validateTrainerPasswordConfirm('secret12', 'secret12').ok === true, 'match ok')
+ok(validateTrainerPasswordConfirm('  secret12  ', 'secret12').ok === true, 'confirm after trim')
 
 const uuid = 'a1b2c3d4-e5f6-4789-a012-3456789abcde'
 const parsed = parseTrainerIdForAdmin(uuid)

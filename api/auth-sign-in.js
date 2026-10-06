@@ -292,9 +292,7 @@ async function handler(req, res) {
       sendJson(res, 503, { error: SUPABASE_CLOUD_UNAVAILABLE_RU })
       return
     }
-    sendJson(res, 401, {
-      error: 'Пользователь с таким логином не найден. Проверьте раскладку или войдите по email.',
-    })
+    sendJson(res, 401, { error: 'Неверный логин или пароль' })
     return
   }
 

@@ -9,6 +9,13 @@ export const AUTH_PROFILE_STALE_MAX_MS = 5 * 60_000
 export const AUTH_PROFILE_RETRY_DELAY_MS = 400
 export const AUTH_PROFILE_QUERY_TIMEOUT_MS = 8_000
 export const AUTH_PROFILE_CLOUD_UNAVAILABLE_RU = 'Облако не ответило — повторите через несколько секунд'
+/** Не «нет доступа»: планшет оставляет записи в очереди (isUnrecoverablePushError → false). */
+export const AUTH_PROFILE_BLOCKED_RU = 'Учётная запись заблокирована'
+
+/** Блок админом действует на API сразу (до 30 с кэша роли), не через час до продления входа. */
+export function isCallerProfileBlocked(profile) {
+  return profile?.is_active === false
+}
 
 /**
  * Форма server key без раскрытия секрета: настоящий JWT или заглушка.

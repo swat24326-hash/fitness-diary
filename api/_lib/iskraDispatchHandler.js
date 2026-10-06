@@ -84,7 +84,7 @@ async function resolveDispatchSenderUserId(supabaseAdmin, ctx) {
   const row = {
     id: authId,
     name: String(ctx.profile?.name ?? 'Администратор').trim() || 'Администратор',
-    email: email || 'admin@fit-city.ru',
+    email: email || null,
     login: loginBase || 'admin',
     role: 'admin',
     password_hash: isOwnAuthProvider() ? 'own-auth-unset' : 'supabase-auth',

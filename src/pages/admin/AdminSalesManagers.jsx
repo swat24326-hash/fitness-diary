@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { RefreshCw, UserPlus } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import { PASSWORD_MIN_LEN } from '../../lib/passwordPolicyCore.js'
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient'
 import { createSalesManagerForAdmin } from '../../lib/admin/createSalesManagerService'
 import {
@@ -192,7 +193,7 @@ export function AdminSalesManagers() {
               <label className="label" htmlFor="sm-password">
                 Пароль
               </label>
-              <input id="sm-password" className="input" type="password" required minLength={6} value={form.password} disabled={saving} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+              <input id="sm-password" className="input" type="password" required minLength={PASSWORD_MIN_LEN} value={form.password} disabled={saving} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
             </div>
             <div className="row td-modal-actions" style={{ marginTop: 4 }}>
               <button type="button" className="btn btn-ghost btn-touch" disabled={saving} onClick={closeCreate}>

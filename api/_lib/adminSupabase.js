@@ -4,7 +4,9 @@ import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
 import { ilikeExactPattern } from '../../src/lib/ilikeExactCore.js'
 import { authRuntimeEnvError, verifyBearer } from './authPort.js'
 import {
+  AUTH_PROFILE_BLOCKED_RU,
   AUTH_PROFILE_CLOUD_UNAVAILABLE_RU,
+  isCallerProfileBlocked,
   AUTH_PROFILE_MEMO_MAX,
   AUTH_PROFILE_QUERY_TIMEOUT_MS,
   AUTH_PROFILE_RETRY_DELAY_MS,
@@ -22,7 +24,7 @@ const authProfileMemo = new Map()
 /** @type {Map<string, Promise<{ kind: string, profile: object | null, message: string | null }>>} */
 const authProfileInflight = new Map()
 
-const CALLER_PROFILE_FIELDS = 'id, role, email, club_id, name, phone, login'
+const CALLER_PROFILE_FIELDS = 'id, role, email, club_id, name, phone, login, is_active'
 
 function wait(ms) {
   return new Promise((resolve) => {
@@ -149,6 +151,10 @@ export async function requireAuthUser(req, res) {
   const now = Date.now()
   const memoFlags = readAuthProfileMemoHit(user.id, authProfileMemo.get(user.id), now)
   if (memoFlags) {
+    if (isCallerProfileBlocked(memoFlags.profile)) {
+      sendJson(res, 403, { error: AUTH_PROFILE_BLOCKED_RU })
+      return null
+    }
     return { supabaseAdmin, user, ...memoFlags }
   }
 
@@ -179,6 +185,10 @@ export async function requireAuthUser(req, res) {
   const flags = { profile, roleNorm, isAdmin, isTrainer, isSalesManager, isSupervisor }
   authProfileMemo.set(user.id, { flags, at: now })
   pruneVerifyBearerMemo(authProfileMemo, AUTH_PROFILE_MEMO_MAX)
+  if (isCallerProfileBlocked(profile)) {
+    sendJson(res, 403, { error: AUTH_PROFILE_BLOCKED_RU })
+    return null
+  }
 
   return { supabaseAdmin, user, ...flags }
 }

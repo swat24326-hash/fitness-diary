@@ -105,7 +105,7 @@ Auth helpers: `api/_lib/adminSupabase.js` (`requireAdmin`, `requireAdminOrSalesM
 
 Клиент базы для API: `createServiceDataClient()` (`api/_lib/pgRest/serviceClient.js`). Без `DATA_BACKEND` или при `DATA_BACKEND=supabase` это Supabase service role. `DATA_BACKEND=pg` — тот же контракт `.from()` поверх Postgres (`DATABASE_URL`). Прод этот флаг не ставит.
 
-Вход: `api/_lib/authPort.js`. `AUTH_PROVIDER=own` — свой JWT и хеш пароля в `users.password_hash`; проверка Bearer наша. Без флага — Supabase Auth. На портативном хосте тогда же открываются `POST /auth/v1/token`, `GET /auth/v1/user`, `POST /auth/v1/logout`.
+Вход: `api/_lib/authPort.js`. `AUTH_PROVIDER=own` — свой JWT и хеш пароля в `users.password_hash`; проверка Bearer наша. Без флага — Supabase Auth. На портативном хосте тогда же открываются `POST /auth/v1/token`, `GET /auth/v1/user`, `POST /auth/v1/logout`. Logout (с 06.10) отзывает сессию из `auth_sessions` по `refresh_token` в теле (или Bearer); `?scope=global` — все устройства; ответ всегда 204. Заблокированный (`users.is_active=false`) получает на любом `/api/*` 403 «Учётная запись заблокирована» (до 30 с кэша роли) — планшет держит очередь, не снимает записи.
 
 `/rest/v1/<таблица>` (только портативный хост, только при `AUTH_PROVIDER=own` **и** `DATA_BACKEND=pg`, иначе 404) — совместимый с supabase-js кусок PostgREST для браузера:
 

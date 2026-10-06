@@ -145,6 +145,25 @@ export function hasPersistedSupabaseSession(supabaseUrl) {
 }
 
 /**
+ * refresh_token из localStorage — отозвать на сервере при «Выйти» до очистки.
+ * @param {string} [supabaseUrl]
+ * @returns {string | null}
+ */
+export function readPersistedSupabaseRefreshToken(supabaseUrl) {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    for (const key of listPersistedSupabaseAuthKeys(supabaseUrl)) {
+      const raw = localStorage.getItem(key)
+      const token = raw ? JSON.parse(raw)?.refresh_token : null
+      if (token) return String(token)
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+/**
  * Жёстко убрать токены Supabase из localStorage (явный выход с планшета).
  * @param {string} [supabaseUrl]
  */

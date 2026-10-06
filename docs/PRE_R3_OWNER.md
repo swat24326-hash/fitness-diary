@@ -76,7 +76,7 @@ DNS/HTTPS: [R3_DOMAIN.md](./R3_DOMAIN.md) §3.
 4. [ ] Пароли сотрудников (скрипт runbook) — пароли людям не менять.  
 5. [ ] DNS A → ВМ; Let's Encrypt; `PUBLIC_ORIGIN=https://app-core.ru`.  
 6. [ ] Новый ярлык **https://app-core.ru**; Закончить → Sync. Vercel не открывать.  
-7. [ ] 3–7 дней мониторинг; откат — [R3_DOMAIN.md](./R3_DOMAIN.md) §3f.
+7. [x] 3–7 дней мониторинг (06.10: 6 дней без проблем); откат — [R3_DOMAIN.md](./R3_DOMAIN.md) §3f.
 
 ### Текст для зала
 

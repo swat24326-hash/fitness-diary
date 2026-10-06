@@ -27,12 +27,14 @@ import { ensureDemoData, demoTrainerId, DEMO_CLUB_ID } from '../lib/seedDemo'
 import {
   clearIdentityCache,
   clearPersistedSupabaseSession,
+  readPersistedSupabaseRefreshToken,
   hasPersistedSupabaseSession,
   mergeIdentityCacheIntoUser,
   readIdentityCache,
   readIdentityCacheLatest,
   writeIdentityCache,
 } from '../lib/userIdentityCache'
+import { sendServerLogout } from '../lib/authServerLogout'
 import { initAppLifecycle, requestPersistentStorageOnce, APP_WAKE_EVENT } from '../lib/appLifecycle'
 import { isExpectedAuthSessionError } from '../lib/authSessionErrorCore'
 import {
@@ -721,7 +723,10 @@ export function AuthProvider({ children }) {
     clearIdentityCache()
     clearRoleCache()
     /* Сначала токены — иначе UI видит hasStoredSession и снова «восстанавливает сессию». */
-    if (isSupabaseConfigured()) clearPersistedSupabaseSession(SUPABASE_URL)
+    if (isSupabaseConfigured()) {
+      sendServerLogout(SUPABASE_URL, readPersistedSupabaseRefreshToken(SUPABASE_URL))
+      clearPersistedSupabaseSession(SUPABASE_URL)
+    }
     setHasStoredSession(false)
     setUser(null)
     setRole(null)
