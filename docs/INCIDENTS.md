@@ -274,9 +274,9 @@
 
 | Тема | Симптом | Статус |
 |------|---------|--------|
-| **INC-2026-10-07-01** | Аудит (F1, High): лимит перебора пароля обходится подменой `X-Forwarded-For` — ключ «логин + IP», IP брался из левого значения заголовка | 🔧 | IP — правый адрес XFF только от Caddy на localhost, иначе адрес сокета; Caddy `header_up X-Forwarded-For {remote_host}`; лимиты «логин + IP» 10, логин 30 (знакомый IP успешного входа не блокируется), IP 100 — `verify-auth-rate-limit`. Деплой: код + перезапуск `r3-https-vm.sh` на ВМ |
-| **INC-2026-10-07-02** | Аудит (F2): тренер через `/api/push-record` пишет clients / trainings / memberships с чужим `club_id` (service role в обход RLS); на update тренировки и абонемента клуб тоже не сверялся | 🔧 | `trainerPushClubBindingCore.js`: указанный клуб = клуб профиля / своего клиента / самой строки, иначе 403; пустой не трогаем — `verify-push-club-binding` |
-| **INC-2026-10-07-03** | Аудит (F3): сырой текст ошибок Postgres (значения строк в `detail`, эхо ввода) в ответах `/api/*` и `/rest/v1` | 🔧 | `dbErrorPublicCore.js`: русский текст по SQLSTATE + имя ограничения (для подсказок «Помощи»), `detail`/`hint` не отдаём, сырой — в лог; push, get-client, list-clients, trainer-pull, лояльность, `/rest/v1` — `verify-api-error-sanitize` |
+|  | ✅ | IP — правый адрес XFF только от Caddy на localhost, иначе адрес сокета; Caddy `header_up X-Forwarded-For {remote_host}`; лимиты «логин + IP» 10, логин 30 (знакомый IP успешного входа не блокируется), IP 100 — `verify-auth-rate-limit`. Деплой: код + перезапуск `r3-https-vm.sh` на ВМ |
+|  | 👀 | `trainerPushClubBindingCore.js`: указанный клуб = клуб профиля / своего клиента / самой строки, иначе 403; пустой не трогаем — `verify-push-club-binding` |
+|  | ✅ | `dbErrorPublicCore.js`: русский текст по SQLSTATE + имя ограничения (для подсказок «Помощи»), `detail`/`hint` не отдаём, сырой — в лог; push, get-client, list-clients, trainer-pull, лояльность, `/rest/v1` — `verify-api-error-sanitize` |
 | **INC-2026-09-29-01** | Аудит: 3 таблицы на проде без RLS (расходы, push-подписки, челленджи) — открыты anon key | ✅ | миграция `20260929130000_rls_gaps.sql` накатана на prod 29.09 (`relrowsecurity` = true у всех 4); `verify-rls-coverage` |
 | Supabase timeout | Нули, IDB fallback | инфра | RUNBOOK §4b |
 | Без VPN нет облака | HTTP 0, «не достучаться до базы»; с VPN ок | инфра | RUNBOOK §4c; INC-2026-09-24-04 |
