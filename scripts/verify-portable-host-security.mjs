@@ -38,9 +38,10 @@ try {
   ok(health.headers.get('x-frame-options') === 'DENY', 'X-Frame-Options: DENY (кликджекинг)')
   ok(Boolean(health.headers.get('strict-transport-security')), 'HSTS')
   ok(Boolean(health.headers.get('referrer-policy')), 'Referrer-Policy')
-  const csp = health.headers.get('content-security-policy-report-only') ?? ''
-  ok(/default-src 'self'/.test(csp), 'CSP пока report-only (PWA не ломаем)')
-  ok(!health.headers.get('content-security-policy'), 'боевой CSP не включён')
+  const csp = health.headers.get('content-security-policy') ?? ''
+  ok(/default-src 'self'/.test(csp), 'CSP боевой')
+  ok(!health.headers.get('content-security-policy-report-only'), 'report-only выключен (не дублируем)')
+  ok(/(^|; )script-src ([^;]*)/.exec(csp)?.[2] === "'self'", 'script-src только свой — без unsafe-eval / unsafe-inline')
   ok(/media-src [^;]*blob:[^;]*https:/.test(csp), 'CSP media-src: голос ИСКРЫ (blob:) и записи звонков (https)')
   ok(/frame-src [^;]*blob:/.test(csp), 'CSP frame-src blob: — печать прайса')
   ok(/font-src 'self' data:;/.test(csp), 'CSP font-src без внешних доменов — Inter свой')
