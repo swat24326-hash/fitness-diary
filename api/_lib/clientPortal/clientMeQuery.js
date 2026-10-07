@@ -2,7 +2,6 @@
  * Загрузка данных /api/client-me (service role, только строки этого клиента).
  * Лояльность — тот же buildLoyaltyAccount, но без записи якоря cycle_open: клиент только смотрит.
  */
-import { CLUB_OPS_TIMEZONE } from '../../../src/lib/dateRu.js'
 import { buildLoyaltyAccount } from '../../../src/lib/loyalty/loyaltyAccountCore.js'
 import {
   clubOpsAsOfIso,
@@ -20,18 +19,7 @@ import {
   pickNextClientSession,
 } from './clientMeCore.js'
 import { cleanClubName, clientManifestUrl } from './clientManifestCore.js'
-
-function clubNowMinutes(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: CLUB_OPS_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(now)
-  const h = Number(parts.find((p) => p.type === 'hour')?.value)
-  const m = Number(parts.find((p) => p.type === 'minute')?.value)
-  return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : 0
-}
+import { clubOpsMinutesNow } from './clientReminderCore.js'
 
 async function rows(query) {
   const { data, error } = await query
@@ -53,7 +41,7 @@ async function loadNextSession(db, clientId, today) {
   const trainerIds = [...new Set(entries.map((e) => String(e.trainer_id)))]
   const trainers = trainerIds.length ? await rows(db.from('users').select('id, name').in('id', trainerIds)) : []
   const names = new Map(trainers.map((u) => [String(u.id), String(u.name ?? '').trim()]))
-  return pickNextClientSession(entries, today, clubNowMinutes(), names)
+  return pickNextClientSession(entries, today, clubOpsMinutesNow(), names)
 }
 
 async function loadLoyalty(db, client, memberships, types, trainings, today) {

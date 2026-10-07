@@ -13,7 +13,7 @@ function readHidden() {
   }
 }
 
-/** @returns {{ mode: 'none'|'prompt'|'ios', install: () => Promise<void>, hide: () => void }} */
+/** @returns {{ mode: 'none'|'prompt'|'ios', install: () => Promise<void>, hide: () => void, installed: boolean }} */
 export function useClientInstall() {
   const [promptEvent, setPromptEvent] = useState(null)
   const [hidden, setHidden] = useState(readHidden)
@@ -57,5 +57,5 @@ export function useClientInstall() {
     maxTouchPoints: navigator.maxTouchPoints,
     hidden,
   })
-  return { mode, install, hide }
+  return { mode, install, hide, installed }
 }

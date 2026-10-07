@@ -164,6 +164,40 @@
   color: var(--accent);
 }
 
+.client-me-push .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.client-me-push__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.client-me-push__row .btn-icon-square {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.client-me-push--on {
+  padding-block: 12px;
+  gap: 4px;
+}
+
+.client-me-push__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
 .client-me-card--center {
   display: grid;
   margin-top: 12vh;

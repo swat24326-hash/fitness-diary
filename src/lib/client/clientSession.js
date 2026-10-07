@@ -98,17 +98,33 @@ async function validAccessToken() {
   return data.session.access_token
 }
 
-/** GET /api/client-me; удачный ответ кладём в кэш. */
-export async function fetchClientMe() {
+async function clientMeRequest(init = {}, failRu) {
   const token = await validAccessToken()
-  const { res, data } = await request('/api/client-me', { headers: { Authorization: `Bearer ${token}` } })
+  const { res, data } = await request('/api/client-me', {
+    ...init,
+    headers: { ...init.headers, Authorization: `Bearer ${token}` },
+  })
   if (res.status === 401) {
     clearClientSession()
     throw new ClientSessionGoneError(data?.error)
   }
-  if (!res.ok) throw new Error(data?.error || 'Не удалось загрузить данные')
+  if (!res.ok) throw new Error(data?.error || failRu)
+  return data
+}
+
+/** GET /api/client-me; удачный ответ кладём в кэш. */
+export async function fetchClientMe() {
+  const data = await clientMeRequest({}, 'Не удалось загрузить данные')
   writeJson(CACHE_KEY, { data, saved_at: new Date().toISOString() })
   return data
+}
+
+/** POST /api/client-me { action: 'push-*' } — напоминания на этот телефон. */
+export function postClientMe(body) {
+  return clientMeRequest(
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    'Не получилось — попробуйте ещё раз',
+  )
 }
 
 export async function logoutClient() {

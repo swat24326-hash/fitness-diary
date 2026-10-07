@@ -10,13 +10,16 @@ import {
   ClientProgressCard,
 } from './ClientMeSections.jsx'
 import { ClientInstallCard } from './ClientInstallCard.jsx'
+import { ClientPushCard } from './ClientPushCard.jsx'
 import { useClientInstall } from './useClientInstall.js'
 import { useClientMe } from './useClientMe.js'
+import { useClientPush } from './useClientPush.js'
 
-/** /me — приложение клиента: только просмотр своих данных. */
+/** /me — приложение клиента: просмотр своих данных и напоминания о тренировке. */
 export function ClientMePage() {
   const { data, savedAt, status, error, reload, logout } = useClientMe()
   const installer = useClientInstall()
+  const push = useClientPush({ active: !!data && status !== 'signed_out', standalone: installer.installed })
 
   if (status === 'signed_out') {
     return (
@@ -79,6 +82,7 @@ export function ClientMePage() {
         </p>
       ) : null}
       <ClientInstallCard clubName={data.club?.name || ''} installer={installer} />
+      <ClientPushCard push={push} />
       {sessionFirst ? <ClientNextSessionCard session={data.next_session} today={today} lead /> : null}
       <ClientMembershipsCard memberships={data.memberships} today={today} lead={!sessionFirst} />
       {sessionFirst ? null : <ClientNextSessionCard session={data.next_session} today={today} />}
