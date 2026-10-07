@@ -141,6 +141,7 @@
 | R2 data-port: SQL supabase-js → Postgres (`DATA_BACKEND=pg`) | `verify-pg-rest.mjs` |
 | R2 свой вход: хеш пароля + JWT, `/auth/v1` закрыт без флага; R3 пароли Supabase (bcrypt, потолок стоимости, пересохранение в scrypt) и план переноса `auth.users` → `users`; refresh при сбое базы → 503 (клиент не стирает сессию) | `verify-auth-own.mjs` |
 | Очередь висит из‑за сессии → «войдите снова», а не «проверьте сеть»; журнал 4xx/5xx `/api`, `/auth/v1`, `/rest/v1` на ВМ без токенов и query (INC-2026-10-05-01) | `verify-sync-auth-stuck.mjs` |
+| Метрика скорости тяжёлых API (`[api-timing]`: время и размер 2xx `trainer-pull`, `push-record(s)`, `admin-data:<action>`…), отчёт p50/p95 `scripts/api-timing-report.mjs` | `verify-api-timing-log.mjs` |
 | R2 тестовый клуб стенда C2: роли, связи, только хеши, отказ на непустой базе | `verify-c2-seed.mjs` |
 | R3 перенос Supabase → Managed PG: порядок по FK, колонки, пачки, сверка counts, запрет цели Supabase | `verify-r3-data-copy.mjs` |
 | RLS на `users`: только вошедшие, писать — админ, тренер видит себя, функции прав объявлены раньше | `verify-users-rls.mjs` |

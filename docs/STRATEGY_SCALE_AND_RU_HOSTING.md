@@ -358,6 +358,8 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] ИСКРА больше не ходит в Supabase Edge `gemini-analytics` (путь удалён из `geminiAnalyticsHandler.js`; на prod и так был выключен провайдером Yandex).
 - [x] Серверные ключи Supabase убраны с ВМ — `scripts/r4-drop-supabase-env-vm.sh` (07.10 14:18: health ок, API без токена 401, копия `.env` с ключом уничтожена; в журнале `cloudKey: missing` — так и должно быть). Повторная выгрузка из Supabase теперь только с ключом из кабинета.
 - [x] Владелец: Supabase → **Pause project** ✅ 07.10 14:26 (проект «фитнес-дневник»; возобновить можно до 11.11.2027, потом только скачать бэкап).
+- [x] Своя ночная копия Managed PG на ВМ (`scripts/pg-backup-install-vm.sh`, 04:30 МСК, 14 дн.) ✅ 07.10 — плюс автокопии Yandex 7 дн.; восстановление — RUNBOOK §8.
+- [ ] Защита кластера от удаления — GrokBot `2026-10-07-02` (ждёт «да» владельца). Копия вне аккаунта Yandex — ⏸ отдельным решением.
 - [ ] ~21.10, если ничего не понадобилось: Supabase → Delete project (копия уже на ВМ). Vercel: redirect держим, пока не уйдут старые ярлыки планшетов, затем Delete project.
 - [ ] После удаления: CORS только свой домен, убрать `authPortSupabase` / ветки «не pg», `supabase/functions/`, обновить DEPLOY / HANDOFF / GROWTH.
 - [ ] Обновить [DEPLOY.md](./DEPLOY.md), [RUNBOOK.md](./RUNBOOK.md), [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md), GROWTH_PLAYBOOK (хостер = РФ).

@@ -53,6 +53,16 @@ SELECT
   (SELECT count(*) FROM public.memberships) AS memberships;
 ```
 
+## Скорость API на проде (метрика с 07.10)
+
+Сервер пишет в журнал ВМ строку `[api-timing]` на каждый успешный тяжёлый запрос: маршрут (для `admin-data` — с `action`), время, размер JSON до сжатия. Отчёт по медиане и p95:
+
+```bash
+ssh … 'sudo journalctl -u os-hybrid --since -24h --no-pager | grep api-timing' | node scripts/api-timing-report.mjs
+```
+
+Оптимизировать — только маршрут из верха отчёта (p95 растёт или размер ответа сотни КБ), не наугад. Объём на 07.10: база Managed PG 20 МБ; `push-records` ~5–90 мс, ~3 КБ.
+
 ## Ориентиры (эмпирические, один зал)
 
 | Метрика | Комфортно сейчас | Зона внимания | Действия |
