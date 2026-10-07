@@ -356,7 +356,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Нет записи в старый Supabase: последняя запись во всех таблицах — 30.09 до 23:08 МСК (`scripts/r4-check-supabase-idle-vm.sh`, 07.10).
 - [x] Финальная выгрузка Supabase на ВМ (РФ): `/var/backups/fitness-diary/r4-supabase-2026-10-07/` (gzip NDJSON, 39 таблиц + auth.users, mode 700/600, владелец osapp); файл = облако по каждой таблице, в Managed PG строк ≥ (`scripts/r4-export-supabase.mjs`).
 - [x] ИСКРА больше не ходит в Supabase Edge `gemini-analytics` (путь удалён из `geminiAnalyticsHandler.js`; на prod и так был выключен провайдером Yandex).
-- [ ] Серверные ключи Supabase убраны с ВМ — `scripts/r4-drop-supabase-env-vm.sh` (откат сам, если API просит ключи).
+- [x] Серверные ключи Supabase убраны с ВМ — `scripts/r4-drop-supabase-env-vm.sh` (07.10 14:18: health ок, API без токена 401, копия `.env` с ключом уничтожена; в журнале `cloudKey: missing` — так и должно быть). Повторная выгрузка из Supabase теперь только с ключом из кабинета.
 - [ ] Владелец: Supabase → **Pause project**; через ~2 недели без нужды — Delete. Vercel: redirect держим, пока не уйдут старые ярлыки планшетов, затем Delete project.
 - [ ] После удаления: CORS только свой домен, убрать `authPortSupabase` / ветки «не pg», `supabase/functions/`, обновить DEPLOY / HANDOFF / GROWTH.
 - [ ] Обновить [DEPLOY.md](./DEPLOY.md), [RUNBOOK.md](./RUNBOOK.md), [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md), GROWTH_PLAYBOOK (хостер = РФ).
