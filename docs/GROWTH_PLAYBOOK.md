@@ -1,7 +1,8 @@
 # Рост продукта — отчёты и пороги
 
 Вы сообщаете метрики → в чате или здесь в **журнале** — мы делаем оптимизации по приоритету из `DATA_VOLUME.md` и `COMMERCIAL_ROADMAP.md`.  
-Платные тарифы: детали перехода в [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md).
+Платные тарифы: детали перехода в [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md).  
+С 01.10.2026 прод на своей ВМ + Managed PG: разделы про Vercel/Supabase ниже — история. Цель ~300 тренеров / ~10 тыс. клиентов в приложении, этапы и пороги — [CAPACITY_PLAN.md](./CAPACITY_PLAN.md).
 
 ## Что присылать при росте
 

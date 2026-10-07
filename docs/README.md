@@ -86,6 +86,7 @@
 | [DATA_VOLUME.md](./DATA_VOLUME.md) | Оценка объёма БД, пороги pull-by-period |
 | [BUNDLE_MEASURE.md](./BUNDLE_MEASURE.md) | Метрика размера JS-бандла (что тянет вес) |
 | [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md) | Журнал метрик клуба, когда переходить на Pro |
+| [CAPACITY_PLAN.md](./CAPACITY_PLAN.md) | План ёмкости: 300 тренеров / 10 тыс. клиентов, этапы и сигналы |
 | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) | Архив клуба: sync и UI |
 | [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) | Закрытие направлений ПЗ/ТЗ/АЗ → автоархив клуба |
 | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS/звонок ✅ + журнал связи ✅ (список/сводка/учёт SMS) |
