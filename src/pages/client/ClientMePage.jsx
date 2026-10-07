@@ -9,11 +9,14 @@ import {
   ClientNextSessionCard,
   ClientProgressCard,
 } from './ClientMeSections.jsx'
+import { ClientInstallCard } from './ClientInstallCard.jsx'
+import { useClientInstall } from './useClientInstall.js'
 import { useClientMe } from './useClientMe.js'
 
 /** /me — приложение клиента: только просмотр своих данных. */
 export function ClientMePage() {
   const { data, savedAt, status, error, reload, logout } = useClientMe()
+  const installer = useClientInstall()
 
   if (status === 'signed_out') {
     return (
@@ -68,13 +71,14 @@ export function ClientMePage() {
   const today = data.as_of
   const sessionFirst = clientMeLeadCard(data) === 'session'
   return (
-    <ClientMeShell actions={actions}>
+    <ClientMeShell actions={actions} club={data.club}>
       <h1 className="client-me__hello">{data.client?.name || 'Мои тренировки'}</h1>
       {status === 'offline' ? (
         <p className="client-me-offline" role="status">
           Нет связи — показаны данные на {savedAt ? formatDateTimeRu(savedAt) : 'последнее обновление'}
         </p>
       ) : null}
+      <ClientInstallCard clubName={data.club?.name || ''} installer={installer} />
       {sessionFirst ? <ClientNextSessionCard session={data.next_session} today={today} lead /> : null}
       <ClientMembershipsCard memberships={data.memberships} today={today} lead={!sessionFirst} />
       {sessionFirst ? null : <ClientNextSessionCard session={data.next_session} today={today} />}

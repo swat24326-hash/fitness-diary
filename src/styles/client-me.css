@@ -116,6 +116,54 @@
   font-size: 0.78rem;
 }
 
+.client-me__powered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 560px;
+  margin: 20px auto 0;
+  padding: 0 16px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.client-me-install .client-me-card__title {
+  justify-content: flex-start;
+}
+
+.client-me-install .client-me-install__hide {
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.client-me-install .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.client-me-install__steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.client-me-install__steps svg {
+  vertical-align: -3px;
+  color: var(--accent);
+}
+
 .client-me-card--center {
   display: grid;
   margin-top: 12vh;

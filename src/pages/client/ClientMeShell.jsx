@@ -1,34 +1,22 @@
-import { useEffect } from 'react'
 import { OsMark } from '../../components/brand/OsMark.jsx'
-import { PRODUCT_BRAND_LOCKUP } from '../../lib/productBrand.js'
+import { PRODUCT_BRAND_NAME_PREPOSITIONAL } from '../../lib/productBrand.js'
+import { useClientBranding } from './useClientBranding.js'
 
-const CLIENT_MANIFEST = '/manifest-client.json'
-
-/** Отдельный manifest: «Установить» с /me ставит приложение клиента, а не рабочее приложение зала. */
-function useClientManifest() {
-  useEffect(() => {
-    const link = document.querySelector('link[rel="manifest"]')
-    if (!link) return undefined
-    const prev = link.getAttribute('href')
-    link.setAttribute('href', CLIENT_MANIFEST)
-    return () => {
-      if (prev) link.setAttribute('href', prev)
-    }
-  }, [])
-}
-
-export function ClientMeShell({ children, actions = null }) {
-  useClientManifest()
+/** Шапка — клуб клиента; продукт только мелко внизу. */
+export function ClientMeShell({ children, actions = null, club = null }) {
+  const clubName = club?.name || ''
+  useClientBranding(clubName, club?.manifest_url || null)
   return (
     <div className="client-me">
       <header className="client-me__top">
-        <span className="client-me__brand">
-          <OsMark size={22} />
-          {PRODUCT_BRAND_LOCKUP}
-        </span>
+        <span className="client-me__brand">{clubName || 'Мои тренировки'}</span>
         {actions}
       </header>
       <main className="client-me__main">{children}</main>
+      <footer className="client-me__powered">
+        <OsMark size={14} />
+        работает на {PRODUCT_BRAND_NAME_PREPOSITIONAL}
+      </footer>
     </div>
   )
 }

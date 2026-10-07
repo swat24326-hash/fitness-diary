@@ -21,6 +21,9 @@ export const PRODUCT_BRAND_NAME_EN = 'Core'
 /** Основное имя в русском UI (предложения, настройки) */
 export const PRODUCT_BRAND_NAME = 'Ядро'
 
+/** Предложный падеж: «работает на Ядре» (приложение клиента) */
+export const PRODUCT_BRAND_NAME_PREPOSITIONAL = 'Ядре'
+
 /** Короткое для PWA / узких мест */
 export const PRODUCT_BRAND_SHORT = 'Ядро'
 

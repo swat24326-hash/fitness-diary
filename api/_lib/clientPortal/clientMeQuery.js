@@ -19,6 +19,7 @@ import {
   buildClientProgress,
   pickNextClientSession,
 } from './clientMeCore.js'
+import { cleanClubName, clientManifestUrl } from './clientManifestCore.js'
 
 function clubNowMinutes(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -96,9 +97,11 @@ export async function loadClientMe(db, client) {
     rows(db.from('body_measurements').select('*').eq('client_id', client.id).order('date', { ascending: false }).limit(12)),
     loadNextSession(db, client.id, today),
   ])
+  const club = await db.from('clubs').select('name').eq('id', client.club_id).maybeSingle()
   return {
     as_of: today,
     client: { name: String(client.name ?? '') },
+    club: { name: cleanClubName(club.data?.name), manifest_url: clientManifestUrl(client.club_id) },
     memberships: buildClientMemberships(memberships, types, trainings, today),
     next_session,
     progress: buildClientProgress(trainings, weights, measurements, today),

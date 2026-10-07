@@ -128,4 +128,4 @@ export function buildClientLoyalty(snapshot) {
   }
 }
 
-export const CLIENT_ME_KEYS = ['client', 'memberships', 'next_session', 'progress', 'loyalty', 'as_of']
+export const CLIENT_ME_KEYS = ['client', 'club', 'memberships', 'next_session', 'progress', 'loyalty', 'as_of']
