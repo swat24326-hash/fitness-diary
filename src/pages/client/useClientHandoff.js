@@ -20,7 +20,8 @@ function readSaved() {
 
 /**
  * iPhone, Safari, баннер установки на экране: берём одноразовый вход для значка и кладём его в адрес
- * страницы (manifest подхватывает токен в ClientMeShell). Без сети — значок откроется без входа, как раньше.
+ * страницы (manifest подхватывает токен в ClientMeShell). Баннер скрыт — токен убираем из адреса и manifest,
+ * чтобы скопированная ссылка не впускала чужого. Без сети — значок откроется без входа, как раньше.
  * @returns {string} токен или ''
  */
 export function useClientHandoff({ active }) {
@@ -51,10 +52,13 @@ export function useClientHandoff({ active }) {
     }
     return () => {
       cancelled = true
+      if (handoffTokenFromSearch(window.location.search)) {
+        window.history.replaceState(window.history.state, '', window.location.pathname)
+      }
     }
   }, [active])
 
-  return token
+  return active ? token : ''
 }
 
 /** Запуск значка с /me?h=…: входим по приглашению или просто чистим адрес. */

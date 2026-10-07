@@ -3,7 +3,9 @@
  * Без базы и сети — хранилище в памяти.
  * node scripts/verify-client-handoff.mjs
  */
+import { readFileSync } from 'node:fs'
 import { createAuthFailLimiter } from '../api/_lib/authRateLimitCore.js'
+import { timingRouteLabel } from '../api/_lib/portableTimingLog.js'
 import { hashInviteToken } from '../api/_lib/clientPortal/clientAuthCore.js'
 import { createClientAuthHandler } from '../api/_lib/clientPortal/clientAuthHandler.js'
 import {
@@ -121,7 +123,8 @@ try {
   const ctx = { clientId: CLIENT, sid: 'sess-0', client: { id: CLIENT, club_id: CLUB } }
   const r1 = await handoff(store, ctx, NOW)
   ok(r1.statusCode === 200 && isClientHandoffToken(r1.body?.token), 'handoff выдаёт токен')
-  ok(Date.parse(r1.body.expires_at) === NOW + CLIENT_HANDOFF_TTL_MS, 'живёт сутки')
+  ok(CLIENT_HANDOFF_TTL_MS <= 2 * 3600e3, 'токен в адресе Safari живёт не дольше 2 часов')
+  ok(Date.parse(r1.body.expires_at) === NOW + CLIENT_HANDOFF_TTL_MS, 'срок — от момента выдачи')
   const row1 = store.invites.get(hashInviteToken(r1.body.token))
   ok(row1?.client_id === CLIENT && row1.club_id === CLUB && row1.created_by === null, 'приглашение на себя, в свой клуб, без сотрудника')
   ok((await handoff(store, { ...ctx, client: { id: CLIENT, club_id: null } })).statusCode === 409, 'без клуба — 409')
@@ -134,6 +137,11 @@ try {
   ok((await redeem(auth, fresh.body.token)).statusCode === 200, 'значок входит по свежему приглашению')
   ok((await redeem(auth, fresh.body.token)).statusCode === 401, 'второй раз тем же — нет')
   ok((await redeem(auth, staffTk)).statusCode === 200, 'ссылку из клуба handoff не трогает')
+
+  // --- Токен не оседает в журналах сервера ---
+  ok(!timingRouteLabel('/api/client-me', `?manifest=${CLUB}&h=${TOKEN}`).includes(TOKEN), 'журнал API пишет путь без ?h=')
+  const caddyfile = readFileSync(new URL('./r3-https-vm.sh', import.meta.url), 'utf8')
+  ok(!/^\s*log\b/m.test(caddyfile), 'Caddy без журнала запросов: ?h= не пишется на диск (включаете log — фильтруйте query)')
 
   // --- Клиент: адрес, manifest, запуск значка ---
   ok(handoffTokenFromSearch(`?h=${TOKEN}`) === TOKEN, 'токен из адреса')
