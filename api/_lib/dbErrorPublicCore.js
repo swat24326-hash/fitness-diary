@@ -49,6 +49,30 @@ export function publicDbErrorMessage(e, label = 'db') {
   return pgErrorPublic(/** @type {any} */ (e)).message
 }
 
+const SQLSTATE_RE = /^[0-9A-Z]{5}$/
+/** Классы, в тексте которых бывают адрес, логин или внутренности сервера базы. */
+const INFRA_CLASSES = new Set(['08', '28', '53', '55', '58', 'XX', 'F0'])
+const INPUT_ECHO_RE = /:\s*".*"\s*$/s
+
+/**
+ * Ошибка pg для серверного кода (data client): значений строк нет, имена таблиц / колонок /
+ * ограничений остаются — по ним handlers делают фоллбэки на старую схему (`/direction/`, `uses_tablet`).
+ * Handlers отдают `error.message` в ответ, поэтому очистка здесь, на единственном выходе из pg.
+ * @param {unknown} e
+ * @returns {{ message: string, code: string | null, details: null, hint: null }}
+ */
+export function pgErrorForServer(e) {
+  const err = /** @type {any} */ (e)
+  const code = err?.code != null && String(err.code) ? String(err.code) : null
+  const sqlstate = code && SQLSTATE_RE.test(code) ? code : null
+  const raw = String(err?.message ?? '')
+  const message =
+    !sqlstate || INFRA_CLASSES.has(sqlstate.slice(0, 2)) || !raw
+      ? pgErrorPublic({ code: sqlstate ?? undefined }).message
+      : raw.replace(INPUT_ECHO_RE, '')
+  return { message, code, details: null, hint: null }
+}
+
 /** @param {string} label @param {unknown} e */
 export function logDbError(label, e) {
   const err = /** @type {any} */ (e)

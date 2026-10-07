@@ -2,8 +2,9 @@
 
 Выполнять **до** подключения нового клуба с большим числом тренеров или после смены домена/проекта Supabase.
 
-Production app: **https://fitness-diary-bice.vercel.app**  
-Сейчас Vercel + Supabase; целевой переезд на РФ — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md).
+> **С 01.10.2026 prod — `https://app-core.ru` (ВМ + Managed PG, свой Auth).** Проверки безопасности прода — [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md). Этот файл — для старого контура Supabase до его выключения в R4.
+
+Production app (до 01.10): **https://fitness-diary-bice.vercel.app** — теперь redirect.
 
 ## 1. Проект и ключи
 

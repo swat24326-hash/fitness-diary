@@ -4,7 +4,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { pgErrorPublic, publicDbErrorMessage } from '../api/_lib/dbErrorPublicCore.js'
+import { pgErrorForServer, pgErrorPublic, publicDbErrorMessage } from '../api/_lib/dbErrorPublicCore.js'
 import { restV1ErrorFromPg } from '../api/_lib/pgRest/restV1Shape.js'
 import { suggestErrorHint } from '../src/lib/appDiagnostics.js'
 
@@ -43,6 +43,22 @@ for (const e of samples) {
   ok(rest.body.details === null && rest.body.hint === null, `${e.code ?? 'no-code'}: details/hint пустые`)
 }
 console.warn = realWarn
+
+console.log('server data client (pgErrorForServer)')
+for (const e of samples) {
+  const srv = pgErrorForServer(e)
+  const blob = JSON.stringify(srv)
+  ok(!['+79991234567', 'Key (', 'Failing row', 'is not present', '10.0.0.5', 'ECONNREFUSED', 'internal error'].some((s) => blob.includes(s)), `${e.code ?? 'no-code'}: без значений и адресов`)
+  ok(srv.details === null && srv.hint === null, `${e.code ?? 'no-code'}: details/hint пустые`)
+}
+ok(/column "direction"/.test(pgErrorForServer({ code: '42703', message: 'column "direction" of relation "calls" does not exist' }).message), 'имя колонки остаётся (фоллбэки на старую схему)')
+ok(/uses_tablet/.test(pgErrorForServer({ code: '42703', message: 'column users.uses_tablet does not exist' }).message), 'uses_tablet остаётся (list-trainers)')
+ok(/sender_user_id_fkey/.test(pgErrorForServer({ code: '23503', message: 'violates foreign key constraint "sender_user_id_fkey"', detail: 'Key (sender_user_id)=(x)' }).message), 'имя FK остаётся (iskraDispatch)')
+ok(pgErrorForServer({ code: '22P02', message: 'invalid input syntax for type uuid: "abc"' }).message === 'invalid input syntax for type uuid', 'эхо ввода срезано')
+ok(/timeout/.test(pgErrorForServer({ code: '57014', message: 'canceling statement due to statement timeout' }).message), 'таймаут узнаваем')
+ok(/[а-яё]/i.test(pgErrorForServer({ code: '28P01', message: 'password authentication failed for user "fd_app"' }).message), 'ошибка входа в базу → русский общий текст')
+ok(!/fd_app/.test(pgErrorForServer({ code: '28P01', message: 'password authentication failed for user "fd_app"' }).message), 'логин базы не утекает')
+ok(pgErrorForServer({ code: '23505', message: 'x' }).code === '23505', 'code сохраняется (isDuplicate по code)')
 
 console.log('client contract')
 ok(restV1ErrorFromPg({ code: '42501' }).status === 403, 'RLS → 403')
@@ -90,6 +106,8 @@ ok(!/String\(e\.message\) : 'Server error'/.test(push), 'pushRecordCore: 500 б�
 ok(!/error: e\?\.message \? String\(e\.message\)/.test(read('api/_lib/mutationAuth.js')), 'mutationAuth: catch без сырого текста')
 ok(!/error: e\?\.message \? String\(e\.message\)/.test(read('api/_lib/adminData/loyaltyHandlers.js')), 'loyalty: 500 без сырого текста')
 ok(/logDbError\(`rest-v1/.test(read('api/_lib/restV1Handler.js')), '/rest/v1: сырой текст в лог сервера')
+const pgQuery = read('api/_lib/pgRest/query.js')
+ok(/error: pgErrorForServer\(e\)/.test(pgQuery) && !/e\?\.detail/.test(pgQuery), 'data client: ошибка pg очищена на выходе (все admin-хендлеры)')
 
 if (failed) {
   console.error(`\nverify-api-error-sanitize: ${failed} fail`)

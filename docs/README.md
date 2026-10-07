@@ -42,7 +42,8 @@
 | [FRIEND_CLUB_NOTE.md](./FRIEND_CLUB_NOTE.md) | Черновик в мессенджер: бесплатный доступ другу-клубу (ПДн простым языком) |
 | [FRIEND_CLUB_AGREEMENT.md](./FRIEND_CLUB_AGREEMENT.md) | Черновик простого договора с клубом-другом (не замена юристу) |
 | [INCIDENTS.md](./INCIDENTS.md) | **Журнал кейсов:** контуры (зал / админ / продажи / связь / инфра) + коды A–Q; ведёт агент по чату |
-| [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Auth, RLS, `users.id` перед крупным клубом |
+| [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md) | Безопасность прода на РФ-контуре: verify, проверки снаружи и на ВМ |
+| [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Старый контур Supabase (до R4): Auth, RLS, `users.id` |
 | [PUSH_SETUP.md](./PUSH_SETUP.md) | Web Push / VAPID (планёрка, задания) |
 | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) | Клубные SMS и звонки «Мои Звонки»: **в проде** + журнал связи (список/сводка/SMS) |
 | [PWA.md](./PWA.md) | Установка на планшет, SW, обновление после деплоя |

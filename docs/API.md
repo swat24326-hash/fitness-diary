@@ -14,7 +14,7 @@
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
 | `/api/list-memberships` | Абонементы **всех** клиентов клуба + `client_hall_lifecycle` того же клуба — **только admin / sales_manager** своего клуба. **Тренер не вызывает** (403): абонементы и lifecycle на планшете — `/api/trainer-pull` |
 | `/api/trainer-pull` | Pull на планшет тренера: клиенты, **memberships** (своих клиентов), health_cards, trainings (опц. `skip_trainings=1`) |
-| `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). Тренер (`clients` / `trainings` / `memberships`, insert и update): указанный `club_id` = клуб профиля, своего клиента или самой строки, иначе **403**; пустой не меняется (`trainerPushClubBindingCore.js`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
+| `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). Тренер (`clients` / `trainings` / `memberships`, insert и update): указанный `club_id` = клуб профиля, своего клиента или самой строки, иначе **403**; пустой не меняется (`trainerPushClubBindingCore.js`). `challenges` (тренер, управляющий): клуб строки в базе по id и указанный `club_id` = клуб профиля, иначе **403** «Челлендж другого клуба» (`challengePushClubCore.js`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path. За 15 мин: 10 неудач на «логин + IP», 30 на логин со всех IP (кроме IP, с которого по логину уже входили), 100 на IP → **429** + `Retry-After` («Подождите N мин.») — `authRateLimitCore.js`. IP — правый адрес `X-Forwarded-For` от Caddy на localhost (Caddy перезаписывает заголовок), иначе адрес сокета |
 | `/api/me-profile` | Профиль текущего пользователя |
@@ -24,7 +24,7 @@
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
 | `/api/update-trainer-club` | Смена клуба тренера |
 
-**Ошибки БД в ответах:** клиент получает русский текст по SQLSTATE с нейтральным маркером класса (`duplicate key`, `foreign key violation`, `does not exist`, `permission denied`) и, если есть, именем ограничения в `[…]` (по нему подсказки «Помощи» на планшете) — без значений строк и эха ввода; `/rest/v1` сохраняет `code`, `details`/`hint` = null. Сырой текст — только в логе сервера (`api/_lib/dbErrorPublicCore.js`). Статусы не менялись.
+**Ошибки БД в ответах:** клиент получает русский текст по SQLSTATE с нейтральным маркером класса (`duplicate key`, `foreign key violation`, `does not exist`, `permission denied`) и, если есть, именем ограничения в `[…]` (по нему подсказки «Помощи» на планшете) — без значений строк и эха ввода; `/rest/v1` сохраняет `code`, `details`/`hint` = null. Сырой текст — только в логе сервера (`api/_lib/dbErrorPublicCore.js`). Статусы не менялись. Остальные хендлеры (админка, ИСКРА, прайсы, ПНК…) получают ошибку из data client уже очищенной (`pgErrorForServer`): без `detail`/`hint`, эха ввода и ошибок подключения к базе; английский текст Postgres с именами таблиц/колонок остаётся (на нём фоллбэки старой схемы).
 
 Считать лимит перед добавлением 13-го файла. Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer`. Legacy Edge `supabase/functions/*` для прода не нужен.
 

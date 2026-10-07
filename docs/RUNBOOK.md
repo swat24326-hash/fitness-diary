@@ -224,7 +224,9 @@
 - роль (тренер/админ), клуб, время;
 - скрин **Диагностики** / бейджа sync;
 - что делали (офлайн, Sync, смена периода в статистике);
-- версию: дата деплоя с Vercel или «после обновления PWA».
+- версию: поле **Сборка** в Диагностике или «после обновления PWA».
+
+Клиенту ошибки базы приходят без деталей (это защита данных). Полный текст — на ВМ: `journalctl -u os-hybrid --since "<время>"`, метки `[pg <операция> <таблица>]`, `[push]`, `[push-auth]`.
 
 **Релиз фикса:** по [RELEASE.md](./RELEASE.md), не в пиковые часы зала.
 
@@ -236,5 +238,6 @@
 npm run lint
 npm run qa:local
 npm run qa          # + prod smoke
-npx vercel --prod --yes
+# деплой: на ВМ  cd /opt/fitness-diary && sudo bash scripts/r3-deploy-vm.sh origin/main
+# безопасность после деплоя: docs/PROD_SECURITY_CHECKLIST.md
 ```

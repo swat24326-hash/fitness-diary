@@ -1,3 +1,4 @@
+import { logDbError, pgErrorForServer } from '../dbErrorPublicCore.js'
 import { compilePgRestQuery } from './buildSql.js'
 import { executeCompiled, loadUdtOf } from './pool.js'
 import { shapePgRestResult } from './shapeResult.js'
@@ -186,16 +187,8 @@ export class PgRestQuery {
       }
       return shapePgRestResult(out.rows, this.spec, out.count)
     } catch (e) {
-      return {
-        data: null,
-        error: {
-          message: e?.message || 'Ошибка запроса к базе',
-          code: e?.code ?? null,
-          details: e?.detail ?? null,
-          hint: e?.hint ?? null,
-        },
-        count: null,
-      }
+      logDbError(`pg ${this.spec.op ?? ''} ${this.spec.table}`, e)
+      return { data: null, error: pgErrorForServer(e), count: null }
     }
   }
 

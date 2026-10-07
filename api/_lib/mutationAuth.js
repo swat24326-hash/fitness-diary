@@ -17,6 +17,7 @@ import {
   assertTrainerClubId,
   needsClientClubForTrainerCheck,
 } from '../../src/lib/trainer/trainerPushClubBindingCore.js'
+import { assertChallengeClub } from '../../src/lib/challengePushClubCore.js'
 import { logDbError } from './dbErrorPublicCore.js'
 
 const UUID_RE =
@@ -82,6 +83,14 @@ async function trainerClubCheck(ctx, payload, clientId, existingClubId) {
     clientClubId = (await getClientRow(ctx.supabaseAdmin, clientId))?.club_id ?? null
   }
   return assertTrainerClubId({ ...args, clientClubId })
+}
+
+/** Ошибка чтения — throw: «строки нет» пропустило бы перезапись чужого челленджа. */
+async function loadChallengeClubRow(supabaseAdmin, id) {
+  if (!isUuid(id)) return null
+  const { data, error } = await supabaseAdmin.from('challenges').select('club_id').eq('id', id).maybeSingle()
+  if (error) throw error
+  return data
 }
 
 async function getMembershipExistingClientId(supabaseAdmin, remote_id) {
@@ -406,14 +415,8 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
     }
 
     if (table_name === 'challenges') {
-      let challengeClubId = payload.club_id
-      if (op === 'delete' || (op === 'update' && remote_id)) {
-        const { data: ch } = await supabaseAdmin.from('challenges').select('club_id').eq('id', remote_id).maybeSingle()
-        if (op === 'delete' && !ch) return { ok: true }
-        if (ch) challengeClubId = ch.club_id
-      }
-      if (String(challengeClubId ?? '') === profileClub) return { ok: true }
-      return { ok: false, error: 'Челлендж другого клуба' }
+      const row = await loadChallengeClubRow(supabaseAdmin, remote_id || payload.id)
+      return assertChallengeClub({ op, profileClubId: profileClub, row, payload })
     }
 
     if (table_name === 'pnk_funnel_events' || table_name === 'sale_clips') {
@@ -758,15 +761,8 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     }
 
     if (table_name === 'challenges') {
-      let challengeClubId = payload.club_id
-      if (op === 'delete') {
-        const { data: ch } = await supabaseAdmin.from('challenges').select('club_id').eq('id', remote_id).maybeSingle()
-        if (!ch) return { ok: true }
-        challengeClubId = ch.club_id
-      }
-      const { data: prof } = await supabaseAdmin.from('users').select('club_id').eq('id', user.id).maybeSingle()
-      if (String(prof?.club_id ?? '') === String(challengeClubId ?? '')) return { ok: true }
-      return { ok: false, error: 'Челлендж другого клуба' }
+      const row = await loadChallengeClubRow(supabaseAdmin, remote_id || payload.id)
+      return assertChallengeClub({ op, profileClubId: ctx.profile?.club_id, row, payload })
     }
 
     if (table_name === 'pnk_funnel_events') {
