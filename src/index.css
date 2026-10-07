@@ -32,6 +32,8 @@
 @import './styles/client-retention.css';
 @import './styles/trainer-schedule.css';
 @import './styles/client-me.css';
+@import './styles/client-me-menu.css';
+@import './styles/client-me-spark.css';
 
 *,
 *::before,

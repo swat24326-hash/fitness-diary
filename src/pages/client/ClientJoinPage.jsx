@@ -4,6 +4,7 @@ import { CLIENT_OFFLINE_RU, hasClientSession, redeemClientInvite } from '../../l
 import { RefreshCw, TriangleAlert, WifiOff } from 'lucide-react'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
+import { useClientApp } from './ClientAppContext.jsx'
 
 function tokenFromHash() {
   const params = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
@@ -13,6 +14,8 @@ function tokenFromHash() {
 /** /me/join#t=… — гасим приглашение и переходим в /me. Токен сразу убираем из адресной строки. */
 export function ClientJoinPage() {
   const navigate = useNavigate()
+  const { onboarding } = useClientApp()
+  const startOnboarding = onboarding.start
   const [token] = useState(tokenFromHash)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -22,10 +25,13 @@ export function ClientJoinPage() {
     setBusy(true)
     setError('')
     redeemClientInvite(token)
-      .then(() => navigate('/me', { replace: true }))
+      .then(() => {
+        startOnboarding()
+        navigate('/me', { replace: true })
+      })
       .catch((e) => setError(e?.message || 'Не удалось войти'))
       .finally(() => setBusy(false))
-  }, [token, navigate])
+  }, [token, navigate, startOnboarding])
 
   useEffect(() => {
     if (!token || started.current) return

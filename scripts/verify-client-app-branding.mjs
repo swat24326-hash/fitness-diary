@@ -46,8 +46,6 @@ ok(clientInstallMode({ standalone: false, hasPrompt: true, ua: ANDROID }) === 'p
 ok(clientInstallMode({ standalone: false, hasPrompt: false, ua: IPHONE }) === 'ios', 'iPhone: инструкция')
 ok(clientInstallMode({ standalone: true, hasPrompt: true, ua: ANDROID }) === 'none', 'уже установлено — молчим')
 ok(clientInstallMode({ standalone: false, hasPrompt: false, ua: ANDROID }) === 'none', 'нет окна установки — молчим')
-ok(clientInstallMode({ standalone: false, hasPrompt: false, ua: IPHONE, hidden: true }) === 'none', 'скрыто клиентом — молчим')
-
 if (failed) {
   console.error(`\nverify-client-app-branding: ${failed} FAIL`)
   process.exit(1)

@@ -1,14 +1,13 @@
 import { CalendarClock, Gift, IdCard, TrendingUp } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import {
-  formatSessionDayRu,
   formatSignedRu,
+  lastVisitWidget,
   measurementDeltas,
-  membershipStatusLineRu,
   pointsWord,
-  trainingsWord,
+  weightDeltaWidget,
 } from '../../lib/client/clientMeUiCore.js'
-import { clientRenewalHint } from '../../lib/client/clientMeHighlightsCore.js'
+import { membershipNote, membershipTile, sessionTile } from '../../lib/client/clientMeTilesCore.js'
 import { ClientWeightSpark } from './ClientWeightSpark.jsx'
 
 function Card({ icon: Icon, title, lead = false, children }) {
@@ -23,93 +22,89 @@ function Card({ icon: Icon, title, lead = false, children }) {
   )
 }
 
-export function ClientMembershipsCard({ memberships, today, lead }) {
-  const current = memberships?.current ?? []
-  const renewHint = clientRenewalHint(memberships)
+/** Квадратная плитка: заголовок → крупное значение → подпись → подвал. Одна схема для симметрии. */
+function Tile({ icon: Icon, title, lead, tile, children }) {
   return (
-    <Card icon={IdCard} title="Мой абонемент" lead={lead}>
-      {current.length ? (
-        current.map((m, i) => (
-          <div key={`${m.start_date}-${i}`} className={`client-me-mem client-me-mem--${m.status}`}>
-            <div className="client-me-mem__head">
-              <span className="client-me-mem__label">{m.label}</span>
-              {m.total != null ? (
-                <span className="client-me-mem__left">
-                  осталось <strong>{m.remaining}</strong> из {m.total}
-                </span>
-              ) : null}
-            </div>
-            {m.total != null ? (
-              <div className="client-me-bar" aria-hidden>
-                <span style={{ width: `${Math.min(100, (m.used / Math.max(1, m.total)) * 100)}%` }} />
-              </div>
-            ) : null}
-            <p className="client-me-muted">{membershipStatusLineRu(m, today)}</p>
-          </div>
-        ))
-      ) : memberships?.last_ended ? (
-        <p className="client-me-muted">
-          {memberships.last_ended.label} закончился {formatDateRu(memberships.last_ended.end_date)}. Продлить можно в клубе.
-        </p>
-      ) : (
-        <p className="client-me-muted">Абонемента пока нет.</p>
-      )}
-      {renewHint ? (
-        <p className="client-me-renew" role="note">
-          {renewHint}
-        </p>
+    <section className={`client-me-card client-me-tile client-me-tile--${tile.tone}${lead ? ' client-me-card--lead' : ''}`}>
+      <h2 className="client-me-card__title">
+        <Icon size={18} aria-hidden />
+        {title}
+      </h2>
+      <div className="client-me-tile__body">
+        <span className="client-me-tile__hero">
+          {tile.hero}
+          {tile.unit ? <small>{tile.unit}</small> : null}
+        </span>
+        <span className="client-me-tile__caption">{tile.caption}</span>
+      </div>
+      <div className="client-me-tile__foot">
+        {children}
+        <span>{tile.foot}</span>
+      </div>
+    </section>
+  )
+}
+
+export function ClientMembershipsCard({ memberships, today, lead }) {
+  const tile = membershipTile(memberships, today)
+  return (
+    <Tile icon={IdCard} title="Мой абонемент" lead={lead} tile={tile}>
+      {tile.bar != null ? (
+        <div className="client-me-bar" aria-hidden>
+          <span style={{ width: `${tile.bar}%` }} />
+        </div>
       ) : null}
-    </Card>
+    </Tile>
   )
 }
 
 export function ClientNextSessionCard({ session, today, lead }) {
-  return (
-    <Card icon={CalendarClock} title="Следующая тренировка" lead={lead}>
-      {session ? (
-        <div className="client-me-next">
-          <span className="client-me-next__day">{formatSessionDayRu(session.date, today)}</span>
-          <span className="client-me-next__time">{session.time}</span>
-          {session.trainer_name ? <span className="client-me-muted">Тренер: {session.trainer_name}</span> : null}
-        </div>
-      ) : (
-        <p className="client-me-muted">Пока не запланирована — договоритесь с тренером.</p>
-      )}
-    </Card>
-  )
+  return <Tile icon={CalendarClock} title="Следующая тренировка" lead={lead} tile={sessionTile(session, today)} />
 }
 
-export function ClientProgressCard({ progress }) {
+/** Под плитками: продлить или следующий абонемент уже куплен. */
+export function ClientMembershipNote({ memberships }) {
+  const note = membershipNote(memberships)
+  return note ? (
+    <p className="client-me-renew" role="note">
+      {note}
+    </p>
+  ) : null
+}
+
+export function ClientProgressCard({ progress, today, sparkBuild = 0, sparkSettling = false }) {
   const p = progress ?? {}
+  const last = lastVisitWidget(p.last_visit, today)
   const weights = p.weights ?? []
-  const firstW = weights[0]
-  const lastW = weights.at(-1)
+  const weightDelta = weightDeltaWidget(weights)
   const deltas = measurementDeltas(p.measurements)
   return (
     <Card icon={TrendingUp} title="Мой прогресс">
       <div className="client-me-stats">
         <div>
           <strong>{p.visits_total ?? 0}</strong>
-          <span>{trainingsWord(p.visits_total ?? 0)} всего</span>
+          <span>всего</span>
         </div>
         <div>
           <strong>{p.visits_30d ?? 0}</strong>
           <span>за 30 дней</span>
         </div>
+        <div>
+          <strong>{last.value}</strong>
+          <span>{last.label}</span>
+        </div>
+        {weightDelta ? (
+          <div aria-label={weightDelta.aria}>
+            <strong aria-hidden>
+              {weightDelta.sign ? <span className="client-me-stats__sign">{weightDelta.sign}</span> : null}
+              {weightDelta.value}
+              <small>{weightDelta.unit}</small>
+            </strong>
+            <span>{weightDelta.label}</span>
+          </div>
+        ) : null}
       </div>
-      {p.last_visit ? <p className="client-me-muted">Последняя тренировка: {formatDateRu(p.last_visit)}</p> : null}
-      {lastW ? (
-        <p className="client-me-line">
-          Вес: <strong>{String(lastW.kg).replace('.', ',')} кг</strong>
-          {firstW && firstW !== lastW ? (
-            <span className="client-me-muted">
-              {' '}
-              ({formatSignedRu(lastW.kg - firstW.kg, 'кг')} с {formatDateRu(firstW.date)})
-            </span>
-          ) : null}
-        </p>
-      ) : null}
-      <ClientWeightSpark weights={weights} />
+      <ClientWeightSpark key={sparkBuild} weights={weights} settling={sparkSettling} rebuilt={sparkBuild > 0} />
       {deltas.length ? (
         <ul className="client-me-deltas">
           {deltas.map((d) => (

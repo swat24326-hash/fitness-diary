@@ -1,25 +1,24 @@
-import { LogOut, QrCode, RefreshCw, WifiOff } from 'lucide-react'
+import { QrCode, RefreshCw, WifiOff } from 'lucide-react'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { clientMeLeadCard } from '../../lib/client/clientMeHighlightsCore.js'
+import { ClientMenu } from './ClientMenu.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import {
   ClientLoyaltyCard,
+  ClientMembershipNote,
   ClientMembershipsCard,
   ClientNextSessionCard,
   ClientProgressCard,
 } from './ClientMeSections.jsx'
-import { ClientInstallCard } from './ClientInstallCard.jsx'
-import { ClientPushCard } from './ClientPushCard.jsx'
-import { useClientInstall } from './useClientInstall.js'
+import { ClientOnboardingBanner } from './ClientOnboardingBanner.jsx'
 import { useClientMe } from './useClientMe.js'
-import { useClientPush } from './useClientPush.js'
+import { useSparkRebuild } from './useSparkRebuild.js'
 
-/** /me — приложение клиента: просмотр своих данных и напоминания о тренировке. */
+/** /me — приложение клиента: данные клуба; установка и напоминания — баннеры первого входа и меню. */
 export function ClientMePage() {
   const { data, savedAt, status, error, reload, logout } = useClientMe()
-  const installer = useClientInstall()
-  const push = useClientPush({ active: !!data && status !== 'signed_out', standalone: installer.installed })
+  const spark = useSparkRebuild(status, reload)
 
   if (status === 'signed_out') {
     return (
@@ -38,24 +37,14 @@ export function ClientMePage() {
       <button
         type="button"
         className="btn btn-ghost btn-icon-square btn-touch"
-        onClick={reload}
+        onClick={spark.refresh}
         disabled={status === 'loading'}
         title="Обновить"
         aria-label="Обновить"
       >
         <RefreshCw size={18} aria-hidden className={status === 'loading' ? 'client-me-spin' : undefined} />
       </button>
-      <button
-        type="button"
-        className="btn btn-ghost btn-icon-square btn-touch"
-        onClick={() => {
-          if (window.confirm('Выйти? Войти снова можно будет только по новой ссылке из клуба.')) void logout()
-        }}
-        title="Выйти"
-        aria-label="Выйти"
-      >
-        <LogOut size={18} aria-hidden />
-      </button>
+      <ClientMenu clientName={data?.client?.name || ''} onLogout={() => void logout()} />
     </span>
   )
 
@@ -75,18 +64,25 @@ export function ClientMePage() {
   const sessionFirst = clientMeLeadCard(data) === 'session'
   return (
     <ClientMeShell actions={actions} club={data.club}>
-      <h1 className="client-me__hello">{data.client?.name || 'Мои тренировки'}</h1>
+      <h1 className="sr-only">{data.client?.name || 'Мои тренировки'}</h1>
       {status === 'offline' ? (
         <p className="client-me-offline" role="status">
           Нет связи — показаны данные на {savedAt ? formatDateTimeRu(savedAt) : 'последнее обновление'}
         </p>
       ) : null}
-      <ClientInstallCard clubName={data.club?.name || ''} installer={installer} />
-      <ClientPushCard push={push} />
-      {sessionFirst ? <ClientNextSessionCard session={data.next_session} today={today} lead /> : null}
-      <ClientMembershipsCard memberships={data.memberships} today={today} lead={!sessionFirst} />
-      {sessionFirst ? null : <ClientNextSessionCard session={data.next_session} today={today} />}
-      <ClientProgressCard progress={data.progress} />
+      <ClientOnboardingBanner clubName={data.club?.name || ''} />
+      <ClientProgressCard
+        progress={data.progress}
+        today={today}
+        sparkBuild={spark.build}
+        sparkSettling={spark.settling}
+      />
+      <div className="client-me-tiles">
+        {sessionFirst ? <ClientNextSessionCard session={data.next_session} today={today} lead /> : null}
+        <ClientMembershipsCard memberships={data.memberships} today={today} lead={!sessionFirst} />
+        {sessionFirst ? null : <ClientNextSessionCard session={data.next_session} today={today} />}
+      </div>
+      <ClientMembershipNote memberships={data.memberships} />
       <ClientLoyaltyCard loyalty={data.loyalty} />
     </ClientMeShell>
   )

@@ -1,22 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CLIENT_INSTALL_HIDDEN_KEY, clientInstallMode } from '../../lib/client/clientInstallCore.js'
+import { clientInstallMode } from '../../lib/client/clientInstallCore.js'
 
 function isStandalone() {
   return window.matchMedia?.('(display-mode: standalone)').matches === true || window.navigator.standalone === true
 }
 
-function readHidden() {
-  try {
-    return localStorage.getItem(CLIENT_INSTALL_HIDDEN_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-/** @returns {{ mode: 'none'|'prompt'|'ios', install: () => Promise<void>, hide: () => void, installed: boolean }} */
+/**
+ * Установка на телефон. Событие beforeinstallprompt браузер шлёт один раз за загрузку —
+ * хук живёт в ClientAppContext, чтобы кнопка работала с любого экрана /me.
+ * @returns {{ mode: 'none'|'prompt'|'ios', install: () => Promise<boolean>, installed: boolean }}
+ */
 export function useClientInstall() {
   const [promptEvent, setPromptEvent] = useState(null)
-  const [hidden, setHidden] = useState(readHidden)
   const [installed, setInstalled] = useState(isStandalone)
 
   useEffect(() => {
@@ -34,28 +29,20 @@ export function useClientInstall() {
   }, [])
 
   const install = useCallback(async () => {
-    if (!promptEvent) return
+    if (!promptEvent) return false
     promptEvent.prompt()
     const { outcome } = await promptEvent.userChoice
-    if (outcome === 'accepted') setInstalled(true)
     setPromptEvent(null)
+    if (outcome !== 'accepted') return false
+    setInstalled(true)
+    return true
   }, [promptEvent])
-
-  const hide = useCallback(() => {
-    try {
-      localStorage.setItem(CLIENT_INSTALL_HIDDEN_KEY, '1')
-    } catch {
-      /* приватный режим — просто прячем до перезагрузки */
-    }
-    setHidden(true)
-  }, [])
 
   const mode = clientInstallMode({
     standalone: installed,
     hasPrompt: !!promptEvent,
     ua: navigator.userAgent,
     maxTouchPoints: navigator.maxTouchPoints,
-    hidden,
   })
-  return { mode, install, hide, installed }
+  return { mode, install, installed }
 }

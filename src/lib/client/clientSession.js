@@ -119,7 +119,7 @@ export async function fetchClientMe() {
   return data
 }
 
-/** POST /api/client-me { action: 'push-*' } — напоминания на этот телефон. */
+/** POST /api/client-me { action: 'push-*' | 'handoff' } — напоминания на этот телефон, вход для значка iPhone. */
 export function postClientMe(body) {
   return clientMeRequest(
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },

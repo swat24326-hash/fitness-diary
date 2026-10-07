@@ -35,6 +35,28 @@ export const clientPortalStore = {
     if (error) throw error
   },
 
+  /** Приглашение для значка на iPhone: гасит только прежние такие же, ссылку из клуба не трогает. */
+  async createHandoffInvite({ clientId, clubId, tokenHash, expiresAt }) {
+    const db = createServiceDataClient()
+    const nowIso = new Date().toISOString()
+    const closed = await db
+      .from('client_invites')
+      .update({ expires_at: nowIso })
+      .eq('client_id', clientId)
+      .is('created_by', null)
+      .is('used_at', null)
+      .gt('expires_at', nowIso)
+    if (closed.error) throw closed.error
+    const { error } = await db.from('client_invites').insert({
+      client_id: clientId,
+      club_id: clubId,
+      token_hash: tokenHash,
+      created_by: null,
+      expires_at: expiresAt,
+    })
+    if (error) throw error
+  },
+
   async loadInviteByHash(tokenHash) {
     const { data, error } = await createServiceDataClient()
       .from('client_invites')

@@ -21,14 +21,15 @@ export function isClientManifestClubId(raw) {
   return UUID.test(String(raw ?? '').trim())
 }
 
-export function buildClientManifest(clubName) {
+/** @param {string} [startUrl] /me?h=… — вход значка на iPhone (clientHandoffCore.js) */
+export function buildClientManifest(clubName, startUrl = '/me') {
   const name = cleanClubName(clubName) || CLIENT_APP_FALLBACK_NAME
   return {
     name,
     short_name: name,
     description: 'Абонемент, ближайшая тренировка, прогресс и бонусы клуба',
     id: '/me/',
-    start_url: '/me',
+    start_url: startUrl,
     scope: '/me',
     display: 'standalone',
     theme_color: '#0a0a0a',

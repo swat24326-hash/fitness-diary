@@ -19,10 +19,10 @@ async function currentEndpoint() {
 /**
  * Напоминания о тренировке на этот телефон. Браузерную подписку при выключении не снимаем:
  * service worker общий с приложением зала, снимаем только запись на сервере.
- * @param {{ active: boolean, standalone: boolean }} opts active — клиент вошёл и данные загружены
+ * @param {{ active: boolean, standalone: boolean }} opts active — у клиента есть сессия
  */
 export function useClientPush({ active, standalone }) {
-  const [server, setServer] = useState({ configured: false, publicKey: '', subscribed: false, endpoint: '' })
+  const [server, setServer] = useState({ ready: false, configured: false, publicKey: '', subscribed: false, endpoint: '' })
   const [permission, setPermission] = useState(permissionNow)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -34,7 +34,7 @@ export function useClientPush({ active, standalone }) {
       const endpoint = await currentEndpoint().catch(() => '')
       const st = await postClientMe({ action: 'push-status', endpoint })
       if (cancelled) return
-      setServer({ configured: !!st.configured, publicKey: st.public_key || '', subscribed: !!st.subscribed, endpoint })
+      setServer({ ready: true, configured: !!st.configured, publicKey: st.public_key || '', subscribed: !!st.subscribed, endpoint })
       setPermission(permissionNow())
     })().catch(() => {
       /* нет связи — карточку просто не показываем */
@@ -51,13 +51,15 @@ export function useClientPush({ active, standalone }) {
       // Safari спрашивает разрешение только прямо из касания — до любых других await.
       const perm = await Notification.requestPermission()
       setPermission(perm)
-      if (perm !== 'granted') return
+      if (perm !== 'granted') return false
       const ser = serializePushSubscription(await subscribePushManager(server.publicKey))
       if (!ser.ok) throw new Error(ser.error)
       await postClientMe({ action: 'push-subscribe', ...ser.payload })
       setServer((s) => ({ ...s, subscribed: true, endpoint: ser.payload.endpoint }))
+      return true
     } catch (e) {
       setError(formatPushSubscribeError(e))
+      return false
     } finally {
       setBusy(false)
     }
@@ -84,5 +86,5 @@ export function useClientPush({ active, standalone }) {
     permission,
     subscribed: server.subscribed,
   })
-  return { mode, busy, error, enable, disable }
+  return { mode, ready: server.ready, busy, error, enable, disable }
 }

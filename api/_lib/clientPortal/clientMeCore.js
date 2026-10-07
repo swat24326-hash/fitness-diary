@@ -3,6 +3,7 @@
  * оплаты, телефоны и id сотрудников клиенту не уходят.
  */
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../../src/lib/bodyMeasures.js'
+import { listTrainingPreWeights } from '../../../src/lib/clientWeightCore.js'
 import { isLoyaltyNoShowTraining } from '../../../src/lib/loyalty/loyaltyTrainingEligibleCore.js'
 import {
   countedUsedTrainingsOnMembership,
@@ -88,6 +89,8 @@ function measurementView(row) {
 }
 
 /**
+ * Вес — из завершённых тренировок и ручных записей: в client_weight_entries вес тренировки
+ * попадает только после открытия истории веса в карточке. Один день — одно значение, тренировка главнее.
  * @param {object[]} trainings завершённые тренировки клиента
  * @param {object[]} weights client_weight_entries
  * @param {object[]} measurements body_measurements
@@ -96,9 +99,16 @@ export function buildClientProgress(trainings, weights, measurements, today) {
   const visits = (trainings ?? []).filter((t) => t?.status === 'completed' && !isLoyaltyNoShowTraining(t))
   const dates = visits.map((t) => day(t.date)).filter((d) => ISO.test(d) && d <= today).sort()
   const monthAgo = dates.filter((d) => (isoCalendarDaysDiff(today, d) ?? 99) < 30)
-  const weightRows = (weights ?? [])
-    .map((w) => ({ date: day(w.date), kg: Number(w.weight_kg) }))
-    .filter((w) => ISO.test(w.date) && Number.isFinite(w.kg) && w.kg > 0)
+  const weightByDay = new Map()
+  for (const w of weights ?? []) {
+    const kg = Number(w.weight_kg)
+    if (ISO.test(day(w.date)) && Number.isFinite(kg) && kg > 0) weightByDay.set(day(w.date), kg)
+  }
+  for (const t of listTrainingPreWeights(trainings)) {
+    if (t.date <= today) weightByDay.set(t.date, t.weightKg)
+  }
+  const weightRows = [...weightByDay]
+    .map(([date, kg]) => ({ date, kg }))
     .sort((a, b) => a.date.localeCompare(b.date))
   const measureRows = (measurements ?? [])
     .filter((m) => ISO.test(day(m.date)))

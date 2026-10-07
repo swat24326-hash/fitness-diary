@@ -105,6 +105,20 @@ ok(progress.visits_30d === 4, 'визиты за 30 дней')
 ok(buildClientProgress(trainings, [], [], '2026-10-25').visits_30d === 2, 'старше 30 дней не считаются')
 ok(progress.weights.length === 2 && progress.weights[0].kg === 74 && progress.weights[1].kg === 71.5, 'вес по возрастанию даты, число')
 ok(progress.measurements.length === 1, 'пустой замер отброшен')
+const withTrainingWeights = buildClientProgress(
+  [
+    { id: 'w1', date: '2026-09-01', status: 'completed', data: { pre_weight_kg: '73,5' } },
+    { id: 'w2', date: '2026-09-25', status: 'completed', data: JSON.stringify({ pre_weight_kg: 72 }) },
+    { id: 'w3', date: '2026-10-20', status: 'completed', data: { pre_weight_kg: 70 } },
+  ],
+  [{ date: '2026-09-01', weight_kg: 74 }, { date: '2026-09-10', weight_kg: 73 }],
+  [],
+  TODAY,
+)
+ok(
+  withTrainingWeights.weights.map((w) => `${w.date}:${w.kg}`).join() === '2026-09-01:73.5,2026-09-10:73,2026-09-25:72',
+  'вес из тренировок без открытия истории в карточке; день — одно значение, тренировка главнее; будущее не берём',
+)
 const mv = progress.measurements[0].values
 ok(mv.neck === 35 && mv.waist_upper === 80 && mv.waist_lower === 80, 'замеры по полям приложения (с legacy fallback)')
 

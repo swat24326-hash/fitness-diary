@@ -74,6 +74,12 @@ const AppUpdatedBannerLazy = lazyPwaOverlay(
 
 const ClientMePage = lazy(() => import('./pages/client/ClientMePage.jsx').then((m) => ({ default: m.ClientMePage })))
 const ClientJoinPage = lazy(() => import('./pages/client/ClientJoinPage.jsx').then((m) => ({ default: m.ClientJoinPage })))
+const ClientSettingsPage = lazy(() =>
+  import('./pages/client/ClientSettingsPage.jsx').then((m) => ({ default: m.ClientSettingsPage })),
+)
+const ClientAppProvider = lazy(() =>
+  import('./pages/client/ClientAppContext.jsx').then((m) => ({ default: m.ClientAppProvider })),
+)
 
 /** Приложение клиента: вне LoggedInLayout, без шапки и sync зала. */
 function ClientAppRoutes() {
@@ -87,10 +93,13 @@ function ClientAppRoutes() {
         </div>
       }
     >
-      <Routes>
-        <Route path="join" element={<ClientJoinPage />} />
-        <Route path="*" element={<ClientMePage />} />
-      </Routes>
+      <ClientAppProvider>
+        <Routes>
+          <Route path="join" element={<ClientJoinPage />} />
+          <Route path="settings" element={<ClientSettingsPage />} />
+          <Route path="*" element={<ClientMePage />} />
+        </Routes>
+      </ClientAppProvider>
     </Suspense>
   )
 }
