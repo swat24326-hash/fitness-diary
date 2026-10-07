@@ -20,6 +20,27 @@ import {
   shouldLogPortableResponse,
   userIdFromBearerForLog,
 } from '../api/_lib/portableRequestLog.js'
+import {
+  formatPortableTimingLog,
+  shouldLogPortableTiming,
+  timingRouteLabel,
+} from '../api/_lib/portableTimingLog.js'
+
+/** Размер тела ответа: handlers пишут через res.end(string) без Content-Length. */
+function countResponseBytes(res, add) {
+  const size = (chunk, enc) =>
+    chunk == null || typeof chunk === 'function' ? 0 : Buffer.byteLength(chunk, typeof enc === 'string' ? enc : undefined)
+  const write = res.write.bind(res)
+  const end = res.end.bind(res)
+  res.write = (chunk, enc, cb) => {
+    add(size(chunk, enc))
+    return write(chunk, enc, cb)
+  }
+  res.end = (chunk, enc, cb) => {
+    add(size(chunk, enc))
+    return end(chunk, enc, cb)
+  }
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '..')
@@ -171,8 +192,24 @@ export function createPortableApiHost(opts = {}) {
     for (const [name, value] of Object.entries(PORTABLE_SECURITY_HEADERS)) res.setHeader(name, value)
     const startedAt = Date.now()
     try {
-      const pathname = new URL(rawReq.url || '/', `http://${rawReq.headers.host || 'localhost'}`).pathname
+      const reqUrl = new URL(rawReq.url || '/', `http://${rawReq.headers.host || 'localhost'}`)
+      const pathname = reqUrl.pathname
+      const timed = shouldLogPortableTiming(pathname, 200)
+      let bytes = 0
+      if (timed) countResponseBytes(res, (n) => (bytes += n))
       res.once('finish', () => {
+        if (timed && shouldLogPortableTiming(pathname, res.statusCode)) {
+          console.log(
+            formatPortableTimingLog({
+              method: rawReq.method,
+              route: timingRouteLabel(pathname, reqUrl.search),
+              status: res.statusCode,
+              ms: Date.now() - startedAt,
+              bytes,
+              userId: userIdFromBearerForLog(rawReq.headers.authorization),
+            }),
+          )
+        }
         if (!shouldLogPortableResponse(pathname, res.statusCode)) return
         console.warn(
           formatPortableResponseLog({
