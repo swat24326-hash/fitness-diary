@@ -1,5 +1,5 @@
 import webpush from 'web-push'
-import { buildDispatchPushPayload } from '../../src/lib/push/trainerPushCore.js'
+import { buildDispatchPushPayload, isValidVapidPublicKey } from '../../src/lib/push/trainerPushCore.js'
 import {
   buildDispatchSenderStatusPushPayload,
   shouldNotifySenderOnDispatchStatus,
@@ -9,10 +9,12 @@ import {
 let configured = false
 
 /**
+ * Заглушка вместо ключа (так было на ВМ после переезда) = не настроено: иначе экран показывает
+ * кнопку, а телефон падает на «неверный ключ».
  * @returns {boolean}
  */
 export function isWebPushConfigured() {
-  return !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
+  return isValidVapidPublicKey(process.env.VAPID_PUBLIC_KEY) && String(process.env.VAPID_PRIVATE_KEY ?? '').trim().length >= 40
 }
 
 function ensureConfigured() {

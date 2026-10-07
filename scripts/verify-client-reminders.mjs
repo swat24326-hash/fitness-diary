@@ -11,7 +11,9 @@ import {
   trainerNameInstrumental,
 } from '../api/_lib/clientPortal/clientReminderCore.js'
 import { isAllowedPushEndpoint, normalizeClientPushSubscribe } from '../api/_lib/clientPortal/clientPushCore.js'
+import webpush from 'web-push'
 import { runClientReminders } from '../api/_lib/clientPortal/clientReminderJob.js'
+import { isWebPushConfigured } from '../api/_lib/webPushCore.js'
 import { clientPushMode } from '../src/lib/client/clientPushModeCore.js'
 
 let failed = 0
@@ -136,8 +138,14 @@ function fakeDb(tables) {
   }
 }
 
-process.env.VAPID_PUBLIC_KEY = 'verify-public'
-process.env.VAPID_PRIVATE_KEY = 'verify-private'
+process.env.VAPID_PUBLIC_KEY = '[REDACTED]'
+process.env.VAPID_PRIVATE_KEY = '[REDACTED]'
+ok(!isWebPushConfigured(), 'заглушка вместо ключей — push не настроен, карточку не показываем')
+ok((await runClientReminders({ db: fakeDb({}), now: new Date('2026-10-07T16:00:00Z') })).skipped === 'vapid_not_configured', 'с заглушкой cron ничего не шлёт')
+const vapid = webpush.generateVAPIDKeys()
+process.env.VAPID_PUBLIC_KEY = vapid.publicKey
+process.env.VAPID_PRIVATE_KEY = vapid.privateKey
+ok(isWebPushConfigured(), 'настоящие ключи — push настроен')
 const AT_19 = new Date('2026-10-07T16:00:00Z')
 const tables = {
   client_push_subscriptions: [

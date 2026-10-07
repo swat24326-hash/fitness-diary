@@ -12,7 +12,11 @@ npm run db:migrate:iskra -- --linked
 
 Проверяет в том числе таблицу `user_push_subscriptions`.
 
-## 2. VAPID-ключи (Vercel)
+## 2. VAPID-ключи
+
+**Сейчас (ВМ, app-core.ru):** `sudo bash scripts/push-vapid-setup-vm.sh` — генерирует ключи прямо в `/opt/fitness-diary/.env`, ничего не печатает, рабочие ключи не трогает (`--force` — сменить; тогда все подписки надо включить заново). Затем `sudo bash scripts/r3-deploy-vm.sh origin/main` — публичный ключ попадает в сборку. Заглушка вместо ключа сервер считает «не настроено» (INC-2026-10-07-05).
+
+**Старый путь (Vercel, до 01.10.2026):**
 
 ```bash
 npx web-push generate-vapid-keys

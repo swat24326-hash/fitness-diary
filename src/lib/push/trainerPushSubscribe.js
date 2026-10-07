@@ -84,7 +84,7 @@ function isPushServiceError(err) {
 export async function subscribePushManager(publicKey, opts = {}) {
   const key = normalizeVapidPublicKey(publicKey)
   if (!isValidVapidPublicKey(key)) {
-    throw new Error('Неверный ключ push на сервере. Администратору: VAPID_PUBLIC_KEY в Vercel (см. docs/PUSH_SETUP.md).')
+    throw new Error('Уведомления пока не настроены на сервере — попробуйте позже.')
   }
 
   const reg = await waitForPushServiceWorker()

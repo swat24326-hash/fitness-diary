@@ -82,7 +82,7 @@ export function formatPushSubscribeError(err, opts = {}) {
   }
 
   if (lower.includes('invalid key') || lower.includes('applicationserverkey')) {
-    return 'Неверный ключ push на сервере. Администратору: проверить VAPID_PUBLIC_KEY в Vercel.'
+    return 'Уведомления пока не настроены на сервере — попробуйте позже.'
   }
 
   return raw
