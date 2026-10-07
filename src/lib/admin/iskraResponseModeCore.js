@@ -127,11 +127,6 @@ export function buildIskraResponseFormatRule(mode) {
   return GEMINI_RESPONSE_BRIEF_RULE
 }
 
-/** Edge Gemini не поддерживает увеличенный лимит токенов — только Vercel API. */
-export function shouldSkipGeminiEdge(mode) {
-  return mode !== 'brief'
-}
-
 /**
  * Фрагмент для TTS: не читать простыню и не озвучивать один заголовок «Факты».
  * @param {string} text

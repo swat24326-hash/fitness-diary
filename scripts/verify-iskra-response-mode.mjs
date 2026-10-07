@@ -13,7 +13,6 @@ import {
   resolveChatHistoryTurns,
   resolveGeminiGenerationConfig,
   resolveIskraResponseMode,
-  shouldSkipGeminiEdge,
 } from '../src/lib/admin/iskraResponseModeCore.js'
 
 let failed = 0
@@ -43,9 +42,6 @@ const deepCfg = resolveGeminiGenerationConfig('deep')
 ok(briefCfg.maxOutputTokens === 384, 'brief tokens')
 ok(resolveGeminiGenerationConfig('standard').maxOutputTokens === 1024, 'standard tokens')
 ok(deepCfg.maxOutputTokens === 1536, 'deep tokens')
-ok(shouldSkipGeminiEdge('deep'), 'skip edge deep')
-ok(!shouldSkipGeminiEdge('brief'), 'edge ok brief')
-
 ok(resolveAdviceCardLimit('deep') === 8, 'deep advice limit')
 ok(resolveChatHistoryTurns('deep') === 12, 'deep history turns')
 

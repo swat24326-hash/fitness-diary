@@ -1,17 +1,15 @@
-import { readEnv, sendJson } from './adminSupabase.js'
+import { sendJson } from './adminSupabase.js'
 import { loadClubIskraSettings } from './iskraSettingsHandler.js'
 import { getCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 import { loadGeminiAnalyticsContext, loadGeminiSnapshotForMonth } from './geminiAnalyticsData.js'
 import { buildGeminiGeneratePayload } from './geminiApiClient.js'
 import { callIskraLlm } from './iskraLlmClient.js'
-import { resolveIskraLlmConfig } from './iskraLlmCore.js'
 import {
   getCachedGeminiResponse,
   setCachedGeminiResponse,
 } from './geminiAnalyticsResponseCache.js'
 import {
   buildPersona,
-  buildGeminiPromptDataBlock,
   formatGeminiUserError,
   isGeminiReplyIncomplete,
   resolveGeminiComparePrevious,
@@ -76,7 +74,6 @@ import { buildIskraSparkBrief } from '../../src/lib/admin/iskraSparkBriefCore.js
 import {
   resolveAdviceCardLimit,
   resolveIskraResponseMode,
-  shouldSkipGeminiEdge,
   iskraAdminRichContext,
 } from '../../src/lib/admin/iskraResponseModeCore.js'
 import { loadClubOpenDispatchForPrompt, loadClubPlanerkaFeed } from './iskraDispatchQuery.js'
@@ -121,53 +118,9 @@ function attachSourceFacts(payload, snapshot, userMessage, meta = {}) {
   return payload
 }
 
-async function tryEdgeGemini(authHeader, payload) {
-  const { url, anonKey } = readEnv()
-  if (!url) return null
-  const edgeUrl = `${url.replace(/\/$/, '')}/functions/v1/gemini-analytics`
-  try {
-    const res = await fetch(edgeUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: authHeader,
-        apikey: anonKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (res.ok && data?.text) return { ok: true, data }
-    if (data?.error) return { ok: false, error: String(data.error) }
-    return { ok: false, error: null }
-  } catch {
-    return null
-  }
-}
-
-async function callGeminiForReply(authHeader, geminiPayload, edgeBody, opts = {}) {
-  let text = ''
-  let source = 'vercel'
-  let edgeResult = null
-  const viaYandex = resolveIskraLlmConfig(process.env).provider === 'yandex'
-
-  if (!opts.skipEdge && !viaYandex) {
-    edgeResult = await tryEdgeGemini(authHeader, edgeBody)
-    if (edgeResult?.ok && edgeResult.data?.text) {
-      const edgeText = String(edgeResult.data.text)
-      if (!isGeminiReplyIncomplete(edgeText, undefined, geminiPayload.responseMode ?? 'brief')) {
-        text = edgeText
-        source = 'edge'
-      }
-    }
-  }
-
-  if (!text) {
-    const reply = await callIskraLlm(geminiPayload)
-    text = reply.text
-    source = reply.provider === 'yandex' ? 'yandex' : 'vercel'
-  }
-
-  return { text, source }
+async function callGeminiForReply(geminiPayload) {
+  const reply = await callIskraLlm(geminiPayload)
+  return { text: reply.text, source: reply.provider === 'yandex' ? 'yandex' : 'vercel' }
 }
 
 /**
@@ -688,37 +641,11 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       coachQualityBrief,
     })
 
-    const authHeader = String(req.headers.authorization || req.headers.Authorization || '')
     const keepClubOnOffTopic = shouldKeepClubContextOnOffTopic({
       advisorRoleId: geminiAdvisorCtx.advisorRoleId,
       responseMode,
     })
-    const dataBlock =
-      offTopicQuestion && !keepClubOnOffTopic
-        ? { context: 'general_knowledge_question', club_name_for_role_reminder: clubName || 'филиала' }
-        : buildGeminiPromptDataBlock(geminiScopedSnapshot, previousSnapshot, {
-            selectedTrainerId: effectiveTrainerId,
-            panelSegment,
-            advisorRoleId: geminiAdvisorCtx.advisorRoleId,
-            advisorAdvice: geminiAdvisorCtx.adviceSummary,
-            responseMode,
-            dispatchOpen,
-            learningBundle,
-            coachQualityBrief,
-          })
-    const edgeBody = {
-      gender,
-      club_name: clubName,
-      user_message: userMessage,
-      messages,
-      prompt_data_block: dataBlock,
-      compare_previous: comparePrevious,
-      system_prompt: geminiPayload.systemInstruction.parts[0].text,
-    }
-
-    let { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, {
-      skipEdge: (offTopicQuestion && !keepClubOnOffTopic) || shouldSkipGeminiEdge(responseMode),
-    })
+    let { text, source } = await callGeminiForReply(geminiPayload)
 
     if (offTopicQuestion && text) {
       text = normalizeIskraOffTopicReply(text, clubName, userMessage, {
