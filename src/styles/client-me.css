@@ -67,6 +67,55 @@
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 
+.client-me-card.client-me-card--lead {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+    var(--bg-card);
+}
+
+.client-me-card--lead .client-me-mem__left strong,
+.client-me-card--lead .client-me-next__time {
+  font-size: 2rem;
+}
+
+.client-me-renew {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.client-me-spark {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.client-me-spark svg {
+  width: 100%;
+  height: 64px;
+}
+
+.client-me-spark polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.client-me-spark__axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
 .client-me-card--center {
   display: grid;
   margin-top: 12vh;

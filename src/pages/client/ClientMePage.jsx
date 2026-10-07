@@ -1,5 +1,6 @@
 import { LogOut, QrCode, RefreshCw, WifiOff } from 'lucide-react'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
+import { clientMeLeadCard } from '../../lib/client/clientMeHighlightsCore.js'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import {
@@ -65,6 +66,7 @@ export function ClientMePage() {
   }
 
   const today = data.as_of
+  const sessionFirst = clientMeLeadCard(data) === 'session'
   return (
     <ClientMeShell actions={actions}>
       <h1 className="client-me__hello">{data.client?.name || 'Мои тренировки'}</h1>
@@ -73,8 +75,9 @@ export function ClientMePage() {
           Нет связи — показаны данные на {savedAt ? formatDateTimeRu(savedAt) : 'последнее обновление'}
         </p>
       ) : null}
-      <ClientMembershipsCard memberships={data.memberships} today={today} />
-      <ClientNextSessionCard session={data.next_session} today={today} />
+      {sessionFirst ? <ClientNextSessionCard session={data.next_session} today={today} lead /> : null}
+      <ClientMembershipsCard memberships={data.memberships} today={today} lead={!sessionFirst} />
+      {sessionFirst ? null : <ClientNextSessionCard session={data.next_session} today={today} />}
       <ClientProgressCard progress={data.progress} />
       <ClientLoyaltyCard loyalty={data.loyalty} />
     </ClientMeShell>

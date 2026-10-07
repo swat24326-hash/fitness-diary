@@ -8,10 +8,12 @@ import {
   pointsWord,
   trainingsWord,
 } from '../../lib/client/clientMeUiCore.js'
+import { clientRenewalHint } from '../../lib/client/clientMeHighlightsCore.js'
+import { ClientWeightSpark } from './ClientWeightSpark.jsx'
 
-function Card({ icon: Icon, title, children }) {
+function Card({ icon: Icon, title, lead = false, children }) {
   return (
-    <section className="client-me-card">
+    <section className={lead ? 'client-me-card client-me-card--lead' : 'client-me-card'}>
       <h2 className="client-me-card__title">
         <Icon size={18} aria-hidden />
         {title}
@@ -21,10 +23,11 @@ function Card({ icon: Icon, title, children }) {
   )
 }
 
-export function ClientMembershipsCard({ memberships, today }) {
+export function ClientMembershipsCard({ memberships, today, lead }) {
   const current = memberships?.current ?? []
+  const renewHint = clientRenewalHint(memberships)
   return (
-    <Card icon={IdCard} title="Мой абонемент">
+    <Card icon={IdCard} title="Мой абонемент" lead={lead}>
       {current.length ? (
         current.map((m, i) => (
           <div key={`${m.start_date}-${i}`} className={`client-me-mem client-me-mem--${m.status}`}>
@@ -51,13 +54,18 @@ export function ClientMembershipsCard({ memberships, today }) {
       ) : (
         <p className="client-me-muted">Абонемента пока нет.</p>
       )}
+      {renewHint ? (
+        <p className="client-me-renew" role="note">
+          {renewHint}
+        </p>
+      ) : null}
     </Card>
   )
 }
 
-export function ClientNextSessionCard({ session, today }) {
+export function ClientNextSessionCard({ session, today, lead }) {
   return (
-    <Card icon={CalendarClock} title="Следующая тренировка">
+    <Card icon={CalendarClock} title="Следующая тренировка" lead={lead}>
       {session ? (
         <div className="client-me-next">
           <span className="client-me-next__day">{formatSessionDayRu(session.date, today)}</span>
@@ -101,6 +109,7 @@ export function ClientProgressCard({ progress }) {
           ) : null}
         </p>
       ) : null}
+      <ClientWeightSpark weights={weights} />
       {deltas.length ? (
         <ul className="client-me-deltas">
           {deltas.map((d) => (
