@@ -308,7 +308,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 
 **Итог R1 (2026-08-22; перепроверка 2026-08-27; снова 2026-09-25):** код готов к команде «стартуем R2…» = Hybrid A. План `db:migrate:pg` — **94 шага** (stub + schema + 92 файла). Открытые пункты выше — только после staging / cutover. План проверки по волнам: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).
 
-*Dev-proxy:* `VITE_DEV_API_PROXY` (дефолт пока текущий prod) — только локальная разработка, не runtime клуба.
+*Dev-proxy:* `VITE_DEV_API_PROXY` (дефолт `https://app-core.ru`) — только локальная разработка, не runtime клуба. Vite проксирует `/api`, `/auth/v1`, `/rest/v1`; в `.env.development.local` — `VITE_SUPABASE_URL=http://127.0.0.1:5173`, чтобы вход шёл с того же origin (иначе браузер режет прямой `/auth/v1` по CORS).
 
 #### §5.4.1 Инвентарь внешних зависимостей (R1)
 

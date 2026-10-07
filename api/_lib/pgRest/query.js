@@ -116,6 +116,12 @@ export class PgRestQuery {
     return this
   }
 
+  /** JSONB-колонка содержит значение (`@>`), напр. `contains('client_ids', [id])`. */
+  contains(column, value) {
+    this.spec.filters.push({ op: 'cs', column, value })
+    return this
+  }
+
   in(column, values) {
     this.spec.filters.push({ op: 'in', column, value: Array.isArray(values) ? values : [] })
     return this

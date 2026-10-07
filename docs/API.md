@@ -1,6 +1,6 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-08-20. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
+**Актуально:** 2026-10-07. Новое действие — сначала `admin-data?action=`; отдельный файл — для отдельного контура (как приложение клиента `client-*`).
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
 Ядро: **`api/_lib/`** (не `api/lib/`). Точный роутинг ролей — `api/admin-data.js` (таблица ниже — ориентир; при сомнении смотреть handler).
@@ -23,10 +23,13 @@
 | `/api/get-client` | Один клиент (admin / trainer свои / sales_manager своего клуба). Query: `client_id`, опционально `scope=full\|glance` (glance — клиент + абоны, без дневника; desk ТЗ/АЗ и lite-ПЗ без планшета) |
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
 | `/api/update-trainer-club` | Смена клуба тренера |
+| `/api/client-invite` | **Приложение клиента.** POST `{ client_id, action? }`, только сотрудник: тренер — своему клиенту, управляющий / менеджер — клиенту своего клуба, админ — любому; архивный клиент — 409. `create` (по умолчанию) → `{ token, expires_at }`: одноразовый, 72 ч, в базе только sha256; новая ссылка гасит прежнюю неиспользованную. `revoke` — отключить все входы клиента и открытые ссылки (`api/_lib/clientPortal/`) |
+| `/api/client-auth` | **Приложение клиента**, без Bearer. POST `{ action: 'redeem', token }` → сессия клиента; `refresh` / `logout` по `refresh_token`. Токены `typ: client` / `client_refresh` (тот же `JWT_SECRET`): API сотрудника их не принимает, `/api/client-me` не принимает токены сотрудника. Лимит: 10 неудачных redeem с IP за 15 мин → 429. Нет `JWT_SECRET` — 503 |
+| `/api/client-me` | **Приложение клиента.** GET, только токен клиента; сессия и архив проверяются на каждый запрос. Ответ — белые списки: абонементы (метка типа, срок, остаток по дневнику), ближайший слот ежедневника (дата, время, имя тренера; без заметки), прогресс (визиты без неявок, вес, замеры), бонусы ПЗ (итог `buildLoyaltyAccount` без записи `cycle_open`). Без `data` тренировок, оплат, телефонов и id сотрудников |
 
 **Ошибки БД в ответах:** клиент получает русский текст по SQLSTATE с нейтральным маркером класса (`duplicate key`, `foreign key violation`, `does not exist`, `permission denied`) и, если есть, именем ограничения в `[…]` (по нему подсказки «Помощи» на планшете) — без значений строк и эха ввода; `/rest/v1` сохраняет `code`, `details`/`hint` = null. Сырой текст — только в логе сервера (`api/_lib/dbErrorPublicCore.js`). Статусы не менялись. Остальные хендлеры (админка, ИСКРА, прайсы, ПНК…) получают ошибку из data client уже очищенной (`pgErrorForServer`): без `detail`/`hint`, эха ввода и ошибок подключения к базе; английский текст Postgres с именами таблиц/колонок остаётся (на нём фоллбэки старой схемы).
 
-Считать лимит перед добавлением 13-го файла. Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer`. Legacy Edge `supabase/functions/*` для прода не нужен.
+С 01.10.2026 прод — свой Node-хост (`server/portableApiHost.js` подхватывает любой `api/<name>.js`), лимит Vercel Hobby больше не действует; `client-*` — 13–15-й файлы. Vercel оставлен только redirect'ом. Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer`. Legacy Edge `supabase/functions/*` для прода не нужен.
 
 ---
 

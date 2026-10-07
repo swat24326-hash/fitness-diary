@@ -9,7 +9,7 @@ import {
 } from './src/lib/productBrand.js'
 
 /** Локальный `npm run dev`: куда проксировать `/api`. Переопределение — VITE_DEV_API_PROXY. */
-const DEFAULT_DEV_API_PROXY = 'https://fitness-diary-bice.vercel.app'
+const DEFAULT_DEV_API_PROXY = 'https://app-core.ru'
 const devApiProxyTarget = process.env.VITE_DEV_API_PROXY?.trim() || DEFAULT_DEV_API_PROXY
 
 /** Время сборки — попадает в Диагностику рядом с id бандла. */
@@ -26,13 +26,12 @@ export default defineConfig(({ mode }) => ({
           host: '127.0.0.1',
           port: 5173,
           strictPort: true,
-          proxy: {
-            '/api': {
-              target: devApiProxyTarget,
-              changeOrigin: true,
-              secure: true,
-            },
-          },
+          proxy: Object.fromEntries(
+            ['/api', '/auth/v1', '/rest/v1'].map((path) => [
+              path,
+              { target: devApiProxyTarget, changeOrigin: true, secure: true },
+            ]),
+          ),
         }
       : undefined,
   plugins: [

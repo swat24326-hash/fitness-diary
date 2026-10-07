@@ -1,0 +1,82 @@
+import { LogOut, QrCode, RefreshCw, WifiOff } from 'lucide-react'
+import { formatDateTimeRu } from '../../lib/dateRu.js'
+import { ClientMeShell } from './ClientMeShell.jsx'
+import { ClientMeStatus } from './ClientMeStatus.jsx'
+import {
+  ClientLoyaltyCard,
+  ClientMembershipsCard,
+  ClientNextSessionCard,
+  ClientProgressCard,
+} from './ClientMeSections.jsx'
+import { useClientMe } from './useClientMe.js'
+
+/** /me — приложение клиента: только просмотр своих данных. */
+export function ClientMePage() {
+  const { data, savedAt, status, error, reload, logout } = useClientMe()
+
+  if (status === 'signed_out') {
+    return (
+      <ClientMeShell>
+        <ClientMeStatus
+          icon={QrCode}
+          title="Вход по ссылке из клуба"
+          hint={error || 'Попросите тренера или администратора показать QR-код в вашей карточке и отсканируйте его камерой.'}
+        />
+      </ClientMeShell>
+    )
+  }
+
+  const actions = (
+    <span className="client-me__actions">
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon-square btn-touch"
+        onClick={reload}
+        disabled={status === 'loading'}
+        title="Обновить"
+        aria-label="Обновить"
+      >
+        <RefreshCw size={18} aria-hidden className={status === 'loading' ? 'client-me-spin' : undefined} />
+      </button>
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon-square btn-touch"
+        onClick={() => {
+          if (window.confirm('Выйти? Войти снова можно будет только по новой ссылке из клуба.')) void logout()
+        }}
+        title="Выйти"
+        aria-label="Выйти"
+      >
+        <LogOut size={18} aria-hidden />
+      </button>
+    </span>
+  )
+
+  if (!data) {
+    return (
+      <ClientMeShell actions={actions}>
+        {status === 'offline' ? (
+          <ClientMeStatus icon={WifiOff} title="Нет связи" hint={error} />
+        ) : (
+          <ClientMeStatus icon={RefreshCw} spin title="Загружаем…" />
+        )}
+      </ClientMeShell>
+    )
+  }
+
+  const today = data.as_of
+  return (
+    <ClientMeShell actions={actions}>
+      <h1 className="client-me__hello">{data.client?.name || 'Мои тренировки'}</h1>
+      {status === 'offline' ? (
+        <p className="client-me-offline" role="status">
+          Нет связи — показаны данные на {savedAt ? formatDateTimeRu(savedAt) : 'последнее обновление'}
+        </p>
+      ) : null}
+      <ClientMembershipsCard memberships={data.memberships} today={today} />
+      <ClientNextSessionCard session={data.next_session} today={today} />
+      <ClientProgressCard progress={data.progress} />
+      <ClientLoyaltyCard loyalty={data.loyalty} />
+    </ClientMeShell>
+  )
+}

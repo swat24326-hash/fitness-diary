@@ -40,6 +40,7 @@ import { TrainerProfile } from './pages/trainer/TrainerProfile'
 import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
 import { TrainerCalendarPage } from './pages/trainer/TrainerCalendarPage'
 import { TrainingPage } from './pages/trainer/TrainingPage'
+import { ClientMeStatus } from './pages/client/ClientMeStatus.jsx'
 
 /** В dev virtual:pwa-register недоступен — только prod, внутри Router (нужен useLocation). */
 function lazyPwaOverlay(importer, exportName) {
@@ -70,6 +71,29 @@ const AppUpdatedBannerLazy = lazyPwaOverlay(
   () => import('./components/AppUpdatedBanner.jsx'),
   'AppUpdatedBanner',
 )
+
+const ClientMePage = lazy(() => import('./pages/client/ClientMePage.jsx').then((m) => ({ default: m.ClientMePage })))
+const ClientJoinPage = lazy(() => import('./pages/client/ClientJoinPage.jsx').then((m) => ({ default: m.ClientJoinPage })))
+
+/** Приложение клиента: вне LoggedInLayout, без шапки и sync зала. */
+function ClientAppRoutes() {
+  return (
+    <Suspense
+      fallback={
+        <div className="client-me">
+          <main className="client-me__main">
+            <ClientMeStatus title="Загружаем…" />
+          </main>
+        </div>
+      }
+    >
+      <Routes>
+        <Route path="join" element={<ClientJoinPage />} />
+        <Route path="*" element={<ClientMePage />} />
+      </Routes>
+    </Suspense>
+  )
+}
 
 function AppPwaOverlays() {
   if (!import.meta.env.PROD) return null
@@ -216,6 +240,7 @@ export default function App() {
         <AppPwaOverlays />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/me/*" element={<ClientAppRoutes />} />
           <Route element={<LoggedInLayout />}>
             <Route path="/" element={<HomeRedirect />} />
             <Route element={<RoleOutlet roles={['trainer']} />}>

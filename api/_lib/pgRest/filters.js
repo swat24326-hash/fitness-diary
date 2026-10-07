@@ -108,6 +108,8 @@ export function compileFilter(filter, values, udtOf) {
 }
 
 function compareSql(columnSql, op, value, values, udt) {
+  // Только серверный .contains(): в OPS нет, поэтому /rest/v1 и or() его не принимают.
+  if (op === 'cs') return { sql: `${columnSql} @> ${pushPlaceholder(values, value, 'jsonb')}` }
   if (!OPS.has(op)) return { error: `Фильтр ${op} пока не поддержан` }
   if (op === 'is') return isSql(columnSql, value)
   if (op === 'in') {

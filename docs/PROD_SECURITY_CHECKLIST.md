@@ -15,6 +15,7 @@
 | Ошибки базы без значений строк, адреса и логина БД | `verify-api-error-sanitize` | ✅ |
 | Новая таблица без RLS | `verify-rls-coverage` | ✅ |
 | Заголовки и боевая CSP | `verify-portable-host-security` | ✅ |
+| Приложение клиента: токен клиента ≠ токен сотрудника, одноразовая ссылка, лимит по IP, белые списки ответа | `verify-client-auth`, `verify-client-me-whitelist` | ✅ |
 
 Всё входит в `npm run qa:local`.
 
@@ -26,6 +27,7 @@
 - [ ] `/api/push-record`, `/api/trainer-pull`, `/api/admin-data` без токена → 401.
 - [ ] 11× вход выдуманным логином `qa-rl-probe-<дата>` с разными `X-Forwarded-For` → 10× 401, 11-й **429**.
 - [ ] Ответ на неверный пароль одинаков для настоящего и выдуманного логина.
+- [ ] Приложение клиента: `/api/client-me` без токена и с токеном сотрудника → 401; `/api/client-auth` redeem выдуманным токеном → 401, 11-й с одного IP → **429**; `/api/client-invite` без токена → 401.
 - [ ] `/.env`, `/.git/config` → отдаётся `index.html`, не файл.
 - [ ] Заголовки ответа: HSTS, `X-Frame-Options`, `Content-Security-Policy` (не `-Report-Only`).
 

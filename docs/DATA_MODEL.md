@@ -47,6 +47,8 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `club_loyalty_settings` | `club_id` | Лояльность ПЗ: ставки и интервалы; RLS без политик anon — только API |
 | `loyalty_ledger` | `id` | Якоря redeem / архив / переезд / cycle_open; не в push allowlist |
 | `auth_sessions` | `id` (= `sid` в JWT) | Сессии своего входа (`AUTH_PROVIDER=own`): `revoked_at` ставят «Выйти», блок тренера и смена пароля админом; refresh с отозванным `sid` не продлевается. Только сервер, RLS без политик. Миграция `20261006120000_auth_sessions.sql` |
+| `client_invites` | `id` | Приглашения в приложение клиента `/me`: `token_hash` (sha256, сам токен не хранится), `expires_at` (72 ч), `used_at` (одноразовое), `created_by`. Только сервер, RLS без политик. Миграция `20261007120000_client_portal.sql` |
+| `client_sessions` | `id` (= `sid` в токене клиента) | Сессии клиента: `revoked_at` — «Выйти» или «Отключить все входы»; архив клиента закрывает доступ без записи сюда. Та же миграция, плюс GIN-индекс `trainer_schedule_entries.client_ids` для «следующей тренировки» |
 
 Миграции SMS / звонки / moizvonki: `club_sms_templates`, `club_sms_log`, `20260805230000_club_iskra_moizvonki.sql`, `20260813210000_club_sms_log_status.sql`, `20260813220000_club_call_log.sql`, `20260814153000_club_call_log_outcome.sql`, `20260814210000_club_call_log_recording.sql`, `20260815010000_club_call_log_staff_note.sql`, `20260816020000_club_call_log_inbound.sql`, `20260820160000_club_call_log_funnel_chips.sql`.
 

@@ -20,6 +20,7 @@ import {
 } from '../../lib/clientArchiveReasonCore.js'
 import { formatExpectedReturnHint } from '../../lib/clientArchiveExpectedReturnCore.js'
 import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
+import { ClientAppInviteButton } from '../../components/client/ClientAppInviteButton.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -924,6 +925,7 @@ export function ClientCard() {
             <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
               <Pencil size={16} aria-hidden />
             </button>
+            {isOpenPnkClient(client) ? null : <ClientAppInviteButton client={client} disabled={isArchived} />}
             {canManageClubClients && client?.club_id ? (
               <AdminClientCallHistoryButton
                 variant="icon"
