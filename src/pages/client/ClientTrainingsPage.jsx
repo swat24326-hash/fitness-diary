@@ -3,7 +3,7 @@ import { ChevronRight, RefreshCw } from 'lucide-react'
 import { TrainingViewModal } from '../../components/trainer/TrainingViewModal.jsx'
 import { membershipTrainingsCards } from '../../lib/client/clientMembershipVisitsUiCore.js'
 import { trainingViewTitle } from '../../lib/client/clientTrainingsUiCore.js'
-import { ClientBackActions } from './ClientBackActions.jsx'
+import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientMe } from './useClientMe.js'
@@ -49,8 +49,8 @@ export function ClientTrainingsPage() {
   const cards = data ? membershipTrainingsCards(data.memberships) : null
 
   return (
-    <ClientMeShell actions={<ClientBackActions />} club={data?.club ?? null}>
-      <h1 className="client-me__hello">Тренировки по абонементу</h1>
+    <ClientMeShell actions={<ClientPageActions />} club={data?.club ?? null}>
+      <ClientPageTitle title="Тренировки по абонементу" />
       {status === 'offline' ? (
         <p className="client-me-offline" role="status">
           Нет связи — показаны сохранённые данные

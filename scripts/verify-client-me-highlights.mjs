@@ -150,8 +150,8 @@ ok(membershipTile(both, TODAY).tone === 'ok', 'в плитке текущий, �
 ok(membershipNote(both) === 'Следующий абонемент начнётся 01.11.2026', 'будущий — заметкой под плитками')
 ok(/продлить можно/.test(membershipNote({ current: [mem({ remaining: 2 })] }) ?? ''), 'продление — заметкой под плитками')
 ok(membershipNote({ current: [mem()] }) === null, 'всё спокойно — заметки нет')
-const st = sessionTile({ date: '2026-10-08', time: '18:00', trainer_name: 'Анна' }, TODAY)
-ok(st.hero === '18:00' && st.caption === 'завтра' && st.foot === 'Тренер: Анна', 'плитка тренировки: время, день, тренер')
+const st = sessionTile({ date: '2026-10-08', time: '18:00–19:00', trainer_name: 'Анна' }, TODAY)
+ok(st.hero === '18:00' && st.caption === 'завтра, 8 октября' && st.foot === 'Тренер: Анна', 'плитка тренировки: время начала, день с датой, тренер')
 const none = sessionTile(null, TODAY)
 ok(none.hero === '—' && none.tone === 'muted' && none.foot === 'Договоритесь с тренером', 'нет тренировки — прочерк, как у абонемента')
 

@@ -61,11 +61,19 @@ export function weeksStreakLabel(n) {
   return weeks >= 2 ? `${weeks} ${pluralRu(weeks, 'неделя', 'недели', 'недель')} подряд с тренировками` : null
 }
 
-/** «Сегодня», «Завтра» или «Пт, 10.10.2026». */
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+
+/** «Сегодня, 9 октября», «Завтра, 10 октября» или «Пт, 17 октября». */
 export function formatSessionDayRu(dayIso, todayIso) {
-  if (dayIso === todayIso) return 'Сегодня'
-  if (dayIso === addDaysToIso(todayIso, 1)) return 'Завтра'
-  return `${weekdayShortRu(dayIso)}, ${formatDateRu(dayIso)}`
+  const date = `${Number(dayIso.slice(8, 10))} ${MONTHS_GEN[Number(dayIso.slice(5, 7)) - 1] ?? ''}`
+  if (dayIso === todayIso) return `Сегодня, ${date}`
+  if (dayIso === addDaysToIso(todayIso, 1)) return `Завтра, ${date}`
+  return `${weekdayShortRu(dayIso)}, ${date}`
+}
+
+/** Из «18:00–19:00» — время начала «18:00». */
+export function sessionStartTime(time) {
+  return String(time ?? '').split(/[–—-]/)[0].trim()
 }
 
 /** Подпись под абонементом. */

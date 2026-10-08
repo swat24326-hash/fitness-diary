@@ -206,8 +206,8 @@ ok(!JSON.stringify({ ms, progress }).includes('секрет тренера'), '�
 // --- Подписи экрана /me ---
 ok(trainingsWord(1) === 'тренировка' && trainingsWord(3) === 'тренировки' && trainingsWord(11) === 'тренировок' && trainingsWord(21) === 'тренировка', 'склонение «тренировка»')
 ok(pointsWord(1) === 'балл' && pointsWord(2) === 'балла' && pointsWord(5) === 'баллов' && pointsWord(0) === 'баллов', 'склонение «балл»')
-ok(formatSessionDayRu(TODAY, TODAY) === 'Сегодня' && formatSessionDayRu('2026-10-08', TODAY) === 'Завтра', 'сегодня / завтра')
-ok(formatSessionDayRu('2026-10-09', TODAY) === 'Пт, 09.10.2026', 'дальше — день недели и дата')
+ok(formatSessionDayRu(TODAY, TODAY) === 'Сегодня, 7 октября' && formatSessionDayRu('2026-10-08', TODAY) === 'Завтра, 8 октября', 'сегодня / завтра с датой')
+ok(formatSessionDayRu('2026-10-09', TODAY) === 'Пт, 9 октября', 'дальше — день недели и дата')
 ok(membershipStatusLineRu({ ...cur, end_date: TODAY }, TODAY) === 'Последний день абонемента', 'последний день')
 ok(membershipStatusLineRu(upcoming, TODAY).startsWith('Начнётся'), 'ждёт старта')
 const deltas = measurementDeltas([{ values: { neck: 36, chest: 100 } }, { values: { neck: 35, glutes: 98 } }])

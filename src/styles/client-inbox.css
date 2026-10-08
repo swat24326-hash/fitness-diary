@@ -23,13 +23,6 @@
   animation: client-inbox-pop 0.35s var(--ease-out, ease) backwards;
 }
 
-.client-inbox__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .client-inbox__points {
   display: flex;
   align-items: center;

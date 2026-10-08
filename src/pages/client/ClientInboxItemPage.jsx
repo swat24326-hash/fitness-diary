@@ -3,7 +3,7 @@ import { CheckCircle2, Lock, RefreshCw, WifiOff } from 'lucide-react'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { inboxItemMetaRu, inboxThanksRu } from '../../lib/client/clientInboxUiCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
-import { ClientBackActions } from './ClientBackActions.jsx'
+import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { InboxSurveyForm } from '../../components/inbox/InboxSurveyForm.jsx'
@@ -15,11 +15,12 @@ export function ClientInboxItemPage() {
   const { item, status, error, reload, answer, sending, sendError } = useClientInboxItem(id)
   if (!hasClientSession() || status === 'signed_out') return <Navigate to="/me" replace />
   const club = readClientMeCache()?.data?.club ?? null
-  const actions = <ClientBackActions to="/me/inbox" />
+  const actions = <ClientPageActions />
 
   if (!item) {
     return (
       <ClientMeShell actions={actions} club={club}>
+        <ClientPageTitle title="Сообщение" to="/me/inbox" />
         {status === 'error' ? (
           <ClientMeStatus icon={WifiOff} title="Не открылось" hint={error}>
             <button type="button" className="btn btn-secondary btn-touch" onClick={reload}>
@@ -37,10 +38,10 @@ export function ClientInboxItemPage() {
   return (
     <ClientMeShell actions={actions} club={club}>
       <header className="client-inbox-item__head">
+        <ClientPageTitle title={item.title} to="/me/inbox" />
         <small className="client-me-muted">
           {inboxItemMetaRu(item)} · {formatDateTimeRu(item.sent_at)}
         </small>
-        <h1 className="client-me__hello">{item.title}</h1>
       </header>
       {item.body ? <p className="client-me-card client-inbox-item__body">{item.body}</p> : null}
       {survey && item.status === 'answered' ? (

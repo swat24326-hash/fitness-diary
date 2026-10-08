@@ -1,9 +1,9 @@
-import { Navigate, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bell } from 'lucide-react'
-import { hasClientSession, logoutClient, readClientMeCache } from '../../lib/client/clientSession.js'
+import { Navigate } from 'react-router-dom'
+import { Bell } from 'lucide-react'
+import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
 import { useClientApp } from './ClientAppContext.jsx'
-import { ClientMenu } from './ClientMenu.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
+import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 
 const REMINDER_HINT = {
   install_first: 'На iPhone напоминания работают только в приложении со значка на экране «Домой». Установите его через меню.',
@@ -13,7 +13,6 @@ const REMINDER_HINT = {
 
 /** /me/settings — настройки клиента. Сейчас: напоминания о тренировках. */
 export function ClientSettingsPage() {
-  const navigate = useNavigate()
   const { push } = useClientApp()
   if (!hasClientSession()) return <Navigate to="/me" replace />
   const cached = readClientMeCache()
@@ -21,27 +20,9 @@ export function ClientSettingsPage() {
   const on = push.mode === 'on'
   const canToggle = on || push.mode === 'off'
 
-  const actions = (
-    <span className="client-me__actions">
-      <button
-        type="button"
-        className="btn btn-ghost btn-icon-square btn-touch"
-        onClick={() => navigate('/me')}
-        title="Назад"
-        aria-label="Назад"
-      >
-        <ArrowLeft size={20} aria-hidden />
-      </button>
-      <ClientMenu
-        clientName={cached?.data?.client?.name || ''}
-        onLogout={() => void logoutClient().then(() => navigate('/me', { replace: true }))}
-      />
-    </span>
-  )
-
   return (
-    <ClientMeShell actions={actions} club={club}>
-      <h1 className="client-me__hello">Настройки</h1>
+    <ClientMeShell actions={<ClientPageActions />} club={club}>
+      <ClientPageTitle title="Настройки" />
       <section className="client-me-card">
         <div className="client-settings__row">
           <span className="client-settings__label">

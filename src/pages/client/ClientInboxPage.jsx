@@ -3,7 +3,7 @@ import { Gift, Inbox, RefreshCw, WifiOff } from 'lucide-react'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
 import { inboxPointsLineRu } from '../../lib/client/clientInboxUiCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
-import { ClientBackActions } from './ClientBackActions.jsx'
+import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientInbox } from './useClientInbox.js'
@@ -30,20 +30,8 @@ export function ClientInboxPage() {
   }
 
   return (
-    <ClientMeShell actions={<ClientBackActions />} club={club}>
-      <div className="client-inbox__head">
-        <h1 className="client-me__hello">Входящие</h1>
-        <button
-          type="button"
-          className="btn btn-ghost btn-icon-square btn-touch"
-          onClick={reload}
-          disabled={status === 'loading'}
-          title="Обновить"
-          aria-label="Обновить"
-        >
-          <RefreshCw size={18} aria-hidden className={status === 'loading' ? 'client-me-spin' : undefined} />
-        </button>
-      </div>
+    <ClientMeShell actions={<ClientPageActions onRefresh={reload} refreshing={status === 'loading'} />} club={club}>
+      <ClientPageTitle title="Входящие" />
       {items && status === 'error' ? (
         <p className="client-me-offline" role="alert">
           {error}

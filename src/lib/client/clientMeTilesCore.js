@@ -4,7 +4,7 @@
  * Подсказка о продлении и следующий абонемент — заметкой под плитками, чтобы не ломать квадрат.
  */
 import { formatDateRu } from '../dateRu.js'
-import { daysWord, formatSessionDayRu, trainingsWord } from './clientMeUiCore.js'
+import { daysWord, formatSessionDayRu, sessionStartTime, trainingsWord } from './clientMeUiCore.js'
 import { clientRenewalHint, membershipBarPercent } from './clientMeHighlightsCore.js'
 
 /**
@@ -65,7 +65,7 @@ export function sessionTile(session, todayIso) {
     return { hero: '—', unit: '', caption: 'не запланирована', foot: 'Договоритесь с тренером', tone: 'muted' }
   }
   return {
-    hero: session.time || '—',
+    hero: sessionStartTime(session.time) || '—',
     unit: '',
     caption: formatSessionDayRu(session.date, todayIso).toLowerCase(),
     foot: session.trainer_name ? `Тренер: ${session.trainer_name}` : 'Тренер уточнится',

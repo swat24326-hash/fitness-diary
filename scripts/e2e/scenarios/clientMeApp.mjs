@@ -77,7 +77,10 @@ export async function run(browser) {
     await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
     c.ok(!page.url().includes(INVITE), 'токен ссылки убран из адресной строки')
     c.ok(await membershipShows(page, /6\s*из 8/), 'главная: абонемент «6 из 8» осталось')
-    c.ok(await visible(page, '10:00–11:00'), 'главная: следующая тренировка 10:00–11:00')
+    c.ok(
+      (await visible(page, '10:00')) && !(await visible(page, '10:00–11:00')),
+      'главная: следующая тренировка — время начала 10:00, без интервала',
+    )
     c.ok(
       (await page.getByRole('heading', { level: 1 }).textContent()) === CLIENT_NAME,
       'главная открыта на имя клиента',
