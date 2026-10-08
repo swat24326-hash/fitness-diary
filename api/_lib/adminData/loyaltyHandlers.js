@@ -19,6 +19,8 @@ import {
 import { loyaltyRatesFromSettings } from '../../../src/lib/loyalty/loyaltySettingsCore.js'
 import { applyLoyaltySettingsPost, loyaltySettingsToDbRow } from '../../../src/lib/loyalty/loyaltySettingsWriteCore.js'
 import { decideLoyaltyRedeem } from '../../../src/lib/loyalty/loyaltyRedeemDecisionCore.js'
+import { mergeLoyaltyJournalSources } from '../../../src/lib/loyalty/loyaltyJournalUiCore.js'
+import { loadSurveyPointsRedemptionsForClub } from '../inbox/inboxPointsStore.js'
 import {
   clubOpsAsOfIso,
   insertLoyaltyLedgerRow,
@@ -247,7 +249,7 @@ export async function handleLoyaltyJournalGet(ctx, req, res) {
       .order('at', { ascending: false })
       .limit(200)
     if (error) throw error
-    const rows = data ?? []
+    const rows = mergeLoyaltyJournalSources(data ?? [], await loadSurveyPointsRedemptionsForClub(ctx.supabaseAdmin, clubId, 200))
     const ids = [...new Set(rows.map((r) => String(r.client_id ?? '').trim()).filter(Boolean))]
     let nameById = {}
     if (ids.length) {

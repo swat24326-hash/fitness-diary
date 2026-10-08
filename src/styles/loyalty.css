@@ -191,6 +191,21 @@
   gap: 8px;
 }
 
+.loyalty-journal__source {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.loyalty-journal__source--survey {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
 .loyalty-journal__meta {
   display: flex;
   justify-content: space-between;

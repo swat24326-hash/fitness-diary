@@ -1,6 +1,7 @@
-import { Gift, RefreshCw } from 'lucide-react'
+import { Gift, MessageSquareText, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
+import { LOYALTY_JOURNAL_SOURCE_LABELS } from '../../lib/loyalty/loyaltyJournalUiCore.js'
 import { useLoyaltyJournal } from '../../hooks/useLoyaltyJournal.js'
 import '../../styles/loyalty.css'
 
@@ -57,8 +58,11 @@ export function LoyaltyJournalSection({ clubId, listBackHref = '/admin/clients' 
           {rows.map((row) => (
             <li key={row.id || `${row.client_id}-${row.at}`} className="loyalty-journal__row">
               <div className="loyalty-journal__who">
-                <Gift size={16} aria-hidden />
+                {row.source === 'survey' ? <MessageSquareText size={16} aria-hidden /> : <Gift size={16} aria-hidden />}
                 <strong>{row.client_name}</strong>
+                <span className={`loyalty-journal__source loyalty-journal__source--${row.source}`}>
+                  {LOYALTY_JOURNAL_SOURCE_LABELS[row.source]}
+                </span>
               </div>
               <div className="loyalty-journal__meta">
                 <span>{formatDateTimeRu(row.at)}</span>

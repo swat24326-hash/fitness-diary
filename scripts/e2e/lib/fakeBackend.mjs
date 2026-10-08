@@ -151,7 +151,7 @@ export function createFakeBackend(seed) {
     pushLog: [],
     requestLog: [],
   }
-  const backend = { state, cloudDown: false, clientMe: null }
+  const backend = { state, cloudDown: false, clientMe: null, adminData: null }
 
   /**
    * @param {{ method: string, path: string, searchParams: URLSearchParams, headers: Record<string,string>, body: any }} req
@@ -189,6 +189,16 @@ export function createFakeBackend(seed) {
 
     if (path === '/api/me-profile') return { status: 200, json: { profile: profileOf(user) } }
     if (path === '/api/trainer-pull') return { status: 200, json: trainerPull(state, user) }
+    if (path === '/api/get-client') {
+      const id = searchParams.get('client_id')
+      const client = state.clients.find((c) => c.id === id)
+      if (!client) return { status: 404, json: { error: 'Клиент не найден' } }
+      const own = (rows) => rows.filter((r) => r.client_id === id)
+      return {
+        status: 200,
+        json: { client, memberships: own(state.memberships), trainings: own(state.trainings), health_cards: own(state.health_cards), scope: searchParams.get('scope') },
+      }
+    }
     if (path === '/api/push-record' && method === 'POST') {
       return { status: 200, json: applyPush(state, body) }
     }
@@ -204,6 +214,10 @@ export function createFakeBackend(seed) {
         return rows.length === 1 ? { status: 200, json: rows[0] } : { status: 406, json: { code: 'PGRST116', message: 'no rows' } }
       }
       return { status: 200, json: rows, headers: { 'content-range': `0-${Math.max(rows.length - 1, 0)}/${rows.length}` } }
+    }
+    if (path === '/api/admin-data' && backend.adminData) {
+      const res = backend.adminData(req, user)
+      if (res) return res
     }
     if (path === '/api/admin-data' && searchParams.get('action') === 'exercises') {
       return { status: 200, json: { exercises: state.exercises, count: state.exercises.length } }

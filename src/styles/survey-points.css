@@ -1,0 +1,136 @@
+/* Баллы за опросы в карточке клиента (стойка: админ / менеджер продаж). */
+
+.survey-points {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+}
+
+.survey-points__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.survey-points__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.survey-points__sum {
+  flex: 1;
+  min-width: 0;
+}
+
+.survey-points__eyebrow {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.survey-points__value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.survey-points__value span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.survey-points__form {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) 1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+.survey-points__form label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.survey-points__actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.survey-points__error {
+  margin: 0;
+  color: var(--danger, #f87171);
+  font-size: 0.9rem;
+}
+
+.survey-points__history summary {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.survey-points__history ul {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.survey-points__history li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.survey-points__journal {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+
+.survey-points__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.survey-points__plus,
+.survey-points__minus {
+  flex: none;
+  min-width: 3.5em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.survey-points__plus {
+  color: var(--accent-bright, var(--accent));
+}
+
+.survey-points__minus {
+  color: var(--text-muted);
+}
+
+@media (max-width: 520px) {
+  .survey-points__form {
+    grid-template-columns: 1fr;
+  }
+}

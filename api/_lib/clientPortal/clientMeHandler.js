@@ -5,6 +5,7 @@
  * POST /api/client-me { action: 'push-*' } — напоминания о тренировке на этот телефон (clientPushHandler.js).
  * POST /api/client-me { action: 'handoff' } — одноразовый вход для значка на iPhone (clientHandoffHandler.js).
  * POST /api/client-me { action: 'training', id } — одна своя тренировка для окна просмотра (clientTrainingHandler.js).
+ * POST /api/client-me { action: 'inbox-list' | 'inbox-item' | 'inbox-answer' } — «Входящие» (../inbox/inboxClientHandler.js).
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -13,6 +14,7 @@ import { handleClientHandoff } from './clientHandoffHandler.js'
 import { buildClientManifest, isClientManifestClubId } from './clientManifestCore.js'
 import { handleClientPushPost } from './clientPushHandler.js'
 import { handleClientTraining } from './clientTrainingHandler.js'
+import { handleClientInboxPost, loadClientInboxAttention } from '../inbox/inboxClientHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
 
@@ -62,8 +64,11 @@ export async function clientMeHandler(req, res) {
     const body = parseBody(req.body)
     if (body?.action === 'handoff') await handleClientHandoff(ctx, res)
     else if (body?.action === 'training') await handleClientTraining(createServiceDataClient(), ctx, body.id, res)
+    else if (String(body?.action ?? '').startsWith('inbox-')) await handleClientInboxPost(createServiceDataClient(), ctx, body, res)
     else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }
-  sendJson(res, 200, await loadClientMe(createServiceDataClient(), ctx.client))
+  const db = createServiceDataClient()
+  const [me, inbox_attention] = await Promise.all([loadClientMe(db, ctx.client), loadClientInboxAttention(db, ctx.clientId)])
+  sendJson(res, 200, { ...me, inbox_attention })
 }

@@ -13,6 +13,7 @@
 @import './styles/training-view.css';
 @import './styles/training-set-laterality.css';
 @import './styles/trainer-home-today.css';
+@import './styles/header-inbox.css';
 @import './styles/trainer-header-touch.css';
 @import './styles/trainer-home-labels.css';
 @import './styles/trainer-rating.css';
@@ -35,6 +36,10 @@
 @import './styles/client-me-menu.css';
 @import './styles/client-me-spark.css';
 @import './styles/client-trainings.css';
+@import './styles/client-inbox.css';
+@import './styles/admin-inbox.css';
+@import './styles/staff-inbox.css';
+@import './styles/survey-points.css';
 
 *,
 *::before,

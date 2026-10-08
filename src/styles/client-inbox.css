@@ -1,0 +1,321 @@
+/* /me: конверт в шапке, «Входящие», экран объявления / опроса. */
+.client-inbox-btn {
+  position: relative;
+}
+
+.client-inbox-btn__badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--bg);
+  animation: client-inbox-pop 0.35s var(--ease-out, ease) backwards;
+}
+
+.client-inbox__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.client-inbox__points {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+  color: var(--text);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-inbox__points svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.client-inbox {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.client-inbox > li {
+  animation: client-inbox-in 0.32s calc(min(var(--i, 0), 12) * 40ms) var(--ease-out, ease) backwards;
+}
+
+.client-inbox__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    transform 0.12s ease;
+}
+
+.client-inbox__row:hover {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+
+.client-inbox__row:active {
+  transform: scale(0.985);
+}
+
+.client-inbox__row.client-inbox__row--new {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.client-inbox__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.client-inbox__body {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.client-inbox__body strong {
+  overflow: hidden;
+  font-size: 0.98rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-inbox__row--new .client-inbox__body strong {
+  font-weight: 700;
+}
+
+.client-inbox__body small {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.client-inbox__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.client-inbox__go {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.client-inbox-item__head {
+  display: grid;
+  gap: 2px;
+}
+
+.client-inbox-item__body {
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.client-inbox-item__done {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 10px;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent-bright);
+  font-weight: 600;
+}
+
+.client-inbox-item__done svg {
+  flex: none;
+}
+
+.client-survey {
+  display: grid;
+  gap: 12px;
+}
+
+.client-survey__q {
+  margin: 0;
+  min-width: 0;
+}
+
+.client-survey__q.client-survey__q--missing {
+  border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
+}
+
+.client-survey__text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  float: left;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.client-survey__text + * {
+  clear: both;
+}
+
+.client-survey__num {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-survey__stars {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.client-survey__star {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--text-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.client-survey__star:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.client-survey__star.client-survey__star--on {
+  color: var(--warning);
+}
+
+.client-survey__star.client-survey__star--on svg {
+  fill: currentColor;
+}
+
+.client-survey__options {
+  display: grid;
+  gap: 8px;
+}
+
+.client-survey__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.client-survey__option.client-survey__option--on {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.client-survey__mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 6px;
+  color: var(--bg);
+}
+
+.client-survey__option[role='radio'] .client-survey__mark {
+  border-radius: 50%;
+}
+
+.client-survey__option--on .client-survey__mark {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.client-survey__textarea {
+  min-height: 84px;
+}
+
+.client-survey__send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+}
+
+@keyframes client-inbox-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes client-inbox-pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-inbox > li,
+  .client-inbox-btn__badge {
+    animation: none;
+  }
+}

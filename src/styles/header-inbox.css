@@ -1,0 +1,40 @@
+/* Кнопки-счётчики в шапке сотрудника: «Планёрка» (лоток) и «Сообщения клуба» (конверт).
+   Грузятся всегда: шапка тренера не должна зависеть от ленивой панели ИСКРЫ. */
+.app-header__inbox-btn {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-header__inbox-btn svg {
+  flex: none;
+}
+
+.app-header__inbox-btn--active {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.app-header__inbox-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--bg);
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--bg);
+}

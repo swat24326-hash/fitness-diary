@@ -28,6 +28,9 @@ import { AdminClubCallLogPage } from './pages/admin/AdminClubCallLogPage.jsx'
 import { ClubTrainerSchedulePage } from './pages/admin/ClubTrainerSchedulePage.jsx'
 import { AdminLoyaltyJournal } from './pages/admin/AdminLoyaltyJournal.jsx'
 import { ClubSupervisorSettings } from './pages/admin/ClubSupervisorSettings'
+import { AdminInboxPage } from './pages/admin/AdminInboxPage.jsx'
+import { StaffInboxPage } from './pages/staff/StaffInboxPage.jsx'
+import { StaffInboxItemPage } from './pages/staff/StaffInboxItemPage.jsx'
 import { ClubSupervisorClubTasks } from './pages/admin/ClubSupervisorClubTasks'
 import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
 import { IskraPanelProvider } from './context/IskraPanelContext'
@@ -80,6 +83,10 @@ const ClientSettingsPage = lazy(() =>
 const ClientTrainingsPage = lazy(() =>
   import('./pages/client/ClientTrainingsPage.jsx').then((m) => ({ default: m.ClientTrainingsPage })),
 )
+const ClientInboxPage = lazy(() => import('./pages/client/ClientInboxPage.jsx').then((m) => ({ default: m.ClientInboxPage })))
+const ClientInboxItemPage = lazy(() =>
+  import('./pages/client/ClientInboxItemPage.jsx').then((m) => ({ default: m.ClientInboxItemPage })),
+)
 const ClientAppProvider = lazy(() =>
   import('./pages/client/ClientAppContext.jsx').then((m) => ({ default: m.ClientAppProvider })),
 )
@@ -101,6 +108,8 @@ function ClientAppRoutes() {
           <Route path="join" element={<ClientJoinPage />} />
           <Route path="settings" element={<ClientSettingsPage />} />
           <Route path="trainings" element={<ClientTrainingsPage />} />
+          <Route path="inbox" element={<ClientInboxPage />} />
+          <Route path="inbox/:id" element={<ClientInboxItemPage />} />
           <Route path="*" element={<ClientMePage />} />
         </Routes>
       </ClientAppProvider>
@@ -265,6 +274,10 @@ export default function App() {
               <Route path="/trainer/workouts/:id" element={<TrainingPage />} />
               <Route path="/trainer/challenges/:challengeId" element={<TrainerChallengeDetail />} />
             </Route>
+            <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor']} />}>
+              <Route path="/messages" element={<StaffInboxPage />} />
+              <Route path="/messages/:id" element={<StaffInboxItemPage />} />
+            </Route>
             <Route element={<RoleOutlet roles={['sales_manager']} />}>
               <Route path="/sales" element={<AdminSales accessMode="sales_manager" />} />
               <Route path="/sales/club-tasks" element={<SalesClubTasks />} />
@@ -294,6 +307,7 @@ export default function App() {
                 <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
                 <Route path="club-tasks" element={<ClubSupervisorClubTasks />} />
                 <Route path="settings" element={<ClubSupervisorSettings />} />
+                <Route path="inbox" element={<AdminInboxPage accessMode="supervisor" />} />
               </Route>
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>
@@ -314,6 +328,7 @@ export default function App() {
                 <Route path="call-log" element={<AdminClubCallLogPage />} />
                 <Route path="trainer-schedule" element={<ClubTrainerSchedulePage />} />
                 <Route path="loyalty" element={<AdminLoyaltyJournal />} />
+                <Route path="inbox" element={<AdminInboxPage />} />
                 <Route path="excel-lists" element={<AdminExcelLists />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />
                 <Route path="exercises" element={<AdminLegacyExercisesRedirect />} />

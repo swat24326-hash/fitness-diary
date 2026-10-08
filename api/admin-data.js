@@ -73,6 +73,9 @@ import {
   handleLoyaltySettingsGet,
   handleLoyaltySettingsPost,
 } from './_lib/adminData/loyaltyHandlers.js'
+import { handleInboxAdminGet, handleInboxAdminPost } from './_lib/inbox/inboxAdminHandler.js'
+import { handleStaffInboxGet, handleStaffInboxPost } from './_lib/inbox/inboxStaffHandler.js'
+import { handleSurveyPointsGet, handleSurveyPointsPost } from './_lib/inbox/inboxPointsHandler.js'
 
 async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -116,6 +119,9 @@ async function handler(req, res) {
       'az-price-list',
       'loyalty-settings',
       'loyalty-redeem',
+      'inbox',
+      'my-inbox',
+      'survey-points',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -273,6 +279,21 @@ async function handler(req, res) {
       if (!ctx) return
       return handleLoyaltyRedeemPost(ctx, req, res, body)
     }
+    if (action === 'inbox') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleInboxAdminPost(ctx, res, body)
+    }
+    if (action === 'my-inbox') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleStaffInboxPost(ctx, res, body)
+    }
+    if (action === 'survey-points') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleSurveyPointsPost(ctx, res, body)
+    }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
@@ -311,6 +332,24 @@ async function handler(req, res) {
       return
     }
     return handleTrainerScheduleGet(ctx, req, res)
+  }
+
+  if (action === 'inbox') {
+    const ctx = await requireAuthUser(req, res)
+    if (!ctx) return
+    return handleInboxAdminGet(ctx, req, res)
+  }
+
+  if (action === 'my-inbox') {
+    const ctx = await requireAuthUser(req, res)
+    if (!ctx) return
+    return handleStaffInboxGet(ctx, res)
+  }
+
+  if (action === 'survey-points') {
+    const ctx = await requireAuthUser(req, res)
+    if (!ctx) return
+    return handleSurveyPointsGet(ctx, req, res)
   }
 
   const trainerActions = new Set([

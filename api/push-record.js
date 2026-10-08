@@ -5,6 +5,7 @@
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { executePushRecord } from './_lib/pushRecordCore.js'
+import { scheduleMilestoneSurveys } from './_lib/inbox/inboxMilestoneJob.js'
 import { canUseSyncPushApi } from '../src/lib/admin/salesManagerClientsAccessCore.js'
 
 async function handler(req, res) {
@@ -55,6 +56,7 @@ async function handler(req, res) {
       duplicate: out.duplicate,
       record: out.record,
     })
+    if (table_name === 'trainings') scheduleMilestoneSurveys(ctx.supabaseAdmin, [out.record ?? data])
     return
   }
 

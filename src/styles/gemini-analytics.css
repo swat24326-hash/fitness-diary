@@ -1565,40 +1565,6 @@
   animation: none;
 }
 
-.app-header__inbox-btn {
-  position: relative;
-  flex-shrink: 0;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.app-header__inbox-btn--active {
-  border-color: rgba(46, 255, 184, 0.45);
-  box-shadow: 0 0 12px rgba(46, 255, 184, 0.2);
-}
-
-.app-header__inbox-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
-  color: #0f172a;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  box-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
-}
-
 /* ——— North Star: PlanArc, InsightCards, SparkBrief ——— */
 
 .iskra-compact-stack {

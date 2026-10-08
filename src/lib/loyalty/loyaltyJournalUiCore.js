@@ -29,7 +29,31 @@ export function formatLoyaltyJournalRow(row, nameById = {}) {
     at: String(row?.at ?? row?.created_at ?? ''),
     points: Number.isFinite(points) ? Math.round(points) : 0,
     comment: String(row?.comment ?? '').trim(),
+    source: row?.source === 'survey' ? 'survey' : 'pz',
   }
+}
+
+export const LOYALTY_JOURNAL_SOURCE_LABELS = Object.freeze({ pz: 'Копилка ПЗ', survey: 'За опросы' })
+
+/**
+ * Одна лента журнала: списания копилки ПЗ (loyalty_ledger) и баллов за опросы (inbox_points_redemptions), новые сверху.
+ * @param {object[]} pzRows строки loyalty_ledger (kind=redeem)
+ * @param {object[]} surveyRows строки inbox_points_redemptions
+ */
+export function mergeLoyaltyJournalSources(pzRows, surveyRows, limit = 200) {
+  const survey = (surveyRows ?? []).map((r) => ({
+    id: r.id,
+    club_id: r.club_id,
+    client_id: r.client_id,
+    at: r.created_at,
+    points: r.points,
+    comment: r.comment,
+    actor_id: r.actor_id,
+    source: 'survey',
+  }))
+  return [...(pzRows ?? []).map((r) => ({ ...r, source: 'pz' })), ...survey]
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))
+    .slice(0, limit)
 }
 
 /**

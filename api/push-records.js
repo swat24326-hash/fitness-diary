@@ -5,6 +5,7 @@
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { executePushRecord } from './_lib/pushRecordCore.js'
+import { scheduleMilestoneSurveys } from './_lib/inbox/inboxMilestoneJob.js'
 import { runPool } from './_lib/runPool.js'
 import { canUseSyncPushApi } from '../src/lib/admin/salesManagerClientsAccessCore.js'
 
@@ -80,6 +81,10 @@ async function handler(req, res) {
 
   const allOk = results.every((r) => r.ok)
   sendJson(res, allOk ? 200 : 207, { ok: allOk, results })
+  scheduleMilestoneSurveys(
+    ctx.supabaseAdmin,
+    results.filter((r) => r.ok && records[r.index]?.table_name === 'trainings').map((r) => r.record ?? records[r.index]?.data),
+  )
 }
 
 export default withSafeApiHandler(handler, { label: 'push-records' })

@@ -129,6 +129,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/admin/call-log') return [...admin, { label: 'Журнал звонков', to: `/admin/call-log${clubQs}` }]
   if (p === '/admin/deletion-log') return [...admin, { label: 'Журнал удалений', to: `/admin/deletion-log${clubQs}` }]
   if (p === '/admin/loyalty') return [...admin, { label: 'Журнал баллов', to: `/admin/loyalty${clubQs}` }]
+  if (p === '/admin/inbox') return [...admin, { label: 'Рассылки', to: `/admin/inbox${clubQs}` }]
   if (p === '/admin/excel-lists') return [...admin, { label: 'Списки из Excel', to: `/admin/excel-lists${clubQs}` }]
   if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
   if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
@@ -164,6 +165,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/club/challenges') return [...clubRoot, { label: 'Челленджи', to: '/club/challenges' }]
   if (p === '/club/club-tasks') return [...clubRoot, { label: 'Планёрка', to: '/club/club-tasks' }]
   if (p === '/club/settings') return [...clubRoot, { label: 'Настройки', to: '/club/settings' }]
+  if (p === '/club/inbox') return [...clubRoot, { label: 'Рассылки', to: '/club/inbox' }]
   if (matchPathSimple('/club/challenges/:challengeId', p)) {
     return [...clubRoot, { label: 'Челленджи', to: '/club/challenges' }, { label: 'Рейтинг', to: full }]
   }

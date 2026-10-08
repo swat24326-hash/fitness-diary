@@ -1,6 +1,7 @@
 import { QrCode, RefreshCw, WifiOff } from 'lucide-react'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { clientMeLeadCard } from '../../lib/client/clientMeHighlightsCore.js'
+import { ClientInboxButton } from './ClientInboxButton.jsx'
 import { ClientMenu } from './ClientMenu.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
@@ -44,6 +45,7 @@ export function ClientMePage() {
       >
         <RefreshCw size={18} aria-hidden className={status === 'loading' ? 'client-me-spin' : undefined} />
       </button>
+      <ClientInboxButton count={data?.inbox_attention} />
       <ClientMenu clientName={data?.client?.name || ''} onLogout={() => void logout()} />
     </span>
   )

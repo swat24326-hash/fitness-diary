@@ -76,6 +76,7 @@ run('client app highlights', 'node', ['scripts/verify-client-me-highlights.mjs']
 run('client app reminders', 'node', ['scripts/verify-client-reminders.mjs'])
 run('client app onboarding', 'node', ['scripts/verify-client-onboarding.mjs'])
 run('client app iphone handoff', 'node', ['scripts/verify-client-handoff.mjs'])
+run('client inbox', 'node', ['scripts/verify-inbox.mjs'])
 run('client app branding', 'node', ['scripts/verify-client-app-branding.mjs'])
 run('sync auth stuck + api log', 'node', ['scripts/verify-sync-auth-stuck.mjs'])
 run('api timing metric', 'node', ['scripts/verify-api-timing-log.mjs'])

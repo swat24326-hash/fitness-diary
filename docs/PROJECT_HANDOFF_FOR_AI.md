@@ -115,8 +115,9 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 |------|-------------------|
 | trainer | `/trainer`, `/trainer/clients`, … |
 | sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log`, `/sales/call-log` |
-| supervisor | `/club/*` (клиенты, **call-log**, статистика, продажи, ПНК, челленджи, планёрка, settings=Max/SMS) |
-| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| supervisor | `/club/*` (клиенты, **call-log**, статистика, продажи, ПНК, челленджи, планёрка, **inbox** — рассылки клиентам и команде своего клуба, settings=Max/SMS) |
+| trainer / sales_manager / supervisor | `/messages`, `/messages/:id` — «Сообщения клуба» (конверт в шапке, [INBOX.md](./INBOX.md)) |
+| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **excel-lists**, **inbox** — рассылки клиентам и команде ([INBOX.md](./INBOX.md)), statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 - Без Supabase: fallback в `localStorage`, демо-данные.
 - С Supabase: `signInWithPassword` (+ при необходимости `/api/auth-sign-in`), профиль из `users`.
 

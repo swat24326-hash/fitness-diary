@@ -35,7 +35,7 @@ export function AdminLoyaltyJournal({ accessMode = 'admin' } = {}) {
       <AdminSectionHeader
         icon={Gift}
         title="Журнал баллов"
-        lead="Списания куша ПЗ. Списать можно в карточке клиента, только при сети."
+        lead="Списания куша ПЗ и баллов за опросы. Списать можно в карточке клиента, только при сети."
       />
       <LoyaltyJournalSection clubId={clubId} listBackHref={listBackHref} />
     </div>
