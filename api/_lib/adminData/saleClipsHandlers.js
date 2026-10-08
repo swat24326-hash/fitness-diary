@@ -10,6 +10,7 @@ import {
 import { isHoldingTrainerUser } from '../../../src/lib/admin/deskClosingImportCore.js'
 import { isOpenPnkClient } from '../../../src/lib/pnk/pnkStagesCore.js'
 import { isClientArchived } from '../../../src/lib/clientArchive.js'
+import { fetchClubClientCandidates } from '../salesClientLookup.js'
 
 const CLIP_SELECT =
   'id, club_id, trainer_id, client_id, membership_id, status, clip_date, client_name, phone, card_number, birth_date, membership_type_id, membership_type_label, total_trainings, start_date, end_date, note, created_by, created_at, updated_at, done_at'
@@ -99,12 +100,13 @@ export async function handleSaleClipsPost(ctx, req, res) {
     const card = String(body.card_number ?? body.card ?? '').trim()
     const phone = String(body.phone ?? '').trim()
     const clipDate = String(body.clip_date ?? '').slice(0, 10)
-    const { data: clubClients, error: cErr } = await ctx.supabaseAdmin
-      .from('clients')
-      .select('id, name, phone, card_number, trainer_id, club_id, lifecycle, archived_at')
-      .eq('club_id', clubId)
-      .is('archived_at', null)
-      .limit(5000)
+    const { data: clubClients, error: cErr } = await fetchClubClientCandidates(ctx.supabaseAdmin, {
+      clubId,
+      cardNumber: card,
+      phone,
+      select: 'id, name, phone, card_number, trainer_id, club_id, lifecycle, archived_at',
+      activeOnly: true,
+    })
     if (cErr) {
       sendJson(res, 400, { error: cErr.message || 'Не удалось загрузить клиентов', reason: cErr.message })
       return
@@ -200,11 +202,12 @@ export async function handleSaleClipsPost(ctx, req, res) {
     return
   }
 
-  const { data: clubClients, error: cErr } = await ctx.supabaseAdmin
-    .from('clients')
-    .select('id, name, phone, card_number, trainer_id, club_id, lifecycle, archived_at, pnk_stage')
-    .eq('club_id', clubId)
-    .limit(5000)
+  const { data: clubClients, error: cErr } = await fetchClubClientCandidates(ctx.supabaseAdmin, {
+    clubId,
+    cardNumber: body.card_number,
+    phone: body.phone,
+    select: 'id, name, phone, card_number, trainer_id, club_id, lifecycle, archived_at, pnk_stage',
+  })
   if (cErr) {
     sendJson(res, 400, { error: cErr.message || 'Не удалось загрузить клиентов' })
     return
@@ -219,7 +222,7 @@ export async function handleSaleClipsPost(ctx, req, res) {
     const { data: mems } = await ctx.supabaseAdmin
       .from('memberships')
       .select('id, client_id, start_date, end_date, total_trainings, used_trainings, status')
-      .in('client_id', clientIds.slice(0, 800))
+      .in('client_id', clientIds)
     for (const m of mems ?? []) {
       const cid = String(m.client_id)
       if (!membershipsByClientId[cid]) membershipsByClientId[cid] = []

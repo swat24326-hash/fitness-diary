@@ -187,6 +187,7 @@ run('admin clients browse lifecycle cache', 'node', ['scripts/verify-admin-clien
 run('club sms campaign', 'node', ['scripts/verify-club-sms-campaign.mjs'])
 run('club sms campaign result', 'node', ['scripts/verify-club-sms-campaign-result.mjs'])
 run('sale clips match holding', 'node', ['scripts/verify-sale-clips.mjs'])
+run('sales client lookup in db', 'node', ['scripts/verify-sales-client-lookup.mjs'])
 run('pnk funnel stages', 'node', ['scripts/verify-pnk-stages.mjs'])
 run('pnk funnel events', 'node', ['scripts/verify-pnk-funnel-events.mjs'])
 run('pnk refuse scenario buttons', 'node', ['scripts/verify-pnk-refuse-scenario.mjs'])

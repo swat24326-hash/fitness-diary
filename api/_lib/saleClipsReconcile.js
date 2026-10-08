@@ -3,6 +3,7 @@
  */
 import { planSupersededAwaitingSaleClips } from '../../src/lib/admin/saleClipPullPruneCore.js'
 import { normalizeSalesCardNumber } from '../../src/lib/admin/salesClientMatchCore.js'
+import { buildSalesCardsOrIlikeExpr } from '../../src/lib/admin/salesClientLookupCore.js'
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
@@ -27,16 +28,17 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
   const clientsByCard = new Map()
   let cardLookupOk = true
   if (clubIds.length && cards.length) {
+    const wanted = new Set(cards.slice(0, 200))
     const { data: clients, error: cardErr } = await supabaseAdmin
       .from('clients')
       .select('id, card_number, club_id, name, archived_at')
       .in('club_id', clubIds.slice(0, 20))
-      .in('card_number', cards.slice(0, 200))
+      .or(buildSalesCardsOrIlikeExpr([...wanted]))
     if (cardErr || clubIds.length > 20 || cards.length > 200) cardLookupOk = false
     for (const row of clients ?? []) {
       if (row?.archived_at) continue
       const card = normalizeSalesCardNumber(row.card_number) || String(row.card_number ?? '').trim()
-      if (!card || clientsByCard.has(card)) continue
+      if (!card || !wanted.has(card) || clientsByCard.has(card)) continue
       clientsByCard.set(card, row)
     }
   }

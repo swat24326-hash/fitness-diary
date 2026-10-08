@@ -58,7 +58,7 @@
 | Высокий | `club-monthly` (`clubHandlers.js`) | До 36 месяцев тренировок с `data` без потолка |
 | Средний | Аудитория «Входящих» (`inboxStore.js`) | Все клиенты / абонементы выбранных клубов — нужно для отправки; при 60 тыс. — смотреть время предпросмотра |
 | Средний | `list-clients`, `sales` (FitCity), `challenge-trainings`, `journal` без `club_id` | Полный клуб / сеть, точный count |
-| Риск данных | `pnkHandlers.js`, `saleClipsHandlers.js`, `saleClipsReconcile.js` | Молча обрезают на 5000 строк — при росте отчёт станет неполным без ошибки |
+| ✅ 08.10 | `pnkHandlers.js`, `saleClipsHandlers.js`, `saleClipsReconcile.js` | Было: весь клуб `.limit(5000)` в память, абонементы только у первых 800 → клиент в хвосте «не найден», дубль карточки. Стало: поиск по карте / телефону в БД (`api/_lib/salesClientLookup.js`), абонементы — только найденных. На 08.10 крупнейший клуб — 581 клиент, на проде не проявлялось. Verify: `verify-sales-client-lookup.mjs` |
 
 Порядок не меняет правил стабильности: офлайн-очередь и контракт `trainer-pull` / `push-records` не трогаем; оптимизации pull — по порядку из `fitness-diary-stability.mdc` (окно pull → индексы IDB → пагинация UI).
 
