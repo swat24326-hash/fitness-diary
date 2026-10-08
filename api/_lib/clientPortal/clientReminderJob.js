@@ -4,17 +4,23 @@
  * Ничего не дошло — слот освобождаем, следующий запуск в окне 19:00–22:00 попробует снова.
  */
 import { addCalendarDaysIso, todayInTimeZoneIso } from '../../../src/lib/dateRu.js'
+import { loadInChunks, runWithConcurrency } from '../batchCore.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
 import { isWebPushConfigured, sendWebPushToRow } from '../webPushCore.js'
 import { cleanClubName } from './clientManifestCore.js'
 import { clientReminderKey, clubOpsMinutesNow, isClientReminderWindow, planClientReminders } from './clientReminderCore.js'
 
 const LOG_KEEP_DAYS = 30
+const SEND_PARALLEL = 8
 
 async function rows(query) {
   const { data, error } = await query
   if (error) throw error
   return data ?? []
+}
+
+function deleteSubscriptions(db, ids) {
+  return loadInChunks(ids, (part) => rows(db.from('client_push_subscriptions').delete().in('id', part).select('id')))
 }
 
 async function loadLiveSubscriptions(db) {
@@ -23,14 +29,14 @@ async function loadLiveSubscriptions(db) {
   const sessionIds = [...new Set(subs.map((s) => String(s.session_id)))]
   const clientIds = [...new Set(subs.map((s) => String(s.client_id)))]
   const [sessions, clients] = await Promise.all([
-    rows(db.from('client_sessions').select('id, client_id, revoked_at').in('id', sessionIds)),
-    rows(db.from('clients').select('id, club_id, archived_at').in('id', clientIds)),
+    loadInChunks(sessionIds, (part) => rows(db.from('client_sessions').select('id, client_id, revoked_at').in('id', part))),
+    loadInChunks(clientIds, (part) => rows(db.from('clients').select('id, club_id, archived_at').in('id', part))),
   ])
   const liveSessions = new Set(sessions.filter((s) => !s.revoked_at).map((s) => String(s.id)))
   const liveClients = new Map(clients.filter((c) => !c.archived_at).map((c) => [String(c.id), c]))
   const live = subs.filter((s) => liveSessions.has(String(s.session_id)) && liveClients.has(String(s.client_id)))
   const deadIds = subs.filter((s) => !liveSessions.has(String(s.session_id))).map((s) => s.id)
-  if (deadIds.length) await rows(db.from('client_push_subscriptions').delete().in('id', deadIds).select('id'))
+  if (deadIds.length) await deleteSubscriptions(db, deadIds)
   return { subs: live, clients: [...liveClients.values()] }
 }
 
@@ -48,7 +54,9 @@ async function buildPlan(db, tomorrow) {
         .eq('day_date', tomorrow)
         .in('club_id', clubIds),
     ),
-    rows(db.from('client_reminder_log').select('client_id, start_minutes').eq('day_date', tomorrow).in('client_id', clientIds)),
+    loadInChunks(clientIds, (part) =>
+      rows(db.from('client_reminder_log').select('client_id, start_minutes').eq('day_date', tomorrow).in('client_id', part)),
+    ),
     rows(db.from('clubs').select('id, name').in('id', clubIds)),
   ])
   const trainerIds = [...new Set(entries.map((e) => String(e.trainer_id)))]
@@ -103,8 +111,8 @@ export async function runClientReminders({ db = createServiceDataClient(), now =
 
   const result = { tomorrow, planned: plan.length, sent: 0, failed: 0, expired: 0 }
   const expiredIds = new Set()
-  for (const item of plan) {
-    if (!(await claimSlot(db, item))) continue
+  await runWithConcurrency(plan, SEND_PARALLEL, async (item) => {
+    if (!(await claimSlot(db, item))) return
     let delivered = 0
     for (const row of item.rows) {
       if (expiredIds.has(row.id)) continue
@@ -115,9 +123,9 @@ export async function runClientReminders({ db = createServiceDataClient(), now =
     }
     if (delivered) result.sent += 1
     else await releaseSlot(db, item)
-  }
+  })
   if (expiredIds.size) {
-    await rows(db.from('client_push_subscriptions').delete().in('id', [...expiredIds]).select('id'))
+    await deleteSubscriptions(db, [...expiredIds])
     result.expired = expiredIds.size
   }
   await rows(db.from('client_reminder_log').delete().lt('day_date', addCalendarDaysIso(today, -LOG_KEEP_DAYS)).select('client_id'))

@@ -22,8 +22,10 @@ import {
   inboxDeliveryClubFilter,
   resolveInboxClubScope,
 } from '../../../src/lib/inbox/inboxAudienceCore.js'
+import { runWithConcurrency } from '../batchCore.js'
 import { inboxPushBlocker, sendInboxPush } from './inboxPushJob.js'
 import {
+  countCampaignStats,
   insertInboxCampaign,
   insertInboxDeliveries,
   listInboxCampaigns,
@@ -36,6 +38,7 @@ import {
 } from './inboxStore.js'
 
 const NOT_FOUND_RU = 'Рассылка не найдена'
+const LIST_STATS_PARALLEL = 3
 
 function splitParam(raw) {
   return String(raw ?? '')
@@ -70,15 +73,12 @@ async function handleList(ctx, res) {
   const own = inboxDeliveryClubFilter(ctx)
   const db = ctx.supabaseAdmin
   const [campaigns, clubs] = await Promise.all([listInboxCampaigns(db, own), loadClubNames(db, own ? [own] : null)])
-  const deliveries = await loadCampaignDeliveries(db, campaigns.map((c) => c.id), own, 'campaign_id, read_at, answered_at')
-  const byCampaign = new Map()
-  for (const d of deliveries) {
-    const id = String(d.campaign_id)
-    if (!byCampaign.has(id)) byCampaign.set(id, [])
-    byCampaign.get(id).push(d)
-  }
+  const statsById = new Map()
+  await runWithConcurrency(campaigns, LIST_STATS_PARALLEL, async (c) => {
+    statsById.set(String(c.id), await countCampaignStats(db, c.id, own))
+  })
   sendJson(res, 200, {
-    campaigns: campaigns.map((c) => campaignView(c, inboxCampaignStats(byCampaign.get(String(c.id)) ?? []))),
+    campaigns: campaigns.map((c) => campaignView(c, statsById.get(String(c.id)))),
     clubs: clubs.map((c) => ({ id: c.id, name: String(c.name ?? '') })),
     push_blocker: inboxPushBlocker(),
   })

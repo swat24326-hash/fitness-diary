@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import pg from 'pg'
 import { pgClientSslOption } from '../../../src/lib/pgMigrateOrderCore.js'
 import { pgSslCaPath } from './backend.js'
+import { pgPoolMaxFromEnv } from './poolConfig.js'
 import { pgNumberMaybe, pgTimestamptzToIso } from './pgValues.js'
 
 const { types } = pg
@@ -51,7 +52,7 @@ export function getPgRestPool() {
   const ssl = sslConfig(databaseUrl)
   pool = new pg.Pool({
     connectionString: databaseUrl,
-    max: 8,
+    max: pgPoolMaxFromEnv(process.env.PG_POOL_MAX),
     connectionTimeoutMillis: 8000,
     query_timeout: 20000,
     statement_timeout: 20000,

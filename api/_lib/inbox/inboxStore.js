@@ -6,8 +6,8 @@ import {
   pickInboxRecipients,
   pickInboxStaffRecipients,
 } from '../../../src/lib/inbox/inboxAudienceCore.js'
+import { loadInChunks } from '../batchCore.js'
 
-const IN_CHUNK = 400
 const INSERT_CHUNK = 500
 export const INBOX_LIST_LIMIT = 30
 
@@ -15,12 +15,6 @@ export async function rows(query) {
   const { data, error } = await query
   if (error) throw error
   return data ?? []
-}
-
-async function rowsInChunks(ids, load) {
-  const out = []
-  for (let i = 0; i < ids.length; i += IN_CHUNK) out.push(...(await load(ids.slice(i, i + IN_CHUNK))))
-  return out
 }
 
 /** Кандидаты рассылки и сколько из них со входом в приложение. */
@@ -34,7 +28,7 @@ export async function loadInboxAudience(db, { clubIds, halls, asOf }) {
   )
   const ids = clients.map((c) => String(c.id))
   const [sessions, memberships, lifecycleRows] = await Promise.all([
-    rowsInChunks(ids, (part) =>
+    loadInChunks(ids, (part) =>
       rows(db.from('client_sessions').select('client_id').is('revoked_at', null).in('client_id', part)),
     ),
     halls.length
@@ -102,6 +96,19 @@ export async function listInboxCampaigns(db, ownClubId) {
   let q = db.from('inbox_campaigns').select('*')
   if (ownClubId) q = q.contains('club_ids', [ownClubId])
   return rows(q.order('created_at', { ascending: false }).limit(INBOX_LIST_LIMIT))
+}
+
+/** Итоги рассылки счётчиками в базе: список не тянет все доставки (30 рассылок × 10 тыс. получателей). */
+export async function countCampaignStats(db, campaignId, clubFilter) {
+  const base = () => {
+    const q = db.from('inbox_deliveries').select('id', { count: 'exact', head: true }).eq('campaign_id', campaignId)
+    return clubFilter ? q.eq('club_id', clubFilter) : q
+  }
+  const counts = await Promise.all([base(), base().not('read_at', 'is', null), base().not('answered_at', 'is', null)])
+  const failed = counts.find((r) => r.error)
+  if (failed) throw failed.error
+  const [all, read, answered] = counts.map((r) => Number(r.count ?? 0))
+  return { recipients: all, read, answered }
 }
 
 export async function loadCampaignDeliveries(db, campaignIds, clubFilter, columns) {

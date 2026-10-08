@@ -5,10 +5,10 @@
 import { isWebPushConfigured, sendWebPushToRow } from '../webPushCore.js'
 import { cleanClubName } from '../clientPortal/clientManifestCore.js'
 import { clubOpsMinutesNow, isClientQuietMinute } from '../clientPortal/clientReminderCore.js'
+import { loadInChunks } from '../batchCore.js'
 import { rows } from './inboxStore.js'
 
 const PARALLEL = 8
-const IN_CHUNK = 400
 
 /** @returns {'quiet'|'off'|null} null — можно слать */
 export function inboxPushBlocker(now = new Date()) {
@@ -25,12 +25,6 @@ export function buildInboxPushPayload(campaign, clubName) {
     url: staff ? '/messages' : '/me/inbox',
     tag: `inbox-${campaign.id}`,
   }
-}
-
-async function loadInChunks(ids, load) {
-  const out = []
-  for (let i = 0; i < ids.length; i += IN_CHUNK) out.push(...(await load(ids.slice(i, i + IN_CHUNK))))
-  return out
 }
 
 /** Подписки получателей: клиент — только живая сессия приложения; сотрудник — все его устройства. */
@@ -50,7 +44,11 @@ async function loadSubscriptions(db, staff, recipients) {
   if (!subs.length) return []
   const sessionIds = [...new Set(subs.map((s) => String(s.session_id)))]
   const live = new Set(
-    (await rows(db.from('client_sessions').select('id').is('revoked_at', null).in('id', sessionIds))).map((s) => String(s.id)),
+    (
+      await loadInChunks(sessionIds, (part) =>
+        rows(db.from('client_sessions').select('id').is('revoked_at', null).in('id', part)),
+      )
+    ).map((s) => String(s.id)),
   )
   return subs.filter((s) => live.has(String(s.session_id))).map((s) => ({ ...s, owner: String(s.client_id) }))
 }
