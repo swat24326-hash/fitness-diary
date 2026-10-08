@@ -37,7 +37,7 @@ import {
   rows,
 } from './inboxStore.js'
 
-const NOT_FOUND_RU = 'Рассылка не найдена'
+const NOT_FOUND_RU = 'Опрос или объявление не найдены'
 const LIST_STATS_PARALLEL = 3
 
 function splitParam(raw) {
@@ -229,7 +229,7 @@ async function handleClose(ctx, res, id) {
     return
   }
   if (!canCloseInboxCampaign(ctx, campaign)) {
-    sendJson(res, 403, { error: 'Рассылку на несколько клубов закрывает администратор сети' })
+    sendJson(res, 403, { error: 'Опрос или объявление на несколько клубов закрывает администратор сети' })
     return
   }
   if (!campaign.closed_at) {

@@ -376,7 +376,7 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
                 <div className="feature-tile__icon">
                   <Mail size={44} aria-hidden />
                 </div>
-                <p className="feature-tile__title">Рассылки</p>
+                <p className="feature-tile__title">Опросы и объявления</p>
               </NavLink>
               <NavLink to={tab('challenges')} className={adminTileClass}>
                 <div className="feature-tile__icon">

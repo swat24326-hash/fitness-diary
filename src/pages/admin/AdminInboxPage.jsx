@@ -58,7 +58,7 @@ export function AdminInboxPage({ accessMode = 'admin' }) {
     <div className="admin-page admin-inbox">
       <AdminSectionHeader
         icon={Mail}
-        title="Рассылки"
+        title="Опросы и объявления"
         lead="Объявления и опросы во «Входящие» — клиентам в приложение или команде клуба в шапку."
       >
         {newKind || openId ? null : (

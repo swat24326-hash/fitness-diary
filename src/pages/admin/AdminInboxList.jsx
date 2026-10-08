@@ -13,7 +13,7 @@ function clubsLabel(ids, clubs) {
 export function AdminInboxList({ list, onOpen }) {
   const { campaigns, clubs, busy, error, reload } = list
   return (
-    <section className="admin-inbox__list-wrap" aria-label="Рассылки">
+    <section className="admin-inbox__list-wrap" aria-label="Опросы и объявления">
       <div className="admin-inbox__toolbar">
         <span className="muted">{campaigns ? `Последние ${campaigns.length}` : ''}</span>
         <button

@@ -6,7 +6,7 @@
 import { listOpenHalls } from '../clientHallLifecycleCore.js'
 import { USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../userRoleConstants.js'
 
-export const INBOX_NO_ACCESS_RU = 'Рассылки доступны администратору и управляющему'
+export const INBOX_NO_ACCESS_RU = 'Опросы и объявления доступны администратору и управляющему'
 export const INBOX_SUPERVISOR_CLUB_RU = 'Управляющий отправляет только в свой клуб'
 export const INBOX_SUPERVISOR_NO_CLUB_RU = 'У управляющего не задан клуб — обратитесь к администратору'
 
