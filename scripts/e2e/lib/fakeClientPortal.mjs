@@ -9,6 +9,7 @@ import {
   pickNextClientSession,
 } from '../../../api/_lib/clientPortal/clientMeCore.js'
 import { cleanClubName, clientManifestUrl } from '../../../api/_lib/clientPortal/clientManifestCore.js'
+import { buildClientTrainingView } from '../../../api/_lib/clientPortal/clientTrainingViewCore.js'
 import { fakeJwt } from './fakeBackend.mjs'
 
 /**
@@ -35,12 +36,17 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
       return { status: 200, json: { ok: true } }
     }
     if (!/^Bearer .+/.test(String(headers.authorization ?? ''))) return { status: 401, json: { error: 'Нет сессии' } }
+    const trainings = state.trainings.filter((t) => t.client_id === clientId && t.status === 'completed')
+    const names = new Map(state.users.map((u) => [u.id, u.name]))
+    if (method !== 'GET' && body?.action === 'training') {
+      const row = trainings.find((t) => t.id === body.id)
+      if (!row) return { status: 404, json: { error: 'Тренировка не найдена' } }
+      return { status: 200, json: { training: buildClientTrainingView(row, names.get(row.trainer_id) ?? null) } }
+    }
     if (method !== 'GET') return { status: 200, json: { ok: true } }
 
     const client = state.clients.find((c) => c.id === clientId)
     const club = state.clubs.find((c) => c.id === client.club_id)
-    const trainings = state.trainings.filter((t) => t.client_id === clientId && t.status === 'completed')
-    const names = new Map(state.users.map((u) => [u.id, u.name]))
     return {
       status: 200,
       json: {
@@ -52,6 +58,7 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
           state.membership_types,
           trainings,
           today,
+          names,
         ),
         next_session: pickNextClientSession(schedule, today, 0, names),
         progress: buildClientProgress(trainings, [], [], today),

@@ -55,6 +55,12 @@ export function lastVisitWidget(lastIso) {
   return { value: m ? `${m[2]}.${m[1]}` : '—', label: 'последняя' }
 }
 
+/** «4 недели подряд с тренировками»; одна неделя — ещё не серия, null. */
+export function weeksStreakLabel(n) {
+  const weeks = Math.trunc(Number(n) || 0)
+  return weeks >= 2 ? `${weeks} ${pluralRu(weeks, 'неделя', 'недели', 'недель')} подряд с тренировками` : null
+}
+
 /** «Сегодня», «Завтра» или «Пт, 10.10.2026». */
 export function formatSessionDayRu(dayIso, todayIso) {
   if (dayIso === todayIso) return 'Сегодня'

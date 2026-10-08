@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
-import { CalendarClock, ChevronRight, Gift, IdCard, ListChecks, TrendingUp } from 'lucide-react'
+import { CalendarClock, ChevronRight, Flame, Gift, IdCard, ListChecks, TrendingUp } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import {
   formatSignedRu,
   lastVisitWidget,
   measurementDeltas,
   pointsWord,
+  weeksStreakLabel,
   weightDeltaWidget,
 } from '../../lib/client/clientMeUiCore.js'
 import { membershipNote, membershipTile, sessionTile } from '../../lib/client/clientMeTilesCore.js'
@@ -79,6 +80,7 @@ export function ClientProgressCard({ progress, sparkBuild = 0, sparkSettling = f
   const weights = p.weights ?? []
   const weightDelta = weightDeltaWidget(weights)
   const deltas = measurementDeltas(p.measurements)
+  const streak = weeksStreakLabel(p.weeks_streak)
   return (
     <Card icon={TrendingUp} title="Мой прогресс">
       <div className="client-me-stats">
@@ -105,9 +107,15 @@ export function ClientProgressCard({ progress, sparkBuild = 0, sparkSettling = f
           </div>
         ) : null}
       </div>
+      {streak ? (
+        <p className="client-me-streak">
+          <Flame size={16} aria-hidden />
+          {streak}
+        </p>
+      ) : null}
       <Link to="/me/trainings" className="client-me-link">
         <ListChecks size={18} aria-hidden />
-        <span>Мои тренировки за 30 дней</span>
+        <span>Тренировки по абонементу</span>
         <ChevronRight size={18} aria-hidden className="client-me-link__chevron" />
       </Link>
       <ClientWeightSpark key={sparkBuild} weights={weights} settling={sparkSettling} rebuilt={sparkBuild > 0} />

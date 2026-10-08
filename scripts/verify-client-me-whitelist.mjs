@@ -11,7 +11,7 @@ import {
   buildClientProgress,
   pickNextClientSession,
 } from '../api/_lib/clientPortal/clientMeCore.js'
-import { buildClientRecentTrainings, recentTrainerIds } from '../api/_lib/clientPortal/clientRecentTrainingsCore.js'
+import { buildMembershipVisits, membershipVisitTrainerIds } from '../api/_lib/clientPortal/clientMembershipVisitsCore.js'
 import { buildClientTrainingView, isClientTrainingId } from '../api/_lib/clientPortal/clientTrainingViewCore.js'
 import {
   formatSessionDayRu,
@@ -124,7 +124,7 @@ ok(
 const mv = progress.measurements[0].values
 ok(mv.neck === 35 && mv.waist_upper === 80 && mv.waist_lower === 80, 'замеры по полям приложения (с legacy fallback)')
 
-// --- Тренировки за 30 дней (/me/trainings) ---
+// --- Тренировки по абонементу (/me/trainings) ---
 const recentSrc = [
   { id: 'r1', date: '2026-09-07', status: 'completed', type: 'Силовая', trainer_id: 'tr1', data: { training_focus: 'Старое' } },
   { id: 'r2', date: '2026-09-08', status: 'completed', type: 'Силовая', trainer_id: 'tr1', data: { training_focus: '  Ноги   ягодицы ', pre_weight_kg: '74,5', notes: 'секрет', exercises: [{ name: 'x' }] } },
@@ -134,16 +134,17 @@ const recentSrc = [
   { id: 'r6', date: '2026-10-09', status: 'completed', type: 'Силовая', trainer_id: 'tr1', data: {} },
 ]
 const recentNames = new Map([['tr1', 'Анна'], ['tr2', 'Олег']])
-const recent = buildClientRecentTrainings(recentSrc, TODAY, recentNames)
-ok(recent.map((r) => r.date).join() === '2026-10-05,2026-10-03,2026-09-08', '30 дней как в «за 30 дней»: новые сверху, без черновиков и будущего')
-ok(recent[2].focus === 'Ноги ягодицы' && recent[2].kg === 74.5 && recent[2].trainer_name === 'Анна', 'направленность, вес, имя тренера')
-ok(recent[1].no_show === true && recent[1].focus === null && recent[1].kg === null, 'неявка — с пометкой, без веса')
-ok(recent[0].focus === 'Кардио' && recent[0].trainer_name === null, 'без направленности — тип; тренер не найден — без имени')
+const mRange = { id: 'mR', start_date: '2026-09-01', end_date: '2026-12-01' }
+const recent = buildMembershipVisits(mRange, recentSrc, recentNames)
+ok(recent.map((r) => r.date).join() === '2026-09-07,2026-09-08,2026-10-03,2026-10-05,2026-10-09', 'по абонементу: по возрастанию, без черновиков')
+ok(recent[1].focus === 'Ноги ягодицы' && recent[1].kg === 74.5 && recent[1].trainer_name === 'Анна', 'направленность, вес, имя тренера')
+ok(recent[2].no_show === true && recent[2].focus === null && recent[2].kg === null, 'неявка — с пометкой, без веса')
+ok(recent[3].focus === 'Кардио' && recent[3].kg === 73 && recent[3].trainer_name === null, 'data строкой; без направленности — тип; тренер не найден — без имени')
 ok(
   [...keysDeep(recent)].sort().join() === 'date,focus,id,kg,no_show,trainer_name',
   'список: дата, направленность, вес, тренер, неявка и id тренировки — без заметок и упражнений',
 )
-ok(recent[2].id === 'r2', 'id — чтобы открыть окно тренировки')
+ok(recent[1].id === 'r2', 'id — чтобы открыть окно тренировки')
 
 // --- Окно тренировки (то же, что «Просмотр тренировки» у тренера) ---
 const TID = '7d1c2c3e-1111-4222-8333-444455556666'
@@ -187,9 +188,7 @@ ok(
 )
 ok(!('cooldown' in view.data), 'объект вместо текста в поле — отбрасываем')
 ok(!('trainer_id' in view) && !('client_id' in view) && !('club_id' in view), 'id сотрудника, клиента и клуба не уходят')
-ok(recentTrainerIds(recentSrc, TODAY).sort().join() === 'tr1,tr2,tr9', 'имена тренеров — только для тренировок окна')
-const progressForCount = buildClientProgress(recentSrc, [], [], TODAY)
-ok(recent.filter((r) => !r.no_show).length === progressForCount.visits_30d, 'список без неявок = цифра «за 30 дней»')
+ok(membershipVisitTrainerIds([mRange], recentSrc).sort().join() === 'tr1,tr2,tr9', 'имена тренеров — только для тренировок абонемента')
 
 // --- Бонусы ---
 ok(buildClientLoyalty(null) === null, 'нет снимка')

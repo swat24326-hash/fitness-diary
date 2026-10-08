@@ -17,9 +17,10 @@ import {
   buildClientMemberships,
   buildClientProgress,
   pickNextClientSession,
+  visibleClientMemberships,
 } from './clientMeCore.js'
 import { cleanClubName, clientManifestUrl } from './clientManifestCore.js'
-import { buildClientRecentTrainings, recentTrainerIds } from './clientRecentTrainingsCore.js'
+import { membershipVisitTrainerIds } from './clientMembershipVisitsCore.js'
 import { clubOpsMinutesNow } from './clientReminderCore.js'
 
 async function rows(query) {
@@ -91,18 +92,18 @@ export async function loadClientMe(db, client) {
     rows(db.from('body_measurements').select('*').eq('client_id', client.id).order('date', { ascending: false }).limit(12)),
     loadNextSession(db, client.id, today),
   ])
-  const [club, recentNames] = await Promise.all([
+  const visible = visibleClientMemberships(memberships, today)
+  const [club, trainerNames] = await Promise.all([
     db.from('clubs').select('name').eq('id', client.club_id).maybeSingle(),
-    loadTrainerNames(db, recentTrainerIds(trainings, today)),
+    loadTrainerNames(db, membershipVisitTrainerIds([...visible.current, visible.last_ended].filter(Boolean), trainings)),
   ])
   return {
     as_of: today,
     client: { name: String(client.name ?? '') },
     club: { name: cleanClubName(club.data?.name), manifest_url: clientManifestUrl(client.club_id) },
-    memberships: buildClientMemberships(memberships, types, trainings, today),
+    memberships: buildClientMemberships(memberships, types, trainings, today, trainerNames),
     next_session,
     progress: buildClientProgress(trainings, weights, measurements, today),
-    recent_trainings: buildClientRecentTrainings(trainings, today, recentNames),
     loyalty: await loadLoyalty(db, client, memberships, types, trainings, today),
   }
 }

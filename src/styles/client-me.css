@@ -272,6 +272,20 @@
   text-overflow: ellipsis;
 }
 
+.client-me-streak {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.client-me-streak svg {
+  flex: none;
+  color: var(--accent);
+}
+
 .client-me-deltas {
   display: grid;
   gap: 4px;

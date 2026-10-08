@@ -14,7 +14,7 @@ import {
 } from '../src/lib/client/clientMeHighlightsCore.js'
 import { membershipNote, membershipTile, sessionTile } from '../src/lib/client/clientMeTilesCore.js'
 import { lastVisitWidget, weightDeltaWidget } from '../src/lib/client/clientMeUiCore.js'
-import { recentTrainingRow, recentTrainingsSummary, trainingViewTitle } from '../src/lib/client/clientTrainingsUiCore.js'
+import { mainTrainerName, membershipTrainingRow, trainingViewTitle } from '../src/lib/client/clientTrainingsUiCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -100,23 +100,23 @@ ok(weightSparkCaption(geo.dots, 0)?.note === 'с тех пор −5 кг', 'ша
 ok(weightSparkCaption(geo.dots, 1)?.note === 'с тех пор +5 кг', 'шапка: рост со знаком +')
 ok(weightSparkCaption(geo.dots, 9) === null, 'шапка: нет точки — null')
 
-const rowToday = recentTrainingRow({ date: '2026-10-07', focus: 'Ноги', kg: 74.5, trainer_name: 'Анна', no_show: false }, TODAY)
-ok(rowToday.num === '07' && rowToday.weekday === 'ср' && rowToday.title === 'Ноги', 'строка: число, день недели, направленность')
-ok(rowToday.meta === 'сегодня · Анна · 74,5\u00a0кг', 'строка: когда · тренер · вес (кг не отрывается от числа)')
-ok(recentTrainingRow({ date: '2026-10-06', focus: null, kg: null, trainer_name: null, no_show: false }, TODAY).meta === 'вчера', 'вчера, без пустых полей')
-const miss = recentTrainingRow({ date: '2026-09-15', focus: null, kg: null, trainer_name: 'Анна', no_show: true }, TODAY)
-ok(miss.noShow && miss.title === 'Неявка' && miss.meta === '15 сентября · занятие списано с абонемента', 'неявка: понятно, куда ушло занятие')
-ok(recentTrainingRow({ date: '2026-10-01', focus: '', kg: null, trainer_name: null, no_show: false }, TODAY).title === 'Тренировка', 'без направленности — «Тренировка»')
-ok(recentTrainingRow({ id: 't1', date: '2026-10-07', no_show: false }, TODAY).canOpen, 'тренировку с id можно открыть')
-ok(!recentTrainingRow({ id: 't2', date: '2026-10-07', no_show: true }, TODAY).canOpen, 'неявку не открываем — смотреть нечего')
-ok(!recentTrainingRow({ date: '2026-10-07', no_show: false }, TODAY).canOpen, 'старый кэш без id — строка не кнопка')
+const rowMain = membershipTrainingRow({ date: '2026-10-07', focus: 'Ноги', kg: 74.5, trainer_name: 'Анна', no_show: false }, 8, 'Анна')
+ok(rowMain.num === '07' && rowMain.month === 'окт' && rowMain.title === 'Ноги', 'строка: число и месяц в квадрате, направленность')
+ok(rowMain.meta === '№8 · 74,5\u00a0кг', 'основной тренер в строке не повторяется; кг не отрывается от числа')
+const rowSub = membershipTrainingRow({ date: '2026-09-27', focus: null, kg: 64.9, trainer_name: 'Олег', no_show: false }, 6, 'Анна')
+ok(rowSub.meta === '№6 · вёл Олег · 64,9\u00a0кг' && rowSub.month === 'сен', 'замена — тренер в строке')
+ok(membershipTrainingRow({ date: '2026-10-06', focus: null, kg: null, trainer_name: null, no_show: false }, 2, null).meta === '№2', 'без пустых полей')
+const miss = membershipTrainingRow({ date: '2026-09-15', focus: null, kg: null, trainer_name: 'Олег', no_show: true }, 4, 'Анна')
+ok(miss.noShow && miss.title === 'Неявка' && miss.meta === '№4 · занятие списано с абонемента', 'неявка: понятно, куда ушло занятие')
+ok(membershipTrainingRow({ date: '2026-10-01', focus: '', kg: null, trainer_name: null, no_show: false }, 1).title === 'Тренировка', 'без направленности — «Тренировка»')
+ok(membershipTrainingRow({ id: 't1', date: '2026-10-07', no_show: false }, 1).canOpen, 'тренировку с id можно открыть')
+ok(!membershipTrainingRow({ id: 't2', date: '2026-10-07', no_show: true }, 1).canOpen, 'неявку не открываем — смотреть нечего')
+ok(!membershipTrainingRow({ date: '2026-10-07', no_show: false }, 1).canOpen, 'старый кэш без id — строка не кнопка')
+const tn = (trainer_name, no_show = false) => ({ trainer_name, no_show })
+ok(mainTrainerName([tn('Анна'), tn('Олег'), tn('Анна')]) === 'Анна', 'основной — кто провёл больше')
+ok(mainTrainerName([tn('Анна'), tn('Олег', true), tn('Олег', true), tn('Олег')]) === 'Олег', 'поровну — кто вёл последним; неявки не в счёт')
+ok(mainTrainerName([tn(null)]) === null && mainTrainerName([]) === null, 'нет имён — null')
 ok(trainingViewTitle('2026-08-31') === '31 августа, пн', 'заголовок окна: «31 августа, пн»')
-ok(
-  recentTrainingsSummary([{ no_show: false }, { no_show: false }, { no_show: true }]) === '2 тренировки за 30 дней · 1 неявка',
-  'сводка: тренировки и неявки',
-)
-ok(recentTrainingsSummary([]) === '0 тренировок за 30 дней', 'пусто — ноль')
-
 ok(membershipBarPercent({ total: 50, remaining: 44, used: 6 }) === 88, 'полоска по остатку: 44 из 50 → 88%')
 ok(membershipBarPercent({ total: 10, remaining: 0 }) === 0, 'исчерпан — полоска пустая')
 ok(membershipBarPercent({ total: null, remaining: null }) === null, 'безлимит — полоски нет')

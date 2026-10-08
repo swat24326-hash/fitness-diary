@@ -11,6 +11,8 @@ import {
   isoCalendarDaysDiff,
 } from '../../../src/lib/membershipRules.js'
 import { formatScheduleTimeRange } from '../../../src/lib/trainer/trainerScheduleCore.js'
+import { buildMembershipVisits } from './clientMembershipVisitsCore.js'
+import { weeksStreak } from './clientWeeksStreakCore.js'
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const day = (v) => String(v ?? '').slice(0, 10)
@@ -24,11 +26,27 @@ function membershipStatus(m, used, today) {
   return 'active'
 }
 
+const validMemberships = (memberships) =>
+  (memberships ?? []).filter((m) => ISO.test(day(m.start_date)) && ISO.test(day(m.end_date)))
+
+/** Абонементы, которые видит клиент: ещё не закончившиеся по сроку, а если таких нет — последний закончившийся. */
+export function visibleClientMemberships(memberships, today) {
+  const valid = validMemberships(memberships)
+  const current = valid
+    .filter((m) => day(m.end_date) >= today)
+    .sort((a, b) => day(a.start_date).localeCompare(day(b.start_date)))
+    .slice(0, MAX_MEMBERSHIPS)
+  if (current.length) return { current, last_ended: null }
+  const last = [...valid].sort((a, b) => day(b.end_date).localeCompare(day(a.end_date)))[0]
+  return { current: [], last_ended: last ?? null }
+}
+
 /**
- * Абонементы, которые ещё не закончились по сроку; если таких нет — последний закончившийся.
- * Счётчик как в списке тренера: max(дневник, поле used_trainings).
+ * Счётчик как в списке тренера: max(дневник, поле used_trainings); visits — тренировки этих списаний
+ * (у закончившегося тоже — клиент без действующего абонемента видит прошлые тренировки).
+ * @param {Map<string, string>} [trainerNameById]
  */
-export function buildClientMemberships(memberships, types, trainings, today) {
+export function buildClientMemberships(memberships, types, trainings, today, trainerNameById) {
   const codeById = new Map((types ?? []).map((t) => [String(t.id), String(t.code ?? '').trim()]))
   const view = (m) => {
     const unlimited = isCalendarUnlimitedMembership(m)
@@ -44,17 +62,11 @@ export function buildClientMemberships(memberships, types, trainings, today) {
       remaining: total == null ? null : Math.max(0, total - used),
       days_left: Math.max(0, isoCalendarDaysDiff(day(m.end_date), today) ?? 0),
       status: membershipStatus(m, used, today),
+      visits: buildMembershipVisits(m, trainings, trainerNameById),
     }
   }
-  const valid = (memberships ?? []).filter((m) => ISO.test(day(m.start_date)) && ISO.test(day(m.end_date)))
-  const current = valid
-    .filter((m) => day(m.end_date) >= today)
-    .sort((a, b) => day(a.start_date).localeCompare(day(b.start_date)))
-    .slice(0, MAX_MEMBERSHIPS)
-    .map(view)
-  if (current.length) return { current, last_ended: null }
-  const last = [...valid].sort((a, b) => day(b.end_date).localeCompare(day(a.end_date)))[0]
-  return { current: [], last_ended: last ? { label: view(last).label, end_date: day(last.end_date) } : null }
+  const { current, last_ended } = visibleClientMemberships(memberships, today)
+  return { current: current.map(view), last_ended: last_ended ? { ...view(last_ended), status: 'ended' } : null }
 }
 
 /**
@@ -120,6 +132,7 @@ export function buildClientProgress(trainings, weights, measurements, today) {
     visits_30d: monthAgo.length,
     first_visit: dates[0] ?? null,
     last_visit: dates.at(-1) ?? null,
+    weeks_streak: weeksStreak(dates, today),
     weights: weightRows.slice(-MAX_WEIGHTS),
     measurements: measureRows.slice(-MAX_MEASUREMENTS),
   }

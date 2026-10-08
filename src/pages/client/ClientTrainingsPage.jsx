@@ -1,101 +1,93 @@
-import { Navigate, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { Navigate } from 'react-router-dom'
+import { ChevronRight, RefreshCw } from 'lucide-react'
 import { TrainingViewModal } from '../../components/trainer/TrainingViewModal.jsx'
-import { recentTrainingRow, recentTrainingsSummary, trainingViewTitle } from '../../lib/client/clientTrainingsUiCore.js'
-import { ClientMenu } from './ClientMenu.jsx'
+import { membershipTrainingsCards } from '../../lib/client/clientMembershipVisitsUiCore.js'
+import { trainingViewTitle } from '../../lib/client/clientTrainingsUiCore.js'
+import { ClientBackActions } from './ClientBackActions.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientMe } from './useClientMe.js'
 import { useClientTraining } from './useClientTraining.js'
 
-/** /me/trainings — тренировки клиента за 30 дней; нажатие открывает окно «что делали» (без заметок тренера). */
+function TrainingRow({ row, index, view }) {
+  const content = (
+    <>
+      <span className="client-trainings__date" aria-hidden>
+        <strong>{row.num}</strong>
+        <small>{row.month}</small>
+      </span>
+      <span className="client-trainings__body">
+        <strong>{row.title}</strong>
+        <small>{row.meta}</small>
+      </span>
+    </>
+  )
+  const id = row.training.id
+  return (
+    <li className={`client-trainings__row${row.noShow ? ' client-trainings__row--miss' : ''}`} style={{ '--i': index }}>
+      {row.canOpen ? (
+        <button type="button" className="client-trainings__open" onClick={() => void view.open(id)} aria-busy={view.pendingId === id}>
+          {content}
+          {view.pendingId === id ? (
+            <RefreshCw size={18} className="client-trainings__go client-me-spin" aria-label="Открываем" />
+          ) : (
+            <ChevronRight size={18} className="client-trainings__go" aria-hidden />
+          )}
+        </button>
+      ) : (
+        content
+      )}
+    </li>
+  )
+}
+
+/** /me/trainings — тренировки по абонементу: что списано (включая неявки), нажатие открывает окно «что делали». */
 export function ClientTrainingsPage() {
-  const navigate = useNavigate()
-  const { data, status, logout } = useClientMe()
+  const { data, status } = useClientMe()
   const view = useClientTraining()
   if (status === 'signed_out') return <Navigate to="/me" replace />
-  const list = data?.recent_trainings
-
-  const actions = (
-    <span className="client-me__actions">
-      <button
-        type="button"
-        className="btn btn-ghost btn-icon-square btn-touch"
-        onClick={() => navigate('/me')}
-        title="Назад"
-        aria-label="Назад"
-      >
-        <ArrowLeft size={20} aria-hidden />
-      </button>
-      <ClientMenu clientName={data?.client?.name || ''} onLogout={() => void logout()} />
-    </span>
-  )
+  const cards = data ? membershipTrainingsCards(data.memberships) : null
 
   return (
-    <ClientMeShell actions={actions} club={data?.club ?? null}>
-      <h1 className="client-me__hello">Мои тренировки</h1>
+    <ClientMeShell actions={<ClientBackActions />} club={data?.club ?? null}>
+      <h1 className="client-me__hello">Тренировки по абонементу</h1>
       {status === 'offline' ? (
         <p className="client-me-offline" role="status">
           Нет связи — показаны сохранённые данные
         </p>
       ) : null}
-      {!list ? (
+      {view.error ? (
+        <p className="client-me-offline" role="alert">
+          {view.error}
+        </p>
+      ) : null}
+      {!cards ? (
         <ClientMeStatus icon={RefreshCw} spin={status === 'loading'} title={status === 'loading' ? 'Загружаем…' : 'Нет данных'} />
+      ) : cards.length ? (
+        cards.map((card) => (
+          <section key={card.key} className="client-me-card">
+            <h2 className="client-me-card__title">
+              {card.title} <span className="client-me-muted">{card.period}</span>
+            </h2>
+            <p className="client-me-muted">{card.summary}</p>
+            {card.rows.length ? (
+              <ol className="client-trainings">
+                {card.rows.map((r, i) => (
+                  <TrainingRow key={r.training.id || r.n} row={r} index={i} view={view} />
+                ))}
+              </ol>
+            ) : (
+              <p className="client-me-line">По этому абонементу тренировок ещё не было.</p>
+            )}
+            {card.gap ? (
+              <p className="client-me-renew" role="note">
+                {card.gap}
+              </p>
+            ) : null}
+          </section>
+        ))
       ) : (
-        <section className="client-me-card">
-          <p className="client-me-muted">{recentTrainingsSummary(list)}</p>
-          {view.error ? (
-            <p className="client-me-offline" role="alert">
-              {view.error}
-            </p>
-          ) : null}
-          {list.length ? (
-            <ol className="client-trainings">
-              {list.map((t, i) => {
-                const r = recentTrainingRow(t, data.as_of)
-                const content = (
-                  <>
-                    <span className="client-trainings__date" aria-hidden>
-                      <strong>{r.num}</strong>
-                      <small>{r.weekday}</small>
-                    </span>
-                    <span className="client-trainings__body">
-                      <strong>{r.title}</strong>
-                      <small>{r.meta}</small>
-                    </span>
-                  </>
-                )
-                return (
-                  <li
-                    key={t.id || `${t.date}-${i}`}
-                    className={`client-trainings__row${r.noShow ? ' client-trainings__row--miss' : ''}`}
-                    style={{ '--i': i }}
-                  >
-                    {r.canOpen ? (
-                      <button
-                        type="button"
-                        className="client-trainings__open"
-                        onClick={() => void view.open(t.id)}
-                        aria-busy={view.pendingId === t.id}
-                      >
-                        {content}
-                        {view.pendingId === t.id ? (
-                          <RefreshCw size={18} className="client-trainings__go client-me-spin" aria-label="Открываем" />
-                        ) : (
-                          <ChevronRight size={18} className="client-trainings__go" aria-hidden />
-                        )}
-                      </button>
-                    ) : (
-                      content
-                    )}
-                  </li>
-                )
-              })}
-            </ol>
-          ) : (
-            <p className="client-me-line">За последние 30 дней тренировок не было.</p>
-          )}
-        </section>
+        <ClientMeStatus title="Абонемента пока нет" hint="Купить абонемент можно у администратора клуба." />
       )}
       {view.training ? (
         <TrainingViewModal

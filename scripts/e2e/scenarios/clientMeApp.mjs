@@ -1,6 +1,6 @@
 /**
  * Приложение клиента /me на iPhone: без входа → чужая ссылка → вход по ссылке → главная и баннер
- * установки → «Позже» → перезагрузка → нет связи. Слой сотрудника (trainer-pull, Auth) не трогается.
+ * установки → «Позже» → перезагрузка → нет связи → тренировки по абонементу → окно тренировки. Слой сотрудника (trainer-pull, Auth) не трогается.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
@@ -98,6 +98,15 @@ export async function run(browser) {
     c.ok(await visible(page, 'Нет связи — показаны данные на'), 'без сети — плашка «Нет связи» и данные из кэша')
     c.ok(await membershipShows(page, /6\s*из 8/), 'без сети абонемент всё ещё виден')
     backend.cloudDown = false
+
+    await page.getByRole('link', { name: 'Тренировки по абонементу' }).click()
+    await page.waitForURL(`${ORIGIN}/me/trainings`, { timeout: 10_000 })
+    c.ok(await visible(page, 'Списано 2 из 8'), 'тренировки по абонементу: «Списано 2 из 8» — как цифра на главной')
+    c.ok((await page.locator('.client-trainings__row').count()) === 2, 'в списке две строки — по одной на списание')
+    await screenshot(page, 'client-me-trainings')
+    await page.locator('.client-trainings__open').first().click()
+    c.ok(await visible(page, 'Жим лёжа'), 'нажал на тренировку — окно с упражнениями')
+    await screenshot(page, 'client-me-training-view')
 
     const staff = backend.state.requestLog.filter((l) => /\/auth\/v1|\/rest\/v1|trainer-pull|me-profile|push-record/.test(l))
     c.ok(staff.length === 0, `клиент не ходит в API сотрудника (${staff.join(', ') || 'нет'})`)

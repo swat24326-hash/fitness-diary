@@ -42,7 +42,6 @@
 .client-me-link:hover .client-me-link__chevron {
   transform: translateX(2px);
 }
-
 .client-trainings {
   display: grid;
   gap: 8px;
