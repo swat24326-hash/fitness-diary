@@ -14,7 +14,7 @@ import {
 } from '../src/lib/client/clientMeHighlightsCore.js'
 import { membershipNote, membershipTile, sessionTile } from '../src/lib/client/clientMeTilesCore.js'
 import { lastVisitWidget, weightDeltaWidget } from '../src/lib/client/clientMeUiCore.js'
-import { recentTrainingRow, recentTrainingsSummary } from '../src/lib/client/clientTrainingsUiCore.js'
+import { recentTrainingRow, recentTrainingsSummary, trainingViewTitle } from '../src/lib/client/clientTrainingsUiCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -107,6 +107,10 @@ ok(recentTrainingRow({ date: '2026-10-06', focus: null, kg: null, trainer_name: 
 const miss = recentTrainingRow({ date: '2026-09-15', focus: null, kg: null, trainer_name: 'Анна', no_show: true }, TODAY)
 ok(miss.noShow && miss.title === 'Неявка' && miss.meta === '15 сентября · занятие списано с абонемента', 'неявка: понятно, куда ушло занятие')
 ok(recentTrainingRow({ date: '2026-10-01', focus: '', kg: null, trainer_name: null, no_show: false }, TODAY).title === 'Тренировка', 'без направленности — «Тренировка»')
+ok(recentTrainingRow({ id: 't1', date: '2026-10-07', no_show: false }, TODAY).canOpen, 'тренировку с id можно открыть')
+ok(!recentTrainingRow({ id: 't2', date: '2026-10-07', no_show: true }, TODAY).canOpen, 'неявку не открываем — смотреть нечего')
+ok(!recentTrainingRow({ date: '2026-10-07', no_show: false }, TODAY).canOpen, 'старый кэш без id — строка не кнопка')
+ok(trainingViewTitle('2026-08-31') === '31 августа, пн', 'заголовок окна: «31 августа, пн»')
 ok(
   recentTrainingsSummary([{ no_show: false }, { no_show: false }, { no_show: true }]) === '2 тренировки за 30 дней · 1 неявка',
   'сводка: тренировки и неявки',

@@ -12,9 +12,16 @@ function whenRu(dayIso, todayIso) {
   return `${d} ${MONTHS_GEN[m - 1]}`
 }
 
+/** Заголовок окна тренировки: «31 августа, пн». */
+export function trainingViewTitle(dayIso) {
+  const [, m, d] = String(dayIso).split('-').map(Number)
+  if (!m || !d) return 'Тренировка'
+  return `${d} ${MONTHS_GEN[m - 1]}, ${weekdayShortRu(dayIso).toLowerCase()}`
+}
+
 /**
- * @param {{ date: string, focus: string|null, kg: number|null, trainer_name: string|null, no_show: boolean }} t
- * @returns {{ num: string, weekday: string, title: string, meta: string, noShow: boolean }}
+ * @param {{ id?: string, date: string, focus: string|null, kg: number|null, trainer_name: string|null, no_show: boolean }} t
+ * @returns {{ num: string, weekday: string, title: string, meta: string, noShow: boolean, canOpen: boolean }}
  */
 export function recentTrainingRow(t, todayIso) {
   const meta = [whenRu(t.date, todayIso)]
@@ -29,6 +36,7 @@ export function recentTrainingRow(t, todayIso) {
     title: t.no_show ? 'Неявка' : t.focus || 'Тренировка',
     meta: meta.join(' · '),
     noShow: Boolean(t.no_show),
+    canOpen: Boolean(t.id) && !t.no_show,
   }
 }
 

@@ -4,6 +4,7 @@
  *   h — вход значка на iPhone: попадает в start_url, в базе не проверяется (это делает /api/client-auth).
  * POST /api/client-me { action: 'push-*' } — напоминания о тренировке на этот телефон (clientPushHandler.js).
  * POST /api/client-me { action: 'handoff' } — одноразовый вход для значка на iPhone (clientHandoffHandler.js).
+ * POST /api/client-me { action: 'training', id } — одна своя тренировка для окна просмотра (clientTrainingHandler.js).
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -11,6 +12,7 @@ import { clientHandoffStartUrl, isClientHandoffToken } from './clientHandoffCore
 import { handleClientHandoff } from './clientHandoffHandler.js'
 import { buildClientManifest, isClientManifestClubId } from './clientManifestCore.js'
 import { handleClientPushPost } from './clientPushHandler.js'
+import { handleClientTraining } from './clientTrainingHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
 
@@ -59,6 +61,7 @@ export async function clientMeHandler(req, res) {
   if (req.method === 'POST') {
     const body = parseBody(req.body)
     if (body?.action === 'handoff') await handleClientHandoff(ctx, res)
+    else if (body?.action === 'training') await handleClientTraining(createServiceDataClient(), ctx, body.id, res)
     else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }

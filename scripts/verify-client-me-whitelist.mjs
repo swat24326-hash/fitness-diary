@@ -12,6 +12,7 @@ import {
   pickNextClientSession,
 } from '../api/_lib/clientPortal/clientMeCore.js'
 import { buildClientRecentTrainings, recentTrainerIds } from '../api/_lib/clientPortal/clientRecentTrainingsCore.js'
+import { buildClientTrainingView, isClientTrainingId } from '../api/_lib/clientPortal/clientTrainingViewCore.js'
 import {
   formatSessionDayRu,
   formatSignedRu,
@@ -139,9 +140,53 @@ ok(recent[2].focus === 'Ноги ягодицы' && recent[2].kg === 74.5 && rec
 ok(recent[1].no_show === true && recent[1].focus === null && recent[1].kg === null, 'неявка — с пометкой, без веса')
 ok(recent[0].focus === 'Кардио' && recent[0].trainer_name === null, 'без направленности — тип; тренер не найден — без имени')
 ok(
-  [...keysDeep(recent)].sort().join() === 'date,focus,kg,no_show,trainer_name',
-  'наружу только дата, направленность, вес, тренер, неявка — без заметок, упражнений и id',
+  [...keysDeep(recent)].sort().join() === 'date,focus,id,kg,no_show,trainer_name',
+  'список: дата, направленность, вес, тренер, неявка и id тренировки — без заметок и упражнений',
 )
+ok(recent[2].id === 'r2', 'id — чтобы открыть окно тренировки')
+
+// --- Окно тренировки (то же, что «Просмотр тренировки» у тренера) ---
+const TID = '7d1c2c3e-1111-4222-8333-444455556666'
+ok(isClientTrainingId(TID) && !isClientTrainingId('1 or 1=1') && !isClientTrainingId(''), 'id тренировки — только uuid')
+const view = buildClientTrainingView(
+  {
+    id: TID,
+    date: '2026-08-31T00:00:00Z',
+    type: 'Силовая',
+    trainer_id: 'tr1',
+    client_id: 'x',
+    club_id: 'c',
+    data: {
+      pre_weight_kg: '49',
+      warmup: 'Суставная',
+      warmup_duration_min: 10,
+      training_focus: 'Функционалка',
+      trainer_comment: 'Молодец, держим технику',
+      survey_notes: 'Спал плохо',
+      readiness: 7,
+      exercises: [{ name: 'Бёрпи', format: 'Силовая', sets: [{ reps: '1', weight_kg: '0', rpe: '1', comment: 'легко' }] }],
+      hr_session: { avg: 117, min: 90, max: 150, samples: [1, 2, 3], kcal_est: 217 },
+      membership_id: 'm1',
+      is_writeoff: false,
+      draft_epoch: 5,
+      client_snapshot: { phone: '+7999' },
+      cooldown: { evil: true },
+    },
+  },
+  'Анна',
+)
+ok(view.date === '2026-08-31' && view.type === 'Силовая' && view.trainer_name === 'Анна' && view.status === 'completed', 'шапка окна: дата, тип, тренер')
+ok(view.data.pre_weight_kg === '49' && view.data.readiness === 7 && view.data.warmup === 'Суставная', 'замеры, готовность, разминка — как у тренера')
+ok(!('trainer_comment' in view.data) && !('survey_notes' in view.data), 'заметки тренера и опрос клиенту не показываем')
+const set0 = view.data.exercises?.[0]?.sets?.[0]
+ok(set0?.reps === '1' && !('comment' in set0), 'подходы с цифрами, но без комментариев')
+ok(view.data.hr_session?.avg === 117 && !('samples' in view.data.hr_session), 'пульс — итог сессии, без сырых замеров')
+ok(
+  !('membership_id' in view.data) && !('is_writeoff' in view.data) && !('draft_epoch' in view.data) && !('client_snapshot' in view.data),
+  'служебное и чужие поля data не уходят',
+)
+ok(!('cooldown' in view.data), 'объект вместо текста в поле — отбрасываем')
+ok(!('trainer_id' in view) && !('client_id' in view) && !('club_id' in view), 'id сотрудника, клиента и клуба не уходят')
 ok(recentTrainerIds(recentSrc, TODAY).sort().join() === 'tr1,tr2,tr9', 'имена тренеров — только для тренировок окна')
 const progressForCount = buildClientProgress(recentSrc, [], [], TODAY)
 ok(recent.filter((r) => !r.no_show).length === progressForCount.visits_30d, 'список без неявок = цифра «за 30 дней»')

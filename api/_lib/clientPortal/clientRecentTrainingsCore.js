@@ -1,7 +1,8 @@
 /**
  * /me/trainings: тренировки клиента за 30 дней — то же окно, что цифра «за 30 дней» в прогрессе.
  * Неявки в списке с пометкой: они списывают абонемент, клиент должен видеть, куда ушло занятие.
- * Наружу только дата, направленность, вес, имя тренера — без заметок, упражнений и id.
+ * Наружу дата, направленность, вес, имя тренера и id тренировки (для окна просмотра — clientTrainingHandler
+ * отдаёт её только этому клиенту). Упражнения и комментарии — в окне, не в списке.
  */
 import { parseWeightKg } from '../../../src/lib/clientWeightCore.js'
 import { isLoyaltyNoShowTraining } from '../../../src/lib/loyalty/loyaltyTrainingEligibleCore.js'
@@ -47,6 +48,7 @@ export function buildClientRecentTrainings(trainings, today, trainerNameById) {
     const data = parseData(t.data)
     const noShow = isLoyaltyNoShowTraining({ ...t, data })
     return {
+      id: String(t.id ?? ''),
       date,
       focus: noShow ? null : clean(data.training_focus) || clean(t.type) || null,
       kg: noShow ? null : parseWeightKg(data.pre_weight_kg),

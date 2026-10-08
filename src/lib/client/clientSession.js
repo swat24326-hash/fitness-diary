@@ -127,6 +127,12 @@ export function postClientMe(body) {
   )
 }
 
+/** Одна своя завершённая тренировка для окна просмотра (без заметок — режет сервер). */
+export async function fetchClientTraining(id) {
+  const data = await postClientMe({ action: 'training', id })
+  return data.training
+}
+
 export async function logoutClient() {
   const s = readClientSession()
   clearClientSession()
