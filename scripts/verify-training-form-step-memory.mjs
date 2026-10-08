@@ -7,7 +7,6 @@ import {
   clearTrainingFormStepMemory,
   clampTrainingFormStep,
   escapeTrainingExerciseSelectorId,
-  filterCollapsedIdsForExercises,
   indexOfExerciseId,
   migrateTrainingFormPlace,
   pickScrollRestoreTarget,
@@ -75,26 +74,17 @@ rememberTrainingFormPlace('new:c1', {
   step: 2,
   focusExerciseId: 'ex-9',
   scrollY: 420,
-  collapsedIds: ['ex-1', 'ex-1', '', 'ex-2'],
 })
 const place = recallTrainingFormPlace('new:c1')
 ok(place?.step === 2, 'place step')
 ok(place?.focusExerciseId === 'ex-9', 'place focus exercise')
 ok(place?.scrollY === 420, 'place scrollY')
-ok(place?.collapsedIds?.join(',') === 'ex-1,ex-2', 'place collapsed dedupe')
-
 ok(migrateTrainingFormPlace('new:c1', 'real-id') === true, 'migrate new→id')
 ok(recallTrainingFormPlace('new:c1') == null, 'old key gone')
 ok(recallTrainingFormPlace('real-id')?.focusExerciseId === 'ex-9', 'place moved')
 
 ok(indexOfExerciseId([{ id: 'a' }, { id: 'ex-9' }], 'ex-9') === 1, 'index of exercise')
 ok(indexOfExerciseId([{ id: 'a' }], 'missing') == null, 'index missing')
-
-ok(
-  filterCollapsedIdsForExercises(['ex-1', 'gone'], [{ id: 'ex-1' }, { id: 'ex-2' }]).join(',') ===
-    'ex-1',
-  'collapsed filtered to live exercises',
-)
 
 ok(pickScrollRestoreTarget({ focusExerciseId: 'ex-9', scrollY: 10 })?.type === 'exercise', 'scroll prefers exercise')
 ok(pickScrollRestoreTarget({ focusExerciseId: null, scrollY: 80 })?.type === 'y', 'scroll falls back to y')

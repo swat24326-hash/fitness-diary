@@ -24,11 +24,6 @@ export function pointsWord(n) {
   return pluralRu(n, 'балл', 'балла', 'баллов')
 }
 
-function isoDayNumber(dayIso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dayIso ?? ''))
-  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 : null
-}
-
 /**
  * Виджет «вес»: «−5 кг / с 01.06.24» — знак отдельно от числа, чтобы рисовать его мельче. Год нужен — клиент может
  * ходить несколько лет; двузначный, чтобы влезть в 4 колонки на телефоне. Меньше двух замеров — null.
@@ -52,17 +47,12 @@ export function weightDeltaWidget(weights) {
 }
 
 /**
- * Виджет «последняя тренировка»: «сегодня», «вчера», «11 / дней назад».
+ * Виджет «последняя тренировка»: всегда дата «07.10 / последняя». Без года — крупная цифра должна влезть в 4 колонки.
  * @returns {{ value: string, label: string }}
  */
-export function lastVisitWidget(lastIso, todayIso) {
-  const last = isoDayNumber(lastIso)
-  const today = isoDayNumber(todayIso)
-  if (last == null || today == null) return { value: '—', label: 'последняя' }
-  const days = Math.max(0, today - last)
-  if (days === 0) return { value: 'сегодня', label: 'последняя' }
-  if (days === 1) return { value: 'вчера', label: 'последняя' }
-  return { value: String(days), label: `${daysWord(days)} назад` }
+export function lastVisitWidget(lastIso) {
+  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(String(lastIso ?? ''))
+  return { value: m ? `${m[2]}.${m[1]}` : '—', label: 'последняя' }
 }
 
 /** «Сегодня», «Завтра» или «Пт, 10.10.2026». */

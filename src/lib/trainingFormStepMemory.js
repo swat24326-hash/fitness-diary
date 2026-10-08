@@ -1,6 +1,6 @@
 /**
  * Память места в форме тренировки по id (сплит вкладок черновиков).
- * После remount / loading→ok: тот же шаг, свёртки, прокрутка к упражнению.
+ * После remount / loading→ok: тот же шаг, прокрутка к упражнению.
  * Не путать с данными workout — только UI-место сессии на устройстве.
  */
 
@@ -13,7 +13,6 @@ export const TRAINING_FORM_STEP_MAIN = 2
  *   step: number,
  *   focusExerciseId?: string | null,
  *   scrollY?: number,
- *   collapsedIds?: string[],
  * }} TrainingFormPlace
  */
 
@@ -24,21 +23,6 @@ export function clampTrainingFormStep(step) {
   const n = Number(step)
   if (!Number.isFinite(n)) return 0
   return Math.max(0, Math.min(TRAINING_FORM_STEP_COUNT - 1, Math.trunc(n)))
-}
-
-/** @param {unknown} ids */
-export function normalizeCollapsedIds(ids) {
-  if (!Array.isArray(ids)) return []
-  const out = []
-  const seen = new Set()
-  for (const raw of ids) {
-    const id = String(raw ?? '').trim()
-    if (!id || seen.has(id)) continue
-    seen.add(id)
-    out.push(id)
-    if (out.length >= 40) break
-  }
-  return out
 }
 
 /**
@@ -95,11 +79,6 @@ export function rememberTrainingFormPlace(trainingId, patch = {}) {
   } else if (prev.scrollY != null) {
     next.scrollY = prev.scrollY
   }
-  if (patch.collapsedIds !== undefined) {
-    next.collapsedIds = normalizeCollapsedIds(patch.collapsedIds)
-  } else if (prev.collapsedIds) {
-    next.collapsedIds = prev.collapsedIds
-  }
   memory.set(id, next)
 }
 
@@ -117,7 +96,6 @@ export function recallTrainingFormPlace(trainingId) {
     step: clampTrainingFormStep(raw?.step),
     focusExerciseId: raw?.focusExerciseId ? String(raw.focusExerciseId) : null,
     scrollY: Number.isFinite(Number(raw?.scrollY)) ? Number(raw.scrollY) : 0,
-    collapsedIds: normalizeCollapsedIds(raw?.collapsedIds),
   }
 }
 
@@ -142,19 +120,6 @@ export function indexOfExerciseId(exercises, exerciseId) {
   if (!id || !Array.isArray(exercises)) return null
   const idx = exercises.findIndex((ex) => String(ex?.id ?? '').trim() === id)
   return idx >= 0 ? idx : null
-}
-
-/**
- * @param {string[] | undefined} collapsedIds
- * @param {unknown} exercises
- */
-export function filterCollapsedIdsForExercises(collapsedIds, exercises) {
-  const valid = new Set(
-    (Array.isArray(exercises) ? exercises : [])
-      .map((ex) => String(ex?.id ?? '').trim())
-      .filter(Boolean),
-  )
-  return normalizeCollapsedIds(collapsedIds).filter((id) => valid.has(id))
 }
 
 /**

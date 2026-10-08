@@ -130,11 +130,9 @@ ok(up?.sign === '+' && up.value === '1,5', 'набор — плюс, запят�
 ok(weightDeltaWidget([{ date: '2026-06-01', kg: 90 }, { date: '2026-07-01', kg: 90 }])?.sign === '', 'без изменений — без знака')
 ok(weightDeltaWidget([{ date: '2024-09-15', kg: 90 }, { date: '2026-10-01', kg: 89 }])?.label === 'с 15.09.24', 'ходит несколько лет — год виден')
 ok(weightDeltaWidget([{ date: '2026-06-01', kg: 90 }]) === null && weightDeltaWidget(null) === null, 'один замер — виджета нет')
-const lv = (d) => lastVisitWidget(d, TODAY)
-ok(lv('2026-09-26').value === '11' && lv('2026-09-26').label === 'дней назад', 'последняя: 11 дней назад')
-ok(lv('2026-10-04').label === 'дня назад' && lv('2026-09-16').label === 'день назад', 'склонение: 3 дня, 21 день')
-ok(lv(TODAY).value === 'сегодня' && lv('2026-10-06').value === 'вчера', 'сегодня / вчера')
-ok(lv(null).value === '—' && lv('2026-10-09').value === 'сегодня', 'нет даты — прочерк; дата в будущем — не минус')
+ok(lastVisitWidget('2026-09-26').value === '26.09' && lastVisitWidget('2026-09-26').label === 'последняя', 'последняя: всегда дата')
+ok(lastVisitWidget(TODAY).value === TODAY.slice(8, 10) + '.' + TODAY.slice(5, 7), 'сегодня — тоже дата, не слово')
+ok(lastVisitWidget(null).value === '—', 'нет даты — прочерк')
 
 // --- Плитки: одна схема «значение → подпись → подвал» ---
 const mt = membershipTile({ current: [mem({ total: 50, remaining: 44, end_date: '2027-01-27' })] }, TODAY)

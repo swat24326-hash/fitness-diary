@@ -73,9 +73,9 @@ export function ClientMembershipNote({ memberships }) {
   ) : null
 }
 
-export function ClientProgressCard({ progress, today, sparkBuild = 0, sparkSettling = false }) {
+export function ClientProgressCard({ progress, sparkBuild = 0, sparkSettling = false }) {
   const p = progress ?? {}
-  const last = lastVisitWidget(p.last_visit, today)
+  const last = lastVisitWidget(p.last_visit)
   const weights = p.weights ?? []
   const weightDelta = weightDeltaWidget(weights)
   const deltas = measurementDeltas(p.measurements)

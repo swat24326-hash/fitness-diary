@@ -75,7 +75,6 @@ export function ClientMePage() {
       <ClientOnboardingBanner clubName={data.club?.name || ''} />
       <ClientProgressCard
         progress={data.progress}
-        today={today}
         sparkBuild={spark.build}
         sparkSettling={spark.settling}
       />
