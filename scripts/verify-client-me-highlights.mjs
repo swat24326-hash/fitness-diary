@@ -14,6 +14,7 @@ import {
 } from '../src/lib/client/clientMeHighlightsCore.js'
 import { membershipNote, membershipTile, sessionTile } from '../src/lib/client/clientMeTilesCore.js'
 import { lastVisitWidget, weightDeltaWidget } from '../src/lib/client/clientMeUiCore.js'
+import { recentTrainingRow, recentTrainingsSummary } from '../src/lib/client/clientTrainingsUiCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -98,6 +99,19 @@ ok(capLast?.kg === '94' && capLast.note === 'последний замер', 'ш
 ok(weightSparkCaption(geo.dots, 0)?.note === 'с тех пор −5 кг', 'шапка: выбранный замер — сколько изменилось к сегодня')
 ok(weightSparkCaption(geo.dots, 1)?.note === 'с тех пор +5 кг', 'шапка: рост со знаком +')
 ok(weightSparkCaption(geo.dots, 9) === null, 'шапка: нет точки — null')
+
+const rowToday = recentTrainingRow({ date: '2026-10-07', focus: 'Ноги', kg: 74.5, trainer_name: 'Анна', no_show: false }, TODAY)
+ok(rowToday.num === '07' && rowToday.weekday === 'ср' && rowToday.title === 'Ноги', 'строка: число, день недели, направленность')
+ok(rowToday.meta === 'сегодня · Анна · 74,5\u00a0кг', 'строка: когда · тренер · вес (кг не отрывается от числа)')
+ok(recentTrainingRow({ date: '2026-10-06', focus: null, kg: null, trainer_name: null, no_show: false }, TODAY).meta === 'вчера', 'вчера, без пустых полей')
+const miss = recentTrainingRow({ date: '2026-09-15', focus: null, kg: null, trainer_name: 'Анна', no_show: true }, TODAY)
+ok(miss.noShow && miss.title === 'Неявка' && miss.meta === '15 сентября · занятие списано с абонемента', 'неявка: понятно, куда ушло занятие')
+ok(recentTrainingRow({ date: '2026-10-01', focus: '', kg: null, trainer_name: null, no_show: false }, TODAY).title === 'Тренировка', 'без направленности — «Тренировка»')
+ok(
+  recentTrainingsSummary([{ no_show: false }, { no_show: false }, { no_show: true }]) === '2 тренировки за 30 дней · 1 неявка',
+  'сводка: тренировки и неявки',
+)
+ok(recentTrainingsSummary([]) === '0 тренировок за 30 дней', 'пусто — ноль')
 
 ok(membershipBarPercent({ total: 50, remaining: 44, used: 6 }) === 88, 'полоска по остатку: 44 из 50 → 88%')
 ok(membershipBarPercent({ total: 10, remaining: 0 }) === 0, 'исчерпан — полоска пустая')

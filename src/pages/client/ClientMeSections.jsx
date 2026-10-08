@@ -1,4 +1,5 @@
-import { CalendarClock, Gift, IdCard, TrendingUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CalendarClock, ChevronRight, Gift, IdCard, ListChecks, TrendingUp } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import {
   formatSignedRu,
@@ -104,6 +105,11 @@ export function ClientProgressCard({ progress, today, sparkBuild = 0, sparkSettl
           </div>
         ) : null}
       </div>
+      <Link to="/me/trainings" className="client-me-link">
+        <ListChecks size={18} aria-hidden />
+        <span>Мои тренировки за 30 дней</span>
+        <ChevronRight size={18} aria-hidden className="client-me-link__chevron" />
+      </Link>
       <ClientWeightSpark key={sparkBuild} weights={weights} settling={sparkSettling} rebuilt={sparkBuild > 0} />
       {deltas.length ? (
         <ul className="client-me-deltas">

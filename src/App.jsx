@@ -77,6 +77,9 @@ const ClientJoinPage = lazy(() => import('./pages/client/ClientJoinPage.jsx').th
 const ClientSettingsPage = lazy(() =>
   import('./pages/client/ClientSettingsPage.jsx').then((m) => ({ default: m.ClientSettingsPage })),
 )
+const ClientTrainingsPage = lazy(() =>
+  import('./pages/client/ClientTrainingsPage.jsx').then((m) => ({ default: m.ClientTrainingsPage })),
+)
 const ClientAppProvider = lazy(() =>
   import('./pages/client/ClientAppContext.jsx').then((m) => ({ default: m.ClientAppProvider })),
 )
@@ -97,6 +100,7 @@ function ClientAppRoutes() {
         <Routes>
           <Route path="join" element={<ClientJoinPage />} />
           <Route path="settings" element={<ClientSettingsPage />} />
+          <Route path="trainings" element={<ClientTrainingsPage />} />
           <Route path="*" element={<ClientMePage />} />
         </Routes>
       </ClientAppProvider>

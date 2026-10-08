@@ -1,0 +1,125 @@
+/* /me: кнопка «Мои тренировки» и список за 30 дней. */
+.client-me-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.18s ease,
+    transform 0.12s ease;
+}
+
+.client-me-link svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.client-me-link span {
+  flex: 1;
+}
+
+.client-me-link:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.client-me-link:active {
+  transform: scale(0.98);
+}
+
+.client-me-link__chevron {
+  transition: transform 0.18s ease;
+}
+
+.client-me-link:hover .client-me-link__chevron {
+  transform: translateX(2px);
+}
+
+.client-trainings {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.client-trainings__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  animation: client-trainings-in 0.32s calc(min(var(--i, 0), 12) * 40ms) var(--ease-out, ease) backwards;
+}
+
+.client-trainings__date {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  line-height: 1;
+}
+
+.client-trainings__date strong {
+  color: var(--accent);
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-trainings__date small {
+  margin-top: -6px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.client-trainings__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.client-trainings__body strong {
+  overflow: hidden;
+  font-size: 0.98rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-trainings__body small {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.client-trainings__row--miss .client-trainings__date {
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.client-trainings__row--miss .client-trainings__date strong,
+.client-trainings__row--miss .client-trainings__body strong {
+  color: var(--warning);
+}
+
+@keyframes client-trainings-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-trainings__row {
+    animation: none;
+  }
+}

@@ -19,6 +19,7 @@ import {
   pickNextClientSession,
 } from './clientMeCore.js'
 import { cleanClubName, clientManifestUrl } from './clientManifestCore.js'
+import { buildClientRecentTrainings, recentTrainerIds } from './clientRecentTrainingsCore.js'
 import { clubOpsMinutesNow } from './clientReminderCore.js'
 
 async function rows(query) {
@@ -38,10 +39,15 @@ async function loadNextSession(db, clientId, today) {
       .order('start_minutes', { ascending: true })
       .limit(10),
   )
-  const trainerIds = [...new Set(entries.map((e) => String(e.trainer_id)))]
-  const trainers = trainerIds.length ? await rows(db.from('users').select('id, name').in('id', trainerIds)) : []
-  const names = new Map(trainers.map((u) => [String(u.id), String(u.name ?? '').trim()]))
+  const names = await loadTrainerNames(db, entries.map((e) => String(e.trainer_id)))
   return pickNextClientSession(entries, today, clubOpsMinutesNow(), names)
+}
+
+/** @returns {Promise<Map<string, string>>} только имя — без телефонов и ролей */
+async function loadTrainerNames(db, ids) {
+  const unique = [...new Set(ids.filter(Boolean))]
+  const trainers = unique.length ? await rows(db.from('users').select('id, name').in('id', unique)) : []
+  return new Map(trainers.map((u) => [String(u.id), String(u.name ?? '').trim()]))
 }
 
 async function loadLoyalty(db, client, memberships, types, trainings, today) {
@@ -85,7 +91,10 @@ export async function loadClientMe(db, client) {
     rows(db.from('body_measurements').select('*').eq('client_id', client.id).order('date', { ascending: false }).limit(12)),
     loadNextSession(db, client.id, today),
   ])
-  const club = await db.from('clubs').select('name').eq('id', client.club_id).maybeSingle()
+  const [club, recentNames] = await Promise.all([
+    db.from('clubs').select('name').eq('id', client.club_id).maybeSingle(),
+    loadTrainerNames(db, recentTrainerIds(trainings, today)),
+  ])
   return {
     as_of: today,
     client: { name: String(client.name ?? '') },
@@ -93,6 +102,7 @@ export async function loadClientMe(db, client) {
     memberships: buildClientMemberships(memberships, types, trainings, today),
     next_session,
     progress: buildClientProgress(trainings, weights, measurements, today),
+    recent_trainings: buildClientRecentTrainings(trainings, today, recentNames),
     loyalty: await loadLoyalty(db, client, memberships, types, trainings, today),
   }
 }

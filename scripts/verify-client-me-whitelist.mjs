@@ -11,6 +11,7 @@ import {
   buildClientProgress,
   pickNextClientSession,
 } from '../api/_lib/clientPortal/clientMeCore.js'
+import { buildClientRecentTrainings, recentTrainerIds } from '../api/_lib/clientPortal/clientRecentTrainingsCore.js'
 import {
   formatSessionDayRu,
   formatSignedRu,
@@ -121,6 +122,29 @@ ok(
 )
 const mv = progress.measurements[0].values
 ok(mv.neck === 35 && mv.waist_upper === 80 && mv.waist_lower === 80, 'замеры по полям приложения (с legacy fallback)')
+
+// --- Тренировки за 30 дней (/me/trainings) ---
+const recentSrc = [
+  { id: 'r1', date: '2026-09-07', status: 'completed', type: 'Силовая', trainer_id: 'tr1', data: { training_focus: 'Старое' } },
+  { id: 'r2', date: '2026-09-08', status: 'completed', type: 'Силовая', trainer_id: 'tr1', data: { training_focus: '  Ноги   ягодицы ', pre_weight_kg: '74,5', notes: 'секрет', exercises: [{ name: 'x' }] } },
+  { id: 'r3', date: '2026-10-03', status: 'completed', type: 'Списание', trainer_id: 'tr2', data: { is_writeoff: true, pre_weight_kg: 70 } },
+  { id: 'r4', date: '2026-10-05', status: 'completed', type: 'Кардио', trainer_id: 'tr9', data: JSON.stringify({ pre_weight_kg: 73 }) },
+  { id: 'r5', date: '2026-10-06', status: 'draft', type: 'Силовая', trainer_id: 'tr1', data: {} },
+  { id: 'r6', date: '2026-10-09', status: 'completed', type: 'Силовая', trainer_id: 'tr1', data: {} },
+]
+const recentNames = new Map([['tr1', 'Анна'], ['tr2', 'Олег']])
+const recent = buildClientRecentTrainings(recentSrc, TODAY, recentNames)
+ok(recent.map((r) => r.date).join() === '2026-10-05,2026-10-03,2026-09-08', '30 дней как в «за 30 дней»: новые сверху, без черновиков и будущего')
+ok(recent[2].focus === 'Ноги ягодицы' && recent[2].kg === 74.5 && recent[2].trainer_name === 'Анна', 'направленность, вес, имя тренера')
+ok(recent[1].no_show === true && recent[1].focus === null && recent[1].kg === null, 'неявка — с пометкой, без веса')
+ok(recent[0].focus === 'Кардио' && recent[0].trainer_name === null, 'без направленности — тип; тренер не найден — без имени')
+ok(
+  [...keysDeep(recent)].sort().join() === 'date,focus,kg,no_show,trainer_name',
+  'наружу только дата, направленность, вес, тренер, неявка — без заметок, упражнений и id',
+)
+ok(recentTrainerIds(recentSrc, TODAY).sort().join() === 'tr1,tr2,tr9', 'имена тренеров — только для тренировок окна')
+const progressForCount = buildClientProgress(recentSrc, [], [], TODAY)
+ok(recent.filter((r) => !r.no_show).length === progressForCount.visits_30d, 'список без неявок = цифра «за 30 дней»')
 
 // --- Бонусы ---
 ok(buildClientLoyalty(null) === null, 'нет снимка')

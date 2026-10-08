@@ -69,7 +69,7 @@ export async function loadLoyaltyCompletedTrainings(supabase, clientId, fromDate
   for (;;) {
     const { data, error } = await supabase
       .from('trainings')
-      .select('id, date, status, type, data, created_at, client_id, club_id')
+      .select('id, date, status, type, data, created_at, client_id, club_id, trainer_id')
       .eq('client_id', clientId)
       .eq('status', 'completed')
       .gte('date', start)
