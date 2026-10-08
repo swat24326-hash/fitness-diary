@@ -208,6 +208,20 @@ export function TrainingForm({
     syncExercises(next)
   }
 
+  /**
+   * Отложенные правки (blur-таймер) — поверх свежего черновика, а не снимка рендера: на слабом планшете рендер отстаёт.
+   * Только по id упражнения и только в черновике, где был blur: таймер может сработать уже на вкладке другого клиента.
+   */
+  const updateExerciseLatest = (exerciseId, routeId, fn) => {
+    onChange((prev) => {
+      const list = Array.isArray(prev?.exercises) && prev.exercises.length ? prev.exercises.slice() : exercises.slice()
+      const at = list.findIndex((row) => row?.id === exerciseId)
+      if (at < 0) return prev
+      list[at] = fn(list[at])
+      return { ...prev, exercises: cleanupSupersetGroups(list) }
+    }, { routeId })
+  }
+
   const bindCatalogExercise = (ex, row) => {
     const next = {
       ...ex,
@@ -582,22 +596,14 @@ export function TrainingForm({
                         if (catalogList.length) setSuggestOpenId(ex.id)
                       }}
                       onBlur={() => {
-                        const idx = exIdx
+                        const exId = ex.id
+                        const routeId = boundDraftRouteRef.current
                         window.setTimeout(() => {
-                          setSuggestOpenId((open) => (open === ex.id ? null : open))
-                          const cur = exercisesRef.current[idx]
-                          if (!cur) return
-                          const row = resolveCatalogExercise(catalogList, cur.name)
-                          const q = normExerciseName(cur.name)
-                          if (!q) {
-                            patchExercise(idx, { ...cur, name: '', catalog_exercise_id: null })
-                            return
-                          }
-                          if (row) {
-                            patchExercise(idx, bindCatalogExercise(cur, row))
-                            return
-                          }
-                          patchExercise(idx, { ...cur, name: '', catalog_exercise_id: null })
+                          setSuggestOpenId((open) => (open === exId ? null : open))
+                          updateExerciseLatest(exId, routeId, (cur) => {
+                            const row = normExerciseName(cur.name) ? resolveCatalogExercise(catalogList, cur.name) : null
+                            return row ? bindCatalogExercise(cur, row) : { ...cur, name: '', catalog_exercise_id: null }
+                          })
                         }, 180)
                       }}
                       onKeyDown={(e) => {

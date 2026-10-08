@@ -54,12 +54,17 @@ export function shouldApplyTrainingPersistUi(opts = {}) {
  *   liveRouteId?: string | null,
  *   ownerEpoch?: number,
  *   currentEpoch?: number,
+ *   promotedFromNewId?: string | null,
  * }} opts
+ * promotedFromNewId — id, в который этот экран перевёл /new после первого save: ввод формы /new
+ * в этот момент — тот же черновик, а не чужая вкладка.
  */
 export function shouldAcceptDraftWorkoutEdit(opts = {}) {
   const ownerRoute = String(opts.ownerRouteId ?? '').trim()
   const liveRoute = String(opts.liveRouteId ?? '').trim()
-  if (ownerRoute && liveRoute && ownerRoute !== liveRoute) return false
+  const promoted = String(opts.promotedFromNewId ?? '').trim()
+  const samePromotedDraft = ownerRoute === 'new' && Boolean(promoted) && liveRoute === promoted
+  if (ownerRoute && liveRoute && ownerRoute !== liveRoute && !samePromotedDraft) return false
   if (
     opts.ownerEpoch != null &&
     opts.currentEpoch != null &&

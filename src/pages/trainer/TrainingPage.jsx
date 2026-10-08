@@ -220,6 +220,8 @@ export function TrainingPage() {
   const draftEditOwnerRef = useRef({ routeId: String(id ?? ''), epoch: 0 })
   /** Временный id буфера пульса до первого сохранения /workouts/new */
   const pendingHrScopeRef = useRef(null)
+  /** id, в который этот экран перевёл /new после первого save (см. shouldAcceptDraftWorkoutEdit). */
+  const promotedFromNewIdRef = useRef(null)
   const autosaveUiTimerRef = useRef(null)
   const userEditedRef = useRef(false)
   const baselineContentSnapshotRef = useRef('')
@@ -295,6 +297,7 @@ export function TrainingPage() {
         liveRouteId: live.routeId,
         ownerEpoch: owner.epoch ?? pageEpochRef.current,
         currentEpoch: pageEpochRef.current,
+        promotedFromNewId: promotedFromNewIdRef.current,
       })
     ) {
       return
@@ -384,13 +387,15 @@ export function TrainingPage() {
   )
 
   const onHideFlush = useCallback((_live) => {
+    /* Синхронно до любых await: при выгрузке вкладки async-хвост не доживает. Удалённый черновик не воскреснет — hydrate пропускает pending delete. */
+    writeDurableFromLive(liveDraftRef.current)
     flushDraftSnapshotOnLeave()
     userEditedRef.current = true
     const persistFn = persistRef.current
     if (typeof persistFn === 'function') {
       void persistFn('draft', { silent: true, skipNavigate: true, fromHide: true })
     }
-  }, [flushDraftSnapshotOnLeave])
+  }, [flushDraftSnapshotOnLeave, writeDurableFromLive])
 
   useTrainingDraftHideFlush({
     enabled: loadState === 'ok' && Boolean(user?.id) && !isTrainingStatusCompleted(meta.status),
@@ -502,7 +507,11 @@ export function TrainingPage() {
       trainingType: String(cached.trainingType ?? 'Силовая'),
       sessionAt: cachedEntry?.at ?? 0,
     }
-    applyDraftSessionSnapshot(cached)
+    /* /new → /:id: на экране уже этот черновик, а ввод мог прийти после снимка — тело берём живое. */
+    const liveNow = liveDraftRef.current
+    const sameDraftOnScreen =
+      String(liveNow?.loadState ?? '') === 'ok' && String(liveNow?.meta?.trainingId ?? '').trim() === String(id)
+    applyDraftSessionSnapshot(sameDraftOnScreen ? { ...cached, workoutState: liveNow.workoutState } : cached)
     bumpHydrateVersion((v) => v + 1)
   }, [id, clientIdParam, isNew, isAdmin, user?.id, applyDraftSessionSnapshot, flushLeavingDraftOnTabSwitch, flushLeavingDraftSync])
 
@@ -1699,6 +1708,26 @@ export function TrainingPage() {
       if (clubQ) promoteQs.set('club', clubQ)
       if (scheduleEntryParam) promoteQs.set('scheduleEntry', scheduleEntryParam)
       const nextUrlClient = `?${promoteQs.toString()}`
+      if (shouldPromoteUrl || (applyUi && !skipNavigate && row.status !== 'completed' && isNewLive)) {
+        /* /new → /:id тот же черновик: без снимка в LRU страница уходит в «Загрузка…» и стирает ввод, набранный во время save. */
+        const liveNow = liveDraftRef.current
+        promotedFromNewIdRef.current = String(row.id)
+        putTrainingDraftSession(
+          row.id,
+          buildTrainingDraftSessionSnapshot({
+            loadState: 'ok',
+            meta: { status: row.status, trainingId: row.id },
+            workoutState: liveNow.workoutState,
+            trainingType: liveNow.trainingType,
+            trainingDate: liveNow.trainingDate,
+            client: liveNow.client ?? clientLive,
+            contra,
+            membershipSummary,
+            otherCompletedTrainings,
+            lateBlockedNotice,
+          }),
+        )
+      }
       if (shouldPromoteUrl) {
         // После первого сохранения делаем URL стабильным (/workouts/:id), даже если автосэйв включён skipNavigate.
         nav(`${workoutsBase}/${row.id}${nextUrlClient}`, { replace: true })

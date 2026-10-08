@@ -111,6 +111,23 @@ ok(
   'form instance of A + header blur after tap B: both route and epoch reject',
 )
 
+ok(
+  shouldAcceptDraftWorkoutEdit({ ownerRouteId: 'new', liveRouteId: 'draft-a', promotedFromNewId: 'draft-a' }),
+  '/new → /draft-a после первого save: ввод в форме /new не теряется',
+)
+ok(
+  !shouldAcceptDraftWorkoutEdit({ ownerRouteId: 'new', liveRouteId: 'draft-b', promotedFromNewId: 'draft-a' }),
+  'CRITICAL: ввод с /new клиента A не попадает в черновик B',
+)
+ok(
+  !shouldAcceptDraftWorkoutEdit({ ownerRouteId: 'new', liveRouteId: 'draft-a' }),
+  'без повышения /new чужой маршрут по-прежнему отклоняется',
+)
+ok(
+  !shouldAcceptDraftWorkoutEdit({ ownerRouteId: 'draft-c', liveRouteId: 'draft-a', promotedFromNewId: 'draft-a' }),
+  'повышение /new не открывает дверь правкам с других черновиков',
+)
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)
