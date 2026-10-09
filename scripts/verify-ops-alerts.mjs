@@ -86,6 +86,22 @@ ok(fullDisk.problems && fullDisk.text.includes('пора чистить'), 'ди
 const withOutage = buildNightReport({ apiLines: [], backupLines: ['pg-backup: ок x'], state: r.state, diskUsedPct: 10, now: T0 + 60 * MIN, label: 'Ядро' })
 ok(withOutage.problems && withOutage.text.includes('приложение на сервере 08:01–08:41 (40 мин)'), `простой по МСК в сводке (${withOutage.text.split('\n')[1]})`)
 
+const okBackup = ['pg-backup: ок fd-2026-10-09.dump 1.6M']
+const noCloudCfg = buildNightReport({ apiLines: [], backupLines: okBackup, state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
+ok(!noCloudCfg.problems && !noCloudCfg.text.includes('хранилище'), 'бакет не подключён — строк про хранилище нет, тревоги нет')
+const cloudOk = buildNightReport({
+  apiLines: [], cloudExpected: true, state: null, diskUsedPct: 10, now: T0, label: 'Ядро',
+  backupLines: [...okBackup, 'pg-backup: облако ок daily/fd-2026-10-09.dump.gpg 1.6M'],
+  drillLines: ['pg-restore-drill: FAIL 2026-09-01 старая', 'pg-restore-drill: ок 2026-10-01 daily/fd-2026-10-01.dump.gpg'],
+})
+ok(!cloudOk.problems && cloudOk.text.includes('Копия в хранилище: ок daily/fd-2026-10-09') && cloudOk.text.includes('Пробное восстановление: ок 2026-10-01'), 'хранилище и последнее восстановление ок')
+const cloudMissing = buildNightReport({ apiLines: [], backupLines: okBackup, drillLines: ['pg-restore-drill: ок 2026-10-01 x'], cloudExpected: true, state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
+ok(cloudMissing.problems && cloudMissing.text.includes('НЕ УШЛА'), 'копия не ушла в хранилище — проблема')
+const drillFail = buildNightReport({ apiLines: [], backupLines: [...okBackup, 'pg-backup: облако ок k'], drillLines: ['pg-restore-drill: FAIL 2026-10-01 k: clients в копии 1, в проде 1600'], cloudExpected: true, state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
+ok(drillFail.problems && drillFail.text.includes('НЕ ПРОШЛО 2026-10-01 k: clients'), 'восстановление не прошло — проблема с причиной')
+const drillNone = buildNightReport({ apiLines: [], backupLines: [...okBackup, 'pg-backup: облако ок k'], drillLines: [], cloudExpected: true, state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
+ok(drillNone.problems && drillNone.text.includes('не было больше месяца'), 'восстановления не было > 40 дн. — проблема')
+
 ok(parseVkPeerIds(' 123, abc,456,123,') .join() === '123,456', 'получатели: только числа, без повторов')
 
 const calls = []
@@ -101,6 +117,42 @@ ok(sent.errors[0]?.includes('не писал сообществу'), `понят
 ok(calls[0].url.endsWith('/messages.send') && calls[0].token === 't' && Number(calls[0].random) > 0, 'messages.send с ключом и random_id')
 const noKey = await sendVkAlert({ token: '', peerIds: ['1'], text: 'x', fetchImpl: fakeFetch })
 ok(noKey.sent === 0 && noKey.errors.length === 1 && calls.length === 3, 'без ключа — в ВК не ходим')
+
+const { handler: uptimeHandler } = await import('../ops/uptime-function/index.mjs')
+const store = new Map()
+const vkTexts = []
+let siteUp = false
+const realFetch = globalThis.fetch
+globalThis.fetch = async (url, init = {}) => {
+  const u = String(url)
+  if (u.startsWith('https://storage.yandexcloud.net/')) {
+    if (init.headers?.['X-YaCloud-SubjectToken'] !== 'fn-token') return { ok: false, status: 403 }
+    if (init.method === 'PUT') {
+      store.set(u, init.body)
+      return { ok: true, status: 200 }
+    }
+    return store.has(u) ? { ok: true, status: 200, json: async () => JSON.parse(store.get(u)) } : { ok: false, status: 404 }
+  }
+  if (u.startsWith('https://api.vk.com/')) {
+    vkTexts.push(init.body.get('message'))
+    return { json: async () => ({ response: 1 }) }
+  }
+  if (u === 'https://app-core.example/api/health') {
+    if (!siteUp) throw Object.assign(new Error('fetch failed'), { cause: { code: 'ECONNREFUSED' } })
+    return { ok: true, status: 200 }
+  }
+  throw new Error(`неожиданный адрес ${u}`)
+}
+Object.assign(process.env, { TARGET_URL: 'https://app-core.example/api/health', STATE_BUCKET: 'st', VK_ALERT_TOKEN: 'vk', VK_ALERT_PEER_IDS: '1' })
+const ctx = { token: { access_token: 'fn-token' } }
+await uptimeHandler({}, ctx)
+ok(vkTexts.length === 0 && store.size === 1, 'внешняя проверка: первая неудача — состояние сохранено, тишина')
+await uptimeHandler({}, ctx)
+ok(vkTexts.length === 1 && vkTexts[0].includes('проверка снаружи') && vkTexts[0].includes('сервер мог лечь целиком') && vkTexts[0].includes('ECONNREFUSED'), `внешняя проверка: вторая подряд — тревога в ВК (${vkTexts[0]?.split('\n')[1]})`)
+siteUp = true
+await uptimeHandler({}, ctx)
+ok(vkTexts.length === 2 && vkTexts[1].includes('ВОССТАНОВИЛОСЬ'), 'внешняя проверка: ожил — «восстановилось»')
+globalThis.fetch = realFetch
 
 if (failed) {
   console.error(`verify-ops-alerts: ${failed} FAIL`)

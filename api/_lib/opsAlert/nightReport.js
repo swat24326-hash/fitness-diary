@@ -48,17 +48,33 @@ export function lastBackupOk(lines) {
   return hit ? hit.slice(hit.indexOf('pg-backup: ок') + 'pg-backup: ок'.length).trim() : null
 }
 
+/** @param {string[]} lines @param {string} marker */
+function lastAfter(lines, marker) {
+  const hit = [...lines].reverse().find((l) => l.includes(marker))
+  return hit ? hit.slice(hit.indexOf(marker) + marker.length).trim() : null
+}
+
+/** @param {string[]} lines — journalctl -t fd-pg-restore-drill за ~40 дней */
+export function lastDrill(lines) {
+  const hit = [...lines].reverse().find((l) => /pg-restore-drill: (ок|FAIL)/.test(l))
+  if (!hit) return null
+  return { ok: hit.includes('pg-restore-drill: ок'), text: hit.replace(/^.*pg-restore-drill: (ок|FAIL)\s*/, '') }
+}
+
 /**
- * @param {{ apiLines: string[], backupLines: string[], state: import('./watchdogState.js').WatchdogState | null, diskUsedPct: number, now: number, label: string }} input
+ * @param {{ apiLines: string[], backupLines: string[], drillLines?: string[], cloudExpected?: boolean, state: import('./watchdogState.js').WatchdogState | null, diskUsedPct: number, now: number, label: string }} input
  * @returns {{ text: string, problems: boolean }}
  */
-export function buildNightReport({ apiLines, backupLines, state, diskUsedPct, now, label }) {
+export function buildNightReport({ apiLines, backupLines, drillLines = [], cloudExpected = false, state, diskUsedPct, now, label }) {
   const api = summarizeApiLog(apiLines)
   const backup = lastBackupOk(backupLines)
+  const cloud = cloudExpected ? lastAfter(backupLines, 'pg-backup: облако ок') : null
+  const drill = cloudExpected ? lastDrill(drillLines) : null
   const outages = (state?.events ?? []).filter((e) => now - e.to < DAY_MS)
   const downNow = Object.entries(state?.checks ?? {}).filter(([, c]) => c.downSince != null)
   const problems =
-    api.errors5xx > 0 || api.crashes > 0 || api.dbErrors > 0 || !backup || outages.length > 0 || downNow.length > 0 || diskUsedPct >= DISK_WARN_PCT
+    api.errors5xx > 0 || api.crashes > 0 || api.dbErrors > 0 || !backup || outages.length > 0 || downNow.length > 0 || diskUsedPct >= DISK_WARN_PCT ||
+    (cloudExpected && (!cloud || !drill?.ok))
 
   const lines = [`${label}: сводка за сутки — ${problems ? 'ЕСТЬ ПРОБЛЕМЫ' : 'всё в порядке'}`]
   if (downNow.length) lines.push(`Сейчас не работает: ${downNow.map(([k]) => CHECK_LABELS_RU[k] ?? k).join(', ')}`)
@@ -72,6 +88,11 @@ export function buildNightReport({ apiLines, backupLines, state, diskUsedPct, no
   if (api.clientAborts) lines.push(`Устройство оборвало связь посреди запроса: ${api.clientAborts} (слабый Wi-Fi; данные уйдут при Sync)`)
   if (api.loginLimited) lines.push(`Входов остановлено лимитом попыток: ${api.loginLimited}`)
   lines.push(backup ? `Копия базы: ок ${backup}` : 'Копия базы: СВЕЖЕЙ НЕТ — проверить pg-backup')
+  if (cloudExpected) {
+    lines.push(cloud ? `Копия в хранилище: ок ${cloud}` : 'Копия в хранилище: НЕ УШЛА — проверить pg-backup-upload')
+    if (!drill) lines.push('Пробное восстановление: не было больше месяца')
+    else lines.push(drill.ok ? `Пробное восстановление: ок ${drill.text}` : `Пробное восстановление: НЕ ПРОШЛО ${drill.text}`)
+  }
   lines.push(`Диск занят: ${Math.round(diskUsedPct)}%${diskUsedPct >= DISK_WARN_PCT ? ' — пора чистить или расширять' : ''}`)
   return { text: lines.join('\n'), problems }
 }

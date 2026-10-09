@@ -86,6 +86,8 @@ try {
     const { text } = buildNightReport({
       apiLines: journal(['-u', 'os-hybrid', '--since', '24 hours ago']),
       backupLines: journal(['-t', 'fd-pg-backup', '--since', '26 hours ago']),
+      drillLines: journal(['-t', 'fd-pg-restore-drill', '--since', '40 days ago']),
+      cloudExpected: Boolean(String(process.env.PG_BACKUP_BUCKET ?? '').trim()),
       state: readState(),
       diskUsedPct: diskUsedPct(),
       now: Date.now(),

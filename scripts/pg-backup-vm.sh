@@ -21,3 +21,6 @@ chmod 600 "$tmp"
 mv -f "$tmp" "$out"
 find "$DIR" -name 'fd-*.dump' -mtime +"$KEEP_DAYS" -delete
 echo "pg-backup: ок $(basename "$out") $(du -h "$out" | cut -f1), таблиц с данными $tables, копий $(ls "$DIR"/fd-*.dump | wc -l)"
+
+bucket=$( (grep -E '^PG_BACKUP_BUCKET=' "$ENV_FILE" || true) | tail -n1 | cut -d= -f2-)
+[ -z "$bucket" ] || bash "$APP/scripts/pg-backup-upload-vm.sh" "$out" "$bucket"

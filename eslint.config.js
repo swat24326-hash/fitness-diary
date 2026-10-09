@@ -9,7 +9,7 @@ const reactJsxRuntime = reactPlugin.configs.flat['jsx-runtime']
 /** Мягкий набор правил: мало шума, без TypeScript. */
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'public/**', 'supabase/functions/**'],
+    ignores: ['dist/**', 'ops/**/dist/**', 'node_modules/**', 'public/**', 'supabase/functions/**'],
   },
   js.configs.recommended,
   {
@@ -57,6 +57,7 @@ export default [
       'api/**/*.{js,mjs}',
       'scripts/**/*.{js,mjs}',
       'server/**/*.{js,mjs}',
+      'ops/**/*.{js,mjs}',
       '.cursor/hooks/**/*.mjs',
       '*.config.js',
     ],

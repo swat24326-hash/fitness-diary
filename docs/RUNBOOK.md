@@ -238,7 +238,8 @@
 
 1. **Точечно (одна таблица / клиент):** взять ночную копию с ВМ `/var/backups/fitness-diary/daily/fd-<дата>.dump` и достать нужное в отдельную базу/файл: `pg_restore --data-only --table=<таблица> -f out.sql fd-<дата>.dump` — затем вернуть строки вручную. Прод не трогаем целиком.
 2. **Весь кластер на момент времени (< 7 дней):** консоль Yandex Cloud → Managed PostgreSQL → `os-c2-staging` → Резервные копии → «Восстановить» в **новый** кластер, проверить данные, затем переключить `DATABASE_URL` на ВМ. Действие в консоли — задача GrokBot `danger` с «да» владельца.
-3. **Старше 14 дней** — только выгрузка Supabase на 30.09 (`/var/backups/fitness-diary/r4-supabase-2026-10-07/`, gzip NDJSON), пока проект Supabase на паузе.
+3. **Сервер (ВМ) пропал или копии на нём испорчены (< 30 дней):** зашифрованные копии в бакете `PG_BACKUP_BUCKET` (`daily/fd-<дата>.dump.gpg`). Скачать (консоль Yandex Cloud → Object Storage), расшифровать паролем владельца: `gpg -d -o fd.dump fd-<дата>.dump.gpg`, дальше как в п.1. Проверка, что это работает, — ежемесячно сама (`scripts/pg-restore-drill-vm.sh`, строка «Пробное восстановление» в утренней сводке ВК).
+4. **Старше 30 дней** — только выгрузка Supabase на 30.09 (`/var/backups/fitness-diary/r4-supabase-2026-10-07/`, gzip NDJSON), пока проект Supabase на паузе.
 
 Перед восстановлением: Sync на планшетах до пустой очереди, иначе свежие записи тренеров потеряются.
 
@@ -255,8 +256,10 @@
 | база данных | Managed PG недоступна | консоль Yandex Cloud → кластер; тренеры продолжают офлайн, Sync догонит |
 | место на диске | занято ≥ 95% | старые копии в `/var/backups/fitness-diary/`, журналы `journalctl --vacuum-size` |
 | «Копия базы: СВЕЖЕЙ НЕТ» | ночной `pg-backup` упал | `journalctl -t fd-pg-backup --since -2d`, запустить `sudo bash scripts/pg-backup-vm.sh` |
+| «Копия в хранилище: НЕ УШЛА» / «Пробное восстановление: НЕ ПРОШЛО» | бакет, права или пароль шифрования | `journalctl -t fd-pg-backup -t fd-pg-restore-drill --since -2d`; вручную `sudo bash scripts/pg-restore-drill-vm.sh` |
+| «проверка снаружи: сайт не отвечает снаружи» (без сообщений сторожа ВМ) | ВМ лежит целиком или сеть до неё | консоль Yandex Cloud → Compute → `os-hybrid-staging`: статус; при Stopped — запустить (задача GrokBot) |
 
-Залу при «НЕ РАБОТАЕТ» ничего делать не нужно: тренировки сохраняются на планшете и уйдут при следующем Sync. Если ВМ лежит целиком, сторож на ней молчит — внешняя проверка с другого провайдера появится в этапе 2b ([RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md)). Журнал сторожа: `journalctl -t fd-ops-alerts`.
+Залу при «НЕ РАБОТАЕТ» ничего делать не нужно: тренировки сохраняются на планшете и уйдут при следующем Sync. Внешняя проверка — функция Yandex Cloud `app-core-uptime` ([RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md) 2b); при сбое всего Yandex Cloud молчат обе. Журнал сторожа: `journalctl -t fd-ops-alerts`.
 
 ---
 
