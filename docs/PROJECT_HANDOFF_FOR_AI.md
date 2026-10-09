@@ -99,6 +99,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 - `SUPABASE_SERVICE_ROLE_KEY`, опционально `SUPABASE_URL` / `SUPABASE_ANON_KEY`
 - ИСКРА (модель ответа, `api/_lib/iskraLlmCore.js`): `YANDEX_FOLDER_ID` + (`YANDEX_LLM_AUTH=metadata` — токен сервисного аккаунта ВМ `iskra-llm`, так на проде; или `YANDEX_LLM_API_KEY` вне Yandex Cloud) → Yandex AI Studio (прод в РФ; опционально `YANDEX_LLM_MODEL`, по умолчанию `deepseek-v4-flash`, запасная `yandexgpt-5.1`). Без них — `GEMINI_API_KEY` (+ `GEMINI_MODEL`); Gemini из РФ не работает. Принудительно — `ISKRA_LLM_PROVIDER=yandex|gemini`. Голос ИСКРЫ (`admin-data?action=iskra-tts`) — те же переменные: при Яндексе SpeechKit (роль `ai.speechkit-tts.user` у `iskra-llm`), иначе Edge TTS (из РФ не работает)
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+- сторож прода → ВК (только cron на ВМ, приложение не читает): `VK_ALERT_TOKEN` (ключ закрытого сообщества), `VK_ALERT_PEER_IDS` — [RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md), [RUNBOOK.md](./RUNBOOK.md) §9
 - клубные SMS и звонки «Мои Звонки»: **сначала** `club_iskra_settings.moizvonki` на клуб (Структура → Max и SMS); запасной общий `MOIZVONKI_*` в env; журналы `club_sms_log` / `club_call_log` — [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md)
 
 См. `.env.example`. Без URL/ключа Supabase — локальный демо-режим.
