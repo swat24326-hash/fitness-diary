@@ -1,4 +1,4 @@
-# Записать ключ Yandex AI Studio для ИСКРЫ на ВМ прода, не показывая его в чате и в консоли.
+﻿# Записать ключ Yandex AI Studio для ИСКРЫ на ВМ прода, не показывая его в чате и в консоли.
 # Ключ: консоль Yandex Cloud → Сервисные аккаунты → iskra-llm → Создать новый ключ → API-ключ
 # (область yc.ai.languageModels.execute). Секрет показывается один раз — сразу вставить сюда.
 # Запуск из корня репо: powershell -ExecutionPolicy Bypass -File scripts\r3-set-yandex-llm-key.ps1

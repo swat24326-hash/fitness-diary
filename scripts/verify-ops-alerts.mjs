@@ -60,12 +60,16 @@ const apiLines = [
   '[pgrest] ECONNRESET',
   '[auth-v1] refresh: база недоступна Error',
   '[portable-api] Error: boom',
+  '[portable-api] Error: aborted',
 ]
 const s = summarizeApiLog(apiLines)
 ok(s.errors5xx === 3, `5xx посчитаны (${s.errors5xx})`)
 ok(s.topPaths[0] === '/api/push-record ×2', `самый частый путь первым (${s.topPaths[0]})`)
 ok(s.loginLimited === 1, 'лимит попыток считаем только на входе')
 ok(s.crashes === 1, 'стартовые строки сервера — не сбой, Error — сбой')
+ok(s.clientAborts === 1, 'обрыв связи устройства (Error: aborted) — не сбой сервера')
+const aborted = buildNightReport({ apiLines: ['[portable-api] Error: aborted'], backupLines: ['pg-backup: ок x'], state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
+ok(!aborted.problems && aborted.text.includes('оборвало связь посреди запроса: 1'), 'обрыв связи — справка, сутки «всё в порядке»')
 ok(s.dbErrors === 2, 'ошибки пула и «база недоступна»')
 
 ok(lastBackupOk(['pg-backup: ок fd-2026-10-08.dump 1.6M', 'pg-backup: ок fd-2026-10-09.dump 1.7M']) === 'fd-2026-10-09.dump 1.7M', 'берём последнюю удачную копию')

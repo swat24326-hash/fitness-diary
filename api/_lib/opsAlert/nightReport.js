@@ -6,6 +6,7 @@ import { CHECK_LABELS_RU, minutesRu } from './watchdogState.js'
 
 const API_LINE = /^\[api\] (\S+) (\S+) (\d{3}) /
 const CRASH_LINE = /^\[portable-api\] (?!http:\/\/|static:|cloudKey:)/
+const CLIENT_ABORT_LINE = /^\[portable-api\] Error: aborted\b/
 const LOGIN_PATHS = ['/api/auth-sign-in', '/api/client-auth', '/auth/v1/token']
 export const DISK_WARN_PCT = 85
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -21,6 +22,7 @@ export function summarizeApiLog(lines) {
   let errors5xx = 0
   let loginLimited = 0
   let crashes = 0
+  let clientAborts = 0
   let dbErrors = 0
   for (const line of lines) {
     const m = API_LINE.exec(line)
@@ -32,11 +34,12 @@ export function summarizeApiLog(lines) {
       } else if (status === 429 && LOGIN_PATHS.includes(m[2])) loginLimited++
       continue
     }
-    if (CRASH_LINE.test(line)) crashes++
+    if (CLIENT_ABORT_LINE.test(line)) clientAborts++
+    else if (CRASH_LINE.test(line)) crashes++
     else if (line.startsWith('[pgrest]') || line.includes('база недоступна')) dbErrors++
   }
   const topPaths = [...byPath.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p, n]) => `${p} ×${n}`)
-  return { errors5xx, topPaths, loginLimited, crashes, dbErrors }
+  return { errors5xx, topPaths, loginLimited, crashes, clientAborts, dbErrors }
 }
 
 /** @param {string[]} lines — journalctl -t fd-pg-backup за ~сутки */
@@ -66,6 +69,7 @@ export function buildNightReport({ apiLines, backupLines, state, diskUsedPct, no
   )
   lines.push(`Ошибки сервера (5xx): ${api.errors5xx}${api.topPaths.length ? ` — ${api.topPaths.join(', ')}` : ''}`)
   if (api.crashes || api.dbErrors) lines.push(`Сбои приложения: ${api.crashes}, ошибки связи с базой: ${api.dbErrors}`)
+  if (api.clientAborts) lines.push(`Устройство оборвало связь посреди запроса: ${api.clientAborts} (слабый Wi-Fi; данные уйдут при Sync)`)
   if (api.loginLimited) lines.push(`Входов остановлено лимитом попыток: ${api.loginLimited}`)
   lines.push(backup ? `Копия базы: ок ${backup}` : 'Копия базы: СВЕЖЕЙ НЕТ — проверить pg-backup')
   lines.push(`Диск занят: ${Math.round(diskUsedPct)}%${diskUsedPct >= DISK_WARN_PCT ? ' — пора чистить или расширять' : ''}`)
