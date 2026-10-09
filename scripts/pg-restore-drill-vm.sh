@@ -12,13 +12,15 @@ PORT=5499
 TABLES="clients trainings memberships users"
 
 fail() { echo "pg-restore-drill: FAIL $(date -u +%F) $*"; exit 1; }
+trap 'echo "pg-restore-drill: FAIL $(date -u +%F) сбой скрипта, строка $LINENO"' ERR
 env_val() { (grep -E "^$1=" "$ENV_FILE" || true) | tail -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/'; }
 bucket=$(env_val PG_BACKUP_BUCKET)
 url=$(env_val DATABASE_URL)
 [ -n "$bucket" ] && [ -n "$url" ] || fail "нет PG_BACKUP_BUCKET или DATABASE_URL"
 [ -s "$PASS" ] || fail "нет пароля шифрования $PASS"
 if [ ! -x "$PGBIN/initdb" ]; then
-  apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql-16 >/dev/null
+  apt-get update -qq >/dev/null 2>&1 || echo "apt update с ошибками стороннего источника — ставлю из того, что доступно" >&2
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql-16 >/dev/null || fail "не установился postgresql-16"
   systemctl disable --now postgresql >/dev/null 2>&1 || true
 fi
 
