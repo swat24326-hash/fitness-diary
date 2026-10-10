@@ -29,7 +29,12 @@ wait_status() {
 case "$ACTION" in
   status) status ;;
   start)
-    [[ "$(status)" == RUNNING ]] || curl -fsS -X POST -H "Authorization: Bearer $(token)" "$API:start" >/dev/null
+    # Сразу после stop Yandex какое-то время отвечает 400 — повторяем.
+    for _ in $(seq 1 6); do
+      [[ "$(status)" == RUNNING ]] && break
+      curl -fsS -X POST -H "Authorization: Bearer $(token)" "$API:start" >/dev/null && break
+      sleep 15
+    done
     wait_status RUNNING
     for _ in $(seq 1 36); do
       timeout 3 bash -c "</dev/tcp/$HOST/22" 2>/dev/null && { echo "stand: включён ($HOST)"; exit 0; }
@@ -39,6 +44,9 @@ case "$ACTION" in
     exit 1
     ;;
   stop)
+    # Без sync свежая сборка на HDD теряется при остановке (index.html 0 байт, 10.10).
+    timeout 120 ssh -i /root/.ssh/stand_ed25519 -o BatchMode=yes -o ConnectTimeout=10 "ubuntu@$HOST" 'sudo sync' 2>/dev/null \
+      || echo "stand: sync не прошёл — останавливаем как есть" >&2
     [[ "$(status)" == STOPPED ]] || curl -fsS -X POST -H "Authorization: Bearer $(token)" "$API:stop" >/dev/null
     wait_status STOPPED
     echo "stand: выключен"

@@ -91,9 +91,11 @@ async function main() {
     'тренировка видна в pull после записи',
   )
 
-  const admin = await call('/api/list-memberships', { token: adminTok })
+  const membershipsUrl = `/api/list-memberships?club_id=${encodeURIComponent(clients[0].club_id ?? '')}`
+  const admin = await call(membershipsUrl, { token: adminTok })
   ok(admin.status === 200, `админ: list-memberships HTTP ${admin.status}`)
-  ok((await call('/api/list-memberships', { token: trainerTok })).status === 403, 'тренер: list-memberships → 403')
+  const asTrainer = await call(membershipsUrl, { token: trainerTok })
+  ok(asTrainer.status === 403, `тренер: list-memberships → ${asTrainer.status} (ждём 403)`)
 }
 
 main()
