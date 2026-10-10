@@ -99,6 +99,7 @@ run('client trainings prune', 'node', ['scripts/verify-client-trainings-prune.mj
 run('client memberships prune', 'node', ['scripts/verify-client-memberships-prune.mjs'])
 run('trainer schedule', 'node', ['scripts/verify-trainer-schedule-core.mjs'])
 run('trainer schedule training link', 'node', ['scripts/verify-trainer-schedule-training-core.mjs'])
+run('trainer schedule now/repeat/drag', 'node', ['scripts/verify-trainer-schedule-interactions.mjs'])
 run('trainer schedule admin', 'node', ['scripts/verify-trainer-schedule-admin-core.mjs'])
 run('trainer schedule push auth', 'node', ['scripts/verify-trainer-schedule-push-auth.mjs'])
 run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])

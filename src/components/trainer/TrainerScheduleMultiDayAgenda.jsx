@@ -1,34 +1,39 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Play } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   SCHEDULE_DAY_END_HOUR,
-  SCHEDULE_DAY_FOCUS_HOUR,
   SCHEDULE_DAY_START_HOUR,
   assignScheduleEntryLanes,
-  buildScheduleEntryLabel,
   filterScheduleEntriesForDay,
   formatScheduleMinutes,
-  formatScheduleTimeRange,
   formatScheduleViewRangeLabel,
   weekdayShortRu,
 } from '../../lib/trainer/trainerScheduleCore.js'
 import {
-  resolveScheduleTrainingStart,
-  scheduleEntryTrainingStatusLabel,
-} from '../../lib/trainer/trainerScheduleTrainingCore.js'
-import { formatDateRu, todayInTimeZoneIso } from '../../lib/dateRu.js'
+  resolveScheduleInitialScrollMinutes,
+  resolveScheduleNowLineMinutes,
+} from '../../lib/trainer/trainerScheduleNowCore.js'
+import { resolveScheduleDragPolicy } from '../../lib/trainer/trainerScheduleDragCore.js'
+import { formatDateRu } from '../../lib/dateRu.js'
+import { useTrainerScheduleNow } from '../../hooks/useTrainerScheduleNow.js'
+import { useTrainerScheduleDrag } from '../../hooks/useTrainerScheduleDrag.js'
+import { TrainerScheduleEntryBlock } from './TrainerScheduleEntryBlock.jsx'
+import { TrainerScheduleKindLegend } from './TrainerScheduleKindPicker.jsx'
 
 const PX_PER_MIN = 1.4
 const DAY_START_MIN = SCHEDULE_DAY_START_HOUR * 60
 const DAY_END_MIN = SCHEDULE_DAY_END_HOUR * 60
 const TRACK_HEIGHT = (DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN
-const FOCUS_SCROLL_TOP = Math.max(0, (SCHEDULE_DAY_FOCUS_HOUR * 60 - DAY_START_MIN) * PX_PER_MIN - 8)
 const COL_MIN_PX = 96
 
 const ENTRY_MIN_HEIGHT_WITH_TRAINER = 78
 const ENTRY_MIN_HEIGHT = 48
 const ENTRY_MIN_HEIGHT_COMPACT = 36
+
+/** @param {number} minutes */
+function scrollTopForMinutes(minutes) {
+  return Math.max(0, (minutes - DAY_START_MIN) * PX_PER_MIN - 8)
+}
 
 /**
  * @param {{
@@ -42,9 +47,12 @@ const ENTRY_MIN_HEIGHT_COMPACT = 36
  *   showTrainerName?: boolean,
  *   onPrev: () => void,
  *   onNext: () => void,
+ *   onToday?: () => void,
  *   onOpenDay?: (dayIso: string) => void,
  *   onAddAt: (dayIso: string, minutes: number) => void,
  *   onOpenEntry: (entry: object) => void,
+ *   onMoveEntry?: (entry: object, dayIso: string, startMinutes: number) => void,
+ *   onMoveLocked?: (entry: object) => void,
  * }} props
  */
 export function TrainerScheduleMultiDayAgenda({
@@ -58,15 +66,18 @@ export function TrainerScheduleMultiDayAgenda({
   showTrainerName = false,
   onPrev,
   onNext,
+  onToday,
   onOpenDay,
   onAddAt,
   onOpenEntry,
+  onMoveEntry,
+  onMoveLocked,
 }) {
-  const nav = useNavigate()
   const boardRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const days = (dayIsos ?? []).map((d) => String(d).slice(0, 10)).filter(Boolean)
   const compact = days.length > 1
-  const today = todayInTimeZoneIso()
+  const now = useTrainerScheduleNow()
+  const { todayIso: today, nowMinutes } = now
   const anchor = String(anchorDayIso ?? '').slice(0, 10)
   const addDefaultDay =
     (anchor && days.includes(anchor) && anchor) ||
@@ -82,17 +93,60 @@ export function TrainerScheduleMultiDayAgenda({
     minWidth: `calc(52px + ${days.length} * ${COL_MIN_PX + 8}px)`,
   }
 
+  const drag = useTrainerScheduleDrag({
+    boardRef,
+    dayIsos: days,
+    enabled: !readOnly && typeof onMoveEntry === 'function',
+    pxPerMin: PX_PER_MIN,
+    dayStartMin: DAY_START_MIN,
+    resolvePolicy: (entry) =>
+      resolveScheduleDragPolicy(entry, entry.linked_training_id ? trainingById[entry.linked_training_id] : null),
+    onDrop: (entry, dayIso, startMinutes) => onMoveEntry?.(entry, dayIso, startMinutes),
+    onLocked: (entry) => onMoveLocked?.(entry),
+  })
+  const preview = drag.preview
+  const draggedEntry = preview ? entries.find((e) => String(e.id) === preview.entryId) : null
+
   useEffect(() => {
     const el = boardRef.current
     if (!el) return
-    el.scrollTop = FOCUS_SCROLL_TOP
+    el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes(days, today, nowMinutes))
   }, [rangeKey])
+
+  const goToday = () => {
+    onToday?.()
+    const el = boardRef.current
+    if (el) el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes([today], today, nowMinutes))
+  }
+
+  const minHeight = compact
+    ? ENTRY_MIN_HEIGHT_COMPACT
+    : showTrainerName
+      ? ENTRY_MIN_HEIGHT_WITH_TRAINER
+      : ENTRY_MIN_HEIGHT
+
+  const entryStyle = (entry, startMinutes, laneIndex, laneCount) => {
+    const widthPct = 100 / laneCount
+    return {
+      top: (startMinutes - DAY_START_MIN) * PX_PER_MIN,
+      height: Math.max(minHeight, (Number(entry.duration_minutes) || 60) * PX_PER_MIN - 4),
+      left: `${laneIndex * widthPct}%`,
+      width: `calc(${widthPct}% - ${compact ? 2 : 4}px)`,
+      right: 'auto',
+    }
+  }
 
   const renderDayTrack = (dayIso) => {
     const dayEntries = filterScheduleEntriesForDay(entries, dayIso)
     const entryLanes = assignScheduleEntryLanes(dayEntries)
+    const nowLine = resolveScheduleNowLineMinutes(dayIso, today, nowMinutes)
     return (
-      <div key={dayIso} className="trainer-schedule-day__track" style={{ height: TRACK_HEIGHT }}>
+      <div
+        key={dayIso}
+        className="trainer-schedule-day__track"
+        style={{ height: TRACK_HEIGHT }}
+        data-schedule-day={dayIso}
+      >
         {hours.map((h) =>
           readOnly ? (
             <div
@@ -111,103 +165,54 @@ export function TrainerScheduleMultiDayAgenda({
             />
           ),
         )}
+        {nowLine != null ? (
+          <div
+            className="trainer-schedule-day__now"
+            style={{ top: (nowLine - DAY_START_MIN) * PX_PER_MIN }}
+            title={`Сейчас ${formatScheduleMinutes(nowLine)}`}
+            aria-hidden
+          />
+        ) : null}
         {dayEntries.map((entry) => {
-          const top = (Number(entry.start_minutes) - DAY_START_MIN) * PX_PER_MIN
-          const minH = compact
-            ? ENTRY_MIN_HEIGHT_COMPACT
-            : showTrainerName
-              ? ENTRY_MIN_HEIGHT_WITH_TRAINER
-              : ENTRY_MIN_HEIGHT
-          const height = Math.max(minH, (Number(entry.duration_minutes) || 60) * PX_PER_MIN - 4)
           const lane = entryLanes.get(String(entry.id)) ?? { lane: 0, laneCount: 1 }
           const laneCount = Math.max(1, Number(lane.laneCount) || 1)
           const laneIndex = Math.min(Math.max(0, Number(lane.lane) || 0), laneCount - 1)
-          const widthPct = 100 / laneCount
-          const leftPct = laneIndex * widthPct
-          const label = buildScheduleEntryLabel(entry, clientNameById)
           const trainerName =
-            showTrainerName && entry.trainer_id
-              ? trainerNameById[String(entry.trainer_id)] ?? 'Тренер'
-              : ''
-          const hasClients = (entry.client_ids ?? []).length > 0
-          const linkedTraining = entry.linked_training_id ? trainingById[entry.linked_training_id] : null
-          const trainingChip = scheduleEntryTrainingStatusLabel(entry, linkedTraining)
-          const start = resolveScheduleTrainingStart(entry, {
-            trainingById,
-            workoutsBase: '/trainer/workouts',
-          })
-          const titleParts = [formatScheduleTimeRange(entry), trainerName, label].filter(Boolean)
+            showTrainerName && entry.trainer_id ? trainerNameById[String(entry.trainer_id)] ?? 'Тренер' : ''
           return (
-            <div
+            <TrainerScheduleEntryBlock
               key={entry.id}
-              className={[
-                'trainer-schedule-day__entry-wrap',
-                hasClients ? 'trainer-schedule-day__entry-wrap--clients' : 'trainer-schedule-day__entry-wrap--note',
-                laneCount > 1 ? 'trainer-schedule-day__entry-wrap--lane' : '',
-                compact ? 'trainer-schedule-day__entry-wrap--compact' : '',
-              ].join(' ')}
-              style={{
-                top,
-                height,
-                left: `${leftPct}%`,
-                width: `calc(${widthPct}% - ${compact ? 2 : 4}px)`,
-                right: 'auto',
+              entry={entry}
+              style={entryStyle(entry, Number(entry.start_minutes), laneIndex, laneCount)}
+              compact={compact}
+              laneCount={laneCount}
+              trainerName={trainerName}
+              clientNameById={clientNameById}
+              trainingById={trainingById}
+              now={now}
+              readOnly={readOnly}
+              variant={preview?.entryId === String(entry.id) ? 'drag-source' : 'normal'}
+              dragHandlers={drag.getEntryHandlers(entry)}
+              onOpen={() => {
+                if (drag.consumeSuppressedClick()) return
+                onOpenEntry(entry)
               }}
-            >
-              <button
-                type="button"
-                className={[
-                  'trainer-schedule-day__entry',
-                  hasClients ? 'trainer-schedule-day__entry--clients' : 'trainer-schedule-day__entry--note',
-                  trainerName ? 'trainer-schedule-day__entry--with-trainer' : '',
-                  compact ? 'trainer-schedule-day__entry--compact' : '',
-                ].join(' ')}
-                onClick={() => onOpenEntry(entry)}
-                title={titleParts.join(' · ')}
-                aria-label={titleParts.join(', ')}
-              >
-                {compact ? (
-                  <>
-                    <span className="trainer-schedule-day__entry-time">
-                      {formatScheduleMinutes(Number(entry.start_minutes) || 0)}
-                    </span>
-                    <span className="trainer-schedule-day__entry-label">{label}</span>
-                  </>
-                ) : (
-                  <>
-                    {trainerName ? (
-                      <span className="trainer-schedule-day__entry-meta">
-                        <span className="trainer-schedule-day__entry-time">{formatScheduleTimeRange(entry)}</span>
-                        <span className="trainer-schedule-day__entry-trainer">{trainerName}</span>
-                      </span>
-                    ) : (
-                      <span className="trainer-schedule-day__entry-time">{formatScheduleTimeRange(entry)}</span>
-                    )}
-                    <span className="trainer-schedule-day__entry-label">{label}</span>
-                    {trainingChip ? <span className="trainer-schedule-day__entry-chip">{trainingChip}</span> : null}
-                  </>
-                )}
-              </button>
-              {!readOnly &&
-              !compact &&
-              (start.kind === 'open' || start.kind === 'new' || start.kind === 'pick_client') ? (
-                <button
-                  type="button"
-                  className="btn btn-icon-square btn-primary trainer-schedule-day__entry-start"
-                  title={start.label}
-                  aria-label={start.label}
-                  onClick={(ev) => {
-                    ev.stopPropagation()
-                    if (start.kind === 'pick_client') onOpenEntry(entry)
-                    else nav(start.path)
-                  }}
-                >
-                  <Play size={16} aria-hidden />
-                </button>
-              ) : null}
-            </div>
+            />
           )
         })}
+        {draggedEntry && preview.dayIso === dayIso ? (
+          <TrainerScheduleEntryBlock
+            entry={{ ...draggedEntry, day_date: dayIso, start_minutes: preview.startMinutes }}
+            style={entryStyle(draggedEntry, preview.startMinutes, 0, 1)}
+            compact={compact}
+            laneCount={1}
+            clientNameById={clientNameById}
+            trainingById={trainingById}
+            now={now}
+            readOnly
+            variant="ghost"
+          />
+        ) : null}
       </div>
     )
   }
@@ -228,6 +233,7 @@ export function TrainerScheduleMultiDayAgenda({
         'trainer-schedule-day card',
         compact ? 'trainer-schedule-day--multi' : '',
         days.length >= 7 ? 'trainer-schedule-day--week' : '',
+        preview ? 'trainer-schedule-day--dragging' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -243,6 +249,16 @@ export function TrainerScheduleMultiDayAgenda({
             <ChevronRight size={20} aria-hidden />
           </button>
         </div>
+        {onToday ? (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm trainer-schedule-day__today"
+            onClick={goToday}
+            title="Перейти к сегодняшнему дню и текущему времени"
+          >
+            Сегодня
+          </button>
+        ) : null}
         {!readOnly && addDefaultDay ? (
           <button
             type="button"
@@ -308,6 +324,7 @@ export function TrainerScheduleMultiDayAgenda({
             : 'Нажмите на час или «Запись», чтобы добавить пометку или клиента.'}
         </p>
       ) : null}
+      <TrainerScheduleKindLegend />
     </section>
   )
 }

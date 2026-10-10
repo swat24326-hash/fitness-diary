@@ -10,8 +10,9 @@ import * as twoDrafts from './scenarios/trainerTwoDrafts.mjs'
 import * as clientMe from './scenarios/clientMeApp.mjs'
 import * as staffInbox from './scenarios/staffInbox.mjs'
 import * as clientChat from './scenarios/clientChat.mjs'
+import * as trainerSchedule from './scenarios/trainerScheduleCalendar.mjs'
 
-const SCENARIOS = [offlineFinish, editCompletedDate, twoDrafts, clientMe, staffInbox, clientChat]
+const SCENARIOS = [offlineFinish, editCompletedDate, twoDrafts, clientMe, staffInbox, clientChat, trainerSchedule]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

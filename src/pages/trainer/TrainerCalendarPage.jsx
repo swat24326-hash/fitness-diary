@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { todayInTimeZoneIso } from '../../lib/dateRu.js'
+import { pluralRu } from '../../lib/client/clientMeUiCore.js'
 import {
   SCHEDULE_VIEW_DAY,
   SCHEDULE_VIEW_MONTH,
@@ -13,7 +14,11 @@ import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerSchedu
 import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
 import { TrainerScheduleViewSwitcher } from '../../components/trainer/TrainerScheduleViewSwitcher.jsx'
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
+import { TrainerScheduleNotice } from '../../components/trainer/TrainerScheduleNotice.jsx'
+import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
 import '../../styles/trainer-schedule.css'
+import '../../styles/trainer-schedule-interactions.css'
+import '../../styles/trainer-schedule-kinds.css'
 
 function parseMonthCursor(iso) {
   const day = String(iso ?? '').slice(0, 10)
@@ -44,6 +49,8 @@ export function TrainerCalendarPage() {
     user?.id,
     user?.club_id,
   )
+
+  const move = useTrainerScheduleMove({ onSaved: () => void reload({ silent: true }) })
 
   const countsByDay = useMemo(
     () => countScheduleEntriesByDay(entries, monthCursor.year, monthCursor.month),
@@ -95,6 +102,12 @@ export function TrainerCalendarPage() {
     setMonthCursor(parseMonthCursor(next))
   }
 
+  const goToday = () => {
+    const t = todayInTimeZoneIso()
+    setSelectedDay(t)
+    setMonthCursor(parseMonthCursor(t))
+  }
+
   const wide = view !== SCHEDULE_VIEW_MONTH && agendaDays.length > 1
 
   return (
@@ -102,7 +115,8 @@ export function TrainerCalendarPage() {
       <header className="trainer-schedule-page__hero">
         <h1 className="trainer-schedule-page__title">Ежедневник</h1>
         <p className="trainer-schedule-page__subtitle muted">
-          План дня: заметки и клиенты. Сохраняется на планшете и уходит в облако при Sync.
+          План дня: заметки и клиенты. Сохраняется на планшете и уходит в облако при Sync. Удерживайте
+          запись, чтобы перенести её.
         </p>
         <TrainerScheduleViewSwitcher view={view} onChange={onChangeView} />
       </header>
@@ -132,11 +146,16 @@ export function TrainerCalendarPage() {
           trainingById={trainingById}
           onPrev={() => shiftAnchor(-1)}
           onNext={() => shiftAnchor(1)}
+          onToday={goToday}
           onOpenDay={onSelectDay}
           onAddAt={openCreate}
           onOpenEntry={openEdit}
+          onMoveEntry={(entry, dayIso, startMinutes) => void move.moveEntry(entry, dayIso, startMinutes)}
+          onMoveLocked={move.showLocked}
         />
       )}
+
+      <TrainerScheduleNotice notice={move.notice} onUndo={() => void move.undo()} onDismiss={move.dismiss} />
 
       <TrainerScheduleEntryModal
         open={modalOpen}
@@ -147,8 +166,14 @@ export function TrainerCalendarPage() {
         clients={clients}
         clientNameById={clientNameById}
         trainingById={trainingById}
+        entries={entries}
         onClose={() => setModalOpen(false)}
-        onSaved={() => void reload({ silent: true })}
+        onSaved={(result) => {
+          void reload({ silent: true })
+          if (result?.repeated) {
+            move.notify(`Добавлено ещё ${result.repeated} ${pluralRu(result.repeated, 'запись', 'записи', 'записей')}`)
+          }
+        }}
       />
     </div>
   )

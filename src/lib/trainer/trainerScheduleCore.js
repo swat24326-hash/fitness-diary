@@ -66,6 +66,8 @@ export function normalizeTrainerScheduleEntry(raw) {
   const title = String(r.title ?? '').trim().slice(0, 240)
   const clientIds = normalizeScheduleClientIds(r.client_ids)
   const linkedTrainingId = String(r.linked_training_id ?? '').trim() || null
+  /* Строгая проверка категории — trainerScheduleKindCore (push payload, показ). */
+  const kind = String(r.kind ?? '').trim().slice(0, 20) || null
 
   if (!title && !clientIds.length) return null
 
@@ -79,6 +81,7 @@ export function normalizeTrainerScheduleEntry(raw) {
     title,
     client_ids: clientIds,
     linked_training_id: linkedTrainingId,
+    kind,
     created_at: String(r.created_at ?? new Date().toISOString()),
     updated_at: String(r.updated_at ?? new Date().toISOString()),
     synced: r.synced !== false,

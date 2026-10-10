@@ -29,7 +29,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `pnk_funnel_events` | `id` | Журнал ПНК |
 | `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру. Удаление клиента: awaiting снимается, `client_id` не пишется обратно |
 | `client_hall_lifecycle` | `id` | Закрытие ПЗ/ТЗ/АЗ (`hall`, `closed_at`, `close_reason`); индексы `client_id`, `club_id` |
-| `trainer_schedule_entries` | `id` | Ежедневник тренера: день, время, заметка и/или `client_ids[]`; индексы `trainer_id`, `[trainer_id, day_date]` — см. [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |
+| `trainer_schedule_entries` | `id` | Ежедневник тренера: день, время, заметка и/или `client_ids[]`, категория `kind` (цвет); индексы `trainer_id`, `[trainer_id, day_date]` — см. [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |
 | `loyalty_glance` | `client_id` | Кэш снимка баллов (GET `loyalty-glance`, не sync_queue) |
 
 ### Postgres only (не stores IndexedDB)

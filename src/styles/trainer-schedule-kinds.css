@@ -1,0 +1,91 @@
+/**
+ * Ежедневник: цвет категории записи, состояние (черновик / завершена / прошла), легенда, выбор категории.
+ */
+.trainer-schedule-kind--training { --kind: var(--schedule-kind-training); }
+.trainer-schedule-kind--group { --kind: var(--schedule-kind-group); }
+.trainer-schedule-kind--trial { --kind: var(--schedule-kind-trial); }
+.trainer-schedule-kind--work { --kind: var(--schedule-kind-work); }
+.trainer-schedule-kind--personal { --kind: var(--schedule-kind-personal); }
+
+/* --- Запись в сетке --- */
+.trainer-schedule-day__entry.trainer-schedule-day__entry--kind {
+  background: color-mix(in srgb, var(--kind) 20%, rgba(255, 255, 255, 0.04));
+  border: 1px solid color-mix(in srgb, var(--kind) 34%, transparent);
+  border-left: 3px solid var(--kind);
+}
+
+.trainer-schedule-day__entry.trainer-schedule-day__entry--draft {
+  border-style: dashed;
+  border-left-style: dashed;
+}
+
+.trainer-schedule-day__entry-wrap--past:not(.trainer-schedule-day__entry-wrap--ghost) {
+  opacity: 0.55;
+}
+
+.trainer-schedule-day__entry-wrap--done:not(.trainer-schedule-day__entry-wrap--ghost) {
+  opacity: 0.62;
+}
+
+.trainer-schedule-day__entry-done {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-right: 3px;
+  color: var(--kind);
+}
+
+/* --- Точка цвета (плашки и легенда) --- */
+.trainer-schedule-kinds__dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--kind);
+}
+
+/* --- Выбор категории в форме --- */
+.trainer-schedule-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trainer-schedule-kinds__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.trainer-schedule-kinds__chip--on {
+  border-color: var(--kind);
+  background: color-mix(in srgb, var(--kind) 22%, transparent);
+}
+
+/* --- Легенда под сеткой --- */
+.trainer-schedule-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.trainer-schedule-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

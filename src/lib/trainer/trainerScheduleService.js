@@ -5,6 +5,7 @@ import {
   normalizeTrainerScheduleEntry,
   SCHEDULE_DEFAULT_DURATION_MIN,
 } from './trainerScheduleCore.js'
+import { coerceScheduleKindForEntry } from './trainerScheduleKindCore.js'
 
 /**
  * @param {string} trainerId
@@ -62,9 +63,11 @@ export async function listTrainerScheduleEntries(trainerId, opts = {}) {
  *   title?: string,
  *   client_ids?: string[],
  *   linked_training_id?: string | null,
+ *   kind?: string | null,
  * }} input
+ * @param {{ silent?: boolean }} [opts] silent — без события обновления UI (пачка копий шлёт одно в конце)
  */
-export async function saveTrainerScheduleEntry(input) {
+export async function saveTrainerScheduleEntry(input, opts = {}) {
   const existingId = String(input?.id ?? '').trim()
   const isNew = !existingId
   const now = new Date().toISOString()
@@ -88,6 +91,7 @@ export async function saveTrainerScheduleEntry(input) {
     title: input.title ?? '',
     client_ids: input.client_ids ?? [],
     linked_training_id: input.linked_training_id ?? null,
+    kind: coerceScheduleKindForEntry(input.kind, input.client_ids),
     created_at: prevCreated,
     updated_at: now,
     synced: false,
@@ -100,8 +104,55 @@ export async function saveTrainerScheduleEntry(input) {
     operation: isNew ? 'insert' : 'update',
     remote_id: isNew ? null : row.id,
   })
-  dispatchLocalDataChanged({ reason: 'trainer-schedule' })
+  if (!opts.silent) dispatchLocalDataChanged({ reason: 'trainer-schedule' })
   return { ok: true, entry: row }
+}
+
+/**
+ * Копии записи на другие дни («повторять каждую неделю»): новые id, без связи с тренировкой.
+ * @param {{ club_id: string, trainer_id: string, start_minutes: number, duration_minutes?: number, title?: string, client_ids?: string[], kind?: string | null }} base
+ * @param {string[]} dayIsos
+ */
+export async function saveTrainerScheduleEntryCopies(base, dayIsos) {
+  let created = 0
+  for (const day of dayIsos ?? []) {
+    const res = await saveTrainerScheduleEntry(
+      {
+        club_id: base.club_id,
+        trainer_id: base.trainer_id,
+        day_date: day,
+        start_minutes: base.start_minutes,
+        duration_minutes: base.duration_minutes,
+        title: base.title ?? '',
+        client_ids: base.client_ids ?? [],
+        linked_training_id: null,
+        kind: base.kind ?? null,
+      },
+      { silent: true },
+    )
+    if (!res.ok) {
+      if (created) dispatchLocalDataChanged({ reason: 'trainer-schedule' })
+      return { ok: false, created, error: res.error }
+    }
+    created += 1
+  }
+  if (created) dispatchLocalDataChanged({ reason: 'trainer-schedule' })
+  return { ok: true, created }
+}
+
+/**
+ * Перенос слота (жест в сетке / «Отменить»): только день и время, остальное как было.
+ * @param {object} entry
+ * @param {string} dayIso
+ * @param {number} startMinutes
+ */
+export async function moveTrainerScheduleEntry(entry, dayIso, startMinutes) {
+  if (!entry?.id) return { ok: false, error: 'Не указана запись' }
+  return saveTrainerScheduleEntry({
+    ...entry,
+    day_date: String(dayIso ?? '').slice(0, 10),
+    start_minutes: Number(startMinutes),
+  })
 }
 
 /** @param {string} id */

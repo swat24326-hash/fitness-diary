@@ -4,9 +4,9 @@ import { ORIGIN, loginUi, newE2eContext } from './e2eHarness.mjs'
 import { TRAINER_LOGIN, TRAINER_PASSWORD } from './fixtures.mjs'
 
 /** Вход тренера + первый Sync: клиенты, абонементы и справочник на планшете. */
-export async function openTrainerSession(browser, seed) {
+export async function openTrainerSession(browser, seed, contextOpts = {}) {
   const backend = createFakeBackend(seed)
-  const context = await newE2eContext(browser, backend)
+  const context = await newE2eContext(browser, backend, contextOpts)
   const page = await context.newPage()
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))

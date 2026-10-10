@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Play, Search, Trash2, X } from 'lucide-react'
+import { Play, Trash2, X } from 'lucide-react'
 import {
   SCHEDULE_DEFAULT_DURATION_MIN,
   buildScheduleEntryLabel,
-  buildTrainerScheduleClientPickerList,
   formatScheduleMinutes,
   normalizeScheduleClientIds,
   parseScheduleTimeToMinutes,
@@ -12,12 +11,29 @@ import {
 import {
   deleteTrainerScheduleEntry,
   saveTrainerScheduleEntry,
+  saveTrainerScheduleEntryCopies,
 } from '../../lib/trainer/trainerScheduleService.js'
 import {
   buildScheduleWorkoutNewPath,
   resolveScheduleTrainingStart,
   scheduleEntryTrainingStatusLabel,
 } from '../../lib/trainer/trainerScheduleTrainingCore.js'
+import {
+  SCHEDULE_REPEAT_DEFAULT_WEEKS,
+  planScheduleRepeatCopies,
+  scheduleWeekdayIndex,
+} from '../../lib/trainer/trainerScheduleRecurrenceCore.js'
+import {
+  SCHEDULE_KIND_TRAINING,
+  resolveScheduleEntryKind,
+  scheduleKindFormMode,
+  scheduleKindRequiresClients,
+} from '../../lib/trainer/trainerScheduleKindCore.js'
+import { todayInTimeZoneIso } from '../../lib/dateRu.js'
+import { TrainerScheduleEntryReadonly } from './TrainerScheduleEntryReadonly.jsx'
+import { TrainerScheduleRepeatFields } from './TrainerScheduleRepeatFields.jsx'
+import { TrainerScheduleKindPicker } from './TrainerScheduleKindPicker.jsx'
+import { TrainerScheduleClientPicker } from './TrainerScheduleClientPicker.jsx'
 
 const DURATIONS = [30, 60, 90, 120]
 
@@ -34,8 +50,9 @@ const DURATIONS = [30, 60, 90, 120]
  *   trainingById?: Record<string, object>,
  *   readOnly?: boolean,
  *   clientsBase?: string,
+ *   entries?: object[],
  *   onClose: () => void,
- *   onSaved: () => void,
+ *   onSaved: (result?: { repeated: number }) => void,
  * }} props
  */
 export function TrainerScheduleEntryModal({
@@ -50,38 +67,62 @@ export function TrainerScheduleEntryModal({
   trainingById = {},
   readOnly = false,
   clientsBase = '/trainer/clients',
+  entries = [],
   onClose,
   onSaved,
 }) {
   const nav = useNavigate()
   const [mode, setMode] = useState('clients')
+  const [kind, setKind] = useState('personal')
   const [time, setTime] = useState('10:00')
   const [duration, setDuration] = useState(SCHEDULE_DEFAULT_DURATION_MIN)
   const [title, setTitle] = useState('')
   const [selectedIds, setSelectedIds] = useState(/** @type {string[]} */ ([]))
-  const [clientQuery, setClientQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [repeatOn, setRepeatOn] = useState(false)
+  const [repeatWeekdays, setRepeatWeekdays] = useState(/** @type {number[]} */ ([]))
+  const [repeatWeeks, setRepeatWeeks] = useState(SCHEDULE_REPEAT_DEFAULT_WEEKS)
 
   useEffect(() => {
     if (!open) return
     const entry = draft
     const ids = normalizeScheduleClientIds(entry?.client_ids)
-    setMode(ids.length ? 'clients' : 'note')
+    const nextKind = entry?.id ? resolveScheduleEntryKind(entry) : SCHEDULE_KIND_TRAINING
+    const nextFormMode = scheduleKindFormMode(nextKind)
+    setKind(nextKind)
+    setMode(nextFormMode !== 'either' ? nextFormMode : ids.length ? 'clients' : 'note')
     setTime(formatScheduleMinutes(Number(entry?.start_minutes ?? 10 * 60)))
     setDuration(Number(entry?.duration_minutes) || SCHEDULE_DEFAULT_DURATION_MIN)
     setTitle(String(entry?.title ?? ''))
     setSelectedIds(ids)
-    setClientQuery('')
     setError('')
+    setRepeatOn(false)
+    const wd = scheduleWeekdayIndex(dayIso)
+    setRepeatWeekdays(wd >= 0 ? [wd] : [])
+    setRepeatWeeks(SCHEDULE_REPEAT_DEFAULT_WEEKS)
   }, [open, draft])
 
-  const pickerClients = useMemo(
-    () => buildTrainerScheduleClientPickerList(clients, clientQuery, selectedIds),
-    [clients, clientQuery, selectedIds],
-  )
+  const repeatPlan = useMemo(() => {
+    if (!repeatOn) return { days: [], skipped: 0 }
+    return planScheduleRepeatCopies(
+      { startDayIso: dayIso, weekdays: repeatWeekdays, weeks: repeatWeeks, todayIso: todayInTimeZoneIso() },
+      {
+        start_minutes: parseScheduleTimeToMinutes(time) ?? -1,
+        client_ids: mode === 'clients' ? selectedIds : [],
+        title: mode === 'note' ? title : '',
+      },
+      entries,
+    )
+  }, [repeatOn, dayIso, repeatWeekdays, repeatWeeks, time, mode, selectedIds, title, entries])
 
-  const clientSearchActive = Boolean(clientQuery.trim())
+  const formMode = scheduleKindFormMode(kind)
+
+  const pickKind = (next) => {
+    setKind(next)
+    const nextMode = scheduleKindFormMode(next)
+    if (nextMode !== 'either') setMode(nextMode)
+  }
 
   const singleClientId = selectedIds.length === 1 ? selectedIds[0] : null
 
@@ -109,72 +150,16 @@ export function TrainerScheduleEntryModal({
 
   if (!open) return null
 
-  const viewTrainerName = trainerNameById[String(draft?.trainer_id ?? trainerId ?? '')] ?? ''
-  const viewClientIds = normalizeScheduleClientIds(draft?.client_ids)
-  const viewIsNote = !viewClientIds.length
-
   if (readOnly && draft) {
     return (
-      <div className="trainer-schedule-modal" role="presentation" onClick={onClose}>
-        <div
-          className="trainer-schedule-modal__panel card"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="trainer-schedule-modal-title"
-          onClick={(ev) => ev.stopPropagation()}
-        >
-          <div className="trainer-schedule-modal__head">
-            <h2 id="trainer-schedule-modal-title" className="trainer-schedule-modal__title">
-              Запись
-            </h2>
-            <button type="button" className="btn btn-icon-square btn-secondary" onClick={onClose} aria-label="Закрыть">
-              <X size={18} aria-hidden />
-            </button>
-          </div>
-          <div className="trainer-schedule-modal__readonly">
-            {viewTrainerName ? (
-              <p className="trainer-schedule-modal__readonly-row">
-                <span className="muted">Тренер</span>
-                <strong>{viewTrainerName}</strong>
-              </p>
-            ) : null}
-            <p className="trainer-schedule-modal__readonly-row">
-              <span className="muted">Время</span>
-              <strong>
-                {formatScheduleMinutes(Number(draft.start_minutes))} · {Number(draft.duration_minutes) || 60} мин
-              </strong>
-            </p>
-            <p className="trainer-schedule-modal__readonly-row">
-              <span className="muted">Тип</span>
-              <strong>{viewIsNote ? 'Заметка' : 'Клиенты'}</strong>
-            </p>
-            {viewIsNote ? (
-              <p className="trainer-schedule-modal__readonly-note">{String(draft.title ?? '').trim() || '—'}</p>
-            ) : (
-              <ul className="trainer-schedule-modal__readonly-clients">
-                {viewClientIds.map((cid) => (
-                  <li key={cid}>
-                    <Link to={`${clientsBase}/${cid}`} className="u-no-decoration">
-                      {clientNameById[cid] ?? 'Клиент'}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {trainingChip ? (
-              <p className="trainer-schedule-modal__preview muted">
-                Статус: <span className="trainer-schedule-modal__chip">{trainingChip}</span>
-              </p>
-            ) : null}
-            <div className="trainer-schedule-modal__actions">
-              <span />
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TrainerScheduleEntryReadonly
+        draft={draft}
+        trainerName={trainerNameById[String(draft?.trainer_id ?? trainerId ?? '')] ?? ''}
+        clientNameById={clientNameById}
+        clientsBase={clientsBase}
+        trainingChip={trainingChip}
+        onClose={onClose}
+      />
     )
   }
 
@@ -192,6 +177,10 @@ export function TrainerScheduleEntryModal({
     }
     const client_ids = mode === 'clients' ? selectedIds : []
     const note = mode === 'note' ? title.trim() : ''
+    if (scheduleKindRequiresClients(kind) && !client_ids.length) {
+      setError('Для тренировки выберите клиента')
+      return
+    }
     if (!client_ids.length && !note) {
       setError('Напишите заметку или выберите клиента')
       return
@@ -208,12 +197,23 @@ export function TrainerScheduleEntryModal({
         title: note,
         client_ids,
         linked_training_id: draft?.linked_training_id ?? null,
+        kind,
       })
       if (!res.ok) {
         setError(res.error ?? 'Не удалось сохранить')
         return
       }
-      onSaved()
+      let repeated = 0
+      if (repeatOn && repeatPlan.days.length) {
+        const copies = await saveTrainerScheduleEntryCopies(res.entry, repeatPlan.days)
+        repeated = copies.created
+        if (!copies.ok) {
+          onSaved({ repeated })
+          setError(`Создано копий: ${repeated} из ${repeatPlan.days.length}. ${copies.error ?? ''}`.trim())
+          return
+        }
+      }
+      onSaved({ repeated })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка сохранения')
@@ -273,26 +273,30 @@ export function TrainerScheduleEntryModal({
             </label>
           </div>
 
-          <div className="trainer-schedule-modal__modes" role="tablist" aria-label="Тип записи">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'note'}
-              className={mode === 'note' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
-              onClick={() => setMode('note')}
-            >
-              Заметка
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'clients'}
-              className={mode === 'clients' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
-              onClick={() => setMode('clients')}
-            >
-              Клиенты
-            </button>
-          </div>
+          <TrainerScheduleKindPicker value={kind} onChange={pickKind} />
+
+          {formMode === 'either' ? (
+            <div className="trainer-schedule-modal__modes" role="tablist" aria-label="Тип записи">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'note'}
+                className={mode === 'note' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
+                onClick={() => setMode('note')}
+              >
+                Заметка
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'clients'}
+                className={mode === 'clients' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
+                onClick={() => setMode('clients')}
+              >
+                Клиенты
+              </button>
+            </div>
+          ) : null}
 
           {mode === 'note' ? (
             <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
@@ -306,44 +310,18 @@ export function TrainerScheduleEntryModal({
               />
             </label>
           ) : (
-            <div className="trainer-schedule-modal__clients-wrap">
-              <p className="trainer-schedule-modal__hint muted">Можно выбрать несколько клиентов на один слот.</p>
-              <div className="trainer-schedule-modal__search admin-clients-search-cell" role="search">
-                <Search size={18} aria-hidden className="muted u-shrink-0" />
-                <input
-                  className="admin-clients-search-input"
-                  type="search"
-                  autoComplete="off"
-                  placeholder="Фамилия, телефон или номер карты…"
-                  aria-label="Поиск клиента"
-                  value={clientQuery}
-                  onChange={(ev) => setClientQuery(ev.target.value)}
-                />
-              </div>
-              <div className="trainer-schedule-modal__clients">
-                <ul className="trainer-schedule-modal__client-list">
-                  {pickerClients.map((c) => {
-                    const id = String(c.id)
-                    const checked = selectedIds.includes(id)
-                    return (
-                      <li key={id}>
-                        <label className="trainer-schedule-modal__client-item">
-                          <input type="checkbox" checked={checked} onChange={() => toggleClient(id)} />
-                          <span>{c.name}</span>
-                        </label>
-                      </li>
-                    )
-                  })}
-                </ul>
-                {!clients.length ? (
-                  <p className="muted">Нет активных клиентов — добавьте заметку или клиента в базе.</p>
-                ) : null}
-                {clients.length && clientSearchActive && !pickerClients.length ? (
-                  <p className="muted trainer-schedule-modal__clients-empty">Никого не найдено — измените запрос.</p>
-                ) : null}
-              </div>
-            </div>
+            <TrainerScheduleClientPicker clients={clients} selectedIds={selectedIds} onToggle={toggleClient} />
           )}
+
+          <TrainerScheduleRepeatFields
+            enabled={repeatOn}
+            onToggle={setRepeatOn}
+            weekdays={repeatWeekdays}
+            onWeekdays={setRepeatWeekdays}
+            weeks={repeatWeeks}
+            onWeeks={setRepeatWeeks}
+            plan={repeatPlan}
+          />
 
           <p className="trainer-schedule-modal__preview muted">
             Будет: <strong>{previewLabel}</strong>

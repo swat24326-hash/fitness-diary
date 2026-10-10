@@ -18,6 +18,8 @@ import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerS
 import { TrainerScheduleViewSwitcher } from '../../components/trainer/TrainerScheduleViewSwitcher.jsx'
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
 import '../../styles/trainer-schedule.css'
+import '../../styles/trainer-schedule-interactions.css'
+import '../../styles/trainer-schedule-kinds.css'
 
 function parseMonthCursor(iso) {
   const day = String(iso ?? '').slice(0, 10)
@@ -246,6 +248,11 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               showTrainerName={!trainerFilter}
               onPrev={() => shiftAnchor(-1)}
               onNext={() => shiftAnchor(1)}
+              onToday={() => {
+                const t = todayInTimeZoneIso()
+                setSelectedDay(t)
+                setMonthCursor(parseMonthCursor(t))
+              }}
               onOpenDay={onSelectDay}
               onAddAt={() => {}}
               onOpenEntry={openView}

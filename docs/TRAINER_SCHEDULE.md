@@ -1,6 +1,6 @@
 # Ежедневник тренера (расписание персоналок)
 
-**Актуально:** 2026-09-06  
+**Актуально:** 2026-10-11  
 **Статус:** ✅ MVP в коде (тренер, планшет, офлайн + sync)  
 **Не:** Google Calendar как источник правды; групповые слоты; запись клиентом из ЛК (позже).
 
@@ -46,6 +46,7 @@
 | `title` | TEXT | Текст заметки (если без клиентов) |
 | `client_ids` | JSONB | Массив UUID клиентов (0…10) |
 | `linked_training_id` | UUID? | Связь с `trainings` (опционально) |
+| `kind` | TEXT? | Категория: `training` / `group` / `trial` / `work` / `personal`; `NULL` — по умолчанию (миграция `20261011130000_trainer_schedule_kind.sql`) |
 | `created_at` / `updated_at` | TIMESTAMPTZ | Ревизия / merge при pull |
 
 **Правило отображения:** если `client_ids` не пуст — заголовок из имён клиентов; иначе `title` или «Заметка».
@@ -55,15 +56,19 @@
 | Слой | Путь |
 |------|------|
 | Правила, сетка месяца, время | `src/lib/trainer/trainerScheduleCore.js` |
+| «Сейчас»: линия, начальный скролл | `src/lib/trainer/trainerScheduleNowCore.js`, хук `src/hooks/useTrainerScheduleNow.js` |
+| Повтор записи | `src/lib/trainer/trainerScheduleRecurrenceCore.js`, UI `TrainerScheduleRepeatFields.jsx` |
+| Категории и состояние | `src/lib/trainer/trainerScheduleKindCore.js`, UI `TrainerScheduleKindPicker.jsx` (плашки + легенда), стили `trainer-schedule-kinds.css`, цвета — токены `--schedule-kind-*` в `tokens.css` |
+| Перенос пальцем | `src/lib/trainer/trainerScheduleDragCore.js`, хуки `useTrainerScheduleDrag.js` (жест), `useTrainerScheduleMove.js` (сохранение + «Отменить») |
 | IDB + sync | `src/lib/trainer/trainerScheduleService.js` |
 | Связь с `trainings` | `src/lib/trainer/trainerScheduleTrainingCore.js`, `trainerScheduleTrainingService.js` |
 | Push payload | `src/lib/trainer/trainerSchedulePushPayload.js` |
 | Экран | `src/pages/trainer/TrainerCalendarPage.jsx` |
 | Админ / управляющий | `src/pages/admin/ClubTrainerSchedulePage.jsx` |
 | Admin API | `api/_lib/adminData/trainerScheduleHandler.js`, `src/lib/admin/trainerScheduleAdminCore.js` |
-| UI-блоки | `src/components/trainer/TrainerSchedule*.jsx` (`ViewSwitcher`, `MultiDayAgenda`, месяц) |
-| Стили | `src/styles/trainer-schedule.css` |
-| Verify | `verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core.mjs` |
+| UI-блоки | `src/components/trainer/TrainerSchedule*.jsx` (`ViewSwitcher`, `MultiDayAgenda`, `EntryBlock`, `EntryReadonly`, `Notice`, месяц) |
+| Стили | `src/styles/trainer-schedule.css`, `src/styles/trainer-schedule-interactions.css` (сейчас, перенос, плашка, повтор), `src/styles/trainer-schedule-kinds.css` (категории) |
+| Verify | `verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core.mjs`, `verify-trainer-schedule-interactions.mjs`; экран — сценарий `trainerScheduleCalendar` в `qa:screens` |
 
 ## Безопасность
 
@@ -90,8 +95,37 @@
 | UX | Месяц → день; фильтр «все тренеры» / один тренер; имя тренера на слоте |
 | Маршруты | `/admin/trainer-schedule`, `/club/trainer-schedule` |
 
+## Фаза 2c — удобство как в Google Календаре (✅ в коде, 2026-10-11)
+
+| Что | Как |
+|-----|-----|
+| Линия «сейчас» | В колонке сегодняшнего дня (МСК), обновляется раз в 30 с. Сетка открывается на «сейчас − 1 ч», если сегодня в окне; иначе на 07:00. Тренер и админ |
+| «Сегодня» | Кнопка в шапке сетки: якорь на сегодня + скролл к текущему времени. Тренер и админ |
+| Повтор | В форме тренера «Повторять каждую неделю»: дни недели (по умолчанию день записи) и 2/4/8/12/16 недель. Исходная запись — первая неделя; копии — **обычные отдельные записи** (новые `id`, без `linked_training_id`), каждая через `saveLocalWithSync`. Дни раньше сегодня и дубли (тот же день + время + клиенты/текст) пропускаются. **Серии в БД нет**: «изменить / удалить все следующие» — нет, только по одной |
+| Перенос | Тренер, режимы День / 3 дня / Неделя (не Месяц). Удержание ~0,4 с → запись «поднята» (вибро), ведём по часам и колонкам дней, шаг 15 мин, автоскролл у краёв. Сдвиг пальца до подъёма — это скролл. Отпустили — `moveTrainerScheduleEntry` (только `day_date` + `start_minutes`, через очередь), плашка «Перенесено на … · Отменить» (6 с). Тап после жеста форму не открывает |
+| Запрет переноса | `resolveScheduleDragPolicy`: завершённая связанная тренировка — запись не двигается (плашка); черновик (или тренировка ещё не в кэше) — только время в тот же день, иначе дата слота и черновика разъедутся |
+
+## Фаза 2d — категории записей (✅ в коде, 2026-10-11; на проде нужна миграция)
+
+| Категория | Цвет | С клиентами |
+|-----------|------|-------------|
+| Тренировка | изумрудный | обязательно (по умолчанию для новой записи) |
+| Групповое | голубой | клиенты или текст |
+| Пробное / консультация | жёлтый | клиенты или текст |
+| Работа в клубе | бирюзовый | нет |
+| Личное | серый | нет |
+
+- Цвета одинаковы у тренера, админа и управляющего (не ролевой accent). Легенда под сеткой; в просмотре админа — строка «Категория».
+- `kind = NULL` или противоречит клиентам (работа/личное с клиентами, тренировка без клиентов) → показ по умолчанию: клиенты → «Тренировка», заметка → «Личное». Старые записи так и выглядят.
+- Состояние поверх цвета: черновик связанной тренировки — пунктир; завершена — галочка и бледнее; прошедшая запись — бледнее.
+- Push: если в записи **нет поля** `kind` (старый бандл на другом планшете), сервер колонку не трогает — категорию не затрёт. Явный `null` — сброс.
+- **Порядок выкатки:** сначала миграция (`scripts/r2-pg-migrate-vm.sh`), потом код. Иначе запись с `kind` не примет база и слот останется в очереди.
+- Фильтр по категории у управляющего — позже (⏸).
+
+**Жест на планшете:** после подъёма браузер на первом движении пальца начинает скролл и шлёт `pointercancel`. Поэтому в `useTrainerScheduleDrag` слушатель `touchmove` с `passive: false` ставится на `window` в момент касания (до `touchstart`), гасит скролл поднятой записи, а касание после подъёма ведётся `touch*`-событиями. Не переводить на `touch-action: none` у записей — тогда сетку нельзя листать пальцем по записи.
+
 ## Фаза 3 (не в MVP)
 
 - Клиентское приложение: read-only «ближайшие»
 - Экспорт в Google Calendar (one-way)
-- Drag-and-drop перенос слота
+- Серия повторов (`series_id`): «изменить / удалить все следующие»

@@ -1,6 +1,6 @@
 ---
 description: Ежедневник тренера — слоты, офлайн-запись, связь с тренировкой, права push; инварианты
-globs: src/lib/trainer/trainerSchedule*.js,src/lib/admin/trainerScheduleAdminCore.js,src/pages/trainer/TrainerCalendarPage.jsx,src/pages/admin/ClubTrainerSchedulePage.jsx,src/components/trainer/TrainerSchedule*.jsx,api/_lib/adminData/trainerScheduleHandler.js,src/styles/trainer-schedule.css,scripts/verify-trainer-schedule-*.mjs
+globs: src/lib/trainer/trainerSchedule*.js,src/lib/admin/trainerScheduleAdminCore.js,src/pages/trainer/TrainerCalendarPage.jsx,src/pages/admin/ClubTrainerSchedulePage.jsx,src/components/trainer/TrainerSchedule*.jsx,api/_lib/adminData/trainerScheduleHandler.js,src/styles/trainer-schedule*.css,src/hooks/useTrainerSchedule*.js,scripts/verify-trainer-schedule-*.mjs
 alwaysApply: false
 ---
 
@@ -28,8 +28,11 @@ alwaysApply: false
 | Несколько клиентов | В слоте до десяти клиентов; при старте тренировки тренер выбирает, с кого начать — не стартовать первого молча |
 | Сетка | Режимы День / 3 дня / Неделя / Месяц, часы 00:00–23:00, при открытии скролл к утру. Расчёты сетки и времени — `trainerScheduleCore.js`, не в компоненте |
 | Плитки главной | На широком планшете (режим доски, ≥768px) Клиенты, Ежедневник и Профиль стоят в один ряд — не возвращать сетку на две колонки |
-| Слои | Чистые правила — `trainerScheduleCore.js` / `trainerScheduleTrainingCore.js`, IDB и sync — в сервисах, экран тонкий |
+| Слои | Чистые правила — `trainerScheduleCore.js` / `trainerScheduleTrainingCore.js` / `…NowCore` / `…RecurrenceCore` / `…DragCore`, IDB и sync — в сервисах, экран тонкий |
+| Повтор | Копии — обычные отдельные записи через очередь, без серии в БД; не создавать копии в обход `saveTrainerScheduleEntry` |
+| Категория `kind` | Правила только в `trainerScheduleKindCore.js`; цвета — токены `--schedule-kind-*` (не ролевой accent). Push без ключа `kind` не трогает колонку (старые бандлы). Новая колонка — миграция **до** кода |
+| Перенос | Завершённая тренировка — слот не двигается; черновик — только время в тот же день. Жест: `touchmove` non-passive на `window` до `touchstart`, не `touch-action: none` на записях (иначе не листается сетка) |
 
 ## Перед завершением
 
-`scripts/verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core`, при правках прав — `verify-trainer-schedule-push-auth`, при админском просмотре — `verify-trainer-schedule-admin-core`. Тронули очередь или волны push — `npm run qa:critical`. Изменилось поведение из таблиц канона — строка в `docs/TRAINER_SCHEDULE.md`.
+`scripts/verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core`, `verify-trainer-schedule-interactions` (сейчас / повтор / перенос / категории; экран — `node scripts/e2e/run-screens.mjs "ежедневник"`), при правках прав — `verify-trainer-schedule-push-auth`, при админском просмотре — `verify-trainer-schedule-admin-core`. Тронули очередь или волны push — `npm run qa:critical`. Изменилось поведение из таблиц канона — строка в `docs/TRAINER_SCHEDULE.md`.

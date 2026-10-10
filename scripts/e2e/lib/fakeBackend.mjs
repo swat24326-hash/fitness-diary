@@ -129,7 +129,7 @@ function trainerPull(state, user) {
     pnk_funnel_events: [],
     sale_clips: [],
     client_hall_lifecycle: [],
-    trainer_schedule_entries: [],
+    trainer_schedule_entries: (state.trainer_schedule_entries ?? []).filter((r) => r.trainer_id === user.id),
     outreach_templates: null,
   }
 }

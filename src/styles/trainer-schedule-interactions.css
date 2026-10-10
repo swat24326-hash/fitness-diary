@@ -1,0 +1,148 @@
+/**
+ * Ежедневник: линия «сейчас», «Сегодня», перенос записи, плашка «Отменить», повтор записи.
+ */
+
+/* --- Сейчас --- */
+.trainer-schedule-day__now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.trainer-schedule-day__now::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.trainer-schedule-day__today {
+  min-height: 44px;
+}
+
+/* --- Перенос --- */
+.trainer-schedule-day__entry {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.trainer-schedule-day__entry-wrap--drag-source {
+  opacity: 0.35;
+}
+
+.trainer-schedule-day__entry-wrap--ghost {
+  z-index: 6;
+  pointer-events: none;
+}
+
+.trainer-schedule-day__entry-wrap--ghost .trainer-schedule-day__entry {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  border-color: var(--accent);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.45),
+    0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
+  transform: scale(1.02);
+}
+
+.trainer-schedule-day--dragging .trainer-schedule-day__hour-slot {
+  pointer-events: none;
+}
+
+/* --- Плашка --- */
+.trainer-schedule-notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 8px 8px 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 0.92rem;
+}
+
+.trainer-schedule-notice--error {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+.trainer-schedule-notice__text {
+  min-width: 0;
+}
+
+.trainer-schedule-notice__undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+
+.trainer-schedule-notice__close {
+  flex-shrink: 0;
+}
+
+/* --- Повтор --- */
+.trainer-schedule-repeat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+}
+
+.trainer-schedule-repeat__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.trainer-schedule-repeat__days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.trainer-schedule-repeat__day {
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.trainer-schedule-repeat__day--on {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.trainer-schedule-repeat__summary {
+  margin: 0;
+  font-size: 0.85rem;
+}
