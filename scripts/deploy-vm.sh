@@ -17,14 +17,18 @@ sudo -u osapp git fetch -q origin
 COMMIT="$(sudo -u osapp git rev-parse "$REF^{commit}")"
 echo "выкатка: $(sudo -u osapp git log --oneline -1 "$COMMIT")"
 
-trap '$CTL stop || echo "stand: не выключился — sudo bash scripts/stand-ctl-vm.sh stop" >&2' EXIT
+mark() { echo "время: $1 — ${SECONDS} с от начала"; }
+trap '$CTL stop || echo "stand: не выключился — sudo bash scripts/stand-ctl-vm.sh stop" >&2; mark "готово"' EXIT
 $CTL start
+mark "стенд включён"
 [[ "$(vite_sum <.env)" == "$(sshs 'sudo cat /opt/fitness-diary/.env' | vite_sum)" ]] \
   || { echo "VITE_* стенда ≠ прод — sudo bash scripts/stand-install-vm.sh" >&2; exit 1; }
 sshs "cd /opt/fitness-diary && sudo -u osapp git fetch -q origin && sudo -u osapp git checkout -q --detach $COMMIT \
   && sudo bash scripts/stand-check-vm.sh $COMMIT"
+mark "стенд проверил"
 
 rm -rf .dist-stand && mkdir .dist-stand
 sshs 'sudo tar -C /opt/fitness-diary/dist -cf - .' | tar -C .dist-stand -xf -
 PREBUILT_DIST="$APP/.dist-stand" bash scripts/r3-deploy-vm.sh "$COMMIT"
+mark "прод обновлён"
 echo "прод: выкачен $COMMIT (проверен на стенде)"
