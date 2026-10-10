@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
-import { Bell } from 'lucide-react'
+import { Bell, Volume2 } from 'lucide-react'
+import { useChatSoundSetting } from '../../hooks/useChatSoundSetting.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
 import { useClientApp } from './ClientAppContext.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
@@ -11,9 +12,10 @@ const REMINDER_HINT = {
   none: 'Напоминания пока недоступны на этом телефоне.',
 }
 
-/** /me/settings — настройки клиента. Сейчас: напоминания о тренировках. */
+/** /me/settings — настройки клиента: напоминания о тренировках, звуки сообщений. */
 export function ClientSettingsPage() {
   const { push } = useClientApp()
+  const sound = useChatSoundSetting('client')
   if (!hasClientSession()) return <Navigate to="/me" replace />
   const cached = readClientMeCache()
   const club = cached?.data?.club ?? null
@@ -50,6 +52,27 @@ export function ClientSettingsPage() {
             {push.error}
           </p>
         ) : null}
+      </section>
+      <section className="client-me-card">
+        <div className="client-settings__row">
+          <span className="client-settings__label">
+            <Volume2 size={18} aria-hidden />
+            <span>
+              Звуки сообщений
+              <small className="client-me-muted">Пока приложение открыто</small>
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={sound.on}
+            aria-label="Звуки сообщений"
+            className={`client-switch${sound.on ? ' client-switch--on' : ''}`}
+            onClick={sound.toggle}
+          >
+            <span className="client-switch__knob" />
+          </button>
+        </div>
       </section>
     </ClientMeShell>
   )

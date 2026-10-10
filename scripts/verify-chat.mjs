@@ -42,6 +42,7 @@ import {
   resolveChatOutgoing,
 } from '../src/lib/chat/chatStickerCore.js'
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
+import { countNewPeerMessages, didInboxCountRise, isChatSoundEnabled } from '../src/lib/chat/chatSoundCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -232,6 +233,15 @@ const pToStaff = buildChatPushPayload({ kind: 'sales', authorSide: 'client', cli
 ok(pToStaff.title === 'Ольга' && pToStaff.url === '/messages/chat/c1/sales', 'пуш сотруднику: имя клиента и ссылка на диалог')
 const pToClient = buildChatPushPayload({ kind: 'trainer', authorSide: 'staff', clientId: 'c1', clientName: 'Ольга', authorName: 'Анна', body: 'x'.repeat(200) })
 ok(pToClient.title === 'Тренер · Анна' && pToClient.url === '/me/chat/trainer' && pToClient.body.length === 80, 'пуш клиенту: кто и 80 символов')
+
+// Звуки: клиент — включены по умолчанию, сотрудник — выключены; выбор на устройстве важнее
+ok(isChatSoundEnabled(null, 'client') && !isChatSoundEnabled(null, 'staff'), 'звук по умолчанию: клиент да, сотрудник нет')
+ok(!isChatSoundEnabled('0', 'client') && isChatSoundEnabled('1', 'staff'), 'звук: выбор на устройстве важнее умолчания')
+const was = [{ id: 'a', mine: false }]
+ok(countNewPeerMessages(null, [{ id: 'a', mine: false }]) === 0, 'звук: первая загрузка ленты — тишина')
+ok(countNewPeerMessages(was, [...was, { id: 'b', mine: true }]) === 0, 'звук: своё сообщение из опроса — тишина')
+ok(countNewPeerMessages(was, [...was, { id: 'c', mine: false }]) === 1, 'звук: новое от собеседника — звучит')
+ok(!didInboxCountRise(null, 3) && didInboxCountRise(2, 3) && !didInboxCountRise(3, 2), 'конверт: звук только при росте после первой загрузки')
 
 if (failed) {
   console.error(`\nverify-chat: ${failed} FAIL`)

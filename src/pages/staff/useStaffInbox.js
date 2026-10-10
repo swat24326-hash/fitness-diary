@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   STAFF_INBOX_CHANGED,
   answerStaffInboxSurvey,
@@ -6,6 +6,8 @@ import {
   openStaffInboxItem,
 } from '../../lib/inbox/staffInboxApiClient.js'
 import { fetchStaffChats } from '../../lib/chat/staffChatApiClient.js'
+import { didInboxCountRise } from '../../lib/chat/chatSoundCore.js'
+import { armChatSound, playChatSound } from '../../lib/chat/chatSoundPlayer.js'
 
 const COUNT_POLL_MS = 120_000
 
@@ -55,19 +57,28 @@ export function useStaffInboxItem(id) {
   return { ...state, reload, answer, sending, sendError }
 }
 
-/** Точка на конверте в шапке: рассылки + диалоги с клиентами; раз в 2 минуты, при возврате на вкладку и после чтения. Офлайн — тихо. */
+/**
+ * Точка на конверте в шапке: рассылки + диалоги с клиентами; раз в 2 минуты, при возврате на вкладку и после чтения. Офлайн — тихо.
+ * Число выросло — звук, если сотрудник включил «Звуки сообщений».
+ */
 export function useStaffInboxCount(enabled) {
   const [count, setCount] = useState(0)
+  const lastRef = useRef(null)
   useEffect(() => {
+    lastRef.current = null
     if (!enabled) {
       setCount(0)
       return undefined
     }
+    armChatSound('staff')
     let alive = true
     const load = () =>
       Promise.allSettled([fetchStaffInbox(), fetchStaffChats()]).then((res) => {
         if (!alive || res.every((r) => r.status === 'rejected')) return
-        setCount(res.reduce((sum, r) => sum + (r.status === 'fulfilled' ? Number(r.value?.attention) || 0 : 0), 0))
+        const next = res.reduce((sum, r) => sum + (r.status === 'fulfilled' ? Number(r.value?.attention) || 0 : 0), 0)
+        if (didInboxCountRise(lastRef.current, next)) playChatSound('inbox', 'staff')
+        lastRef.current = next
+        setCount(next)
       })
     const onVisible = () => document.visibilityState === 'visible' && load()
     load()

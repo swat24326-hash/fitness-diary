@@ -20,6 +20,7 @@
   align-items: center;
   gap: 10px;
   margin: 0;
+  margin-inline-end: auto;
   font-size: 1.35rem;
   font-weight: 650;
   line-height: 1.25;

@@ -21,5 +21,5 @@ export function useStaffChats(enabled = true) {
 export function useStaffChatThread(clientId, kind) {
   const load = useCallback((before) => fetchStaffChatThread(clientId, kind, before), [clientId, kind])
   const send = useCallback((outgoing) => sendStaffChatMessage(clientId, kind, outgoing), [clientId, kind])
-  return useChatThread({ key: `${clientId}:${kind}`, load, send })
+  return useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send })
 }

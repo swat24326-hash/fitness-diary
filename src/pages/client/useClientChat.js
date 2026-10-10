@@ -24,5 +24,5 @@ export function useClientChats() {
 export function useClientChatThread(kind) {
   const load = useCallback((before) => fetchClientChatThread(kind, before), [kind])
   const send = useCallback((outgoing) => sendClientChatMessage(kind, outgoing), [kind])
-  return useChatThread({ key: kind, load, send })
+  return useChatThread({ key: kind, side: 'client', load, send })
 }

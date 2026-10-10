@@ -25,6 +25,43 @@ const WB = 'https://www.wildberries.ru/catalog/123456/detail.aspx'
 const QUESTION = `Посмотрите резинку ${WB}, подойдёт?`
 const REPLY = 'Подойдёт, берите среднюю жёсткость'
 
+/** Подменяет Web Audio счётчиком: сколько тонов сыграли звуки переписки. */
+async function spySounds(page) {
+  await page.addInitScript(() => {
+    globalThis.__chatTones = 0
+    const param = { setValueAtTime() {}, exponentialRampToValueAtTime() {} }
+    const node = () => ({ connect: (n) => n, frequency: param, gain: param, Q: param, start() {}, stop() {} })
+    globalThis.AudioContext = class {
+      state = 'running'
+      currentTime = 0
+      sampleRate = 44100
+      destination = {}
+      createBuffer(_ch, length) {
+        return { getChannelData: () => new Float32Array(length) }
+      }
+      createBufferSource() {
+        globalThis.__chatTones += 1
+        return node()
+      }
+      createBiquadFilter() {
+        return node()
+      }
+      resume() {
+        return Promise.resolve()
+      }
+      createOscillator() {
+        globalThis.__chatTones += 1
+        return node()
+      }
+      createGain() {
+        return node()
+      }
+    }
+  })
+}
+
+const tones = (page) => page.evaluate(() => globalThis.__chatTones)
+
 function reaches(locator, state = 'visible') {
   return locator
     .waitFor({ state, timeout: 10_000 })
@@ -49,6 +86,7 @@ function wireClient(backend, chat) {
 async function clientWrites(c, browser, backend, chat) {
   const context = await newE2eContext(browser, backend, IPHONE)
   const page = await context.newPage()
+  await spySounds(page)
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
     await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
@@ -65,6 +103,7 @@ async function clientWrites(c, browser, backend, chat) {
     c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: 'Посмотрите резинку' })), 'сообщение клиента в ленте справа')
     c.ok(chat.state.messages[0]?.body === QUESTION && chat.state.messages[0]?.author_side === 'client', 'на сервер ушло сообщение клиента')
     c.ok((await page.getByTestId('chat-input').inputValue()) === '', 'поле ввода очищено после отправки')
+    c.ok((await tones(page)) > 0, 'клиент: звук отправки (у клиента звуки включены по умолчанию)')
     await page.getByTestId('chat-emoji-toggle').click()
     const picker = page.getByTestId('chat-emoji-picker')
     await picker.getByRole('tab', { name: 'Жесты' }).click()
@@ -89,6 +128,7 @@ async function trainerReplies(c, browser, backend, chat) {
   const page = await context.newPage()
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
+  await spySounds(page)
   try {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения клуба: 1 новых' })), 'шапка тренера: конверт «1 новых» — сообщение клиента')
@@ -107,6 +147,7 @@ async function trainerReplies(c, browser, backend, chat) {
     c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: REPLY })), 'ответ тренера в ленте')
     const saved = chat.state.messages.at(-1)
     c.ok(saved?.author_side === 'staff' && saved?.author_user_id === TRAINER_ID, 'на сервер ушёл ответ от имени тренера')
+    c.ok((await tones(page)) === 0, 'планшет молчит: у сотрудника звуки выключены по умолчанию')
     await page.getByTestId('chat-emoji-toggle').click()
     await screenshot(page, 'staff-chat-stickers')
     await page.getByRole('button', { name: 'Отправить стикер «Отличная работа»' }).click()

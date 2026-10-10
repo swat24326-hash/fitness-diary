@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { Mail, RefreshCw, WifiOff } from 'lucide-react'
+import { Mail, RefreshCw, Volume2, VolumeX, WifiOff } from 'lucide-react'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
+import { useChatSoundSetting } from '../../hooks/useChatSoundSetting.js'
 import { useStaffChats } from '../../hooks/useStaffChat.js'
 import { StaffChatList } from './StaffChatList.jsx'
 import { useStaffInbox } from './useStaffInbox.js'
@@ -35,6 +36,8 @@ export function StaffInboxPage() {
   const chats = params.get('tab') === 'chats'
   const { items, status, error, reload } = useStaffInbox()
   const chatList = useStaffChats(chats)
+  const sound = useChatSoundSetting('staff')
+  const SoundIcon = sound.on ? Volume2 : VolumeX
   const loading = chats ? chatList.status === 'loading' : status === 'loading'
   let content
   if (chats) {
@@ -59,6 +62,16 @@ export function StaffInboxPage() {
           <Mail size={22} aria-hidden />
           Сообщения клуба
         </h1>
+        <button
+          type="button"
+          className={`btn btn-icon-square btn-touch ${sound.on ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={sound.toggle}
+          aria-pressed={sound.on}
+          title={sound.on ? 'Звуки сообщений включены' : 'Звуки сообщений выключены'}
+          aria-label="Звуки сообщений"
+        >
+          <SoundIcon size={18} aria-hidden />
+        </button>
         <button
           type="button"
           className="btn btn-secondary btn-icon-square btn-touch"
