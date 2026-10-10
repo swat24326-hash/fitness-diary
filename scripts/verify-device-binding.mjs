@@ -11,13 +11,14 @@ import {
   normalizeDeviceId,
   planAdminDeviceAction,
 } from '../api/_lib/deviceBindingCore.js'
-import { gateRefreshDevice, gateSignInDevice } from '../api/_lib/deviceBindingGate.js'
+import { deviceLabelFromHeaders, gateRefreshDevice, gateSignInDevice } from '../api/_lib/deviceBindingGate.js'
 import { buildOwnSession, hashOwnPassword } from '../api/_lib/authOwnCore.js'
 import { refreshOwnSession, signInWithPasswordOwn } from '../api/_lib/authPortOwn.js'
 import { handleAuthV1 } from '../api/_lib/authV1Handler.js'
 import {
   DEVICE_PENDING_RU,
   DEVICE_UPDATE_APP_RU,
+  deviceRequestHeaders,
   isDeviceBindingMessage,
   readOrCreateDeviceId,
 } from '../src/lib/deviceIdentityCore.js'
@@ -60,7 +61,9 @@ function memoryDevices(initial = [], { failList = false, failInsert = false } = 
       if (r) r.status = status
       return { error: null }
     },
-    async touch() {
+    async touch(id, label) {
+      const r = rows.find((x) => x.id === id)
+      if (r && label) r.label = label
       return { error: null }
     },
   }
@@ -127,6 +130,14 @@ try {
   ok(w0.active && w0.legacyOpen && w8.active && !w8.legacyOpen, 'окно старого бандла — 7 дней')
   ok(deviceLabelFromUserAgent('Mozilla/5.0 (iPad; CPU OS 17_0) Safari/604.1') === 'iPad · Safari', 'подпись iPad')
   ok(deviceLabelFromUserAgent('Mozilla/5.0 (Linux; Android 13) Chrome/120 Safari/537.36') === 'Android-планшет · Chrome', 'подпись Android')
+  const DESKTOP_LINUX = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/129.0 Safari/537.36'
+  const DESKTOP_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15'
+  ok(deviceLabelFromUserAgent(DESKTOP_LINUX, true) === 'Android-планшет · Chrome', 'Mi Pad в режиме «как на компьютере» — Android-планшет')
+  ok(deviceLabelFromUserAgent(DESKTOP_LINUX) === 'Linux · Chrome', 'без сенсора Linux остаётся Linux')
+  ok(deviceLabelFromUserAgent(DESKTOP_MAC, true) === 'iPad · Safari' && deviceLabelFromUserAgent(DESKTOP_MAC) === 'Mac · Safari', 'iPad шлёт UA Mac — по сенсору iPad')
+  ok(deviceLabelFromUserAgent('Mozilla/5.0 (Linux; Android 14; Mobile) Chrome/129', true) === 'Android-телефон · Chrome', 'телефон с сенсором — телефон')
+  ok(deviceLabelFromHeaders({ 'user-agent': DESKTOP_LINUX, 'x-device-touch': '1' }) === 'Android-планшет · Chrome', 'подпись из заголовков')
+  ok(deviceRequestHeaders(DEV_A, 5)['x-device-touch'] === '1' && !('x-device-touch' in deviceRequestHeaders(DEV_A, 0)), 'клиент шлёт признак сенсора только при сенсоре')
 
   const T = 'trainer'
   ok(decideSignInDevice({ role: 'admin', deviceId: null, devices: [], window: w8 }).allow, 'админ входит без привязки')
@@ -189,9 +200,9 @@ try {
   const now = SINCE_MS + 8 * DAY
   {
     const s = memoryDevices()
-    const g1 = await gateSignInDevice({ userId: 'u1', role: T, deviceId: DEV_A, userAgent: 'iPad Safari', now }, deps(s))
+    const g1 = await gateSignInDevice({ userId: 'u1', role: T, deviceId: DEV_A, label: 'Linux · Chrome', now }, deps(s))
     ok(g1.allow && g1.sessionDeviceId === DEV_A && s.rows[0]?.status === 'approved', 'гейт: первое устройство записано разрешённым')
-    const g2 = await gateSignInDevice({ userId: 'u1', role: T, deviceId: DEV_B, userAgent: 'Android Chrome', now }, deps(s))
+    const g2 = await gateSignInDevice({ userId: 'u1', role: T, deviceId: DEV_B, label: 'Android-телефон · Chrome', now }, deps(s))
     ok(!g2.allow && g2.code === 'device_pending' && g2.error === DEVICE_PENDING_RU, 'гейт: второе — ждёт')
     await new Promise((r) => setTimeout(r, 0))
     ok(s.rows.length === 2 && s.rows[1].status === 'pending' && s.notified.length === 1, 'гейт: ожидающее записано, админ уведомлён')
@@ -211,6 +222,8 @@ try {
     ok(admin.allow, 'гейт: админа база устройств не трогает')
     const r1 = await gateRefreshDevice({ userId: 'u1', role: T, session: { device_id: null, created_at: new Date(SINCE_MS - DAY).toISOString() }, headerDeviceId: DEV_C, now }, deps(s))
     ok(r1.allow && r1.bindDevice === DEV_C && s.rows.find((d) => d.device_id === DEV_C)?.status === 'approved', 'гейт: старая сессия привязывается к своему устройству')
+    const r2 = await gateRefreshDevice({ userId: 'u1', role: T, session: { device_id: DEV_A }, headerDeviceId: DEV_A, label: 'Android-планшет · Chrome', now }, deps(s))
+    ok(r2.allow && s.rows.find((d) => d.device_id === DEV_A)?.label === 'Android-планшет · Chrome', 'гейт: продление обновляет подпись (Linux → Android-планшет)')
   }
 
   // Вход и продление целиком

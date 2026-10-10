@@ -50,10 +50,10 @@ export const userDevicesStore = {
     return { error: error?.message ?? null }
   },
 
-  async touch(id) {
+  async touch(id, label = null) {
     const { error } = await createServiceDataClient()
       .from('user_devices')
-      .update({ last_seen_at: new Date().toISOString() })
+      .update({ last_seen_at: new Date().toISOString(), ...(label ? { label } : {}) })
       .eq('id', id)
     return { error: error?.message ?? null }
   },

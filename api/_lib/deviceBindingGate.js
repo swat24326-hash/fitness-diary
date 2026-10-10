@@ -22,13 +22,18 @@ export function deviceIdFromHeaders(headers) {
   return normalizeDeviceId(headers?.['x-device-id'] ?? headers?.['X-Device-Id'])
 }
 
-async function applyDecision(decision, { userId, deviceId, userAgent, store, notify }) {
+/** Подпись устройства для админа: UA + признак сенсора от клиента. */
+export function deviceLabelFromHeaders(headers) {
+  return deviceLabelFromUserAgent(headers?.['user-agent'], String(headers?.['x-device-touch'] ?? '') === '1')
+}
+
+async function applyDecision(decision, { userId, deviceId, label, store, notify }) {
   if (decision.register) {
     const { error } = await store.insert({
       userId,
       deviceId,
       status: decision.register,
-      label: deviceLabelFromUserAgent(userAgent),
+      label,
     })
     if (error) return { error }
   }
@@ -36,9 +41,9 @@ async function applyDecision(decision, { userId, deviceId, userAgent, store, not
     const { error } = await store.setStatus(decision.deviceRowId, decision.setStatus)
     if (error) return { error }
   }
-  if (decision.deviceRowId && decision.allow) store.touch(decision.deviceRowId).catch(() => {})
+  if (decision.deviceRowId && decision.allow) store.touch(decision.deviceRowId, label).catch(() => {})
   if (!decision.allow && (decision.register === 'pending' || decision.setStatus === 'pending')) {
-    notify(userId, deviceLabelFromUserAgent(userAgent)).catch((e) => console.warn('[device-binding] notify:', e?.message || e))
+    notify(userId, label).catch((e) => console.warn('[device-binding] notify:', e?.message || e))
   }
   return { error: null }
 }
@@ -48,7 +53,7 @@ async function applyDecision(decision, { userId, deviceId, userAgent, store, not
  * @returns {Promise<{ allow: true, sessionDeviceId: string | null } | { allow: false, error: string, code: string, transient?: boolean }>}
  */
 export async function gateSignInDevice(
-  { userId, role, deviceId, userAgent, now = Date.now() },
+  { userId, role, deviceId, label = deviceLabelFromUserAgent(''), now = Date.now() },
   { store = userDevicesStore, notify = notifyAdminsPendingDevice } = {},
 ) {
   const window = deviceBindingNow(now)
@@ -56,7 +61,7 @@ export async function gateSignInDevice(
   const { rows, error } = await store.listForUser(userId)
   if (error) return { allow: false, error: BUSY_RU, code: 'busy', transient: true }
   const decision = decideSignInDevice({ role, deviceId, devices: rows, window })
-  const applied = await applyDecision(decision, { userId, deviceId, userAgent, store, notify })
+  const applied = await applyDecision(decision, { userId, deviceId, label, store, notify })
   if (applied.error) {
     console.warn('[device-binding] sign-in:', applied.error)
     return { allow: false, error: BUSY_RU, code: 'busy', transient: true }
@@ -72,7 +77,7 @@ export async function gateSignInDevice(
  * @returns {Promise<{ allow: true, bindDevice: string | null } | { allow: false, error: string, transient?: boolean }>}
  */
 export async function gateRefreshDevice(
-  { userId, role, session, headerDeviceId, userAgent, now = Date.now() },
+  { userId, role, session, headerDeviceId, label = deviceLabelFromUserAgent(''), now = Date.now() },
   { store = userDevicesStore, notify = notifyAdminsPendingDevice } = {},
 ) {
   const window = deviceBindingNow(now)
@@ -80,7 +85,7 @@ export async function gateRefreshDevice(
   const { rows, error } = await store.listForUser(userId)
   if (error) return { allow: false, error: BUSY_RU, transient: true }
   const decision = decideRefreshDevice({ role, session, headerDeviceId, devices: rows, window })
-  const applied = await applyDecision(decision, { userId, deviceId: headerDeviceId, userAgent, store, notify })
+  const applied = await applyDecision(decision, { userId, deviceId: headerDeviceId, label, store, notify })
   if (applied.error) {
     console.warn('[device-binding] refresh:', applied.error)
     return { allow: false, error: BUSY_RU, transient: true }

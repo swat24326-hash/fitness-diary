@@ -9,7 +9,7 @@ import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
 import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
 import { authRuntimeEnvError, signInWithPassword } from './_lib/authPort.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { deviceIdFromHeaders } from './_lib/deviceBindingGate.js'
+import { deviceIdFromHeaders, deviceLabelFromHeaders } from './_lib/deviceBindingGate.js'
 import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from './_lib/authRateLimitCore.js'
 import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
 import { createFetchWithTimeout, isServerTimeoutError, withServerTimeout } from './_lib/serverFetchTimeout.js'
@@ -158,7 +158,7 @@ async function handler(req, res) {
     return
   }
 
-  const device = { deviceId: deviceIdFromHeaders(req.headers), userAgent: String(req.headers?.['user-agent'] ?? '') }
+  const device = { deviceId: deviceIdFromHeaders(req.headers), deviceLabel: deviceLabelFromHeaders(req.headers) }
   const fetchWithTimeout = createFetchWithTimeout(SUPABASE_FETCH_MS)
   const supabaseAdmin = createServiceDataClient({ global: { fetch: fetchWithTimeout } })
 

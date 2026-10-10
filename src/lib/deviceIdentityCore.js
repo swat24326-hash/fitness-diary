@@ -4,6 +4,13 @@
  */
 export const DEVICE_ID_STORAGE_KEY = 'fd-device-id'
 export const DEVICE_ID_HEADER = 'x-device-id'
+/** Android-планшет в режиме «как на компьютере» и iPad шлют UA Linux / Mac — сенсор отличает их для подписи. */
+export const DEVICE_TOUCH_HEADER = 'x-device-touch'
+
+/** @param {string} deviceId @param {number | undefined} maxTouchPoints */
+export function deviceRequestHeaders(deviceId, maxTouchPoints) {
+  return { [DEVICE_ID_HEADER]: deviceId, ...(Number(maxTouchPoints) > 1 ? { [DEVICE_TOUCH_HEADER]: '1' } : {}) }
+}
 
 export const DEVICE_PENDING_RU =
   'Это устройство ждёт разрешения администратора клуба. Попросите админа нажать «Разрешить» в разделе «Устройства тренеров».'

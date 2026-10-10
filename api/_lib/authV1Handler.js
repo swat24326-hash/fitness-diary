@@ -2,7 +2,7 @@ import { sendJson, setCors } from './adminSupabase.js'
 import { isOwnAuthProvider, ownAuthEnvError } from './authOwnCore.js'
 import { logoutOwnSession, refreshOwnSession, signInWithPasswordOwn, verifyBearerOwn } from './authPortOwn.js'
 import { ownLogoutScope } from './authSessionsCore.js'
-import { deviceIdFromHeaders } from './deviceBindingGate.js'
+import { deviceIdFromHeaders, deviceLabelFromHeaders } from './deviceBindingGate.js'
 import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from './authRateLimitCore.js'
 
 function gotrueError(res, status, message) {
@@ -22,7 +22,7 @@ function gotrueError(res, status, message) {
  */
 export async function handleAuthV1(req, res, deps = {}) {
   setCors(res, 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, apikey, x-client-info, x-device-id')
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, apikey, x-client-info, x-device-id, x-device-touch')
   if (req.method === 'OPTIONS') {
     res.statusCode = 204
     res.end()
@@ -69,7 +69,7 @@ export async function handleAuthV1(req, res, deps = {}) {
     if (grant === 'refresh_token') {
       const { session, error, transient } = await refreshOwnSession(body.refresh_token, deps.loadUserById, deps.sessions, {
         headerDeviceId: deviceIdFromHeaders(req.headers),
-        userAgent: String(req.headers['user-agent'] ?? ''),
+        label: deviceLabelFromHeaders(req.headers),
         deviceDeps: deps.deviceDeps,
       })
       if (transient) {
@@ -97,7 +97,7 @@ export async function handleAuthV1(req, res, deps = {}) {
         email: body.email,
         password: body.password,
         deviceId: deviceIdFromHeaders(req.headers),
-        userAgent: String(req.headers['user-agent'] ?? ''),
+        deviceLabel: deviceLabelFromHeaders(req.headers),
       }, deps.signInDeps)
       if (code === 'busy') {
         sendJson(res, 503, { error: 'temporarily_unavailable', msg: error })

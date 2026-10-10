@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
-import { deviceId } from './deviceIdentity.js'
-import { DEVICE_ID_HEADER, isDeviceBindingMessage } from './deviceIdentityCore.js'
+import { deviceHeaders } from './deviceIdentity.js'
+import { isDeviceBindingMessage } from './deviceIdentityCore.js'
 import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './authLoginResolveCore.js'
 import { buildDirectAuthEmailCandidates, isInvalidCredentialsMessage, SUPABASE_CLOUD_UNAVAILABLE_RU } from './authSignInCore.js'
 import { ilikeExactPattern } from './ilikeExactCore.js'
@@ -83,7 +83,7 @@ export async function signInViaServerApi({ login, password }) {
   try {
     res = await fetch(apiUrl(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', [DEVICE_ID_HEADER]: deviceId },
+      headers: { 'Content-Type': 'application/json', ...deviceHeaders },
       credentials: 'same-origin',
       cache: 'no-store',
       signal: controller?.signal,

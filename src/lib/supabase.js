@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { deviceId } from './deviceIdentity.js'
-import { DEVICE_ID_HEADER } from './deviceIdentityCore.js'
+import { deviceHeaders } from './deviceIdentity.js'
 
 function readViteEnv(name) {
   const raw = import.meta.env[name]
@@ -70,5 +69,5 @@ export const supabase = createClient(url, anonKey, {
     /* StrictMode в dev дергает auth дважды → lock 5s и медленный вход */
     lockAcquireTimeout: 1500,
   },
-  global: { headers: { [DEVICE_ID_HEADER]: deviceId } },
+  global: { headers: deviceHeaders },
 })

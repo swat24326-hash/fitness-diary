@@ -35,24 +35,23 @@ export function deviceBindingWindow(sinceRaw, nowMs) {
   return { active: true, sinceMs, legacyOpen: nowMs < sinceMs + DEVICE_LEGACY_DAYS * 86400000 }
 }
 
-/** «iPad · Safari» — подпись для админа, не для проверки. */
-export function deviceLabelFromUserAgent(ua) {
+function deviceOsLabel(s, touch) {
+  if (/iPad/.test(s) || (touch && /Macintosh/.test(s))) return 'iPad'
+  if (/iPhone/.test(s)) return 'iPhone'
+  if (/Android/.test(s)) return /Mobile/.test(s) ? 'Android-телефон' : 'Android-планшет'
+  if (/Windows/.test(s)) return 'Windows'
+  if (/Macintosh/.test(s)) return 'Mac'
+  if (/Linux/.test(s)) return touch ? 'Android-планшет' : 'Linux'
+  return 'Устройство'
+}
+
+/**
+ * «iPad · Safari» — подпись для админа, не для проверки.
+ * touch: у устройства сенсор (заголовок x-device-touch) — Android-планшет в режиме «как на компьютере» шлёт UA Linux, iPad — Mac.
+ */
+export function deviceLabelFromUserAgent(ua, touch = false) {
   const s = String(ua ?? '')
-  const os = /iPad/.test(s)
-    ? 'iPad'
-    : /iPhone/.test(s)
-      ? 'iPhone'
-      : /Android/.test(s)
-        ? /Mobile/.test(s)
-          ? 'Android-телефон'
-          : 'Android-планшет'
-        : /Windows/.test(s)
-          ? 'Windows'
-          : /Macintosh/.test(s)
-            ? 'Mac'
-            : /Linux/.test(s)
-              ? 'Linux'
-              : 'Устройство'
+  const os = deviceOsLabel(s, touch)
   const browser = /YaBrowser/.test(s)
     ? 'Яндекс Браузер'
     : /Edg\//.test(s)
@@ -110,7 +109,7 @@ export function decideRefreshDevice({ role, session, headerDeviceId, devices, wi
   const bound = session?.device_id ? String(session.device_id) : null
   if (bound) {
     const own = devices.find((d) => d.device_id === bound)
-    return own?.status === 'approved' ? { allow: true, reason: 'approved' } : { allow: false, reason: 'revoked' }
+    return own?.status === 'approved' ? { allow: true, reason: 'approved', deviceRowId: own.id } : { allow: false, reason: 'revoked' }
   }
   if (!headerDeviceId) return window.legacyOpen ? { allow: true, reason: 'legacy_no_device' } : { allow: false, reason: 'no_device' }
 

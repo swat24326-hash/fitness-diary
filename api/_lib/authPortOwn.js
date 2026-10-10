@@ -53,7 +53,7 @@ async function rehashAfterLegacyLogin(userId, password) {
  * Неразрешённое устройство тренера → без сессии, `code` device_pending / device_update / busy.
  * @param {string} _url
  * @param {string} _anonKey
- * @param {{ email: string, password: string, deviceId?: string | null, userAgent?: string }} creds
+ * @param {{ email: string, password: string, deviceId?: string | null, deviceLabel?: string }} creds
  * @param {{ findUser?: typeof findUserByEmail, sessions?: typeof authSessionsStore, deviceDeps?: Parameters<typeof gateSignInDevice>[1] }} [deps]
  */
 export async function signInWithPasswordOwn(_url, _anonKey, creds, deps = {}) {
@@ -68,7 +68,7 @@ export async function signInWithPasswordOwn(_url, _anonKey, creds, deps = {}) {
   if (!ok) return { session: null, user: null, error: INVALID_RU }
   if (ownPasswordNeedsRehash(row.password_hash)) await rehashAfterLegacyLogin(row.id, password)
   const device = await gateSignInDevice(
-    { userId: String(row.id), role: row.role, deviceId: normalizeDeviceId(creds?.deviceId), userAgent: creds?.userAgent },
+    { userId: String(row.id), role: row.role, deviceId: normalizeDeviceId(creds?.deviceId), label: creds?.deviceLabel },
     deps.deviceDeps,
   )
   if (!device.allow) return { session: null, user: null, error: device.error, code: device.code }
@@ -204,7 +204,7 @@ async function findUserById(id) {
  * @param {string} refreshToken
  * @param {(id: string) => Promise<{ row: object | null, error: string | null }>} [loadUserById]
  * @param {typeof authSessionsStore} [sessions]
- * @param {{ headerDeviceId?: string | null, userAgent?: string, deviceDeps?: Parameters<typeof gateRefreshDevice>[1] }} [device]
+ * @param {{ headerDeviceId?: string | null, label?: string, deviceDeps?: Parameters<typeof gateRefreshDevice>[1] }} [device]
  */
 export async function refreshOwnSession(refreshToken, loadUserById = findUserById, sessions = authSessionsStore, device = {}) {
   const { payload, error } = verifyOwnJwt(refreshToken, ownAuthSecret())
@@ -233,7 +233,7 @@ export async function refreshOwnSession(refreshToken, loadUserById = findUserByI
   }
   const headerDeviceId = normalizeDeviceId(device.headerDeviceId)
   const gate = await gateRefreshDevice(
-    { userId: String(row.id), role: row.role, session: sessionRow, headerDeviceId, userAgent: device.userAgent },
+    { userId: String(row.id), role: row.role, session: sessionRow, headerDeviceId, label: device.label },
     device.deviceDeps,
   )
   if (!gate.allow) return { session: null, error: gate.error, ...(gate.transient ? { transient: true } : {}) }
