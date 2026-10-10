@@ -1,5 +1,7 @@
 node_modules
 dist
+dist.prev
+.dist-stand
 .env
 .env.*
 !.env.example
