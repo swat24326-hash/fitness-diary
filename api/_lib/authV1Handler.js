@@ -2,6 +2,7 @@ import { sendJson, setCors } from './adminSupabase.js'
 import { isOwnAuthProvider, ownAuthEnvError } from './authOwnCore.js'
 import { logoutOwnSession, refreshOwnSession, signInWithPasswordOwn, verifyBearerOwn } from './authPortOwn.js'
 import { ownLogoutScope } from './authSessionsCore.js'
+import { deviceIdFromHeaders } from './deviceBindingGate.js'
 import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from './authRateLimitCore.js'
 
 function gotrueError(res, status, message) {
@@ -17,11 +18,11 @@ function gotrueError(res, status, message) {
  * когда адрес Auth смотрит на этот сервер. Пока AUTH_PROVIDER не own — 404.
  * @param {import('http').IncomingMessage & { query?: Record<string, string>, body?: unknown }} req
  * @param {import('http').ServerResponse} res
- * @param {{ loadUserById?: Parameters<typeof refreshOwnSession>[1], sessions?: Parameters<typeof refreshOwnSession>[2] }} [deps]
+ * @param {{ loadUserById?: Parameters<typeof refreshOwnSession>[1], sessions?: Parameters<typeof refreshOwnSession>[2], deviceDeps?: object, signInDeps?: Parameters<typeof signInWithPasswordOwn>[3] }} [deps]
  */
 export async function handleAuthV1(req, res, deps = {}) {
   setCors(res, 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, apikey, x-client-info')
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, apikey, x-client-info, x-device-id')
   if (req.method === 'OPTIONS') {
     res.statusCode = 204
     res.end()
@@ -66,7 +67,11 @@ export async function handleAuthV1(req, res, deps = {}) {
     const grant = String(req.query?.grant_type ?? '')
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     if (grant === 'refresh_token') {
-      const { session, error, transient } = await refreshOwnSession(body.refresh_token, deps.loadUserById, deps.sessions)
+      const { session, error, transient } = await refreshOwnSession(body.refresh_token, deps.loadUserById, deps.sessions, {
+        headerDeviceId: deviceIdFromHeaders(req.headers),
+        userAgent: String(req.headers['user-agent'] ?? ''),
+        deviceDeps: deps.deviceDeps,
+      })
       if (transient) {
         // supabase-js стирает сессию на 4xx/500 и повторяет только 502–504.
         console.error('[auth-v1] refresh: база недоступна', error)
@@ -88,12 +93,19 @@ export async function handleAuthV1(req, res, deps = {}) {
         gotrueError(res, 429, authRateLimitedMessageRu(gate.retryAfterSec))
         return
       }
-      const { session, error } = await signInWithPasswordOwn('', '', {
+      const { session, error, code } = await signInWithPasswordOwn('', '', {
         email: body.email,
         password: body.password,
-      })
+        deviceId: deviceIdFromHeaders(req.headers),
+        userAgent: String(req.headers['user-agent'] ?? ''),
+      }, deps.signInDeps)
+      if (code === 'busy') {
+        sendJson(res, 503, { error: 'temporarily_unavailable', msg: error })
+        return
+      }
       if (error || !session) {
-        authFailLimiter.recordOutcome(body.email, ip, /заблокирован/i.test(String(error ?? '')) ? 403 : 401)
+        // Верный пароль с неразрешённого устройства — не попытка подбора.
+        authFailLimiter.recordOutcome(body.email, ip, (code || /заблокирован/i.test(String(error ?? ''))) ? 403 : 401)
         gotrueError(res, 400, error || 'Неверный логин или пароль')
         return
       }

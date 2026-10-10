@@ -4,6 +4,8 @@ import { newPasswordError } from '../../src/lib/passwordPolicyCore.js'
 import { normalizePasswordInput } from './authLoginResolveCore.js'
 import { ownSessionDenial } from './authSessionsCore.js'
 import { authSessionsStore } from './authSessionsStore.js'
+import { normalizeDeviceId } from './deviceBindingCore.js'
+import { deviceBindingNow, gateRefreshDevice, gateSignInDevice } from './deviceBindingGate.js'
 import {
   buildOwnSession,
   hashOwnPassword,
@@ -30,7 +32,7 @@ async function findUserByEmail(email) {
   const client = createServiceDataClient()
   const { data, error } = await client
     .from('users')
-    .select('id, email, password_hash, is_active')
+    .select('id, email, password_hash, is_active, role')
     .ilike('email', emailPattern)
     .maybeSingle()
   if (error) return { row: null, error: error.message || 'Не удалось проверить пользователя' }
@@ -48,30 +50,37 @@ async function rehashAfterLegacyLogin(userId, password) {
 }
 
 /**
+ * Неразрешённое устройство тренера → без сессии, `code` device_pending / device_update / busy.
  * @param {string} _url
  * @param {string} _anonKey
- * @param {{ email: string, password: string }} creds
+ * @param {{ email: string, password: string, deviceId?: string | null, userAgent?: string }} creds
+ * @param {{ findUser?: typeof findUserByEmail, sessions?: typeof authSessionsStore, deviceDeps?: Parameters<typeof gateSignInDevice>[1] }} [deps]
  */
-export async function signInWithPasswordOwn(_url, _anonKey, creds) {
+export async function signInWithPasswordOwn(_url, _anonKey, creds, deps = {}) {
   const email = String(creds?.email ?? '').trim()
   const password = normalizePasswordInput(creds?.password)
   if (!email || !password) return { session: null, user: null, error: INVALID_RU }
-  const { row, error } = await findUserByEmail(email)
+  const { row, error } = await (deps.findUser ?? findUserByEmail)(email)
   if (error) return { session: null, user: null, error }
   if (!row?.id) return { session: null, user: null, error: INVALID_RU }
   if (row.is_active === false) return { session: null, user: null, error: BLOCKED_RU }
   const ok = await verifyOwnPassword(password, row.password_hash)
   if (!ok) return { session: null, user: null, error: INVALID_RU }
   if (ownPasswordNeedsRehash(row.password_hash)) await rehashAfterLegacyLogin(row.id, password)
-  const sid = await createSessionSid(authSessionsStore, String(row.id))
+  const device = await gateSignInDevice(
+    { userId: String(row.id), role: row.role, deviceId: normalizeDeviceId(creds?.deviceId), userAgent: creds?.userAgent },
+    deps.deviceDeps,
+  )
+  if (!device.allow) return { session: null, user: null, error: device.error, code: device.code }
+  const sid = await createSessionSid(deps.sessions ?? authSessionsStore, String(row.id), device.sessionDeviceId)
   const session = buildOwnSession({ id: String(row.id), email: row.email || email, sid }, ownAuthSecret())
   return { session, user: session.user, error: null }
 }
 
 /** Без таблицы auth_sessions (миграция не накатана) вход работает, но «Выйти» не отзывает refresh. */
-async function createSessionSid(sessions, userId) {
+async function createSessionSid(sessions, userId, deviceId = null) {
   try {
-    const { sid, error } = await sessions.create(userId)
+    const { sid, error } = await sessions.create(userId, deviceId)
     if (error) console.warn('[auth-own] auth_sessions:', error)
     return sid
   } catch (e) {
@@ -181,7 +190,7 @@ export async function adminDeleteUserOwn() {
 async function findUserById(id) {
   const { data, error } = await createServiceDataClient()
     .from('users')
-    .select('id, email, is_active')
+    .select('id, email, is_active, role')
     .eq('id', id)
     .maybeSingle()
   if (error) return { row: null, error: error.message || 'Не удалось проверить пользователя' }
@@ -191,12 +200,13 @@ async function findUserById(id) {
 /**
  * Новый access по refresh-токену. Каждое продление сверяется с users (удалён / заблокирован)
  * и с auth_sessions (вышел / отозвано админом → вход заново). Токен без sid (выдан до 06.10)
- * получает новую сессию на первом продлении.
+ * получает новую сессию на первом продлении. Устройство тренера — deviceBindingGate.
  * @param {string} refreshToken
  * @param {(id: string) => Promise<{ row: object | null, error: string | null }>} [loadUserById]
  * @param {typeof authSessionsStore} [sessions]
+ * @param {{ headerDeviceId?: string | null, userAgent?: string, deviceDeps?: Parameters<typeof gateRefreshDevice>[1] }} [device]
  */
-export async function refreshOwnSession(refreshToken, loadUserById = findUserById, sessions = authSessionsStore) {
+export async function refreshOwnSession(refreshToken, loadUserById = findUserById, sessions = authSessionsStore, device = {}) {
   const { payload, error } = verifyOwnJwt(refreshToken, ownAuthSecret())
   if (error || payload?.typ !== 'refresh' || !payload?.sub) {
     return { session: null, error: error || SESSION_RU }
@@ -207,19 +217,31 @@ export async function refreshOwnSession(refreshToken, loadUserById = findUserByI
   if (denial === 'blocked') return { session: null, error: BLOCKED_RU }
   if (denial) return { session: null, error: SESSION_RU }
 
+  const bindingActive = deviceBindingNow().active
   let sid = payload.sid ? String(payload.sid) : null
+  let sessionRow = null
   if (sid) {
     let loaded
     try {
-      loaded = await sessions.load(sid)
+      loaded = await sessions.load(sid, { withDevice: bindingActive })
     } catch (e) {
       loaded = { row: null, error: e?.message || String(e) }
     }
     if (loaded.error) return { session: null, error: loaded.error, transient: true }
     if (ownSessionDenial(loaded.row, row.id)) return { session: null, error: SESSION_RU }
+    sessionRow = loaded.row
+  }
+  const headerDeviceId = normalizeDeviceId(device.headerDeviceId)
+  const gate = await gateRefreshDevice(
+    { userId: String(row.id), role: row.role, session: sessionRow, headerDeviceId, userAgent: device.userAgent },
+    device.deviceDeps,
+  )
+  if (!gate.allow) return { session: null, error: gate.error, ...(gate.transient ? { transient: true } : {}) }
+  if (sid) {
     sessions.touch(sid).catch(() => {})
+    if (gate.bindDevice) sessions.bindDevice(sid, gate.bindDevice).catch(() => {})
   } else {
-    sid = await createSessionSid(sessions, String(row.id))
+    sid = await createSessionSid(sessions, String(row.id), gate.bindDevice)
   }
   const session = buildOwnSession({ id: String(row.id), email: row.email || payload.email || '', sid }, ownAuthSecret())
   return { session, error: null }

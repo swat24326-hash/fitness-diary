@@ -30,6 +30,8 @@
 
 Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`, Caddy — [R3_NIGHT.md](./R3_NIGHT.md)). Старый `https://fitness-diary-bice.vercel.app` — redirect 307; Supabase — копия для отката до R4.
 
+Привязка устройств тренера (🔧 10.10 в репо): заголовок `x-device-id` на входе и продлении, таблица `user_devices`, экран админа `/admin/devices`; включается env `DEVICE_BINDING_SINCE` — [RUNBOOK §4e](./RUNBOOK.md).
+
 ---
 
 ## 2. Технологический стек

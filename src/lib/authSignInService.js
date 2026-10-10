@@ -1,4 +1,6 @@
 import { supabase } from './supabase'
+import { deviceId } from './deviceIdentity.js'
+import { DEVICE_ID_HEADER, isDeviceBindingMessage } from './deviceIdentityCore.js'
 import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './authLoginResolveCore.js'
 import { buildDirectAuthEmailCandidates, isInvalidCredentialsMessage, SUPABASE_CLOUD_UNAVAILABLE_RU } from './authSignInCore.js'
 import { ilikeExactPattern } from './ilikeExactCore.js'
@@ -81,7 +83,7 @@ export async function signInViaServerApi({ login, password }) {
   try {
     res = await fetch(apiUrl(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', [DEVICE_ID_HEADER]: deviceId },
       credentials: 'same-origin',
       cache: 'no-store',
       signal: controller?.signal,
@@ -203,7 +205,7 @@ export async function raceSignInAttempts({ login, password }) {
       if (viaServer.user) {
         return { source: 'server', user: viaServer.user, profile: viaServer.profile ?? null }
       }
-      if (viaServer.rateLimited) rateLimitErr = viaServer.error
+      if (viaServer.rateLimited || isDeviceBindingMessage(viaServer.error?.message)) rateLimitErr = viaServer.error
       if (viaServer.error && !viaServer.transportError) {
         throw viaServer.error
       }
@@ -220,7 +222,7 @@ export async function raceSignInAttempts({ login, password }) {
     })
   }
 
-  // «Подождите N мин.» с сервера важнее «неверный пароль» от прямого Auth, упавшего позже.
+  // «Подождите N мин.» / «устройство ждёт разрешения» с сервера важнее «неверный пароль» от прямого Auth, упавшего позже.
   return firstSuccessfulPromise(tasks).catch((e) => {
     throw rateLimitErr ?? e
   })

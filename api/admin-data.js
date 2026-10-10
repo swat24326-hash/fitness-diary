@@ -76,6 +76,7 @@ import {
 import { handleInboxAdminGet, handleInboxAdminPost } from './_lib/inbox/inboxAdminHandler.js'
 import { handleStaffInboxGet, handleStaffInboxPost } from './_lib/inbox/inboxStaffHandler.js'
 import { handleSurveyPointsGet, handleSurveyPointsPost } from './_lib/inbox/inboxPointsHandler.js'
+import { handleTrainerDeviceSetPost, handleTrainerDevicesGet } from './_lib/trainerDevicesAdmin.js'
 
 async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -250,6 +251,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleDeleteTrainerPost(ctx, res, body)
+    }
+    if (action === 'trainer-device-set') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleTrainerDeviceSetPost(ctx, res, body)
     }
     if (action === 'price-list') {
       const clubId = String(body?.club_id ?? '').trim()
@@ -584,6 +590,12 @@ async function handler(req, res) {
     const ctx = await requireAdmin(req, res)
     if (!ctx) return
     return handleDeletionAuditLogGet(ctx, req, res)
+  }
+
+  if (action === 'trainer-devices') {
+    const ctx = await requireAdmin(req, res)
+    if (!ctx) return
+    return handleTrainerDevicesGet(ctx, res)
   }
 
   if (action === 'search' || action === 'clients-last-trainings') {

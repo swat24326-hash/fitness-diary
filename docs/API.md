@@ -74,6 +74,7 @@
 | `nutrition-products`, `homework-presets` | admin / trainer (как trainerActions) | Справочники питания и ДЗ |
 | `trainer-self-stats` | trainer (свой клуб) / admin+trainer_id | ЗП день/месяц + сводка периода (сервер) |
 | `trainer-self-journal` | trainer (свой клуб) / admin+trainer_id | Список завершённых тренировок за период (для журнала на планшете; тот же контур, что цифры stats) |
+| `trainer-devices` | **admin** (`requireAdmin`) | Устройства тренеров: ожидающие и разрешённые + `binding_active` (задан ли `DEVICE_BINDING_SINCE`). UI `/admin/devices` |
 | `deletion-audit-log` | **admin** (HTTP: `requireAdmin`) | Журнал жёстких удалений клиентов (`deletion_audit_log`). UI `/sales/deletion-log` у менеджера — отдельный accessMode; API-лог — admin |
 | `push-subscription` | admin / trainer / sales_manager / **supervisor** | VAPID public key |
 | `membership-types` | admin / trainer / sales_manager / **supervisor** (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
@@ -95,6 +96,7 @@
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли; **`iskra-tts` только POST** | CRUD настроек, фидбек, задания, neural озвучка |
 | `push-subscription` | auth user | Регистрация push |
 | `reset-trainer-password`, `set-trainer-active`, `set-trainer-name`, `set-trainer-uses-tablet`, `delete-trainer` | admin | Управление тренером (пароль / блок / ФИО / планшет / удаление без клиентов) |
+| `trainer-device-set` | admin | `{ id, op: approve \| replace \| revoke }` — разрешить устройство, заменить старое (старое отозвано вместе с его сессиями), отозвать |
 | `pnk` | admin / sales_manager | Мутации ПНК |
 | `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
 | `club-sms` | admin / sales_manager / supervisor | SMS клиенту через Мои Звонки клуба (`client_id`, `scenario` / `text`); в `club_sms_log` пишется **ok** после успеха и **fail** при постоянной ошибке (не 429). Массовая кампания на доске = N таких запросов с клиента (очередь + код + окно итога) |
@@ -115,7 +117,7 @@ Auth helpers: `api/_lib/adminSupabase.js` (`requireAdmin`, `requireAdminOrSalesM
 
 Клиент базы для API: `createServiceDataClient()` (`api/_lib/pgRest/serviceClient.js`). Без `DATA_BACKEND` или при `DATA_BACKEND=supabase` это Supabase service role. `DATA_BACKEND=pg` — тот же контракт `.from()` поверх Postgres (`DATABASE_URL`). Прод этот флаг не ставит.
 
-Вход: `api/_lib/authPort.js`. `AUTH_PROVIDER=own` — свой JWT и хеш пароля в `users.password_hash`; проверка Bearer наша. Без флага — Supabase Auth. На портативном хосте тогда же открываются `POST /auth/v1/token`, `GET /auth/v1/user`, `POST /auth/v1/logout`. Logout (с 06.10) отзывает сессию из `auth_sessions` по `refresh_token` в теле (или Bearer); `?scope=global` — все устройства; ответ всегда 204. Заблокированный (`users.is_active=false`) получает на любом `/api/*` 403 «Учётная запись заблокирована» (до 30 с кэша роли) — планшет держит очередь, не снимает записи.
+Вход: `api/_lib/authPort.js`. `AUTH_PROVIDER=own` — свой JWT и хеш пароля в `users.password_hash`; проверка Bearer наша. Без флага — Supabase Auth. На портативном хосте тогда же открываются `POST /auth/v1/token`, `GET /auth/v1/user`, `POST /auth/v1/logout`. Logout (с 06.10) отзывает сессию из `auth_sessions` по `refresh_token` в теле (или Bearer); `?scope=global` — все устройства; ответ всегда 204. **Привязка устройств (🔧 10.10):** клиент шлёт заголовок `x-device-id` (UUID из localStorage) на вход и продление; при заданном `DEVICE_BINDING_SINCE` тренер с неразрешённого устройства получает отказ «Это устройство ждёт разрешения администратора» (`/api/auth-sign-in` — 403 `code: device_pending`, `/auth/v1/token` — 400), лимит неудачных входов такой отказ не считает; сбой базы устройств — 503. Заблокированный (`users.is_active=false`) получает на любом `/api/*` 403 «Учётная запись заблокирована» (до 30 с кэша роли) — планшет держит очередь, не снимает записи.
 
 `/rest/v1/<таблица>` (только портативный хост, только при `AUTH_PROVIDER=own` **и** `DATA_BACKEND=pg`, иначе 404) — совместимый с supabase-js кусок PostgREST для браузера:
 

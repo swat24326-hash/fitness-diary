@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo, useState } from 'react'
-import { BarChart3, Building2, CalendarDays, ClipboardList, FileSpreadsheet, Gift, Mail, Phone, Settings, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { BarChart3, Building2, CalendarDays, ClipboardList, FileSpreadsheet, Gift, Mail, Phone, Settings, Shield, TabletSmartphone, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { PendingDevicesAlert } from './PendingDevicesAlert.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { AdminHomeGlanceRow } from '../../components/admin/AdminHomeGlanceRow'
@@ -253,6 +254,8 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
             </p>
           </div>
 
+          {!isSupervisor ? <PendingDevicesAlert to={`${basePath}/devices`} /> : null}
+
           {glanceRowShown ? (
             <AdminHomeGlanceRow
               clubId={clubId}
@@ -342,6 +345,14 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
                     <Trash2 size={44} aria-hidden />
                   </div>
                   <p className="feature-tile__title">Журнал удалений</p>
+                </NavLink>
+              ) : null}
+              {!isSupervisor ? (
+                <NavLink to={`${basePath}/devices`} className={adminTileClass}>
+                  <div className="feature-tile__icon">
+                    <TabletSmartphone size={44} aria-hidden />
+                  </div>
+                  <p className="feature-tile__title">Устройства тренеров</p>
                 </NavLink>
               ) : null}
               {!isSupervisor ? (

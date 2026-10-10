@@ -128,6 +128,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/admin/clients') return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }]
   if (p === '/admin/call-log') return [...admin, { label: 'Журнал звонков', to: `/admin/call-log${clubQs}` }]
   if (p === '/admin/deletion-log') return [...admin, { label: 'Журнал удалений', to: `/admin/deletion-log${clubQs}` }]
+  if (p === '/admin/devices') return [...admin, { label: 'Устройства тренеров', to: '/admin/devices' }]
   if (p === '/admin/loyalty') return [...admin, { label: 'Журнал баллов', to: `/admin/loyalty${clubQs}` }]
   if (p === '/admin/inbox') return [...admin, { label: 'Опросы и объявления', to: `/admin/inbox${clubQs}` }]
   if (p === '/admin/excel-lists') return [...admin, { label: 'Списки из Excel', to: `/admin/excel-lists${clubQs}` }]

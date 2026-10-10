@@ -37,6 +37,7 @@ import {
 import { sendServerLogout } from '../lib/authServerLogout'
 import { initAppLifecycle, requestPersistentStorageOnce, APP_WAKE_EVENT } from '../lib/appLifecycle'
 import { isExpectedAuthSessionError } from '../lib/authSessionErrorCore'
+import { isDeviceBindingMessage } from '../lib/deviceIdentityCore.js'
 import {
   planAuthInitWhenStoredEmpty,
   shouldClearGhostSessionAfterFailedRefresh,
@@ -642,6 +643,7 @@ export function AuthProvider({ children }) {
         return { error: null }
       } catch (e) {
         const msg = String(e?.message ?? e ?? '')
+        if (isDeviceBindingMessage(msg)) return { error: { message: msg } }
         serverTransportFailed = isAuthApiTransportError(msg) || isSupabaseTransportMessage(msg)
         if (raw.includes('@')) {
           if (serverTransportFailed) {
@@ -691,6 +693,7 @@ export function AuthProvider({ children }) {
       const { data, error } = await signInWithPasswordRetry(emailForAuth, pwd)
       if (error) {
         const msg = String(error.message ?? '')
+        if (isDeviceBindingMessage(msg)) return { error: { message: msg } }
         if (/invalid api key/i.test(msg)) {
           return {
             error: {

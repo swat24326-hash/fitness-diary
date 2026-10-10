@@ -24,6 +24,7 @@ import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
 import { AdminDeletionLogPage } from './pages/admin/AdminDeletionLogPage.jsx'
+import { AdminTrainerDevicesPage } from './pages/admin/AdminTrainerDevicesPage.jsx'
 import { AdminClubCallLogPage } from './pages/admin/AdminClubCallLogPage.jsx'
 import { ClubTrainerSchedulePage } from './pages/admin/ClubTrainerSchedulePage.jsx'
 import { AdminLoyaltyJournal } from './pages/admin/AdminLoyaltyJournal.jsx'
@@ -325,6 +326,7 @@ export default function App() {
                   <Route path=":id" element={<ClientCard />} />
                 </Route>
                 <Route path="deletion-log" element={<AdminDeletionLogPage />} />
+                <Route path="devices" element={<AdminTrainerDevicesPage />} />
                 <Route path="call-log" element={<AdminClubCallLogPage />} />
                 <Route path="trainer-schedule" element={<ClubTrainerSchedulePage />} />
                 <Route path="loyalty" element={<AdminLoyaltyJournal />} />

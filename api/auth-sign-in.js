@@ -9,6 +9,7 @@ import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
 import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
 import { authRuntimeEnvError, signInWithPassword } from './_lib/authPort.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { deviceIdFromHeaders } from './_lib/deviceBindingGate.js'
 import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from './_lib/authRateLimitCore.js'
 import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
 import { createFetchWithTimeout, isServerTimeoutError, withServerTimeout } from './_lib/serverFetchTimeout.js'
@@ -84,12 +85,22 @@ async function fetchProfile(supabaseAdmin, uid) {
   return null
 }
 
-async function tryAuthAndRespond(res, { url, anonKey, supabaseAdmin, email, password, fetchWithTimeout }) {
-  const { session, user: authUser, error: authErr } = await withServerTimeout(
-    signInWithPassword(url, anonKey, { email, password }, { fetch: fetchWithTimeout }),
+async function tryAuthAndRespond(res, { url, anonKey, supabaseAdmin, email, password, fetchWithTimeout, device }) {
+  const { session, user: authUser, error: authErr, code } = await withServerTimeout(
+    signInWithPassword(url, anonKey, { email, password, ...device }, { fetch: fetchWithTimeout }),
     SUPABASE_FETCH_MS,
     'auth',
   )
+
+  // Пароль верный, устройство тренера не разрешено — ответ окончательный, другие email не пробуем.
+  if (code === 'busy') {
+    sendJson(res, 503, { error: authErr })
+    return { ok: true }
+  }
+  if (code) {
+    sendJson(res, 403, { error: authErr, code })
+    return { ok: true }
+  }
 
   if (authErr || !session) {
     return { ok: false, error: authErr, transport: !authErr || !isInvalidCredentialsMessage(authErr) }
@@ -147,6 +158,7 @@ async function handler(req, res) {
     return
   }
 
+  const device = { deviceId: deviceIdFromHeaders(req.headers), userAgent: String(req.headers?.['user-agent'] ?? '') }
   const fetchWithTimeout = createFetchWithTimeout(SUPABASE_FETCH_MS)
   const supabaseAdmin = createServiceDataClient({ global: { fetch: fetchWithTimeout } })
 
@@ -178,6 +190,7 @@ async function handler(req, res) {
           email: String(resolvedEarly.email).trim(),
           password,
           fetchWithTimeout,
+          device,
         })
         if (attempt.ok) return
         if (attempt.transport) {
@@ -210,6 +223,7 @@ async function handler(req, res) {
         email,
         password,
         fetchWithTimeout,
+        device,
       })
       if (attempt.ok) return
       if (attempt.transport) {
@@ -258,6 +272,7 @@ async function handler(req, res) {
           email: canonical,
           password,
           fetchWithTimeout,
+          device,
         })
         if (attempt.ok) return
         if (attempt.transport || isServerTimeoutError(attempt.error)) {
@@ -315,6 +330,7 @@ async function handler(req, res) {
       email: emailForAuth,
       password,
       fetchWithTimeout,
+      device,
     })
     if (attempt.ok) return
     if (attempt.transport || isServerTimeoutError(attempt.error)) {

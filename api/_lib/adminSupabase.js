@@ -100,7 +100,7 @@ export function sendJson(res, status, body) {
 export function setCors(res, methods = 'GET, POST, OPTIONS') {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', methods)
-  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type')
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, x-device-id')
 }
 
 const TRAINER_ROLES = new Set(['trainer', 'тренер'])
