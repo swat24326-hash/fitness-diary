@@ -78,6 +78,7 @@ run('client app highlights', 'node', ['scripts/verify-client-me-highlights.mjs']
 run('client app reminders', 'node', ['scripts/verify-client-reminders.mjs'])
 run('client app onboarding', 'node', ['scripts/verify-client-onboarding.mjs'])
 run('client app iphone handoff', 'node', ['scripts/verify-client-handoff.mjs'])
+run('pwa single manifest link', 'node', ['scripts/verify-pwa-single-manifest.mjs'])
 run('client inbox', 'node', ['scripts/verify-inbox.mjs'])
 run('batch + pg pool size', 'node', ['scripts/verify-batch-core.mjs'])
 run('ops alerts vk', 'node', ['scripts/verify-ops-alerts.mjs'])
