@@ -7,7 +7,7 @@ import {
   PRODUCT_BRAND_SHORT,
   productBrandIconPath,
 } from './src/lib/productBrand.js'
-import { keepFirstManifestLink } from './src/lib/pwaHtmlCore.js'
+import { dropManifestLinks } from './src/lib/pwaHtmlCore.js'
 
 /** Локальный `npm run dev`: куда проксировать `/api`. Переопределение — VITE_DEV_API_PROXY. */
 const DEFAULT_DEV_API_PROXY = 'https://app-core.ru'
@@ -130,9 +130,9 @@ export default defineConfig(({ mode }) => ({
       },
     }),
     {
-      name: 'fitness-diary-single-manifest',
+      name: 'fitness-diary-no-static-manifest',
       enforce: 'post',
-      transformIndexHtml: { order: 'post', handler: keepFirstManifestLink },
+      transformIndexHtml: { order: 'post', handler: dropManifestLinks },
     },
   ],
 }))
