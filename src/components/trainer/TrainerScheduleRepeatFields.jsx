@@ -51,7 +51,7 @@ export function TrainerScheduleRepeatFields({ enabled, onToggle, weekdays, onWee
           </div>
           <label className="trainer-schedule-modal__field">
             <span>Сколько недель</span>
-            <select value={weeks} onChange={(ev) => onWeeks(Number(ev.target.value))}>
+            <select className="select" value={weeks} onChange={(ev) => onWeeks(Number(ev.target.value))}>
               {SCHEDULE_REPEAT_WEEK_OPTIONS.map((w) => (
                 <option key={w} value={w}>
                   {w} нед.

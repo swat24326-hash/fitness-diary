@@ -487,10 +487,19 @@
   resize: vertical;
 }
 
+.trainer-schedule-modal__field > span {
+  color: var(--text-muted);
+}
+
 .trainer-schedule-modal__field input,
 .trainer-schedule-modal__field select,
 .trainer-schedule-modal__field textarea {
   width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 1rem;
+  color-scheme: dark;
 }
 
 .trainer-schedule-modal__modes {
@@ -519,8 +528,18 @@
   gap: 8px;
 }
 
-.trainer-schedule-modal__search {
+.trainer-schedule-modal__search.admin-clients-search-cell {
   width: 100%;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 14, 12, 0.85);
+}
+
+.trainer-schedule-modal__search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .trainer-schedule-modal__clients {

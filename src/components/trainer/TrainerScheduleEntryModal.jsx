@@ -259,11 +259,11 @@ export function TrainerScheduleEntryModal({
           <div className="trainer-schedule-modal__row">
             <label className="trainer-schedule-modal__field">
               <span>Время</span>
-              <input type="time" value={time} onChange={(ev) => setTime(ev.target.value)} required />
+              <input className="input" type="time" value={time} onChange={(ev) => setTime(ev.target.value)} required />
             </label>
             <label className="trainer-schedule-modal__field">
               <span>Длительность</span>
-              <select value={duration} onChange={(ev) => setDuration(Number(ev.target.value))}>
+              <select className="select" value={duration} onChange={(ev) => setDuration(Number(ev.target.value))}>
                 {DURATIONS.map((d) => (
                   <option key={d} value={d}>
                     {d} мин
@@ -302,6 +302,7 @@ export function TrainerScheduleEntryModal({
             <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
               <span>Текст</span>
               <textarea
+                className="textarea"
                 value={title}
                 onChange={(ev) => setTitle(ev.target.value)}
                 rows={3}
