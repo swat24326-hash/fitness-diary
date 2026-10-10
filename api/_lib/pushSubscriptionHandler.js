@@ -4,6 +4,7 @@ import {
   normalizePushUnsubscribePayload,
   normalizeVapidPublicKey,
 } from '../../src/lib/push/trainerPushCore.js'
+import { PUSH_APP_STAFF } from '../../src/lib/push/pushTargetUrlCore.js'
 import { isWebPushConfigured, sendPushToUser } from './webPushCore.js'
 
 /**
@@ -111,6 +112,7 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
           p256dh: p.p256dh,
           auth: p.auth,
           user_agent: p.user_agent,
+          app: ctx.pushApp ?? PUSH_APP_STAFF,
           updated_at: now,
         },
         { onConflict: 'user_id,endpoint' },
@@ -137,17 +139,18 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
   }
 }
 
+/** Настроен ли web push и публичный ключ для подписки в браузере. */
+export function pushServerStatus() {
+  return {
+    configured: isWebPushConfigured(),
+    public_key: normalizeVapidPublicKey(process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY || ''),
+  }
+}
+
 /**
  * @param {object} _ctx
  * @param {object} res
  */
 export async function handlePushSubscriptionGet(_ctx, res) {
-  sendJson(res, 200, {
-    ok: true,
-    supported: true,
-    configured: isWebPushConfigured(),
-    public_key: normalizeVapidPublicKey(
-      process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY || '',
-    ),
-  })
+  sendJson(res, 200, { ok: true, supported: true, ...pushServerStatus() })
 }

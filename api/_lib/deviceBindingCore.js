@@ -25,6 +25,39 @@ export function normalizeDeviceId(raw) {
 }
 
 /**
+ * Телефон тренера (/coach) получает номер с этим префиксом. Вид устройства читается из номера,
+ * поэтому планшетные правила не зависят от новой колонки и не видят телефоны.
+ */
+export const COACH_DEVICE_PREFIX = 'coach-'
+
+export function isCoachDeviceId(raw) {
+  const v = normalizeDeviceId(raw)
+  return Boolean(v) && v.startsWith(COACH_DEVICE_PREFIX)
+}
+
+/** @returns {'coach' | 'tablet'} */
+export function deviceKindOf(deviceId) {
+  return isCoachDeviceId(deviceId) ? 'coach' : 'tablet'
+}
+
+function sameKindDevices(devices, kind) {
+  return devices.filter((d) => deviceKindOf(d.device_id) === kind)
+}
+
+/**
+ * Телефон: каждое новое или отозванное устройство ждёт «Разрешить», даже первое и при выключенной
+ * привязке планшетов; место планшета не занимает.
+ * @param {{ deviceId: string | null, devices: Array<{ id: string, device_id: string, status: string }> }} p
+ */
+export function decideCoachDevice({ deviceId, devices }) {
+  if (!isCoachDeviceId(deviceId)) return { allow: false, reason: 'no_device' }
+  const own = devices.find((d) => d.device_id === deviceId)
+  if (own?.status === 'approved') return { allow: true, reason: 'approved', deviceRowId: own.id }
+  if (own) return { allow: false, reason: 'pending', deviceRowId: own.id, ...(own.status === 'revoked' ? { setStatus: 'pending' } : {}) }
+  return { allow: false, reason: 'pending', register: 'pending' }
+}
+
+/**
  * @param {string | undefined} sinceRaw env DEVICE_BINDING_SINCE
  * @param {number} nowMs
  * @returns {{ active: boolean, sinceMs: number, legacyOpen: boolean }}
@@ -92,8 +125,10 @@ function decideKnownOrNew(deviceId, devices) {
  * Вход по паролю.
  * @param {{ role: string, deviceId: string | null, devices: Array<{ id: string, device_id: string, status: string }>, window: { active: boolean, legacyOpen: boolean } }} p
  */
-export function decideSignInDevice({ role, deviceId, devices, window }) {
+export function decideSignInDevice({ role, deviceId: rawId, devices: all, window }) {
   if (!window.active || !isDeviceBoundRole(role)) return { allow: true, reason: 'not_bound' }
+  const deviceId = isCoachDeviceId(rawId) ? null : rawId
+  const devices = sameKindDevices(all, 'tablet')
   if (!deviceId) return window.legacyOpen ? { allow: true, reason: 'legacy_no_device' } : { allow: false, reason: 'no_device' }
   return decideKnownOrNew(deviceId, devices)
 }
@@ -104,8 +139,10 @@ export function decideSignInDevice({ role, deviceId, devices, window }) {
  * Без устройства, но после старта (старый бандл в окне 7 дней) → как вход по паролю.
  * @param {{ role: string, session: { device_id?: string | null, created_at?: string | null } | null, headerDeviceId: string | null, devices: Array<{ id: string, device_id: string, status: string }>, window: { active: boolean, sinceMs: number, legacyOpen: boolean } }} p
  */
-export function decideRefreshDevice({ role, session, headerDeviceId, devices, window }) {
+export function decideRefreshDevice({ role, session, headerDeviceId: rawHeader, devices: all, window }) {
   if (!window.active || !isDeviceBoundRole(role)) return { allow: true, reason: 'not_bound' }
+  const headerDeviceId = isCoachDeviceId(rawHeader) ? null : rawHeader
+  const devices = sameKindDevices(all, 'tablet')
   const bound = session?.device_id ? String(session.device_id) : null
   if (bound) {
     const own = devices.find((d) => d.device_id === bound)
@@ -144,7 +181,12 @@ export function planAdminDeviceAction(action, target, userDevices) {
     return { updates: [{ id: target.id, status: 'revoked' }], revokeDeviceIds: row ? [row.device_id] : [] }
   }
   if (action === 'approve' || action === 'replace') {
-    const others = action === 'replace' ? userDevices.filter((d) => d.id !== target.id && d.status === 'approved') : []
+    const kind = deviceKindOf(userDevices.find((d) => d.id === target.id)?.device_id ?? target.device_id)
+    // Телефон у тренера один: «Разрешить» новый отключает прежний.
+    const replaces = action === 'replace' || kind === 'coach'
+    const others = replaces
+      ? sameKindDevices(userDevices, kind).filter((d) => d.id !== target.id && d.status === 'approved')
+      : []
     return {
       updates: [{ id: target.id, status: 'approved' }, ...others.map((d) => ({ id: d.id, status: /** @type {const} */ ('revoked') }))],
       revokeDeviceIds: others.map((d) => d.device_id),

@@ -32,7 +32,7 @@ export async function loadSubscriptions(db, staff, recipients) {
   if (staff) {
     const subs = await loadInChunks(
       recipients.map((r) => r.user_id),
-      (part) => rows(db.from('user_push_subscriptions').select('id, user_id, endpoint, p256dh, auth').in('user_id', part)),
+      (part) => rows(db.from('user_push_subscriptions').select('id, user_id, endpoint, p256dh, auth, app').in('user_id', part)),
     )
     return subs.map((s) => ({ ...s, owner: String(s.user_id) }))
   }

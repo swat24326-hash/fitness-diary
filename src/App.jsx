@@ -93,6 +93,24 @@ const ClientChatPage = lazy(() => import('./pages/client/ClientChatPage.jsx').th
 const ClientAppProvider = lazy(() =>
   import('./pages/client/ClientAppContext.jsx').then((m) => ({ default: m.ClientAppProvider })),
 )
+const CoachAppRoutesLazy = lazy(() => import('./pages/coach/CoachAppRoutes.jsx').then((m) => ({ default: m.CoachAppRoutes })))
+
+/** Телефон тренера: вне LoggedInLayout — свой пропуск, без шапки, IndexedDB и sync зала. */
+function CoachAppRoutes() {
+  return (
+    <Suspense
+      fallback={
+        <div className="coach-app">
+          <main className="coach-app__main">
+            <ClientMeStatus title="Загружаем…" />
+          </main>
+        </div>
+      }
+    >
+      <CoachAppRoutesLazy />
+    </Suspense>
+  )
+}
 
 /** Приложение клиента: вне LoggedInLayout, без шапки и sync зала. */
 function ClientAppRoutes() {
@@ -267,6 +285,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/me/*" element={<ClientAppRoutes />} />
+          <Route path="/coach/*" element={<CoachAppRoutes />} />
           <Route element={<LoggedInLayout />}>
             <Route path="/" element={<HomeRedirect />} />
             <Route element={<RoleOutlet roles={['trainer']} />}>

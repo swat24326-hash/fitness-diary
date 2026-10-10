@@ -1,4 +1,5 @@
 import {
+  decideCoachDevice,
   decideRefreshDevice,
   decideSignInDevice,
   deviceBindingWindow,
@@ -70,6 +71,26 @@ export async function gateSignInDevice(
     return { allow: false, error: deviceDenialMessageRu(decision.reason), code: decision.reason === 'no_device' ? 'device_update' : 'device_pending' }
   }
   return { allow: true, sessionDeviceId: decision.bind ?? null }
+}
+
+/**
+ * Вход с телефона тренера (/coach). Новый или отозванный телефон встаёт в «Ждут разрешения» + уведомление админам.
+ * @returns {Promise<{ allow: true } | { allow: false, error: string, code: 'device_pending' | 'device_update' | 'busy' }>}
+ */
+export async function gateCoachDevice(
+  { userId, deviceId, label = deviceLabelFromUserAgent('') },
+  { store = userDevicesStore, notify = notifyAdminsPendingDevice } = {},
+) {
+  const { rows, error } = await store.listForUser(userId)
+  if (error) return { allow: false, error: BUSY_RU, code: 'busy' }
+  const decision = decideCoachDevice({ deviceId, devices: rows })
+  if (decision.reason === 'no_device') return { allow: false, error: deviceDenialMessageRu('no_device'), code: 'device_update' }
+  const applied = await applyDecision(decision, { userId, deviceId, label, store, notify })
+  if (applied.error) {
+    console.warn('[device-binding] coach:', applied.error)
+    return { allow: false, error: BUSY_RU, code: 'busy' }
+  }
+  return decision.allow ? { allow: true } : { allow: false, error: deviceDenialMessageRu('pending'), code: 'device_pending' }
 }
 
 /**

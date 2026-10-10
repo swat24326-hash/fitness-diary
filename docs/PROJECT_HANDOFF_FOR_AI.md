@@ -133,6 +133,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | trainer | `/trainer` (главная: плитки **Ежедневник · Клиенты · Профиль** в один ряд на планшете), `/trainer/calendar`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
 | sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log`, `/sales/call-log` |
 | supervisor | `/club`, `/club/clients`, `/club/call-log`, `/club/trainer-schedule`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
+| trainer на телефоне | `/coach`, `/coach/chats`, `/coach/chat/:clientId`, `/coach/more` — без `AuthContext`, свой вход с разрешения админа (`src/lib/coach/`), API `/api/coach-auth` и `/api/coach`, только онлайн, без IndexedDB и sync. [COACH_APP.md](./COACH_APP.md) |
 | клиент клуба (не `users`, без `AuthContext`) | `/me`, `/me/join#t=…` — приложение клиента, только просмотр; вход по приглашению из карточки, своя сессия в `localStorage` (`src/lib/client/`), API `/api/client-*`, без IndexedDB и sync. [CLIENT_APP.md](./CLIENT_APP.md) |
 | admin | `/admin/*` (clients, **deletion-log**, **call-log**, **trainer-schedule**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 

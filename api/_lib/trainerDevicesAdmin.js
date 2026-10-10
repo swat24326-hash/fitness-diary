@@ -1,7 +1,7 @@
 import { sendJson } from './adminSupabase.js'
 import { authSessionsStore } from './authSessionsStore.js'
 import { deviceBindingNow } from './deviceBindingGate.js'
-import { isDeviceBoundRole, planAdminDeviceAction } from './deviceBindingCore.js'
+import { deviceKindOf, isDeviceBoundRole, planAdminDeviceAction } from './deviceBindingCore.js'
 import { userDevicesStore } from './userDevicesStore.js'
 
 /**
@@ -23,7 +23,13 @@ export async function handleTrainerDevicesGet(ctx, res, store = userDevicesStore
     .filter((r) => isDeviceBoundRole(byId.get(String(r.user_id))?.role))
     .map((r) => {
       const u = byId.get(String(r.user_id))
-      return { ...r, trainer_name: u?.name ?? null, trainer_login: u?.login ?? null, club_id: u?.club_id ?? null }
+      return {
+        ...r,
+        kind: deviceKindOf(r.device_id),
+        trainer_name: u?.name ?? null,
+        trainer_login: u?.login ?? null,
+        club_id: u?.club_id ?? null,
+      }
     })
   sendJson(res, 200, { devices, binding_active: deviceBindingNow().active })
 }

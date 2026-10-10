@@ -1,10 +1,18 @@
-import { Check, RefreshCw, Replace, ShieldOff, TabletSmartphone } from 'lucide-react'
+import { Check, RefreshCw, Replace, ShieldOff, Smartphone, TabletSmartphone } from 'lucide-react'
 import { useMemo } from 'react'
 import { formatIsoRu } from '../../lib/period.js'
 import { groupTrainerDevices } from '../../lib/admin/trainerDevicesViewCore.js'
 
 function when(iso) {
   return iso ? formatIsoRu(String(iso).slice(0, 10)) : '—'
+}
+
+function DeviceIcon({ device }) {
+  return device.kind === 'coach' ? (
+    <Smartphone size={22} aria-label="Телефон тренера" />
+  ) : (
+    <TabletSmartphone size={22} aria-hidden />
+  )
 }
 
 /**
@@ -16,7 +24,9 @@ export function TrainerDevicesSection({ devices, bindingActive, busy, error, onR
   const revoke = (d) => {
     const ok = window.confirm(
       `Отозвать «${d.label || 'устройство'}» у ${d.trainer_name || 'тренера'}?\n` +
-        'Вход на нём закончится в течение часа. Неотправленные тренировки останутся на устройстве до повторного разрешения.',
+        (d.kind === 'coach'
+          ? 'Телефон сразу потеряет доступ. Данных клуба на нём не хранится.'
+          : 'Вход на нём закончится в течение часа. Неотправленные тренировки останутся на устройстве до повторного разрешения.'),
     )
     if (ok) onAct(d.id, 'revoke')
   }
@@ -42,7 +52,7 @@ export function TrainerDevicesSection({ devices, bindingActive, busy, error, onR
         <ul className="trainer-devices__list">
           {pending.map((d) => (
             <li key={d.id} className="trainer-devices__row trainer-devices__row--pending">
-              <TabletSmartphone size={22} aria-hidden />
+              <DeviceIcon device={d} />
               <div className="trainer-devices__info">
                 <strong>{d.trainer_name || d.trainer_login || 'Тренер'}</strong>
                 <span className="muted">
@@ -50,10 +60,16 @@ export function TrainerDevicesSection({ devices, bindingActive, busy, error, onR
                 </span>
               </div>
               <div className="trainer-devices__actions">
-                <button type="button" className="btn btn-primary btn-touch" disabled={busy} onClick={() => onAct(d.id, 'approve')}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-touch"
+                  disabled={busy}
+                  onClick={() => onAct(d.id, 'approve')}
+                  title={d.isCoach && d.hasApproved ? 'Прежний телефон тренера отключится' : undefined}
+                >
                   <Check size={18} aria-hidden /> Разрешить
                 </button>
-                {d.hasApproved ? (
+                {d.hasApproved && !d.isCoach ? (
                   <button
                     type="button"
                     className="btn btn-ghost btn-icon-square btn-touch"
@@ -89,12 +105,12 @@ export function TrainerDevicesSection({ devices, bindingActive, busy, error, onR
           {trainers.map((t) =>
             t.devices.map((d, i) => (
               <li key={d.id} className="trainer-devices__row">
-                <TabletSmartphone size={22} aria-hidden />
+                <DeviceIcon device={d} />
                 <div className="trainer-devices__info">
                   <strong>{i === 0 ? t.name : ''}</strong>
                   <span className="muted">
                     {d.label || 'Устройство'} · был в сети {when(d.last_seen_at || d.created_at)}
-                    {t.devices.length > 1 ? ' · у тренера несколько устройств' : ''}
+                    {t.devices.filter((x) => x.kind !== 'coach').length > 1 && d.kind !== 'coach' ? ' · у тренера несколько планшетов' : ''}
                   </span>
                 </div>
                 <div className="trainer-devices__actions">

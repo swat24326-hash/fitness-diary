@@ -1,5 +1,6 @@
 import webpush from 'web-push'
 import { buildDispatchPushPayload, isValidVapidPublicKey } from '../../src/lib/push/trainerPushCore.js'
+import { pushUrlForApp } from '../../src/lib/push/pushTargetUrlCore.js'
 import {
   buildDispatchSenderStatusPushPayload,
   shouldNotifySenderOnDispatchStatus,
@@ -30,13 +31,14 @@ function ensureConfigured() {
 }
 
 /**
- * @param {{ endpoint: string, p256dh: string, auth: string }} row
+ * @param {{ endpoint: string, p256dh: string, auth: string, app?: string | null }} row
  * @param {{ title?: string, body?: string, url?: string, tag?: string }} payload
  */
 export async function sendWebPushToRow(row, payload) {
   if (!ensureConfigured()) return { ok: false, skipped: true, reason: 'not_configured' }
 
-  const msg = buildDispatchPushPayload(payload)
+  const built = buildDispatchPushPayload(payload)
+  const msg = { ...built, url: pushUrlForApp(built.url, row.app) }
   try {
     await webpush.sendNotification(
       {
@@ -66,7 +68,7 @@ export async function sendPushToUser(supabaseAdmin, userId, payload) {
 
   const { data, error } = await supabaseAdmin
     .from('user_push_subscriptions')
-    .select('id, endpoint, p256dh, auth')
+    .select('id, endpoint, p256dh, auth, app')
     .eq('user_id', userId)
 
   if (error) {

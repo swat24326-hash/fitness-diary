@@ -151,7 +151,7 @@ export function createFakeBackend(seed) {
     pushLog: [],
     requestLog: [],
   }
-  const backend = { state, cloudDown: false, clientMe: null, adminData: null }
+  const backend = { state, cloudDown: false, clientMe: null, adminData: null, coach: null }
 
   /**
    * @param {{ method: string, path: string, searchParams: URLSearchParams, headers: Record<string,string>, body: any }} req
@@ -179,6 +179,9 @@ export function createFakeBackend(seed) {
 
     if (path === '/api/client-auth' || path === '/api/client-me') {
       return backend.clientMe ? backend.clientMe(req) : { status: 404, json: { error: 'not configured' } }
+    }
+    if (path === '/api/coach-auth' || path === '/api/coach') {
+      return backend.coach ? backend.coach(req) : { status: 404, json: { error: 'not configured' } }
     }
 
     const user = userFromBearer(state, headers)

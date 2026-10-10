@@ -1,0 +1,234 @@
+/* Приложение тренера на телефоне /coach (360–430px): шапка, нижние вкладки, план дня, вход. Оттенок — базовый (тренер). */
+
+.coach-app {
+  min-height: 100dvh;
+  background:
+    radial-gradient(120% 60% at 50% -10%, var(--premium-bg-radial), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  padding: env(safe-area-inset-top) 0 calc(20px + env(safe-area-inset-bottom));
+}
+
+.coach-app.coach-app--tabs {
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
+.coach-app__top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.coach-app__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--accent-bright);
+  font-weight: 700;
+}
+
+.coach-app__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.coach-app__top .btn-icon-square {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.coach-app__main {
+  display: grid;
+  gap: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 4px 16px 0;
+}
+
+.coach-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+.coach-status {
+  margin-top: 8px;
+}
+
+.coach-status > .btn {
+  margin-top: 8px;
+}
+
+/* Нижние вкладки: большой палец, ≥56px высота. */
+.coach-tabs {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.coach-tabs__tab {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 4px;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.coach-tabs__tab.is-active {
+  color: var(--accent-bright);
+  background: var(--accent-soft);
+}
+
+/* План дня */
+.coach-day__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.coach-day__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-slot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm, 10px);
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.coach-slot.coach-slot--started {
+  border-left-color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.coach-slot__time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.coach-slot__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.coach-slot__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.coach-day__empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.coach-attention {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 56px;
+  color: var(--text);
+  text-decoration: none;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.coach-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Вход */
+.coach-form {
+  margin-top: 8px;
+}
+
+.coach-form__title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.coach-form__field {
+  display: grid;
+  gap: 6px;
+}
+
+.coach-form__field .input {
+  min-height: 48px;
+  font-size: 16px; /* меньше — iPhone увеличивает страницу при фокусе */
+}
+
+.coach-form__error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.coach-form__notice {
+  margin: 0;
+  color: var(--warning);
+}
+
+/* Ещё */
+.coach-push__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.coach-signout {
+  justify-self: center;
+}
+
+/* Диалог на телефоне: лента занимает экран, поле ввода у нижнего края. */
+.coach-app .chat-thread__feed {
+  min-height: calc(100dvh - 190px);
+}
