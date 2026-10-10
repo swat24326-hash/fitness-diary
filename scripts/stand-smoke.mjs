@@ -17,8 +17,11 @@ function ok(cond, msg) {
   return cond
 }
 
-async function call(path, { method = 'GET', token, body } = {}) {
-  const headers = { accept: 'application/json' }
+const SMOKE_DEVICE = 'stand-smoke-device-0001'
+const OTHER_DEVICE = 'stand-smoke-device-0002'
+
+async function call(path, { method = 'GET', token, body, device = SMOKE_DEVICE } = {}) {
+  const headers = { accept: 'application/json', 'x-device-id': device }
   if (token) headers.authorization = `Bearer ${token}`
   if (body) headers['content-type'] = 'application/json'
   const res = await fetch(`${BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined })
@@ -96,6 +99,19 @@ async function main() {
   ok(admin.status === 200, `админ: list-memberships HTTP ${admin.status}`)
   const asTrainer = await call(membershipsUrl, { token: trainerTok })
   ok(asTrainer.status === 403, `тренер: list-memberships → ${asTrainer.status} (ждём 403)`)
+
+  const devices = await call('/api/admin-data?action=trainer-devices', { token: adminTok })
+  ok(devices.status === 200, `админ: устройства тренеров HTTP ${devices.status}`)
+  if (devices.data?.binding_active) {
+    const other = await call('/api/auth-sign-in', {
+      method: 'POST',
+      body: { login: 'c2-trainer', password: passwords['c2-trainer'] },
+      device: OTHER_DEVICE,
+    })
+    ok(other.status === 403 && other.data?.code === 'device_pending', `второй планшет тренера ждёт админа: HTTP ${other.status}`)
+    const list = (await call('/api/admin-data?action=trainer-devices', { token: adminTok })).data?.devices ?? []
+    ok(list.some((d) => d.device_id === OTHER_DEVICE && d.status === 'pending'), 'админ видит ждущий планшет')
+  }
 }
 
 main()
