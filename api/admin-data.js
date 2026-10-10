@@ -76,6 +76,7 @@ import {
 import { handleInboxAdminGet, handleInboxAdminPost } from './_lib/inbox/inboxAdminHandler.js'
 import { handleStaffInboxGet, handleStaffInboxPost } from './_lib/inbox/inboxStaffHandler.js'
 import { handleSurveyPointsGet, handleSurveyPointsPost } from './_lib/inbox/inboxPointsHandler.js'
+import { handleStaffChatGet, handleStaffChatPost } from './_lib/chat/chatStaffHandler.js'
 import { handleTrainerDeviceSetPost, handleTrainerDevicesGet } from './_lib/trainerDevicesAdmin.js'
 
 async function handler(req, res) {
@@ -123,6 +124,7 @@ async function handler(req, res) {
       'inbox',
       'my-inbox',
       'survey-points',
+      'chat',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -300,6 +302,11 @@ async function handler(req, res) {
       if (!ctx) return
       return handleSurveyPointsPost(ctx, res, body)
     }
+    if (action === 'chat') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleStaffChatPost(ctx, res, body)
+    }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
@@ -356,6 +363,12 @@ async function handler(req, res) {
     const ctx = await requireAuthUser(req, res)
     if (!ctx) return
     return handleSurveyPointsGet(ctx, req, res)
+  }
+
+  if (action === 'chat') {
+    const ctx = await requireAuthUser(req, res)
+    if (!ctx) return
+    return handleStaffChatGet(ctx, req, res)
   }
 
   const trainerActions = new Set([

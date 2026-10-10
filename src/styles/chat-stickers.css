@@ -1,0 +1,450 @@
+/* Стикеры переписки: Гирька на токенах бренда (меняется вместе с темой клуба), белая «вырезная» обводка,
+   анимации как в Telegram. Рисунки — src/components/chat/stickers/. */
+.chat-sticker {
+  --stk-loops: 3;
+  --stk-play: running;
+
+  display: inline-grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.chat-sticker--feed {
+  cursor: pointer;
+}
+
+.chat-sticker__art {
+  display: block;
+  overflow: visible;
+}
+
+.chat-sticker--feed .chat-sticker__art {
+  width: 148px;
+  height: 148px;
+  filter: drop-shadow(0 8px 16px color-mix(in srgb, black 45%, transparent));
+}
+
+.chat-sticker--pick {
+  --stk-loops: infinite;
+  --stk-play: paused;
+}
+
+.chat-sticker--pick .chat-sticker__art {
+  width: 72px;
+  height: 72px;
+}
+
+.chat-emoji__sticker:hover .chat-sticker--pick,
+.chat-emoji__sticker:focus-visible .chat-sticker--pick {
+  --stk-play: running;
+}
+
+.chat-sticker__label {
+  max-width: 170px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.chat-sticker--pick .chat-sticker__label {
+  padding: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* Цвета Гирьки. */
+.stk-stop-bright {
+  stop-color: var(--accent-bright, var(--accent));
+}
+
+.stk-stop-dim {
+  stop-color: var(--accent-dim, var(--accent));
+}
+
+.stk-cut {
+  flood-color: var(--text);
+}
+
+.stk-handle {
+  fill: none;
+  stroke: var(--accent-dim, var(--accent));
+  stroke-width: 11;
+  stroke-linecap: round;
+}
+
+.stk-body-shine {
+  fill: var(--text);
+  opacity: 0.55;
+}
+
+.stk-ink-fill {
+  fill: color-mix(in srgb, var(--accent-dim) 22%, black);
+}
+
+.stk-eye-shine {
+  fill: var(--text);
+}
+
+.stk-stroke-ink,
+.stk-stroke-light,
+.stk-stroke-accent,
+.stk-stroke-danger {
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stk-stroke-ink {
+  stroke: color-mix(in srgb, var(--accent-dim) 22%, black);
+}
+
+.stk-stroke-light {
+  stroke: var(--text);
+}
+
+.stk-stroke-accent {
+  stroke: var(--accent-bright, var(--accent));
+}
+
+.stk-stroke-danger {
+  stroke: var(--danger);
+  stroke-width: 4.5;
+}
+
+.stk-blush {
+  fill: color-mix(in srgb, var(--danger) 60%, var(--accent-bright));
+  opacity: 0.55;
+}
+
+.stk-limb {
+  fill: none;
+  stroke: var(--accent-dim, var(--accent));
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.stk-hand {
+  fill: var(--accent-bright, var(--accent));
+}
+
+.stk-foot {
+  fill: var(--accent-dim, var(--accent));
+}
+
+.stk-face {
+  fill: color-mix(in srgb, var(--bg-card) 70%, black);
+}
+
+.stk-edge-thin {
+  stroke: var(--accent-bright, var(--accent));
+  stroke-width: 3;
+}
+
+.stk-accent {
+  fill: var(--accent);
+}
+
+.stk-line {
+  fill: none;
+  stroke: var(--accent-bright, var(--accent));
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.stk-line.stk-thin {
+  stroke-width: 3;
+}
+
+.stk-spark {
+  fill: var(--accent-bright, var(--accent));
+}
+
+.stk-drop {
+  fill: color-mix(in srgb, var(--accent-bright) 45%, var(--text));
+}
+
+.stk-heart {
+  fill: color-mix(in srgb, var(--danger) 80%, var(--accent-bright));
+}
+
+.stk-flame {
+  fill: color-mix(in srgb, var(--accent-bright) 55%, var(--text));
+}
+
+.stk-flame-core {
+  fill: var(--text);
+  opacity: 0.85;
+}
+
+.stk-confetti {
+  fill: color-mix(in srgb, var(--danger) 70%, var(--text));
+}
+
+/* Анимации: в ленте — несколько раз при появлении (и по нажатию), в панели — при наведении. */
+[class*='stk-a-'] {
+  animation-duration: 1s;
+  animation-timing-function: var(--ease-out, ease-in-out);
+  animation-iteration-count: var(--stk-loops);
+  animation-play-state: var(--stk-play);
+  transform-box: view-box;
+}
+
+.stk-delay {
+  animation-delay: 0.35s;
+}
+
+.stk-a-hop {
+  animation-name: stk-hop;
+  transform-origin: 60px 110px;
+}
+
+.stk-a-run {
+  animation-name: stk-run;
+  animation-duration: 0.45s;
+  transform-origin: 60px 108px;
+}
+
+.stk-a-sway {
+  animation-name: stk-sway;
+  animation-duration: 1.6s;
+  transform-origin: 60px 108px;
+}
+
+.stk-a-tilt {
+  animation-name: stk-tilt;
+  animation-duration: 1.2s;
+  transform-origin: 60px 60px;
+}
+
+.stk-a-pant {
+  animation-name: stk-pant;
+  animation-duration: 0.8s;
+  transform-origin: 60px 108px;
+}
+
+.stk-a-wave {
+  animation-name: stk-wave;
+  animation-duration: 0.8s;
+  transform-origin: 87px 78px;
+}
+
+.stk-a-flex {
+  animation-name: stk-flex;
+  animation-duration: 0.7s;
+  transform-origin: 87px 82px;
+}
+
+.stk-a-flicker {
+  animation-name: stk-flicker;
+  animation-duration: 0.5s;
+  transform-origin: 60px 110px;
+}
+
+.stk-a-pulse,
+.stk-a-twinkle,
+.stk-a-drip {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.stk-a-pulse {
+  animation-name: stk-pulse;
+  animation-duration: 0.8s;
+}
+
+.stk-a-twinkle {
+  animation-name: stk-twinkle;
+  animation-duration: 1.1s;
+}
+
+.stk-a-drip {
+  animation-name: stk-drip;
+  animation-duration: 1.2s;
+}
+
+@keyframes stk-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-9px) scale(1.02, 0.98);
+  }
+  65% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+}
+
+@keyframes stk-run {
+  0%,
+  100% {
+    transform: translateX(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateX(-3px) translateY(-3px) rotate(-8deg);
+  }
+}
+
+@keyframes stk-sway {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-5deg);
+  }
+  70% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes stk-tilt {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-7deg);
+  }
+  60% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes stk-pant {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scale(1.04, 0.92);
+  }
+}
+
+@keyframes stk-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-22deg);
+  }
+  65% {
+    transform: rotate(12deg);
+  }
+}
+
+@keyframes stk-flex {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(-12deg) scale(1.04);
+  }
+}
+
+@keyframes stk-flicker {
+  0%,
+  100% {
+    transform: scale(1, 1) skewX(0);
+  }
+  33% {
+    transform: scale(1.03, 1.07) skewX(-2deg);
+  }
+  66% {
+    transform: scale(0.98, 1.03) skewX(2deg);
+  }
+}
+
+@keyframes stk-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.22);
+  }
+  55% {
+    transform: scale(0.96);
+  }
+}
+
+@keyframes stk-twinkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.5) rotate(45deg);
+    opacity: 0.6;
+  }
+}
+
+@keyframes stk-drip {
+  0% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*='stk-a-'] {
+    animation: none;
+  }
+}
+
+/* Стикер в ленте: без пузыря, время — плашкой под ним (как у крупных смайликов). */
+.chat-msg--sticker .chat-msg__body {
+  display: grid;
+  justify-items: center;
+}
+
+/* Сетка стикеров в панели. */
+.chat-emoji__grid--stickers {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 4px;
+  max-height: 300px;
+}
+
+.chat-emoji__sticker {
+  display: grid;
+  place-items: center;
+  min-height: 104px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-out, ease);
+}
+
+.chat-emoji__sticker:hover {
+  background: var(--bg-muted);
+}
+
+.chat-emoji__sticker:active {
+  transform: scale(0.94);
+}
+
+.chat-emoji__sticker:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

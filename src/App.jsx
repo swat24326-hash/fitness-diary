@@ -32,6 +32,7 @@ import { ClubSupervisorSettings } from './pages/admin/ClubSupervisorSettings'
 import { AdminInboxPage } from './pages/admin/AdminInboxPage.jsx'
 import { StaffInboxPage } from './pages/staff/StaffInboxPage.jsx'
 import { StaffInboxItemPage } from './pages/staff/StaffInboxItemPage.jsx'
+import { StaffChatThread } from './pages/staff/StaffChatThread.jsx'
 import { ClubSupervisorClubTasks } from './pages/admin/ClubSupervisorClubTasks'
 import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
 import { IskraPanelProvider } from './context/IskraPanelContext'
@@ -88,6 +89,7 @@ const ClientInboxPage = lazy(() => import('./pages/client/ClientInboxPage.jsx').
 const ClientInboxItemPage = lazy(() =>
   import('./pages/client/ClientInboxItemPage.jsx').then((m) => ({ default: m.ClientInboxItemPage })),
 )
+const ClientChatPage = lazy(() => import('./pages/client/ClientChatPage.jsx').then((m) => ({ default: m.ClientChatPage })))
 const ClientAppProvider = lazy(() =>
   import('./pages/client/ClientAppContext.jsx').then((m) => ({ default: m.ClientAppProvider })),
 )
@@ -111,6 +113,7 @@ function ClientAppRoutes() {
           <Route path="trainings" element={<ClientTrainingsPage />} />
           <Route path="inbox" element={<ClientInboxPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />
+          <Route path="chat/:kind" element={<ClientChatPage />} />
           <Route path="*" element={<ClientMePage />} />
         </Routes>
       </ClientAppProvider>
@@ -278,6 +281,9 @@ export default function App() {
             <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor']} />}>
               <Route path="/messages" element={<StaffInboxPage />} />
               <Route path="/messages/:id" element={<StaffInboxItemPage />} />
+            </Route>
+            <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor', 'admin']} />}>
+              <Route path="/messages/chat/:clientId/:kind" element={<StaffChatThread />} />
             </Route>
             <Route element={<RoleOutlet roles={['sales_manager']} />}>
               <Route path="/sales" element={<AdminSales accessMode="sales_manager" />} />

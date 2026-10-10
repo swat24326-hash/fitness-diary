@@ -28,7 +28,7 @@ export function buildInboxPushPayload(campaign, clubName) {
 }
 
 /** Подписки получателей: клиент — только живая сессия приложения; сотрудник — все его устройства. */
-async function loadSubscriptions(db, staff, recipients) {
+export async function loadSubscriptions(db, staff, recipients) {
   if (staff) {
     const subs = await loadInChunks(
       recipients.map((r) => r.user_id),

@@ -127,7 +127,7 @@ export async function launchBrowser() {
 export async function screenshot(page, name) {
   mkdirSync(SHOT_DIR, { recursive: true })
   const path = join(SHOT_DIR, `${name}.png`)
-  await page.screenshot({ path, fullPage: false })
+  await page.screenshot({ path, fullPage: false, animations: 'disabled' })
   return path
 }
 

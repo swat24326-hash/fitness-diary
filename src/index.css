@@ -40,6 +40,8 @@
 @import './styles/client-inbox.css';
 @import './styles/admin-inbox.css';
 @import './styles/staff-inbox.css';
+@import './styles/chat.css';
+@import './styles/chat-stickers.css';
 @import './styles/survey-points.css';
 
 *,

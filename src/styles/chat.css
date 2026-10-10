@@ -1,0 +1,535 @@
+/* Переписка клиента с тренером и клубом в духе Telegram: плашки дней, пузыри пачками с «хвостиком»,
+   время и галочки внутри пузыря, капсула ввода со смайликами, список диалогов с аватарками.
+   Общая для /me/chat (телефон клиента) и /messages/chat (планшет / монитор сотрудника). */
+.chat-thread {
+  --chat-mine: color-mix(in srgb, var(--accent) 24%, var(--bg-card));
+  --chat-peer: var(--bg-elevated, var(--bg-card));
+  --chat-tail: 8px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.chat-thread__feed {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 46vh;
+  padding: 10px 10px 6px;
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(120% 60% at 100% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
+    radial-gradient(90% 50% at 0% 100%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%),
+    var(--bg-subtle, var(--bg));
+}
+
+.chat-thread__older {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.chat-thread__empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: auto 0;
+  padding: 32px 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.chat-thread__empty p {
+  margin: 0;
+  max-width: 34ch;
+}
+
+.chat-thread__readonly {
+  margin: 0;
+  text-align: center;
+}
+
+/* Плашка дня — прилипает к верху ленты, как в Telegram. */
+.chat-day {
+  position: sticky;
+  top: 8px;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 6px;
+  pointer-events: none;
+}
+
+.chat-day span {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Пузырь. Пачка одного автора: углы у соседей поджаты, «хвостик» только у последнего. */
+.chat-msg {
+  position: relative;
+  align-self: flex-start;
+  max-width: min(80%, 540px);
+  margin-left: var(--chat-tail);
+  padding: 6px 10px 6px 12px;
+  border-radius: 6px 18px 18px 6px;
+  background: var(--chat-peer);
+  animation: chat-msg-in 0.2s var(--ease-out, ease) backwards;
+}
+
+.chat-msg--start {
+  margin-top: 6px;
+  border-top-left-radius: 18px;
+}
+
+.chat-msg--end {
+  border-bottom-left-radius: 4px;
+}
+
+.chat-msg--end::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: calc(var(--chat-tail) * -1);
+  width: var(--chat-tail);
+  height: 14px;
+  background: inherit;
+  mask: radial-gradient(circle at 0 0, transparent calc(var(--chat-tail) + 0.5px), black calc(var(--chat-tail) + 1px));
+}
+
+.chat-msg.chat-msg--mine {
+  align-self: flex-end;
+  margin-right: var(--chat-tail);
+  margin-left: 0;
+  border-radius: 18px 6px 6px 18px;
+  background: var(--chat-mine);
+}
+
+.chat-msg--mine.chat-msg--start {
+  border-top-right-radius: 18px;
+}
+
+.chat-msg--mine.chat-msg--end {
+  border-bottom-right-radius: 4px;
+}
+
+.chat-msg--mine.chat-msg--end::before {
+  right: calc(var(--chat-tail) * -1);
+  left: auto;
+  mask: radial-gradient(circle at 100% 0, transparent calc(var(--chat-tail) + 0.5px), black calc(var(--chat-tail) + 1px));
+}
+
+.chat-msg__author {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--accent-bright, var(--accent));
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.chat-msg__body {
+  margin: 0;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-msg__body a {
+  color: var(--accent-bright, var(--accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Время и галочки «прячутся» в последнюю строку текста; не влезают — уходят на новую. */
+.chat-msg__meta {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 6px -2px -2px 12px;
+  color: color-mix(in srgb, var(--text-muted) 90%, transparent);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chat-msg--mine .chat-msg__meta {
+  color: color-mix(in srgb, var(--accent-bright, var(--accent)) 70%, var(--text-muted));
+}
+
+.chat-msg__tick.is-read {
+  color: var(--accent-bright, var(--accent));
+}
+
+/* Сообщение из 1–3 смайликов — крупно и без пузыря. */
+.chat-msg.chat-msg--big {
+  padding: 0;
+  background: transparent;
+}
+
+.chat-msg--big::before {
+  display: none;
+}
+
+.chat-msg--big .chat-msg__body {
+  font-size: 2.6rem;
+  line-height: 1.15;
+}
+
+.chat-msg--big .chat-msg__meta {
+  float: none;
+  display: flex;
+  width: fit-content;
+  margin: 2px 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  font-size: 0.72rem;
+}
+
+/* Поле ввода: капсула со смайликом слева и круглая кнопка «Отправить». */
+.chat-compose {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+
+.chat-compose__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.chat-compose__pill {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg-card);
+  transition: border-color 0.15s var(--ease-out, ease);
+}
+
+.chat-compose__pill:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.chat-compose__emoji {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s var(--ease-out, ease);
+}
+
+.chat-compose__emoji:hover,
+.chat-compose__emoji.is-active {
+  color: var(--accent-bright, var(--accent));
+}
+
+/* Без field-sizing: он берёт ширину по содержимому, и длинная ссылка раздвигала экран телефона. Высоту растит ChatComposer. */
+.chat-compose__input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  max-height: 160px;
+  padding: 12px 14px 12px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.35;
+  resize: none;
+}
+
+.chat-compose__input::placeholder {
+  color: var(--text-muted);
+}
+
+.chat-compose__send {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.18s var(--ease-out, ease),
+    color 0.18s var(--ease-out, ease),
+    transform 0.18s var(--ease-out, ease);
+}
+
+.chat-compose__send.is-ready {
+  background: linear-gradient(165deg, var(--accent-bright), var(--accent) 45%, var(--accent-dim));
+  box-shadow: 0 4px 18px var(--accent-glow);
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+}
+
+.chat-compose__send.is-ready:active {
+  transform: scale(0.94);
+}
+
+.chat-compose__send:disabled {
+  cursor: default;
+}
+
+.chat-compose__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
+/* Панель смайликов над полем ввода. */
+.chat-emoji {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-soft);
+  animation: chat-msg-in 0.18s var(--ease-out, ease);
+}
+
+.chat-emoji__tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+  padding-bottom: 6px;
+}
+
+.chat-emoji__tab {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chat-emoji__tab.is-active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-bright, var(--accent));
+}
+
+.chat-emoji__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.chat-emoji__item {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-out, ease);
+}
+
+.chat-emoji__item:hover {
+  background: var(--bg-muted);
+}
+
+.chat-emoji__item:active {
+  transform: scale(1.18);
+}
+
+/* Список диалогов: аватарка, имя и время, последнее сообщение и число новых. */
+.chat-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-list > li {
+  animation: chat-msg-in 0.22s var(--ease-out, ease) backwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+.chat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.15s var(--ease-out, ease);
+}
+
+.chat-row:hover,
+.chat-row:focus-visible {
+  background: var(--bg-muted);
+}
+
+.chat-row__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--accent-bright), var(--accent-dim));
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.chat-row__avatar--sales {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 55%, var(--text)), var(--accent-dim));
+}
+
+.chat-row__avatar--supervisor {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--text-muted) 70%, var(--accent)), color-mix(in srgb, var(--bg-card) 40%, var(--accent-dim)));
+  color: var(--text);
+}
+
+.chat-row__main {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.chat-row__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-row__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-row__time {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-row--new .chat-row__time {
+  color: var(--accent-bright, var(--accent));
+}
+
+.chat-row__preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-row__badge {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-threads__section-title {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.chat-head {
+  display: grid;
+  gap: 2px;
+}
+
+.chat-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-card-links > svg {
+  color: var(--accent);
+}
+
+@keyframes chat-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-msg,
+  .chat-emoji,
+  .chat-list > li {
+    animation: none;
+  }
+}

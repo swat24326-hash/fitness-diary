@@ -15,7 +15,7 @@ export function inboxItemMetaRu(item) {
 /** Подпись на конверте для экранного диктора. */
 export function inboxButtonLabelRu(count) {
   const n = Number(count) || 0
-  return n > 0 ? `Входящие: новых ${n}` : 'Входящие'
+  return n > 0 ? `Сообщения: новых ${n}` : 'Сообщения'
 }
 
 export function inboxBadgeText(count) {

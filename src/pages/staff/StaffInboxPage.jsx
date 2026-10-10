@@ -1,5 +1,8 @@
+import { Link, useSearchParams } from 'react-router-dom'
 import { Mail, RefreshCw, WifiOff } from 'lucide-react'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
+import { useStaffChats } from '../../hooks/useStaffChat.js'
+import { StaffChatList } from './StaffChatList.jsx'
 import { useStaffInbox } from './useStaffInbox.js'
 
 function Status({ icon: Icon, title, hint, spin = false }) {
@@ -12,11 +15,31 @@ function Status({ icon: Icon, title, hint, spin = false }) {
   )
 }
 
-/** /messages — объявления и опросы от администратора и управляющего клуба. */
+function Tabs({ chats }) {
+  const tab = (to, label, active) => (
+    <Link to={to} replace className={`btn btn-sm btn-touch ${active ? 'btn-primary' : 'btn-secondary'}`} aria-current={active ? 'page' : undefined}>
+      {label}
+    </Link>
+  )
+  return (
+    <nav className="chat-tabs" aria-label="Разделы сообщений">
+      {tab('/messages', 'Рассылки', !chats)}
+      {tab('/messages?tab=chats', 'Диалоги с клиентами', chats)}
+    </nav>
+  )
+}
+
+/** /messages — объявления и опросы руководства; вкладка «Диалоги» — переписка с клиентами. */
 export function StaffInboxPage() {
+  const [params] = useSearchParams()
+  const chats = params.get('tab') === 'chats'
   const { items, status, error, reload } = useStaffInbox()
+  const chatList = useStaffChats(chats)
+  const loading = chats ? chatList.status === 'loading' : status === 'loading'
   let content
-  if (!items) {
+  if (chats) {
+    content = <StaffChatList {...chatList} />
+  } else if (!items) {
     content =
       status === 'error' ? (
         <Status icon={WifiOff} title="Не загрузилось" hint={error || 'Проверьте интернет и обновите.'} />
@@ -39,15 +62,16 @@ export function StaffInboxPage() {
         <button
           type="button"
           className="btn btn-secondary btn-icon-square btn-touch"
-          onClick={reload}
-          disabled={status === 'loading'}
+          onClick={chats ? chatList.reload : reload}
+          disabled={loading}
           title="Обновить"
           aria-label="Обновить"
         >
-          <RefreshCw size={18} aria-hidden className={status === 'loading' ? 'icon-spin' : undefined} />
+          <RefreshCw size={18} aria-hidden className={loading ? 'icon-spin' : undefined} />
         </button>
       </div>
-      {items && status === 'error' ? (
+      <Tabs chats={chats} />
+      {!chats && items && status === 'error' ? (
         <p className="staff-inbox__error" role="alert">
           {error}
         </p>

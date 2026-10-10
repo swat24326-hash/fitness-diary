@@ -6,6 +6,7 @@
  * POST /api/client-me { action: 'handoff' } — одноразовый вход для значка на iPhone (clientHandoffHandler.js).
  * POST /api/client-me { action: 'training', id } — одна своя тренировка для окна просмотра (clientTrainingHandler.js).
  * POST /api/client-me { action: 'inbox-list' | 'inbox-item' | 'inbox-answer' } — «Входящие» (../inbox/inboxClientHandler.js).
+ * POST /api/client-me { action: 'chat-list' | 'chat-thread' | 'chat-send' } — переписка с тренером и клубом (../chat/chatClientHandler.js).
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -15,6 +16,7 @@ import { buildClientManifest, isClientManifestClubId } from './clientManifestCor
 import { handleClientPushPost } from './clientPushHandler.js'
 import { handleClientTraining } from './clientTrainingHandler.js'
 import { handleClientInboxPost, loadClientInboxAttention } from '../inbox/inboxClientHandler.js'
+import { handleClientChatPost, loadClientChatAttention } from '../chat/chatClientHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
 
@@ -65,10 +67,15 @@ export async function clientMeHandler(req, res) {
     if (body?.action === 'handoff') await handleClientHandoff(ctx, res)
     else if (body?.action === 'training') await handleClientTraining(createServiceDataClient(), ctx, body.id, res)
     else if (String(body?.action ?? '').startsWith('inbox-')) await handleClientInboxPost(createServiceDataClient(), ctx, body, res)
+    else if (String(body?.action ?? '').startsWith('chat-')) await handleClientChatPost(createServiceDataClient(), ctx, body, res)
     else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }
   const db = createServiceDataClient()
-  const [me, inbox_attention] = await Promise.all([loadClientMe(db, ctx.client), loadClientInboxAttention(db, ctx.clientId)])
-  sendJson(res, 200, { ...me, inbox_attention })
+  const [me, inbox_attention, chat_attention] = await Promise.all([
+    loadClientMe(db, ctx.client),
+    loadClientInboxAttention(db, ctx.clientId),
+    loadClientChatAttention(db, ctx.clientId),
+  ])
+  sendJson(res, 200, { ...me, inbox_attention, chat_attention })
 }

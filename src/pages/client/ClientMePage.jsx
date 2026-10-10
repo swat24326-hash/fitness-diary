@@ -45,7 +45,7 @@ export function ClientMePage() {
       >
         <RefreshCw size={18} aria-hidden className={status === 'loading' ? 'client-me-spin' : undefined} />
       </button>
-      <ClientInboxButton count={data?.inbox_attention} />
+      <ClientInboxButton count={(Number(data?.inbox_attention) || 0) + (Number(data?.chat_attention) || 0)} />
       <ClientMenu clientName={data?.client?.name || ''} onLogout={() => void logout()} />
     </span>
   )

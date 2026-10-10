@@ -5,6 +5,7 @@ import {
   fetchStaffInbox,
   openStaffInboxItem,
 } from '../../lib/inbox/staffInboxApiClient.js'
+import { fetchStaffChats } from '../../lib/chat/staffChatApiClient.js'
 
 const COUNT_POLL_MS = 120_000
 
@@ -54,7 +55,7 @@ export function useStaffInboxItem(id) {
   return { ...state, reload, answer, sending, sendError }
 }
 
-/** Точка на конверте в шапке: раз в 2 минуты, при возврате на вкладку и после чтения. Офлайн — тихо 0. */
+/** Точка на конверте в шапке: рассылки + диалоги с клиентами; раз в 2 минуты, при возврате на вкладку и после чтения. Офлайн — тихо. */
 export function useStaffInboxCount(enabled) {
   const [count, setCount] = useState(0)
   useEffect(() => {
@@ -64,9 +65,10 @@ export function useStaffInboxCount(enabled) {
     }
     let alive = true
     const load = () =>
-      fetchStaffInbox()
-        .then((d) => alive && setCount(Number(d?.attention) || 0))
-        .catch(() => {})
+      Promise.allSettled([fetchStaffInbox(), fetchStaffChats()]).then((res) => {
+        if (!alive || res.every((r) => r.status === 'rejected')) return
+        setCount(res.reduce((sum, r) => sum + (r.status === 'fulfilled' ? Number(r.value?.attention) || 0 : 0), 0))
+      })
     const onVisible = () => document.visibilityState === 'visible' && load()
     load()
     const t = window.setInterval(load, COUNT_POLL_MS)

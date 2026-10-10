@@ -50,6 +50,7 @@ import {
 import { AdminDeskClientCardSection } from '../../components/admin/AdminDeskClientCardSection.jsx'
 import { AdminLitePzClientCardSection } from '../../components/admin/AdminLitePzClientCardSection.jsx'
 import { ClientSurveyPointsSection } from '../../components/inbox/ClientSurveyPointsSection.jsx'
+import { ClientChatLinks } from '../../components/chat/ClientChatLinks.jsx'
 import { AdminMultiHallClientCardSection } from '../../components/admin/AdminMultiHallClientCardSection.jsx'
 import {
   adminUsesMultiHallClientCard,
@@ -623,7 +624,12 @@ export function ClientCard() {
     )
   }
 
-  const surveyPoints = <ClientSurveyPointsSection client={client} />
+  const clubSections = (
+    <>
+      <ClientChatLinks client={client} />
+      <ClientSurveyPointsSection client={client} />
+    </>
+  )
 
   if (isMultiHallCard && multiHallTab !== 'pz') {
     return (
@@ -640,7 +646,7 @@ export function ClientCard() {
           trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
-        {surveyPoints}
+        {clubSections}
       </div>
     )
   }
@@ -661,7 +667,7 @@ export function ClientCard() {
           trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
-        {surveyPoints}
+        {clubSections}
         <p className="muted" role="status" style={{ margin: 0 }}>
           Определяю режим тренера (планшет / без)…
         </p>
@@ -685,7 +691,7 @@ export function ClientCard() {
           trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
-        {surveyPoints}
+        {clubSections}
         <p className="muted" role="alert" style={{ margin: 0 }}>
           Не удалось узнать режим тренера (есть планшет или нет). Обновите страницу и откройте карточку снова.
         </p>
@@ -713,7 +719,7 @@ export function ClientCard() {
           trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
-        {surveyPoints}
+        {clubSections}
       </div>
     )
   }
@@ -729,7 +735,7 @@ export function ClientCard() {
           listBackLabel={clientsBackLabel}
           onSaved={onMultiHallSaved}
         />
-        {surveyPoints}
+        {clubSections}
       </div>
     )
   }
@@ -771,7 +777,7 @@ export function ClientCard() {
           listBackLabel={clientsBackLabel}
           onSaved={onMultiHallSaved}
         />
-        {surveyPoints}
+        {clubSections}
       </div>
     )
   }
@@ -799,7 +805,7 @@ export function ClientCard() {
           </Link>
         </p>
       ) : null}
-      {surveyPoints}
+      {clubSections}
       {hydrateError ? (
         <p className="muted admin-inline-note" role="alert">
           Данные с сервера подгрузились не полностью: {hydrateError}. Показано из локального кэша.
