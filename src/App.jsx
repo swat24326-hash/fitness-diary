@@ -8,6 +8,7 @@ import { AppChromeTop } from './components/AppChromeTop'
 import { AppHeader } from './components/AppHeader'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { UnknownRouteRedirect } from './components/UnknownRouteRedirect.jsx'
+import { PushOpenNavigator } from './components/PushOpenNavigator.jsx'
 import { AppWelcomeSplash } from './components/AppWelcomeSplash'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
@@ -284,6 +285,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppPwaOverlays />
+        <PushOpenNavigator />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/me/*" element={<ClientAppRoutes />} />

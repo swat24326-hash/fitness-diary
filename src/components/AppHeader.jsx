@@ -228,15 +228,6 @@ export function AppHeader() {
     }
   }, [isDispatchInboxUser, searchParams, setSearchParams])
 
-  useEffect(() => {
-    if (!isDispatchInboxUser || !('serviceWorker' in navigator)) return
-    const onMessage = (event) => {
-      if (event?.data?.type === 'open-trainer-inbox') setInboxOpen(true)
-    }
-    navigator.serviceWorker.addEventListener('message', onMessage)
-    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
-  }, [isDispatchInboxUser])
-
   /** Один зал — сразу в URL; несколько — последний выбранный или явный выбор. */
   useEffect(() => {
     if (!showAdminClubSelect || adminClubs.length === 0) return

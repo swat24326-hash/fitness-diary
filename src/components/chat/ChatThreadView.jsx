@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
-import { ChevronUp, MessageCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, MessageCircle } from 'lucide-react'
 import { ChatComposer } from './ChatComposer.jsx'
 import { ChatFeed } from './ChatFeed.jsx'
+import { attachChatStickToBottom, chatNewMessageAction, scrollChatToEnd } from '../../lib/chat/chatStickToBottom.js'
 
 /**
  * Лента диалога и поле ввода — общие для клиента (/me/chat) и сотрудника (/messages/chat).
@@ -25,11 +26,45 @@ export function ChatThreadView({
   placeholder = 'Сообщение',
 }) {
   const endRef = useRef(null)
-  const lastId = messages?.[messages.length - 1]?.id
+  const atBottomRef = useRef(true)
+  const shownLastIdRef = useRef(undefined)
+  const [newBelow, setNewBelow] = useState(false)
+  const last = messages?.[messages.length - 1]
+  const lastId = last?.id
+
+  useEffect(
+    () =>
+      attachChatStickToBottom({
+        onChange: (atBottom) => {
+          atBottomRef.current = atBottom
+          if (atBottom) setNewBelow(false)
+        },
+      }),
+    [],
+  )
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' })
+    if (lastId == null) return
+    const firstLoad = shownLastIdRef.current === undefined
+    shownLastIdRef.current = lastId
+    if (chatNewMessageAction({ firstLoad, mine: Boolean(last?.mine), atBottom: atBottomRef.current }) === 'scroll') {
+      scrollChatToEnd(endRef.current)
+    } else {
+      setNewBelow(true)
+    }
   }, [lastId])
+
+  const newBelowButton = newBelow ? (
+    <button
+      type="button"
+      className="chat-thread__new-below"
+      data-testid="chat-new-below"
+      onClick={() => scrollChatToEnd(endRef.current, 'smooth')}
+    >
+      <ChevronDown size={16} aria-hidden />
+      Новые
+    </button>
+  ) : null
 
   return (
     <div className="chat-thread">
@@ -51,10 +86,21 @@ export function ChatThreadView({
       </div>
 
       {canWrite ? (
-        <ChatComposer onSubmit={onSubmit} sending={sending} sendError={sendError} placeholder={placeholder} />
+        <ChatComposer
+          onSubmit={onSubmit}
+          sending={sending}
+          sendError={sendError}
+          placeholder={placeholder}
+          above={newBelowButton}
+        />
       ) : readOnlyHint ? (
-        <p className="chat-thread__readonly muted">{readOnlyHint}</p>
-      ) : null}
+        <>
+          {newBelowButton}
+          <p className="chat-thread__readonly muted">{readOnlyHint}</p>
+        </>
+      ) : (
+        newBelowButton
+      )}
     </div>
   )
 }

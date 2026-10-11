@@ -121,13 +121,22 @@ async function supervisorAnswers(c, browser, backend, chat) {
 }
 
 /** Тренер в приложении зала на узком телефоне: шапка не шире экрана, поле ввода у низа видимой части (INC-2026-10-11-04). */
-async function trainerNarrowPhoneThread(c, browser, backend) {
+async function trainerNarrowPhoneThread(c, browser, backend, chat) {
   const context = await newE2eContext(browser, backend, { ...PHONE, viewport: { width: 360, height: 780 } })
   const page = await context.newPage()
   try {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     await page.goto(`${ORIGIN}/messages/dm/${SUP_ID}`)
     await page.getByTestId('chat-input').waitFor()
+    await page.waitForTimeout(300)
+    const opened = await page.evaluate(() => ({
+      lastBottom: [...globalThis.document.querySelectorAll('.chat-msg')].at(-1).getBoundingClientRect().bottom,
+      composeTop: globalThis.document.querySelector('.chat-compose').getBoundingClientRect().top,
+    }))
+    c.ok(
+      opened.lastBottom <= opened.composeTop + 1,
+      `открыл диалог — последнее сообщение над полем ввода, не под ним (низ ${Math.round(opened.lastBottom)}, поле с ${Math.round(opened.composeTop)})`,
+    )
     await page.evaluate(() => globalThis.scrollTo(0, 0))
     const m = await page.evaluate(() => {
       const root = globalThis.document.documentElement
@@ -140,6 +149,41 @@ async function trainerNarrowPhoneThread(c, browser, backend) {
     c.ok(m.wide <= 0, `узкий телефон тренера: страница не шире экрана (лишних ${m.wide}px)`)
     c.ok(m.composerBottom <= m.visible + 1, `поле ввода в видимой части (низ ${Math.round(m.composerBottom)} из ${Math.round(m.visible)})`)
     await screenshot(page, 'staff-dm-trainer-narrow')
+
+    /* Клавиатура Android сжимает страницу: был внизу — последнее сообщение остаётся над полем ввода. */
+    await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.documentElement.scrollHeight))
+    await page.waitForTimeout(200)
+    await page.setViewportSize({ width: 360, height: 420 })
+    await page.waitForTimeout(400)
+    const kb = await page.evaluate(() => {
+      const last = [...globalThis.document.querySelectorAll('.chat-msg')].at(-1).getBoundingClientRect()
+      const compose = globalThis.document.querySelector('.chat-compose').getBoundingClientRect()
+      return { lastBottom: last.bottom, composeTop: compose.top }
+    })
+    c.ok(
+      kb.lastBottom <= kb.composeTop + 1,
+      `клавиатура открылась — последнее сообщение над полем ввода (низ ${Math.round(kb.lastBottom)}, поле с ${Math.round(kb.composeTop)})`,
+    )
+    await screenshot(page, 'staff-dm-trainer-keyboard')
+
+    /* Читает историю выше, а собеседник ответил — лента не прыгает вниз, появляется «↓ Новые». */
+    await page.evaluate(() => globalThis.scrollTo(0, 0))
+    await page.waitForTimeout(200)
+    const peerMsg = chat.state.dm.messages.find((m) => m.author_user_id === SUP_ID)
+    chat.state.dm.messages.push({ ...peerMsg, id: 'dmm-late', body: 'Пока ты листал', created_at: new Date(Date.now() + 60_000).toISOString() })
+    await page.evaluate(() =>
+      globalThis.navigator.serviceWorker.dispatchEvent(new globalThis.MessageEvent('message', { data: { type: 'push-received' } })),
+    )
+    const newBelow = page.getByTestId('chat-new-below')
+    c.ok(await reaches(newBelow), 'читает историю, пришёл ответ — кнопка «↓ Новые»')
+    c.ok((await page.evaluate(() => globalThis.scrollY)) < 50, 'лента не дёрнулась вниз, пока читает историю')
+    await screenshot(page, 'staff-dm-new-below')
+    await newBelow.click()
+    c.ok(await reaches(page.getByTestId('chat-new-below'), 'hidden'), '«↓ Новые» — вниз к ответу, кнопка исчезла')
+    await page.waitForTimeout(800)
+    const lateBox = await page.locator('.chat-msg', { hasText: 'Пока ты листал' }).boundingBox()
+    const composeTop = await page.evaluate(() => globalThis.document.querySelector('.chat-compose').getBoundingClientRect().top)
+    c.ok(lateBox && lateBox.y + lateBox.height <= composeTop + 1, 'новое сообщение видно над полем ввода')
   } catch (e) {
     await screenshot(page, 'staff-dm-trainer-narrow-FAIL').catch(() => null)
     c.ok(false, `узкий телефон тренера: сценарий прерван: ${e.message.split('\n')[0]}`)
@@ -168,8 +212,26 @@ export async function run(browser) {
       await tab.waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false),
       'пришёл push — число на вкладке «Сообщения» сразу, без переключения вкладок',
     )
-    await trainerNarrowPhoneThread(c, browser, backend)
-    await page.goto(`${ORIGIN}/coach/dm/${SUP_ID}`)
+    const first = chat.state.dm.messages[0]
+    for (let i = 1; i <= 20; i++) {
+      chat.state.dm.messages.splice(i - 1, 0, { ...first, id: `dmm-old-${i}`, body: `История ${i}`, created_at: new Date(Date.parse(first.created_at) - (21 - i) * 60_000).toISOString() })
+    }
+    await trainerNarrowPhoneThread(c, browser, backend, chat)
+    /* Приложение уже открыто, нажали на push — открывается сам диалог (INC-2026-10-12-04). */
+    await page.goto(`${ORIGIN}/coach`)
+    await page.waitForLoadState('networkidle')
+    await page.evaluate((url) => {
+      globalThis.__noReload = true
+      globalThis.navigator.serviceWorker.dispatchEvent(new globalThis.MessageEvent('message', { data: { type: 'push-open', url } }))
+    }, `/coach/dm/${SUP_ID}`)
+    c.ok(
+      await page
+        .waitForURL(`**/coach/dm/${SUP_ID}`, { timeout: 5_000 })
+        .then(() => true)
+        .catch(() => false),
+      'нажатие на push при открытом приложении — сразу в переписку',
+    )
+    c.ok(await page.evaluate(() => globalThis.__noReload === true), 'без перезагрузки страницы')
     c.ok(await reaches(page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: ANSWER })), 'тренер видит ответ управляющей')
     c.ok(await reaches(page.locator('.chat-msg--mine .chat-msg__tick.is-read').first()), 'у тренера две галочки — прочитано')
     await screenshot(page, 'staff-dm-coach-thread')

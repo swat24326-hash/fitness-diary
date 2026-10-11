@@ -6,6 +6,9 @@ import {
   logoutClient,
   readClientMeCache,
 } from '../../lib/client/clientSession.js'
+import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
+
+const QUIET_REFRESH_MS = 60_000
 
 /**
  * Данные /me: сначала кэш (мгновенно и без сети), затем свежий ответ сервера.
@@ -35,12 +38,30 @@ export function useClientMe() {
       })
   }, [])
 
+  /* Тихо, без «загрузки» и без «нет связи»: только чтобы число на конверте не ждало ручного обновления. */
+  const refreshQuietly = useCallback(() => {
+    if (!hasClientSession() || document.visibilityState !== 'visible') return
+    fetchClientMe()
+      .then((data) => setState({ data, savedAt: null, status: 'ready', error: '' }))
+      .catch((e) => {
+        if (e instanceof ClientSessionGoneError) setState({ data: null, savedAt: null, status: 'signed_out', error: e.message || '' })
+      })
+  }, [])
+
   useEffect(() => {
     reload()
     const onOnline = () => reload()
     window.addEventListener('online', onOnline)
-    return () => window.removeEventListener('online', onOnline)
-  }, [reload])
+    const t = window.setInterval(refreshQuietly, QUIET_REFRESH_MS)
+    document.addEventListener('visibilitychange', refreshQuietly)
+    const offPush = onPushReceived(refreshQuietly)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.clearInterval(t)
+      document.removeEventListener('visibilitychange', refreshQuietly)
+      offPush()
+    }
+  }, [reload, refreshQuietly])
 
   const logout = useCallback(async () => {
     await logoutClient()

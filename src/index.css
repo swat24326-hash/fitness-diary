@@ -170,11 +170,13 @@ button {
 
 /* Шапка + вкладки черновиков: всегда сверху при скролле (пульс, секундомер).
  * Без backdrop-filter: иначе position:fixed модалки (журнал ошибок) «запираются» в шапке. */
+/* Строка состояния iPhone / iPad прозрачная (black-translucent): отступ внутри прилипшей шапки, иначе она под часами. */
 .app-chrome-top {
   position: sticky;
   top: 0;
   z-index: 40;
   flex-shrink: 0;
+  padding-top: env(safe-area-inset-top, 0px);
   background: linear-gradient(180deg, #0c110e 0%, #080a09 100%);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 20px rgba(0, 0, 0, 0.28);
 }
@@ -9726,7 +9728,7 @@ tr:last-child td {
 
 .sync-feedback {
   position: sticky;
-  top: var(--header-h);
+  top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
   z-index: 9;
   margin: 0;
   padding: 10px clamp(16px, 4vw, 28px);
@@ -9756,7 +9758,7 @@ tr:last-child td {
 
 .sync-motto {
   position: sticky;
-  top: var(--header-h);
+  top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
   z-index: 9;
   margin: 0;
   padding: 8px clamp(16px, 4vw, 28px);

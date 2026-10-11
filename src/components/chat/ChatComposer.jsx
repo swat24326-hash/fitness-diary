@@ -12,9 +12,10 @@ function enterSends() {
 
 /**
  * Поле ввода переписки: капсула со смайликами и стикерами, круглая кнопка «Отправить».
- * @param {{ onSubmit: (input: string | { sticker: string }) => Promise<boolean>, sending: boolean, sendError: string, placeholder: string }} props
+ * @param {{ onSubmit: (input: string | { sticker: string }) => Promise<boolean>, sending: boolean, sendError: string, placeholder: string, above?: import('react').ReactNode }} props
+ * above — висит над полем и едет вместе с ним над клавиатурой (кнопка «↓ Новые»)
  */
-export function ChatComposer({ onSubmit, sending, sendError, placeholder }) {
+export function ChatComposer({ onSubmit, sending, sendError, placeholder, above = null }) {
   const [draft, setDraft] = useState('')
   const [emojiOpen, setEmojiOpen] = useState(false)
   const inputRef = useRef(null)
@@ -55,6 +56,7 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder }) {
 
   return (
     <form ref={formRef} className="chat-compose" onSubmit={(e) => void submit(e)}>
+      {above}
       {sendError ? (
         <p className="chat-compose__error" role="alert">
           {sendError}
