@@ -119,7 +119,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | trainer | `/trainer`, `/trainer/clients`, … |
 | sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log`, `/sales/call-log` |
 | supervisor | `/club/*` (клиенты, **call-log**, статистика, продажи, ПНК, челленджи, планёрка, **inbox** — рассылки клиентам и команде своего клуба, settings=Max/SMS) |
-| trainer / sales_manager / supervisor | `/messages`, `/messages/:id` — «Сообщения клуба» (конверт в шапке, [INBOX.md](./INBOX.md)); `/messages?tab=chats` — «Диалоги с клиентами» ([CHAT.md](./CHAT.md)) |
+| trainer / sales_manager / supervisor | `/messages`, `/messages/:id` — «Сообщения клуба» (конверт в шапке, [INBOX.md](./INBOX.md)); `/messages?tab=chats` — «Диалоги» с папками «Клиенты · Коллеги · Администрация», `/messages/dm/:userId` — личный диалог с сотрудником клуба ([CHAT.md](./CHAT.md)) |
 | trainer / sales_manager / supervisor / admin | `/messages/chat/:clientId/:kind` — переписка с клиентом (админ — из карточки клиента), [CHAT.md](./CHAT.md) |
 | клиент (токен клиента) | `/me/inbox` — «Сообщения»: диалоги с тренером, менеджером, управляющим + объявления и опросы; `/me/chat/:kind` — диалог ([CHAT.md](./CHAT.md)) |
 | admin | `/admin/*` (clients, **deletion-log**, **call-log**, **excel-lists**, **inbox** — рассылки клиентам и команде ([INBOX.md](./INBOX.md)), statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |

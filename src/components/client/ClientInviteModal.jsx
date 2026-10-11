@@ -8,9 +8,19 @@ import { qrDataUrl } from '../../lib/qrDataUrl.js'
 /**
  * QR и ссылка для входа клиента в /me. Ссылка одноразовая, живёт 72 часа;
  * новая ссылка гасит прежнюю неиспользованную.
- * @param {{ open: boolean, client: { id: string, name?: string }, onClose: () => void }} props
+ * createInvite / revokeAccess — по умолчанию /api/client-invite; телефон тренера даёт свой путь,
+ * revokeAccess = null — кнопки «Отключить все входы» нет.
+ * @param {{ open: boolean, client: { id: string, name?: string }, onClose: () => void,
+ *   createInvite?: (clientId: string) => Promise<{ url: string, expiresAt: string }>,
+ *   revokeAccess?: ((clientId: string) => Promise<void>) | null }} props
  */
-export function ClientInviteModal({ open, client, onClose }) {
+export function ClientInviteModal({
+  open,
+  client,
+  onClose,
+  createInvite = createClientInvite,
+  revokeAccess = revokeClientAppAccess,
+}) {
   const titleId = useId()
   const [invite, setInvite] = useState(null)
   const [qr, setQr] = useState('')
@@ -23,7 +33,7 @@ export function ClientInviteModal({ open, client, onClose }) {
     setError('')
     setNote('')
     try {
-      const next = await createClientInvite(client.id)
+      const next = await createInvite(client.id)
       setInvite(next)
       setQr(await qrDataUrl(next.url))
     } catch (e) {
@@ -60,7 +70,7 @@ export function ClientInviteModal({ open, client, onClose }) {
     setBusy(true)
     setError('')
     try {
-      await revokeClientAppAccess(client.id)
+      await revokeAccess(client.id)
       setInvite(null)
       setQr('')
       setNote('Все входы отключены')
@@ -97,9 +107,11 @@ export function ClientInviteModal({ open, client, onClose }) {
         {error ? <p className="client-invite-modal__error" role="alert">{error}</p> : null}
         {note ? <p className="client-invite-modal__note" role="status">{note}</p> : null}
         <div className="row td-modal-actions client-invite-modal__actions">
-          <button type="button" className="btn btn-ghost btn-touch client-invite-modal__revoke" disabled={busy} onClick={() => void revokeAll()}>
-            Отключить все входы
-          </button>
+          {revokeAccess ? (
+            <button type="button" className="btn btn-ghost btn-touch client-invite-modal__revoke" disabled={busy} onClick={() => void revokeAll()}>
+              Отключить все входы
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn-ghost btn-icon-square btn-touch"

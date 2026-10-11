@@ -5,6 +5,7 @@ import {
   SCHEDULE_VIEW_DAY,
   SCHEDULE_VIEW_DAYS3,
   SCHEDULE_VIEW_MONTH,
+  SCHEDULE_VIEW_WEEK,
   countScheduleEntriesByDay,
 } from '../../lib/trainer/trainerScheduleCore.js'
 import { resolveCoachScheduleWindow } from '../../lib/trainer/coachScheduleEditCore.js'
@@ -25,7 +26,8 @@ import '../../styles/trainer-schedule.css'
 import '../../styles/trainer-schedule-interactions.css'
 import '../../styles/trainer-schedule-kinds.css'
 
-const PHONE_VIEWS = [SCHEDULE_VIEW_DAY, SCHEDULE_VIEW_DAYS3, SCHEDULE_VIEW_MONTH]
+/** Как в Google Календаре на телефоне: неделя пн–вс, листание пальцем вместо стрелок. */
+const PHONE_VIEWS = [SCHEDULE_VIEW_DAY, SCHEDULE_VIEW_DAYS3, SCHEDULE_VIEW_WEEK, SCHEDULE_VIEW_MONTH]
 /** Час = 60px (на планшете 84): на экране телефона виден больший кусок дня. */
 const PHONE_PX_PER_MIN = 1
 
@@ -66,6 +68,7 @@ export function CoachCalendarPage() {
             onSelectDay={nav.onSelectDay}
             onPrevMonth={nav.prevMonth}
             onNextMonth={nav.nextMonth}
+            swipeNav
           />
         ) : (
           <TrainerScheduleMultiDayAgenda
@@ -76,6 +79,7 @@ export function CoachCalendarPage() {
             trainingById={trainingById}
             canStartTraining={false}
             pxPerMin={PHONE_PX_PER_MIN}
+            swipeNav
             onPrev={() => nav.shiftAnchor(-1)}
             onNext={() => nav.shiftAnchor(1)}
             onToday={nav.goToday}

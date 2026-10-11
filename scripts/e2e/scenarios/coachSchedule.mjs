@@ -45,6 +45,22 @@ async function touchDrag(cdp, page, from, to) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
 }
 
+/** Быстрый взмах пальцем вбок по сетке (dx < 0 — влево, вперёд по времени). */
+async function touchSwipe(cdp, page, selector, dx) {
+  const b = await page.locator(selector).first().boundingBox()
+  const x = b.x + b.width / 2 - dx / 2
+  const y = b.y + Math.min(b.height / 2, 200)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+  for (let i = 1; i <= 6; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + (dx * i) / 6, y }] })
+    await page.waitForTimeout(12)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await page.waitForTimeout(500)
+}
+
+const titleText = (page, cls) => page.locator(cls).first().innerText()
+
 async function scrollBoardTo(page, minutes) {
   await page.evaluate(
     ([m, ppm]) => {
@@ -97,9 +113,33 @@ export async function run(browser) {
     await scrollBoardTo(page, 9 * 60)
     c.ok(await entryAt(page, '10:00').isVisible(), 'день: запись 10:00 с сервера')
     c.ok((await page.locator('.trainer-schedule-day__entry-start').count()) === 0, 'на телефоне нет кнопки «Начать тренировку»')
-    c.ok((await page.getByRole('tab', { name: 'Неделя' }).count()) === 0, 'режима «Неделя» на телефоне нет — не помещается')
+    c.ok((await page.getByRole('button', { name: 'Вперёд' }).count()) === 0, 'стрелок нет — листаем пальцем, как в Google Календаре')
     await screenshot(page, 'coach-calendar-day')
-    c.ok(await fitsScreen(page), 'день: всё в одном экране, переключатель «День / 3 дня / Месяц» не уезжает')
+    c.ok(await fitsScreen(page), 'день: всё в одном экране, переключатель «День / 3 дня / Неделя / Месяц» не уезжает')
+
+    const cdp = await context.newCDPSession(page)
+    const dayTitle = await titleText(page, '.trainer-schedule-day__title')
+    await touchSwipe(cdp, page, '.trainer-schedule-day__board', -160)
+    const nextTitle = await titleText(page, '.trainer-schedule-day__title')
+    c.ok(nextTitle !== dayTitle, `взмах влево — следующий день (${dayTitle} → ${nextTitle})`)
+    c.ok((await page.getByRole('dialog').count()) === 0, 'взмах по часам не открыл форму новой записи')
+    await touchSwipe(cdp, page, '.trainer-schedule-day__board', 160)
+    c.ok((await titleText(page, '.trainer-schedule-day__title')) === dayTitle, 'взмах вправо — обратно на сегодня')
+
+    await page.getByRole('tab', { name: 'Неделя', exact: true }).click()
+    await page.locator('.trainer-schedule-day--week').waitFor({ timeout: 10_000 })
+    c.ok(await fitsScreen(page), 'неделя: всё в одном экране')
+    const weekFits = await page.evaluate(() => {
+      const el = globalThis.document.querySelector('.trainer-schedule-day__scroll')
+      return el && el.scrollWidth <= el.clientWidth + 1
+    })
+    c.ok(weekFits, 'неделя: все 7 дней влезают по ширине, без прокрутки вбок')
+    c.ok((await page.locator('.trainer-schedule-day__col-head').count()) === 7, 'неделя: 7 колонок пн–вс')
+    await screenshot(page, 'coach-calendar-week')
+    const weekTitle = await titleText(page, '.trainer-schedule-day__title')
+    await touchSwipe(cdp, page, '.trainer-schedule-day__board', -160)
+    c.ok((await titleText(page, '.trainer-schedule-day__title')) !== weekTitle, 'неделя: взмах влево — следующая неделя')
+    await touchSwipe(cdp, page, '.trainer-schedule-day__board', 160)
     await page.getByRole('tab', { name: '3 дня', exact: true }).click()
     await page.locator('.trainer-schedule-day--multi').waitFor({ timeout: 10_000 })
     c.ok(await fitsScreen(page), '3 дня: всё в одном экране')
@@ -125,7 +165,6 @@ export async function run(browser) {
     c.ok(createdOk, 'сервер: запись 15:00 с клиентом создана сразу')
 
     /* Перенос пальцем 15:00 → 16:00 и «Отменить» (вторая правка той же записи — без ложного «обновите»). */
-    const cdp = await context.newCDPSession(page)
     await scrollBoardTo(page, 14 * 60)
     await entryAt(page, '15:00').waitFor({ timeout: 10_000 })
     const from = await center(entryAt(page, '15:00'))
@@ -174,6 +213,11 @@ export async function run(browser) {
     await page.getByRole('tab', { name: 'Месяц', exact: true }).click()
     await page.locator('.trainer-schedule-month').first().waitFor({ timeout: 10_000 })
     await screenshot(page, 'coach-calendar-month')
+    const monthTitle = await titleText(page, '.trainer-schedule-month__title')
+    await touchSwipe(cdp, page, '.trainer-schedule-month__grid', -160)
+    const nextMonth = await titleText(page, '.trainer-schedule-month__title')
+    c.ok(nextMonth !== monthTitle, `месяц: взмах влево — следующий месяц (${monthTitle} → ${nextMonth})`)
+    c.ok((await page.locator('.trainer-schedule-day').count()) === 0, 'взмах по месяцу не открыл день')
     c.ok(pageErrors.length === 0, `без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
     await screenshot(page, 'coach-schedule-FAIL').catch(() => null)

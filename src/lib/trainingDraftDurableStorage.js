@@ -7,6 +7,7 @@ import {
   buildTrainingDraftDurableSnap,
   draftRevisionMs,
   resolveTrainingDraftDurableKey,
+  shouldKeepNewerTrainingDraftDurable,
 } from './trainingDraftDurableCore.js'
 
 export const TRAINING_DRAFT_DURABLE_PREFIX = 'fitness-diary-training-draft-v1:'
@@ -33,6 +34,7 @@ export function putTrainingDraftDurable(keyOpts, fields) {
     clientId: keyOpts.clientId ?? fields.clientId,
   })
   if (!snap) return false
+  if (shouldKeepNewerTrainingDraftDurable(readTrainingDraftDurable(keyOpts), snap)) return false
   try {
     localStorage.setItem(storageKey(key), JSON.stringify(snap))
     return true

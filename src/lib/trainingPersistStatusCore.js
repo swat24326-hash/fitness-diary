@@ -42,6 +42,17 @@ export function shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInF
 }
 
 /**
+ * Автосейв берёт снимок формы до первых await, а mutex закрывает только запись.
+ * Ранний снимок может дойти до mutex позже нового и откатить ввод (INC-2026-10-11-03).
+ * Явное «Закончить» / «Сохранить» не пропускаем.
+ * @param {{ silent?: boolean, snapshotSeq?: number, lastWrittenSeq?: number }} p
+ */
+export function shouldSkipStaleSilentDraftPersist(p = {}) {
+  if (p.silent !== true) return false
+  return (Number(p.snapshotSeq) || 0) < (Number(p.lastWrittenSeq) || 0)
+}
+
+/**
  * Облако уже completed, а в push ещё летит старый draft (гонка автосейва с «Закончить»).
  * Такой flush нельзя применять — иначе ЗП/статистика с сервера откатываются в 0.
  */

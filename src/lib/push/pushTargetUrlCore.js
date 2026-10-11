@@ -6,10 +6,13 @@ export const PUSH_APP_STAFF = 'staff'
 export const PUSH_APP_COACH = 'coach'
 
 const STAFF_TRAINER_CHAT = /^\/messages\/chat\/([0-9a-f-]{36})\/trainer(?:[/?#]|$)/i
+const STAFF_DM = /^\/messages\/dm\/([0-9a-f-]{36})(?:[/?#]|$)/i
 
 export function coachPushUrl(url) {
   const chat = STAFF_TRAINER_CHAT.exec(String(url ?? ''))
-  return chat ? `/coach/chat/${chat[1].toLowerCase()}` : '/coach'
+  if (chat) return `/coach/chat/${chat[1].toLowerCase()}`
+  const dm = STAFF_DM.exec(String(url ?? ''))
+  return dm ? `/coach/dm/${dm[1].toLowerCase()}` : '/coach'
 }
 
 export function pushUrlForApp(url, app) {

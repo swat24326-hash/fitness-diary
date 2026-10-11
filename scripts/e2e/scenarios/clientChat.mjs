@@ -1,6 +1,6 @@
 /**
  * Переписка клиента с тренером: клиент на iPhone пишет тренеру ссылку Wildberries →
- * у тренера на планшете конверт «1 новых» → «Диалоги с клиентами» → ссылка кликабельна → ответ →
+ * у тренера на планшете конверт «1 новых» → «Диалоги» → ссылка кликабельна → ответ →
  * конверт гаснет → клиент видит ответ с именем тренера и точку на конверте /me.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
@@ -140,8 +140,8 @@ async function trainerReplies(c, browser, backend, chat) {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения клуба: 1 новых' })), 'шапка тренера: конверт «1 новых» — сообщение клиента')
     await page.getByRole('link', { name: /^Сообщения клуба/ }).click()
-    await page.getByRole('link', { name: 'Диалоги с клиентами' }).click()
-    const row = page.getByTestId('chat-threads').getByRole('link', { name: new RegExp(CLIENT_NAME) })
+    await page.getByRole('link', { name: 'Диалоги', exact: true }).click()
+    const row = page.getByTestId('chat-contacts').getByRole('link', { name: new RegExp(CLIENT_NAME) })
     c.ok(await reaches(row.locator('.chat-row__badge', { hasText: '2' })), '«Диалоги»: у клиента кружок «2 новых»')
     await screenshot(page, 'staff-chat-list')
     await row.click()

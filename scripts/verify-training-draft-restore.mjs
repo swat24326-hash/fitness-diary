@@ -4,6 +4,7 @@
 import {
   compareTrainingDraftCandidates,
   pickTrainingDraftRestore,
+  shouldApplyLateDraftRestore,
   workoutDraftContentScore,
 } from '../src/lib/trainingDraftRestoreCore.js'
 
@@ -77,6 +78,65 @@ const sessionWin = pickTrainingDraftRestore({
   },
 })
 ok(sessionWin.source === 'session', 'session cache can restore after home navigation')
+
+/* INC-2026-10-11-03: поздний restore после /new → /:id не затирает ввод, сделанный во время загрузки. */
+const shownEmpty = { exercises: [{ name: '', sets: [{}] }] }
+const weightOnly = { ...shownEmpty, pre_weight_kg: '62' }
+const typedLive = { ...weightOnly, training_focus: 'Сила' }
+ok(
+  !shouldApplyLateDraftRestore({
+    picked: { source: 'durable', workoutState: weightOnly },
+    shownWorkoutState: shownEmpty,
+    liveWorkoutState: typedLive,
+    idbWorkoutState: shownEmpty,
+  }),
+  'CRITICAL: durable «только вес» не затирает направленность, введённую после показа',
+)
+ok(
+  !shouldApplyLateDraftRestore({
+    picked: { source: 'durable', workoutState: { ...typedLive, warmup: 'Суставная гимнастика' } },
+    shownWorkoutState: shownEmpty,
+    liveWorkoutState: weightOnly,
+    idbWorkoutState: shownEmpty,
+  }),
+  'тренер уже правил экран — даже более богатая копия не подменяет живой ввод',
+)
+const richDurable = { cooldown: 'суставная', exercises: [{ name: 'Тяга', sets: [{ reps: '12' }] }] }
+ok(
+  shouldApplyLateDraftRestore({
+    picked: { source: 'durable', workoutState: richDurable },
+    shownWorkoutState: { cooldown: 'су' },
+    liveWorkoutState: { cooldown: 'су' },
+    idbWorkoutState: { cooldown: 'су' },
+  }),
+  'возврат на вкладку без ввода: устаревший LRU догоняется более полной durable-копией',
+)
+ok(
+  shouldApplyLateDraftRestore({
+    picked: { source: 'durable', workoutState: richDurable },
+    shownWorkoutState: { cooldown: 'су' },
+    liveWorkoutState: { cooldown: 'су', loyalty: { session_started_at: '2026-10-11T10:00:00.000Z' }, hr_session: { avg: 120 } },
+    idbWorkoutState: { cooldown: 'су' },
+  }),
+  'штамп лояльности и пульс — не правка тренера, restore не блокируют',
+)
+ok(
+  !shouldApplyLateDraftRestore({
+    picked: { source: 'durable', workoutState: { cooldown: 'су' } },
+    shownWorkoutState: richDurable,
+    liveWorkoutState: richDurable,
+    idbWorkoutState: richDurable,
+  }),
+  'более бедная копия экран не подменяет',
+)
+ok(
+  !shouldApplyLateDraftRestore({
+    picked: { source: 'empty', workoutState: {} },
+    shownWorkoutState: {},
+    liveWorkoutState: {},
+  }),
+  'пустой выбор — ничего не подменяем',
+)
 
 if (failed) {
   console.error(`\n${failed} failed`)

@@ -34,6 +34,9 @@ ok(coachPushUrl('/messages') === '/coach', 'рассылка клуба → «С
 ok(coachPushUrl(`/messages/chat/${CLIENT}/sales`) === '/coach', 'диалог менеджера на телефон тренера не ведёт')
 ok(coachPushUrl(`/messages/chat/${CLIENT}/trainer/../../admin`) === `/coach/chat/${CLIENT}`, 'адрес собирается из id, хвост не протаскивается')
 ok(coachPushUrl('') === '/coach' && coachPushUrl(null) === '/coach', 'пустой адрес → /coach')
+ok(coachPushUrl(`/messages/dm/${CLIENT}`) === `/coach/dm/${CLIENT}`, 'личное сообщение сотрудника → диалог на телефоне')
+ok(coachPushUrl(`/messages/dm/${CLIENT}/../../admin`) === `/coach/dm/${CLIENT}`, 'личное: хвост адреса не протаскивается')
+ok(coachPushUrl('/messages/dm/not-a-uuid') === '/coach', 'личное: кривой id → /coach')
 
 // --- Расписание: сегодня и завтра, только имя, время и подпись ---
 ok(coachScheduleDays('2026-12-31').join() === '2026-12-31,2027-01-01', 'завтра через границу года')

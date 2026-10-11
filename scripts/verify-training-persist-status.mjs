@@ -10,6 +10,7 @@ import {
   shouldSkipDuplicateFirstCompletionSave,
   shouldSkipObsoleteTrainingDraftPush,
   shouldSkipSilentPersistOfCompleted,
+  shouldSkipStaleSilentDraftPersist,
   shouldSkipSilentPersistWhileCompleteInFlight,
   trainingDraftPushRequiresDraftRowFilter,
   shouldEnqueueTrainingAsInsert,
@@ -48,6 +49,18 @@ ok(!shouldSkipDuplicateFirstCompletionSave('completed', false), 'edit completed 
 ok(shouldSkipSilentPersistOfCompleted('completed', true), 'autosave does not uncomplete')
 ok(!shouldSkipSilentPersistOfCompleted('draft', true), 'autosave draft proceeds')
 ok(!shouldSkipSilentPersistOfCompleted('completed', false), 'explicit save of completed proceeds')
+
+/* INC-2026-10-11-03: ранний снимок автосейва дошёл до mutex позже нового. */
+ok(
+  shouldSkipStaleSilentDraftPersist({ silent: true, snapshotSeq: 3, lastWrittenSeq: 4 }),
+  'CRITICAL: stale autosave snapshot does not overwrite newer written form',
+)
+ok(!shouldSkipStaleSilentDraftPersist({ silent: true, snapshotSeq: 5, lastWrittenSeq: 4 }), 'newer autosave writes')
+ok(!shouldSkipStaleSilentDraftPersist({ silent: true, snapshotSeq: 1 }), 'first write for training proceeds')
+ok(
+  !shouldSkipStaleSilentDraftPersist({ silent: false, snapshotSeq: 3, lastWrittenSeq: 4 }),
+  'explicit «Закончить» never skipped as stale',
+)
 ok(shouldSkipSilentPersistWhileCompleteInFlight(true, true), 'autosave yields to complete in-flight')
 ok(!shouldSkipSilentPersistWhileCompleteInFlight(true, false), 'autosave when not completing')
 ok(!shouldSkipSilentPersistWhileCompleteInFlight(false, true), 'explicit complete not skipped by guard')

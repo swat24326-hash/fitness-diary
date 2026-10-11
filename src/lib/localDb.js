@@ -1,5 +1,6 @@
 import { openDB } from 'idb'
 import { cloudPutAllowedOnPull, isPullMergeGuardedStore, shouldApplyCloudRowOnPull, shouldRequeueLocalCompletedOverCloudDraft } from './syncPullGuardCore.js'
+import { resolveQueueItemAfterPushAck } from './syncQueueAckCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
@@ -264,6 +265,19 @@ export async function listSyncQueue() {
 export async function removeSyncItem(local_id) {
   const db = await getDb()
   await db.delete('sync_queue', local_id)
+}
+
+/** После успешного push: снять элемент, если в него за время запроса не влили новую правку. */
+export async function removeSyncItemAfterPush(local_id, pushedData) {
+  const db = await getDb()
+  const tx = db.transaction('sync_queue', 'readwrite')
+  const current = await tx.store.get(local_id)
+  const decision = resolveQueueItemAfterPushAck(current, pushedData)
+  if (decision.action === 'delete') await tx.store.delete(local_id)
+  else if (decision.action === 'as_update') {
+    await tx.store.put({ ...current, operation: 'update', remote_id: decision.remote_id })
+  }
+  await tx.done
 }
 
 export async function putStore(storeName, record) {

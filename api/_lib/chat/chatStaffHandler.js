@@ -1,6 +1,8 @@
 /**
  * admin-data?action=chat — переписка с клиентами для тренера, менеджера продаж, управляющего и админа.
- * GET  view=list → { threads, attention }
+ * GET  view=list → { threads, attention } (attention — ещё и личные диалоги сотрудников, ждущие ответа)
+ * GET  view=contacts → папки «Клиенты · Коллеги · Администрация» (chatContactsHandler.js)
+ * GET  view=dm-thread&user_id / POST { op: 'dm-send', user_id } — переписка сотрудников (staffDmHandler.js)
  * GET  view=thread&client_id&kind[&before] → { client, kind, can_write, messages, has_more } (отмечает прочитанным)
  * POST { op: 'send', client_id, kind, body } → { message }
  */
@@ -18,6 +20,8 @@ import {
 } from '../../../src/lib/chat/chatAccessCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { openChatThread, sendChatMessage } from './chatConversation.js'
+import { sendChatContacts } from './chatContactsHandler.js'
+import { sendStaffDmMessage, sendStaffDmThread, staffDmAttention } from './staffDmHandler.js'
 import { isMissingChatTable, loadChatClient, loadClientsByIds, loadStaffThreads } from './chatStore.js'
 
 const UNAVAILABLE_RU = 'Сообщения пока недоступны — попробуйте позже'
@@ -72,11 +76,15 @@ async function resolveClient(ctx, res, clientId, kind, write) {
 }
 
 export async function handleStaffChatGet(ctx, req, res) {
+  const view = String(req.query?.view ?? 'list')
+  if (view === 'contacts') return sendChatContacts(ctx, res)
+  if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before)
   const scope = scopeOf(ctx, res)
   if (!scope) return
   try {
-    if (String(req.query?.view ?? 'list') === 'list') {
-      sendJson(res, 200, await listThreads(ctx, scope))
+    if (view === 'list') {
+      const [list, dm] = await Promise.all([listThreads(ctx, scope), staffDmAttention(ctx)])
+      sendJson(res, 200, { ...list, attention: list.attention + dm })
       return
     }
     const kind = String(req.query?.kind ?? '')
@@ -98,6 +106,7 @@ export async function handleStaffChatGet(ctx, req, res) {
 }
 
 export async function handleStaffChatPost(ctx, res, body) {
+  if (String(body?.op ?? '') === 'dm-send') return sendStaffDmMessage(ctx, res, body?.user_id, body)
   const scope = scopeOf(ctx, res)
   if (!scope) return
   if (String(body?.op ?? '') !== 'send') {

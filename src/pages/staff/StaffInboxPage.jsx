@@ -25,12 +25,12 @@ function Tabs({ chats }) {
   return (
     <nav className="chat-tabs" aria-label="Разделы сообщений">
       {tab('/messages', 'Рассылки', !chats)}
-      {tab('/messages?tab=chats', 'Диалоги с клиентами', chats)}
+      {tab('/messages?tab=chats', 'Диалоги', chats)}
     </nav>
   )
 }
 
-/** /messages — объявления и опросы руководства; вкладка «Диалоги» — переписка с клиентами. */
+/** /messages — объявления и опросы руководства; вкладка «Диалоги» — переписка с клиентами, коллегами и администрацией. */
 export function StaffInboxPage() {
   const [params] = useSearchParams()
   const chats = params.get('tab') === 'chats'

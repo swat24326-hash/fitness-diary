@@ -76,8 +76,15 @@ function recordStoreKey(table_name, payload) {
  * @param {object} cloudRow
  * @param {object} pushedData
  */
-async function applyPushAckDecision(store, key, localRow, cloudRow, pushedData) {
-  const decision = resolveAfterPushAck({ localRow, cloudRow, pushedData, recordKey: key })
+async function applyPushAckDecision(store, key, localRow, cloudRow, pushedData, ack = {}) {
+  const decision = resolveAfterPushAck({
+    localRow,
+    cloudRow,
+    pushedData,
+    recordKey: key,
+    tableName: ack.tableName,
+    duplicate: ack.duplicate === true,
+  })
   if (decision.action === 'mark_local_synced' && localRow) {
     const { __sync: _m, ...rest } = localRow
     await putStore(store, { ...rest, synced: true })
@@ -90,6 +97,16 @@ async function applyPushAckDecision(store, key, localRow, cloudRow, pushedData) 
       synced: false,
       __sync: { operation: 'update', remote_id: remoteId },
     })
+    if (decision.requeue && ack.tableName) {
+      await enqueueSync({
+        table_name: ack.tableName,
+        operation: 'update',
+        remote_id: remoteId,
+        data: recordForPush(decision.requeue_from === 'pushed' ? pushedData : localRow),
+      })
+      const { scheduleBackgroundSyncDrain } = await import('./syncService.js')
+      scheduleBackgroundSyncDrain()
+    }
     return
   }
   await putStore(store, { ...cloudRow, synced: true })
@@ -101,8 +118,10 @@ async function applyPushAckDecision(store, key, localRow, cloudRow, pushedData) 
  * @param {string} table_name
  * @param {object} pushedData
  * @param {object | null | undefined} [serverRecord]
+ * @param {{ duplicate?: boolean }} [opts] — сервер ответил «строка уже есть» и не обновил её
  */
-export async function applyPushRecordToLocal(table_name, pushedData, serverRecord) {
+export async function applyPushRecordToLocal(table_name, pushedData, serverRecord, opts = {}) {
+  const ack = { tableName: table_name, duplicate: opts.duplicate === true }
   if (!serverRecord || typeof serverRecord !== 'object') {
     await markRecordSynced(table_name, pushedData)
     return
@@ -117,7 +136,7 @@ export async function applyPushRecordToLocal(table_name, pushedData, serverRecor
     const db = await getDb()
     const localRow = await db.get('health_cards', cid)
     const cloudRow = markRecordFromCloud(serverRecord)
-    await applyPushAckDecision('health_cards', cid, localRow, cloudRow, pushedData)
+    await applyPushAckDecision('health_cards', cid, localRow, cloudRow, pushedData, ack)
     return
   }
 
@@ -131,7 +150,7 @@ export async function applyPushRecordToLocal(table_name, pushedData, serverRecor
   const db = await getDb()
   const localRow = await db.get(store, key)
   const cloudRow = markRecordFromCloud(serverRecord)
-  await applyPushAckDecision(store, key, localRow, cloudRow, pushedData)
+  await applyPushAckDecision(store, key, localRow, cloudRow, pushedData, ack)
 }
 
 /** После успешного push — не ставить в очередь снова. */

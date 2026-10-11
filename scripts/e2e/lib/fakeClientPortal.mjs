@@ -29,6 +29,7 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
       if (body?.action === 'redeem') {
         if (body.token !== inviteToken || redeemed) return { status: 401, json: { error: CLIENT_INVITE_BAD_RU } }
         redeemed = true
+        ;(state.client_sessions ??= []).push({ client_id: clientId, revoked_at: null })
         const client = state.clients.find((c) => c.id === clientId)
         return { status: 200, json: { session: session(), client: { name: client.name } } }
       }

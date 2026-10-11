@@ -27,6 +27,23 @@ export function idbTrainingRevisionMs(idbRow) {
   return 0
 }
 
+/** Дальше этого «более новая» durable — уже перевод часов планшета, а не гонка записей. */
+export const TRAINING_DRAFT_DURABLE_RACE_WINDOW_MS = 10 * 60 * 1000
+
+/**
+ * Асинхронная запись со снимком, снятым раньше, не затирает более свежую durable
+ * (иначе hydrate увозит старую форму в IDB и на сервер — INC-2026-10-11-03).
+ * @param {{ revisedAt?: unknown } | null | undefined} existing
+ * @param {{ revisedAt?: unknown } | null | undefined} next
+ * @returns {boolean}
+ */
+export function shouldKeepNewerTrainingDraftDurable(existing, next) {
+  const existingMs = draftRevisionMs(existing?.revisedAt)
+  const nextMs = draftRevisionMs(next?.revisedAt)
+  if (!existingMs || !nextMs || existingMs <= nextMs) return false
+  return existingMs - nextMs <= TRAINING_DRAFT_DURABLE_RACE_WINDOW_MS
+}
+
 /**
  * Flush при уходе с экрана — только скрытие, не разблокировка.
  * @param {string | null | undefined} visibilityState

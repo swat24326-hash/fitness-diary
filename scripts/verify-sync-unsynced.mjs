@@ -88,6 +88,103 @@ assert(defaultSyncOperation('memberships', { id: 'x' }).operation === 'update', 
   )
 }
 
+/* INC-2026-10-11-03: ack старого автосейва пришёл, когда на планшете уже новая правка. */
+{
+  const pushed = { id: 't1', updated_at: '2026-10-11T18:50:53.700Z', status: 'draft' }
+  const local = { id: 't1', updated_at: '2026-10-11T18:50:53.763Z', status: 'draft' }
+  const cloud = { id: 't1', updated_at: '2026-10-11T18:50:53.837Z', status: 'draft' }
+  const d = resolveAfterPushAck({ localRow: local, cloudRow: cloud, pushedData: pushed, recordKey: 't1' })
+  assert(
+    d.action === 'keep_local_needs_update' && d.remote_id === 't1',
+    'CRITICAL: ack older push (server NOW stamp) does not overwrite newer local edit',
+  )
+}
+
+{
+  const pushed = { id: 't1', updated_at: '2026-10-11T18:50:53.700Z', status: 'draft' }
+  const local = { id: 't1', updated_at: '2026-10-11T18:50:53.763Z', status: 'draft' }
+  const cloud = { id: 't1', updated_at: '2026-10-11T18:50:53.837Z', status: 'completed' }
+  const d = resolveAfterPushAck({ localRow: local, cloudRow: cloud, pushedData: pushed, recordKey: 't1' })
+  assert(d.action === 'use_cloud', 'completed in cloud still wins over local draft edit')
+}
+
+{
+  const same = { id: 't1', updated_at: '2026-10-11T18:50:53.763Z', status: 'draft' }
+  const cloud = { id: 't1', updated_at: '2026-10-11T18:50:53.838Z', status: 'draft' }
+  const d = resolveAfterPushAck({ localRow: same, cloudRow: cloud, pushedData: same, recordKey: 't1' })
+  assert(d.action === 'use_cloud', 'ack of the latest push → take server stamp')
+}
+
+/* INC-2026-10-11-03: второй insert до ack первого → сервер «дубликат», в облаке старая форма. */
+{
+  const pushed = {
+    id: 't1',
+    updated_at: '2026-10-11T18:50:55.000Z',
+    status: 'draft',
+    date: '2026-10-11',
+    data: { workoutState: { training_focus: 'Сила', pre_weight_kg: '62' } },
+  }
+  const cloud = {
+    id: 't1',
+    updated_at: '2026-10-11T18:50:56.000Z',
+    status: 'draft',
+    date: '2026-10-11',
+    data: { workoutState: { pre_weight_kg: '62', training_focus: '' } },
+  }
+  const d = resolveAfterPushAck({
+    localRow: pushed,
+    cloudRow: cloud,
+    pushedData: pushed,
+    recordKey: 't1',
+    tableName: 'trainings',
+    duplicate: true,
+  })
+  assert(
+    d.action === 'keep_local_needs_update' && d.requeue === true && d.remote_id === 't1',
+    'CRITICAL: duplicate insert with stale cloud form → requeue as update',
+  )
+
+  const sameReordered = { ...cloud, data: { workoutState: { training_focus: 'Сила', pre_weight_kg: '62' } } }
+  const reorderedPushed = { ...pushed, data: { workoutState: { pre_weight_kg: '62', training_focus: 'Сила' } } }
+  const d2 = resolveAfterPushAck({
+    localRow: reorderedPushed,
+    cloudRow: sameReordered,
+    pushedData: reorderedPushed,
+    recordKey: 't1',
+    tableName: 'trainings',
+    duplicate: true,
+  })
+  assert(d2.action === 'use_cloud', 'duplicate with same content (jsonb key order) → no extra update')
+
+  const d3 = resolveAfterPushAck({
+    localRow: pushed,
+    cloudRow: { ...cloud, status: 'completed' },
+    pushedData: pushed,
+    recordKey: 't1',
+    tableName: 'trainings',
+    duplicate: true,
+  })
+  assert(d3.action === 'use_cloud', 'duplicate: completed in cloud wins over local draft')
+
+  const d4 = resolveAfterPushAck({ localRow: pushed, cloudRow: cloud, pushedData: pushed, recordKey: 't1', tableName: 'trainings' })
+  assert(d4.action !== 'keep_local_needs_update' || d4.requeue !== true, 'no duplicate flag → no requeue')
+  assert(d.requeue_from === 'local', 'duplicate requeue: local same as pushed → from local')
+
+  const olderLocal = { ...pushed, updated_at: '2026-10-11T18:50:50.000Z' }
+  const d5 = resolveAfterPushAck({
+    localRow: olderLocal,
+    cloudRow: cloud,
+    pushedData: pushed,
+    recordKey: 't1',
+    tableName: 'trainings',
+    duplicate: true,
+  })
+  assert(
+    d5.action === 'keep_local_needs_update' && d5.requeue_from === 'pushed',
+    'duplicate requeue: pushed newer than local → resend pushed (newest known form)',
+  )
+}
+
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed.`)
   process.exit(1)

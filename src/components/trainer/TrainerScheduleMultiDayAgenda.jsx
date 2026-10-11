@@ -17,6 +17,7 @@ import { resolveScheduleDragPolicy } from '../../lib/trainer/trainerScheduleDrag
 import { formatDateRu } from '../../lib/dateRu.js'
 import { useTrainerScheduleNow } from '../../hooks/useTrainerScheduleNow.js'
 import { useTrainerScheduleDrag } from '../../hooks/useTrainerScheduleDrag.js'
+import { useScheduleSwipe } from '../../hooks/useScheduleSwipe.js'
 import { TrainerScheduleEntryBlock } from './TrainerScheduleEntryBlock.jsx'
 import { TrainerScheduleKindLegend } from './TrainerScheduleKindPicker.jsx'
 
@@ -48,6 +49,7 @@ function scrollTopForMinutes(minutes, pxPerMin) {
  *   canStartTraining?: boolean,
  *   showTrainerName?: boolean,
  *   pxPerMin?: number,
+ *   swipeNav?: boolean,
  *   onPrev: () => void,
  *   onNext: () => void,
  *   onToday?: () => void,
@@ -69,6 +71,7 @@ export function TrainerScheduleMultiDayAgenda({
   canStartTraining = true,
   showTrainerName = false,
   pxPerMin = PX_PER_MIN_DEFAULT,
+  swipeNav = false,
   onPrev,
   onNext,
   onToday,
@@ -112,6 +115,18 @@ export function TrainerScheduleMultiDayAgenda({
   })
   const preview = drag.preview
   const draggedEntry = preview ? entries.find((e) => String(e.id) === preview.entryId) : null
+  const previewRef = useRef(preview)
+  previewRef.current = preview
+  const swipeAreaRef = useRef(/** @type {HTMLElement | null} */ (null))
+  const swipeContentRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  useScheduleSwipe({
+    areaRef: swipeAreaRef,
+    contentRef: swipeContentRef,
+    enabled: swipeNav,
+    isBlocked: () => previewRef.current != null,
+    onPrev,
+    onNext,
+  })
 
   useEffect(() => {
     const el = boardRef.current
@@ -241,20 +256,26 @@ export function TrainerScheduleMultiDayAgenda({
         compact ? 'trainer-schedule-day--multi' : '',
         days.length >= 7 ? 'trainer-schedule-day--week' : '',
         preview ? 'trainer-schedule-day--dragging' : '',
+        swipeNav ? 'trainer-schedule-day--swipe' : '',
       ]
         .filter(Boolean)
         .join(' ')}
       aria-label={`Расписание: ${title}`}
+      ref={swipeAreaRef}
     >
       <div className="trainer-schedule-day__head">
         <div className="trainer-schedule-day__nav">
-          <button type="button" className="btn btn-icon-square btn-secondary" onClick={onPrev} aria-label="Назад">
-            <ChevronLeft size={20} aria-hidden />
-          </button>
+          {swipeNav ? null : (
+            <button type="button" className="btn btn-icon-square btn-secondary" onClick={onPrev} aria-label="Назад">
+              <ChevronLeft size={20} aria-hidden />
+            </button>
+          )}
           <h2 className="trainer-schedule-day__title">{title}</h2>
-          <button type="button" className="btn btn-icon-square btn-secondary" onClick={onNext} aria-label="Вперёд">
-            <ChevronRight size={20} aria-hidden />
-          </button>
+          {swipeNav ? null : (
+            <button type="button" className="btn btn-icon-square btn-secondary" onClick={onNext} aria-label="Вперёд">
+              <ChevronRight size={20} aria-hidden />
+            </button>
+          )}
         </div>
         {onToday ? (
           <button
@@ -282,12 +303,17 @@ export function TrainerScheduleMultiDayAgenda({
       </div>
 
       {compact ? (
-        <div className="trainer-schedule-day__scroll">
+        <div className="trainer-schedule-day__scroll" ref={swipeContentRef}>
           <div className="trainer-schedule-day__col-heads" style={multiGrid}>
             <span className="trainer-schedule-day__col-heads-spacer" aria-hidden />
             {days.map((dayIso) => {
               const isToday = dayIso === today
-              const headLabel = `${weekdayShortRu(dayIso)} ${formatDateRu(dayIso).slice(0, 5)}`
+              const headLabel = (
+                <>
+                  <span className="trainer-schedule-day__col-wd">{weekdayShortRu(dayIso)}</span>{' '}
+                  <span className="trainer-schedule-day__col-date">{formatDateRu(dayIso).slice(0, 5)}</span>
+                </>
+              )
               const className = [
                 'trainer-schedule-day__col-head',
                 !onOpenDay ? 'trainer-schedule-day__col-head--static' : '',
@@ -318,7 +344,13 @@ export function TrainerScheduleMultiDayAgenda({
           </div>
         </div>
       ) : (
-        <div className="trainer-schedule-day__board" ref={boardRef}>
+        <div
+          className="trainer-schedule-day__board"
+          ref={(el) => {
+            boardRef.current = el
+            swipeContentRef.current = el
+          }}
+        >
           {hoursCol}
           {days.map((dayIso) => renderDayTrack(dayIso))}
         </div>

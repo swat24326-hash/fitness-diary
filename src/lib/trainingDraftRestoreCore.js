@@ -41,6 +41,39 @@ export function workoutDraftContentScore(workoutState) {
   return score
 }
 
+/** Поля, которые экран пишет сам (штамп лояльности, пульс) — это не правка тренера. */
+const AUTO_WORKOUT_FIELDS = ['loyalty', 'hr_session']
+
+function workoutTrainerEditKey(workoutState) {
+  if (!workoutState || typeof workoutState !== 'object') return ''
+  const rest = { ...workoutState }
+  for (const k of AUTO_WORKOUT_FIELDS) delete rest[k]
+  return JSON.stringify(rest)
+}
+
+/**
+ * Поздний restore после показа черновика из LRU (/new → /:id, возврат на вкладку).
+ * Подменять экран можно, только если тренер с момента показа ничего не ввёл
+ * и найденная версия богаче того, что на экране сейчас (INC-2026-10-11-03).
+ * @param {{
+ *   picked?: { source?: string, workoutState?: object } | null,
+ *   shownWorkoutState?: object | null,
+ *   liveWorkoutState?: object | null,
+ *   idbWorkoutState?: object | null,
+ * }} ctx
+ * @returns {boolean}
+ */
+export function shouldApplyLateDraftRestore(ctx = {}) {
+  const picked = ctx.picked
+  if (!picked || picked.source === 'empty') return false
+  if (workoutTrainerEditKey(ctx.liveWorkoutState) !== workoutTrainerEditKey(ctx.shownWorkoutState)) return false
+  const pickedScore = workoutDraftContentScore(picked.workoutState)
+  return (
+    pickedScore > workoutDraftContentScore(ctx.liveWorkoutState) &&
+    pickedScore >= workoutDraftContentScore(ctx.idbWorkoutState)
+  )
+}
+
 /** Если разница revision ≤ этого окна — смотрим «богатство» контента (partial autosave vs полный hide-flush). */
 export const TRAINING_DRAFT_RESTORE_RICHNESS_WINDOW_MS = 120_000
 

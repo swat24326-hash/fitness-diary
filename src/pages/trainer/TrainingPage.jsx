@@ -44,7 +44,11 @@ import {
 import {
   shouldClearDurableAfterIdbSave,
 } from '../../lib/trainingDraftDurableCore.js'
-import { pickTrainingDraftRestore, workoutDraftContentScore } from '../../lib/trainingDraftRestoreCore.js'
+import {
+  pickTrainingDraftRestore,
+  shouldApplyLateDraftRestore,
+  workoutDraftContentScore,
+} from '../../lib/trainingDraftRestoreCore.js'
 import { buildLeavingDraftSessionSnapshot, isLeavingDraftGateReady, isLiveDraftStorageAligned, putLeavingDraftSessionOnTabSwitch } from '../../lib/trainingDraftTabSwitchCore.js'
 import { clearTrainingDraftArtifacts, canPersistTrainingDraft, isTrainingDraftLocallyDeleted } from '../../lib/trainingDraftCleanup.js'
 import {
@@ -63,6 +67,7 @@ import {
   shouldSkipDuplicateCompleteClick,
   shouldSkipDuplicateFirstCompletionSave,
   shouldSkipSilentPersistOfCompleted,
+  shouldSkipStaleSilentDraftPersist,
   shouldSkipSilentPersistWhileCompleteInFlight,
   shouldEnqueueTrainingAsInsert,
 } from '../../lib/trainingPersistStatusCore'
@@ -204,6 +209,9 @@ export function TrainingPage() {
   /** Layout уже применил сессионный кэш для этого route id — load только soft-refresh. */
   const sessionCacheHitRef = useRef(null)
   const saveMutexRef = useRef(Promise.resolve())
+  const persistSnapshotSeqRef = useRef(0)
+  /** id тренировки → seq последнего записанного снимка формы. */
+  const persistWrittenSeqRef = useRef(new Map())
   const completeInFlightRef = useRef(false)
   /** Когда в последний раз ходили в облако за абонементами этого клиента (client id → ms). */
   const membershipEnsureAtRef = useRef(new Map())
@@ -318,9 +326,11 @@ export function TrainingPage() {
   )
 
   const writeDurableFromLiveGuarded = useCallback(async (live, revisedAt) => {
+    /* Метка — момент снимка: после await форма уже могла уйти вперёд. */
+    const snapshotAt = revisedAt || new Date().toISOString()
     const tid = String(live?.meta?.trainingId ?? '').trim()
     if (tid && !(await canPersistTrainingDraft(tid))) return false
-    return writeDurableFromLive(live, revisedAt)
+    return writeDurableFromLive(live, snapshotAt)
   }, [writeDurableFromLive])
 
   const flushDraftSnapshotOnLeave = useCallback(async () => {
@@ -495,6 +505,11 @@ export function TrainingPage() {
       return
     }
 
+    /* /new → /:id: на экране уже этот черновик, а ввод мог прийти после снимка — тело берём живое. */
+    const liveNow = liveDraftRef.current
+    const sameDraftOnScreen =
+      String(liveNow?.loadState ?? '') === 'ok' && String(liveNow?.meta?.trainingId ?? '').trim() === String(id)
+    const shown = sameDraftOnScreen ? { ...cached, workoutState: liveNow.workoutState } : cached
     const epoch = pageEpochRef.current + 1
     pageEpochRef.current = epoch
     sessionCacheHitRef.current = {
@@ -506,12 +521,9 @@ export function TrainingPage() {
       trainingDate: String(cached.trainingDate ?? ''),
       trainingType: String(cached.trainingType ?? 'Силовая'),
       sessionAt: cachedEntry?.at ?? 0,
+      shownWorkoutState: shown.workoutState,
     }
-    /* /new → /:id: на экране уже этот черновик, а ввод мог прийти после снимка — тело берём живое. */
-    const liveNow = liveDraftRef.current
-    const sameDraftOnScreen =
-      String(liveNow?.loadState ?? '') === 'ok' && String(liveNow?.meta?.trainingId ?? '').trim() === String(id)
-    applyDraftSessionSnapshot(sameDraftOnScreen ? { ...cached, workoutState: liveNow.workoutState } : cached)
+    applyDraftSessionSnapshot(shown)
     bumpHydrateVersion((v) => v + 1)
   }, [id, clientIdParam, isNew, isAdmin, user?.id, applyDraftSessionSnapshot, flushLeavingDraftOnTabSwitch, flushLeavingDraftSync])
 
@@ -651,11 +663,15 @@ export function TrainingPage() {
           expectClientId: cid,
           session: sessionForPick,
         })
-        const cacheWs = sessionSnap?.workoutState ?? {}
-        const idbWs = idbRowCached?.data && typeof idbRowCached.data === 'object' ? idbRowCached.data : {}
-        const shownScore = workoutDraftContentScore(cacheWs)
-        const pickedScore = workoutDraftContentScore(pickedCached.workoutState)
-        if (pickedCached.source !== 'empty' && pickedScore > shownScore && pickedScore >= workoutDraftContentScore(idbWs)) {
+        /* Пока шли await, тренер мог ввести поля — сравниваем с живым экраном, не со снимком LRU. */
+        if (
+          shouldApplyLateDraftRestore({
+            picked: pickedCached,
+            shownWorkoutState: cacheHit.shownWorkoutState,
+            liveWorkoutState: liveDraftRef.current.workoutState,
+            idbWorkoutState: idbRowCached?.data,
+          })
+        ) {
           const fallbackType = pickedCached.trainingType || cacheHit.trainingType || 'Силовая'
           setWorkoutState({
             ...emptyTrainingData(),
@@ -1128,6 +1144,9 @@ export function TrainingPage() {
     const clientLive = live.client
     const clientIdParamLive = live.clientIdParam
     const isNewLive = live.isNew
+    persistSnapshotSeqRef.current += 1
+    const snapshotSeq = persistSnapshotSeqRef.current
+    const snapshotAt = new Date().toISOString()
     const completeClick = String(status ?? '') === 'completed' && !silent
     if (completeClick && shouldSkipDuplicateCompleteClick(completeInFlightRef.current)) return
     if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
@@ -1221,7 +1240,7 @@ export function TrainingPage() {
           clientIdParam: clientIdParamLive,
           isNew: isNewLive,
         },
-        new Date().toISOString(),
+        snapshotAt,
       )
     }
 
@@ -1511,6 +1530,15 @@ export function TrainingPage() {
       const fresh = await dbNow.get('trainings', row.id)
       const diskStatus = fresh?.status ?? previousStatus
       if (shouldSkipSilentPersistOfCompleted(diskStatus, silent)) return
+      if (
+        shouldSkipStaleSilentDraftPersist({
+          silent,
+          snapshotSeq,
+          lastWrittenSeq: persistWrittenSeqRef.current.get(row.id),
+        })
+      ) {
+        return
+      }
       if (shouldSkipDuplicateFirstCompletionSave(diskStatus, firstCompletion)) {
         const applyUi = shouldApplyTrainingPersistUi({
           currentEpoch: pageEpochRef.current,
@@ -1547,6 +1575,8 @@ export function TrainingPage() {
           operation: shouldEnqueueTrainingAsInsert(prev) ? 'insert' : 'update',
           remote_id: shouldEnqueueTrainingAsInsert(prev) ? null : row.id,
         })
+        const writtenSeq = persistWrittenSeqRef.current.get(row.id) ?? 0
+        persistWrittenSeqRef.current.set(row.id, Math.max(writtenSeq, snapshotSeq))
         if (shouldLinkScheduleEntryOnTrainingSave(scheduleEntryParam, row.id)) {
           try {
             const linked = await linkScheduleEntryToTraining(scheduleEntryParam, row.id)

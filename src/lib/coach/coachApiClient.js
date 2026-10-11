@@ -1,4 +1,5 @@
 /** Запросы телефона тренера к /api/coach. Только онлайн — очередь sync и IndexedDB не трогаем. */
+import { buildClientJoinUrl } from '../client/clientJoinUrl.js'
 import { coachRequest } from './coachSession.js'
 
 /** @returns {Promise<{ name: string, club: { name: string, manifest_url: string } | null }>} */
@@ -35,6 +36,25 @@ export const fetchCoachClients = () => coachRequest({ view: 'clients' })
 
 /** @returns {Promise<{ threads: object[], attention: number }>} */
 export const fetchCoachChats = () => coachRequest({ view: 'chats' })
+
+/** Папки «Сообщений»: люди с приложением сверху. @returns {Promise<{ role: string, folders: Array<{ id: string, label: string, unread: number, contacts: object[] }> }>} */
+export const fetchCoachContacts = () => coachRequest({ view: 'contacts' })
+
+/** Ссылка своему клиенту в приложение клуба. @returns {Promise<{ url: string, expiresAt: string }>} */
+export async function createCoachClientInvite(clientId) {
+  const data = await coachRequest({}, { op: 'client-invite', client_id: clientId })
+  return { url: buildClientJoinUrl(window.location.origin, data.token), expiresAt: data.expires_at }
+}
+
+/** Переписка с коллегой / администрацией. */
+export function fetchCoachDmThread(userId, before) {
+  return coachRequest({ view: 'dm-thread', user_id: userId, ...(before ? { before } : {}) })
+}
+
+/** @param {{ body: string } | { sticker: string }} outgoing */
+export function sendCoachDmMessage(userId, outgoing) {
+  return coachRequest({}, { op: 'dm-send', user_id: userId, ...outgoing })
+}
 
 export function fetchCoachChatThread(clientId, before) {
   return coachRequest({ view: 'chat-thread', client_id: clientId, ...(before ? { before } : {}) })

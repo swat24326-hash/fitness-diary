@@ -7,6 +7,7 @@ import { launchBrowser, startDevServer } from './lib/e2eHarness.mjs'
 import * as offlineFinish from './scenarios/trainerOfflineFinish.mjs'
 import * as editCompletedDate from './scenarios/trainerEditCompletedDate.mjs'
 import * as twoDrafts from './scenarios/trainerTwoDrafts.mjs'
+import * as inputAfterOpen from './scenarios/trainerInputAfterOpen.mjs'
 import * as clientMe from './scenarios/clientMeApp.mjs'
 import * as staffInbox from './scenarios/staffInbox.mjs'
 import * as clientChat from './scenarios/clientChat.mjs'
@@ -14,9 +15,11 @@ import * as trainerSchedule from './scenarios/trainerScheduleCalendar.mjs'
 import * as coachApp from './scenarios/coachApp.mjs'
 import * as coachSchedule from './scenarios/coachSchedule.mjs'
 import * as coachClients from './scenarios/coachClients.mjs'
+import * as coachContacts from './scenarios/coachContacts.mjs'
+import * as staffDm from './scenarios/staffDm.mjs'
 import * as settingsMenu from './scenarios/trainerSettingsMenu.mjs'
 
-const SCENARIOS = [offlineFinish, editCompletedDate, twoDrafts, clientMe, staffInbox, clientChat, trainerSchedule, coachApp, coachSchedule, coachClients, settingsMenu]
+const SCENARIOS = [offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, staffInbox, clientChat, trainerSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, settingsMenu]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

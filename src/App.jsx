@@ -34,6 +34,7 @@ import { AdminInboxPage } from './pages/admin/AdminInboxPage.jsx'
 import { StaffInboxPage } from './pages/staff/StaffInboxPage.jsx'
 import { StaffInboxItemPage } from './pages/staff/StaffInboxItemPage.jsx'
 import { StaffChatThread } from './pages/staff/StaffChatThread.jsx'
+import { StaffDmThread } from './pages/staff/StaffDmThread.jsx'
 import { ClubSupervisorClubTasks } from './pages/admin/ClubSupervisorClubTasks'
 import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
 import { IskraPanelProvider } from './context/IskraPanelContext'
@@ -301,6 +302,7 @@ export default function App() {
             <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor']} />}>
               <Route path="/messages" element={<StaffInboxPage />} />
               <Route path="/messages/:id" element={<StaffInboxItemPage />} />
+              <Route path="/messages/dm/:userId" element={<StaffDmThread />} />
             </Route>
             <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor', 'admin']} />}>
               <Route path="/messages/chat/:clientId/:kind" element={<StaffChatThread />} />

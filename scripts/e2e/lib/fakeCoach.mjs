@@ -3,6 +3,7 @@
  * Решение «пускать ли телефон» и расписание — те же чистые функции, что на сервере; переписка — fakeChat.
  */
 import { decideCoachDevice } from '../../../api/_lib/deviceBindingCore.js'
+import { canStaffInviteClient } from '../../../api/_lib/clientPortal/clientInviteCore.js'
 import { buildCoachMe, buildCoachSchedule } from '../../../api/_lib/coach/coachViewCore.js'
 import { COACH_HANDOFF_GONE_RU, COACH_INVITE_GONE_RU, coachHandoffDenial, coachInviteDenial } from '../../../api/_lib/coach/coachInviteCore.js'
 import { buildCoachClub } from '../../../api/_lib/coach/coachManifestCore.js'
@@ -22,7 +23,7 @@ const DENIED = { status: 401, json: { error: 'Вход с телефона за�
  * clientsData — абонементы, ПЗ и завершённые тренировки для вкладки «Клиенты».
  */
 export function createFakeCoach(state, chat, { trainerId, today, schedule, trainings = {}, clientsData = {} }) {
-  const coach = { devices: [], sessions: [], invites: [] }
+  const coach = { devices: [], sessions: [], invites: [], clientInvites: [] }
   const seededAt = new Date(Date.now() - 3600_000).toISOString()
   for (const e of schedule) {
     e.created_at ??= seededAt
@@ -107,6 +108,8 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
         return { status: 200, json: { token, expires_at: coach.invites.at(-1).expires_at } }
       }
       if (COACH_SCHEDULE_WRITE_OPS.includes(req.body?.op)) return scheduleWrite(user, req.body)
+      if (req.body?.op === 'client-invite') return clientInvite(user, req.body.client_id)
+      if (req.body?.op === 'dm-send') return staff({}, { op: 'dm-send', user_id: req.body.user_id, body: req.body.body, sticker: req.body.sticker })
       if (req.body?.op !== 'chat-send') return { status: 400, json: { error: 'Неизвестное действие' } }
       return staff({}, { client_id: req.body.client_id, kind: 'trainer', body: req.body.body, sticker: req.body.sticker })
     }
@@ -132,12 +135,24 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       return { status: 200, json: { today, clients } }
     }
     if (view === 'chats') return staff({ view: 'list' })
+    if (view === 'contacts') return staff({ view: 'contacts' })
+    if (view === 'dm-thread') return staff({ view: 'dm-thread', user_id: q.get('user_id') })
     if (view === 'chat-thread') return staff({ view: 'thread', kind: 'trainer', client_id: q.get('client_id') })
     if (view === 'push-status') return { status: 200, json: { configured: false, public_key: '', subscribed: false } }
     return { status: 400, json: { error: 'Неизвестный запрос' } }
   }
 
   const ownClients = () => state.clients.filter((c) => c.trainer_id === trainerId)
+
+  /** Как issueClientInvite: права — canStaffInviteClient, токены складываем для проверки в сценарии. */
+  function clientInvite(user, clientId) {
+    const client = state.clients.find((c) => c.id === clientId)
+    const gate = canStaffInviteClient({ isTrainer: true, user: { id: trainerId }, profile: user }, client)
+    if (!gate.ok) return { status: gate.status, json: { error: gate.error } }
+    const token = `e2eClientInvite_${coach.clientInvites.length + 1}_0123456789abcdef`
+    coach.clientInvites.push({ client_id: clientId, token })
+    return { status: 200, json: { token, expires_at: new Date(Date.now() + 72 * 3600_000).toISOString() } }
+  }
 
   /** Ежедневник за период — как coachScheduleHandler: свои записи, имена своих клиентов, статусы тренировок. */
   function scheduleRange(q) {

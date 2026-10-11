@@ -19,6 +19,30 @@ export function markRecordFromCloud(record) {
   return { ...rest, synced: true }
 }
 
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(value[k])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value ?? null)
+}
+
+/**
+ * Облачная тренировка ≠ отправленной (jsonb переставляет ключи — сравнение без порядка).
+ * @param {object | null | undefined} cloudRow
+ * @param {object | null | undefined} pushedData
+ */
+export function trainingCloudDiffersFromPushed(cloudRow, pushedData) {
+  if (!cloudRow || !pushedData || typeof cloudRow !== 'object' || typeof pushedData !== 'object') return false
+  for (const field of ['status', 'date', 'type']) {
+    if (String(cloudRow[field] ?? '') !== String(pushedData[field] ?? '')) return true
+  }
+  return stableJson(cloudRow.data ?? {}) !== stableJson(pushedData.data ?? {})
+}
+
 /**
  * После успешного push / 409: что писать в IDB.
  * Типичный залип: insert уже в облаке → 409 со старым updated_at → локаль «новее» →
@@ -29,8 +53,10 @@ export function markRecordFromCloud(record) {
  *   cloudRow?: object | null,
  *   pushedData?: object | null,
  *   recordKey?: string,
+ *   tableName?: string,
+ *   duplicate?: boolean,
  * }} p
- * @returns {{ action: 'use_cloud' } | { action: 'mark_local_synced' } | { action: 'keep_local_needs_update', remote_id: string }}
+ * @returns {{ action: 'use_cloud' } | { action: 'mark_local_synced' } | { action: 'keep_local_needs_update', remote_id: string, requeue?: boolean, requeue_from?: 'local' | 'pushed' }}
  */
 export function resolveAfterPushAck(p) {
   const localRow = p?.localRow
@@ -51,9 +77,31 @@ export function resolveAfterPushAck(p) {
   }
   const localMs = rowRevisionMs(localRow)
   const cloudMs = rowRevisionMs(cloudRow)
+  const pushedMs = rowRevisionMs(p?.pushedData)
+  /* Ответ на более ранний push: сервер штампует updated_at своим NOW(), поэтому облако «новее»
+     правки, сделанной на планшете уже после отправки. Совершённое завершение в облаке не откатываем. */
+  const editedAfterPush = pushedMs > 0 && localMs > pushedMs
+  const cloudCompletedOverDraft =
+    isTrainingStatusCompleted(cloudRow?.status) && !isTrainingStatusCompleted(localRow.status)
+  if (editedAfterPush && !cloudCompletedOverDraft) {
+    return { action: 'keep_local_needs_update', remote_id: key || String(localRow.id ?? '').trim() }
+  }
+  /* insert ушёл до ack первого insert: сервер ответил «строка уже есть» и оставил старую форму. */
+  if (
+    p?.duplicate === true &&
+    p?.tableName === 'trainings' &&
+    !cloudCompletedOverDraft &&
+    trainingCloudDiffersFromPushed(cloudRow, p?.pushedData)
+  ) {
+    return {
+      action: 'keep_local_needs_update',
+      remote_id: key || String(localRow.id ?? '').trim(),
+      requeue: true,
+      requeue_from: pushedMs > localMs ? 'pushed' : 'local',
+    }
+  }
   if (localMs <= cloudMs) return { action: 'use_cloud' }
 
-  const pushedMs = rowRevisionMs(p?.pushedData)
   // Локаль = то, что только что ушло (или без ревизии у payload) — 409 со старым cloud.
   if (!pushedMs || localMs <= pushedMs) {
     return { action: 'mark_local_synced' }

@@ -1,6 +1,7 @@
 /** Сотрудник: выдать клиенту ссылку на /me или отключить все его входы (POST /api/client-invite). */
 import { getAccessTokenForAdminApi } from '../admin/adminApiClient.js'
 import { fetchWithAppTimeout } from '../networkReachability.js'
+import { buildClientJoinUrl } from './clientJoinUrl.js'
 
 const FETCH_MS = 15_000
 
@@ -33,10 +34,7 @@ async function postInvite(body) {
   return data
 }
 
-/** Токен в #фрагменте: не попадает в логи сервера и в Referer. */
-export function buildClientJoinUrl(origin, token) {
-  return `${String(origin).replace(/\/$/, '')}/me/join#t=${encodeURIComponent(token)}`
-}
+export { buildClientJoinUrl }
 
 /** @returns {Promise<{ url: string, expiresAt: string }>} */
 export async function createClientInvite(clientId) {

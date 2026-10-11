@@ -46,6 +46,15 @@ export async function hydrateTrainingDraftsFromDurable() {
         const workout =
           durable.workoutState && typeof durable.workoutState === 'object' ? durable.workoutState : {}
         const revisedAt = String(durable.revisedAt || new Date().toISOString())
+        /* Открытая тренировка могла сохранить новее, пока читали IDB — проверяем в той же транзакции. */
+        const onlyIf = (current) =>
+          shouldPreferDurableDraftOverIdb({
+            idbRow: current,
+            durable,
+            expectClientId: cid,
+            expectTrainingId: tid,
+          })
+        let localId = null
         const date =
           String(durable.trainingDate || idbRow?.date || '').slice(0, 10) ||
           revisedAt.slice(0, 10)
@@ -60,10 +69,12 @@ export async function hydrateTrainingDraftsFromDurable() {
             data: workout,
             synced: false,
           }
-          await saveLocalWithSync('trainings', row, {
+          localId = await saveLocalWithSync('trainings', row, {
             table_name: 'trainings',
             operation: 'update',
             remote_id: tid,
+            onlyIf,
+            updatedAt: durable.revisedAt ? revisedAt : undefined,
           })
         } else {
           const trainerId = String(durable.trainerId ?? '').trim()
@@ -82,13 +93,15 @@ export async function hydrateTrainingDraftsFromDurable() {
             updated_at: revisedAt,
             synced: false,
           }
-          await saveLocalWithSync('trainings', row, {
+          localId = await saveLocalWithSync('trainings', row, {
             table_name: 'trainings',
             operation: 'insert',
             remote_id: null,
+            onlyIf,
+            updatedAt: revisedAt,
           })
         }
-        restored += 1
+        if (localId != null) restored += 1
       } catch {
         /* best-effort */
       }

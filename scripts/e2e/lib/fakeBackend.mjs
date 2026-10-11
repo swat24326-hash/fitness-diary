@@ -111,6 +111,9 @@ function applyPush(state, rec) {
     state[table] = (state[table] ?? []).filter((r) => r.id !== id)
     return { ok: true }
   }
+  /* Как insertTrainingRow на проде: опоздавший insert существующей строки = 23505 → duplicate, без перезаписи. */
+  const existing = table === 'trainings' && op === 'insert' ? (state.trainings ?? []).find((r) => r.id === id) : null
+  if (existing) return { ok: true, duplicate: true, record: existing }
   return { ok: true, record: upsertRow(state, table, { ...data, id }) }
 }
 

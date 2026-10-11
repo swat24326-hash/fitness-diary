@@ -9,6 +9,7 @@ import { CoachCalendarPage } from './CoachCalendarPage.jsx'
 import { CoachChatPage } from './CoachChatPage.jsx'
 import { CoachChatsPage } from './CoachChatsPage.jsx'
 import { CoachClientsPage } from './CoachClientsPage.jsx'
+import { CoachDmPage } from './CoachDmPage.jsx'
 import { CoachJoinPage } from './CoachJoinPage.jsx'
 import { CoachMorePage } from './CoachMorePage.jsx'
 import { CoachSignInPage } from './CoachSignInPage.jsx'
@@ -56,6 +57,7 @@ function CoachRoutes() {
       <Route path="calendar" element={<Navigate to="/coach" replace />} />
       <Route path="chats" element={<CoachChatsPage />} />
       <Route path="chat/:clientId" element={<CoachChatPage />} />
+      <Route path="dm/:userId" element={<CoachDmPage />} />
       <Route path="clients" element={<CoachClientsPage />} />
       <Route path="more" element={<CoachMorePage />} />
       <Route path="*" element={<Navigate to="/coach" replace />} />

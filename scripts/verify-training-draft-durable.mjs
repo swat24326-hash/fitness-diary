@@ -8,6 +8,7 @@ import {
   resolveTrainingDraftDurableKey,
   shouldClearDurableAfterIdbSave,
   shouldFlushDraftOnPageHide,
+  shouldKeepNewerTrainingDraftDurable,
   shouldPreferDurableDraftOverIdb,
 } from '../src/lib/trainingDraftDurableCore.js'
 import {
@@ -201,6 +202,41 @@ putTrainingDraftDurable(
 ok(listTrainingDraftDurables().some((s) => s.trainingId === 't-fresh'), 'G1 list durable')
 ok(hasFreshTrainingDraftDurableInStorage(), 'G2 fresh durable blocks PWA')
 clearTrainingDraftDurable({ trainingId: 't-fresh', clientId: 'c1' })
+
+/* INC-2026-10-11-03: поздняя async-запись со старым снимком не затирает свежую durable. */
+ok(
+  shouldKeepNewerTrainingDraftDurable(
+    { revisedAt: '2026-10-11T18:50:54.000Z' },
+    { revisedAt: '2026-10-11T18:50:53.000Z' },
+  ),
+  'R1 older snapshot does not overwrite newer durable',
+)
+ok(
+  !shouldKeepNewerTrainingDraftDurable(
+    { revisedAt: '2026-10-11T18:50:53.000Z' },
+    { revisedAt: '2026-10-11T18:50:54.000Z' },
+  ),
+  'R2 newer snapshot writes',
+)
+ok(
+  !shouldKeepNewerTrainingDraftDurable(
+    { revisedAt: '2026-10-11T20:00:00.000Z' },
+    { revisedAt: '2026-10-11T18:00:00.000Z' },
+  ),
+  'R3 clock moved back hours → write anyway (not a race)',
+)
+ok(!shouldKeepNewerTrainingDraftDurable(null, { revisedAt: '2026-10-11T18:00:00.000Z' }), 'R4 no existing → write')
+store.clear()
+putTrainingDraftDurable(
+  { trainingId: 'race1', clientId: 'c1' },
+  { clientId: 'c1', workoutState: { training_focus: 'Сила и выносливость' }, revisedAt: '2026-10-11T18:50:54.000Z' },
+)
+const lateStale = putTrainingDraftDurable(
+  { trainingId: 'race1', clientId: 'c1' },
+  { clientId: 'c1', workoutState: { training_focus: 'Сила' }, revisedAt: '2026-10-11T18:50:53.000Z' },
+)
+const kept = listTrainingDraftDurables().find((d) => d.trainingId === 'race1')
+ok(!lateStale && kept?.workoutState?.training_focus === 'Сила и выносливость', 'R5 storage keeps newest form')
 
 if (failed) {
   console.error(`\n${failed} failed`)

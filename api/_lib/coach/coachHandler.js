@@ -1,10 +1,14 @@
 /**
  * /api/coach — данные телефона тренера. Только пропуск 'coach' (requireCoachUser), только онлайн.
- * GET  ?view=me | schedule | chats | chat-thread&client_id[&before] | push-status&endpoint
+ * GET  ?view=me | schedule | chats | contacts | chat-thread&client_id[&before] | push-status&endpoint
+ *      contacts — папки «Сообщений», клиенты с приложением сверху (chatContactsHandler.js)
+ *      | dm-thread&user_id[&before] — переписка с коллегой / администрацией (staffDmHandler.js)
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
  *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
  * GET  ?manifest=<club uuid> — без пропуска: manifest с названием клуба (браузер шлёт его без токена).
  * POST { op: 'chat-send', client_id, body | sticker } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
+ *      | { op: 'dm-send', user_id, body | sticker } — сообщение коллеге / администрации
+ *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
  *      | { op: 'schedule-save' | 'schedule-delete' | 'schedule-copies', ... } — правка Ежедневника
  * Переписка — те же обработчики, что у планшета (handleStaffChat*), только диалоги «Тренер» своих клиентов.
@@ -14,6 +18,9 @@ import { PUSH_APP_COACH } from '../../../src/lib/push/pushTargetUrlCore.js'
 import { sendJson, setCors } from '../adminSupabase.js'
 import { loadInChunks } from '../batchCore.js'
 import { handleStaffChatGet, handleStaffChatPost } from '../chat/chatStaffHandler.js'
+import { sendChatContacts } from '../chat/chatContactsHandler.js'
+import { sendStaffDmMessage, sendStaffDmThread } from '../chat/staffDmHandler.js'
+import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
 import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
 import { COACH_SCHEDULE_FIELDS, buildCoachMe, buildCoachSchedule, coachScheduleDays } from './coachViewCore.js'
@@ -84,6 +91,8 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'clients') return sendCoachClients(ctx, res)
   if (view === 'push-status') return sendPushStatus(ctx, req, res)
   if (view === 'chats') return handleStaffChatGet(ctx, { query: { view: 'list' } }, res)
+  if (view === 'contacts') return sendChatContacts(ctx, res)
+  if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before)
   if (view === 'chat-thread') {
     const { client_id, before } = req.query ?? {}
     return handleStaffChatGet(ctx, { query: { view: 'thread', kind: 'trainer', client_id, before } }, res)
@@ -97,6 +106,11 @@ async function handlePost(ctx, res, body, store) {
   if (COACH_SCHEDULE_WRITE_OPS.includes(op)) return handleCoachScheduleWrite(ctx, res, op, body)
   if (op === 'chat-send') {
     return handleStaffChatPost(ctx, res, { op: 'send', kind: 'trainer', client_id: body.client_id, body: body.body, sticker: body.sticker })
+  }
+  if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body.user_id, { body: body.body, sticker: body.sticker })
+  if (op === 'client-invite') {
+    const out = await issueClientInvite(ctx, { client_id: body.client_id })
+    return sendJson(res, out.status, out.body)
   }
   if (op === 'push-subscribe' || op === 'push-unsubscribe') {
     const { endpoint, p256dh, auth, user_agent } = body

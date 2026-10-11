@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from './supabase'
 import { noteAppNetworkResponse, SYNC_PULL_FETCH_TIMEOUT_MS, fetchWithAppTimeout } from './networkReachability'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
-import { removeSyncItem } from './localDb'
+import { removeSyncItemAfterPush } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
 import { applyPushRecordToLocal } from './syncLocalRecords'
 import { mapWithConcurrency } from './syncConcurrency'
@@ -118,7 +118,7 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
   if (res.ok && body.ok !== false) {
     if (local_id) {
       try {
-        await removeSyncItem(local_id)
+        await removeSyncItemAfterPush(local_id, data)
       } catch {
         /* ignore */
       }
@@ -127,7 +127,7 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
       await pruneRedundantSyncQueue()
     }
     try {
-      await applyPushRecordToLocal(table_name, data, body.record)
+      await applyPushRecordToLocal(table_name, data, body.record, { duplicate: body.duplicate === true })
     } catch {
       /* ignore */
     }
@@ -141,13 +141,13 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
   if (res.status === 409 || body.duplicate === true) {
     if (local_id) {
       try {
-        await removeSyncItem(local_id)
+        await removeSyncItemAfterPush(local_id, data)
       } catch {
         /* ignore */
       }
     }
     try {
-      await applyPushRecordToLocal(table_name, data, body.record)
+      await applyPushRecordToLocal(table_name, data, body.record, { duplicate: true })
     } catch {
       /* ignore */
     }
@@ -252,13 +252,13 @@ export async function pushRecordsBatchViaApi(items) {
     if (row.ok) {
       if (item.local_id) {
         try {
-          await removeSyncItem(item.local_id)
+          await removeSyncItemAfterPush(item.local_id, item.data)
         } catch {
           /* ignore */
         }
       }
       try {
-        await applyPushRecordToLocal(item.table_name, item.data, row.record)
+        await applyPushRecordToLocal(item.table_name, item.data, row.record, { duplicate: row.duplicate === true })
       } catch {
         /* ignore */
       }
@@ -269,13 +269,13 @@ export async function pushRecordsBatchViaApi(items) {
     if (row.status === 409 || row.duplicate === true) {
       if (item.local_id) {
         try {
-          await removeSyncItem(item.local_id)
+          await removeSyncItemAfterPush(item.local_id, item.data)
         } catch {
           /* ignore */
         }
       }
       try {
-        await applyPushRecordToLocal(item.table_name, item.data, row.record)
+        await applyPushRecordToLocal(item.table_name, item.data, row.record, { duplicate: true })
       } catch {
         /* ignore */
       }

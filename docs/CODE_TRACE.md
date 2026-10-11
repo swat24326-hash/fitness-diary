@@ -31,9 +31,10 @@
 |------|------|
 | UI вкладок | `src/components/DraftTabsBar.jsx`, `src/pages/trainer/TrainingPage.jsx` |
 | Сессия / epoch | `src/lib/trainingDraftSessionCache.js`, `src/lib/trainingDraftTabSwitchCore.js`, `src/lib/trainingDraftPageEpochCore.js` (`shouldAcceptDraftWorkoutEdit`), `src/lib/trainingDraftRestoreCore.js` |
-| Диск (durable) | `src/lib/trainingDraftDurableStorage.js`, `src/lib/trainingDraftDurableHydrate.js` |
+| Диск (durable) | `src/lib/trainingDraftDurableStorage.js` (не затирает более новую копию — `shouldKeepNewerTrainingDraftDurable`), `src/lib/trainingDraftDurableHydrate.js` (проверка и запись в одной транзакции — `saveLocalWithSync({ onlyIf, updatedAt })`) |
 | Скрытие вкладки | `src/hooks/useTrainingDraftHideFlush.js` |
-| Verify | `scripts/verify-training-draft-tab-switch.mjs`, `scripts/verify-training-draft-page-epoch.mjs`, `scripts/verify-training-draft-restore.mjs`, `scripts/verify-training-draft-durable.mjs` |
+| Поздний restore / порядок автосейвов | `shouldApplyLateDraftRestore` в `src/lib/trainingDraftRestoreCore.js`, `shouldSkipStaleSilentDraftPersist` в `src/lib/trainingPersistStatusCore.js` |
+| Verify | `scripts/verify-training-draft-tab-switch.mjs`, `scripts/verify-training-draft-page-epoch.mjs`, `scripts/verify-training-draft-restore.mjs`, `scripts/verify-training-draft-durable.mjs`; e2e `trainerTwoDrafts`, `trainerInputAfterOpen` |
 | Docs | [SYNC.md](./SYNC.md) §3a–3d, INCIDENTS **A** |
 
 ### B — «Закончить», списание абонемента
@@ -54,7 +55,7 @@
 | Слой | Путь |
 |------|------|
 | Оркестрация | `src/lib/syncService.js`, `src/components/AppHeader.jsx` (кнопка Sync) |
-| Очередь | `src/lib/localDb.js` (`sync_queue`), `src/lib/syncQueueOrphans.js`, `src/lib/syncUnsyncedCore.js` (`recordForPush`) |
+| Очередь | `src/lib/localDb.js` (`sync_queue`, `removeSyncItemAfterPush`), `src/lib/syncQueueAckCore.js` (снять элемент после push или оставить, если правка влилась в полёте), `src/lib/syncQueueOrphans.js`, `src/lib/syncUnsyncedCore.js` (`recordForPush`, `resolveAfterPushAck` — ответ push / «дубликат» в IDB) |
 | Челленджи push | `src/lib/challengeService.js`, `src/lib/syncHeaderPullAdmin.js` (только unsynced) |
 | Справочник упражнений | `src/lib/exerciseService.js`, `src/lib/exerciseMutationCore.js` (insert/update не ждут сеть) |
 | Pull merge | `src/lib/trainerPullService.js`, `src/lib/syncHeaderPullTrainer.js`, `src/lib/syncHeaderPullService.js` |

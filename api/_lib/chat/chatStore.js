@@ -7,8 +7,9 @@ import { rows } from '../inbox/inboxStore.js'
 
 export const CHAT_PAGE = 60
 export const CHAT_LIST_LIMIT = 100
-const THREAD_FIELDS =
+export const CHAT_THREAD_FIELDS =
   'id, club_id, client_id, kind, last_message_at, last_author, last_preview, client_read_at, staff_read_at, client_unread, staff_unread'
+const THREAD_FIELDS = CHAT_THREAD_FIELDS
 const MESSAGE_FIELDS = 'id, body, sticker, created_at, author_side, author_user_id'
 
 export function isMissingChatTable(e) {

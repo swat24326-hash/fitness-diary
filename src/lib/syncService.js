@@ -1,6 +1,6 @@
 import { isSupabaseConfigured } from './supabase'
 import { initNetworkReachability, isAppOnline } from './networkReachability'
-import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
+import { getDb, listSyncQueue, removeSyncItem, removeSyncItemAfterPush, enqueueSync, setOnlineFlag } from './localDb'
 import {
   pushRecordViaApi,
   pushRecordsBatchViaApi,
@@ -498,7 +498,7 @@ async function processOneSyncQueueItem(item) {
 
   const err = String(pushedViaApi.error ?? 'Ошибка отправки')
   if (item.operation === 'insert' && isDuplicateInsertError({ message: err, status: pushedViaApi.status })) {
-    await removeSyncItem(item.local_id)
+    await removeSyncItemAfterPush(item.local_id, payload)
     try {
       await applyPushRecordToLocal(item.table_name, payload, null)
     } catch {
@@ -638,18 +638,35 @@ async function flushSyncQueueInnerWork() {
     : { ok: false, reason: 'pending_items', remaining, requeued }
 }
 
-export async function saveLocalWithSync(storeName, record, { table_name, operation, remote_id }) {
+/**
+ * @param {{ table_name: string, operation: string, remote_id?: string | null,
+ *   onlyIf?: (current: object | undefined) => boolean, updatedAt?: string }} opts
+ *   onlyIf — проверка текущей строки и запись в одной транзакции IDB (false → ничего не пишем, null);
+ *   updatedAt — время правки содержимого, если пишем не только что набранное (восстановление копии).
+ */
+export async function saveLocalWithSync(storeName, record, { table_name, operation, remote_id, onlyIf, updatedAt }) {
   const db = await getDb()
   const remoteId = remote_id === undefined ? record.id : remote_id
   const stamped =
-    storeName === 'trainings' ? stampTrainingUpdatedAt(record) : record
+    storeName === 'trainings' ? stampTrainingUpdatedAt(record, updatedAt) : record
   const row = {
     ...stamped,
     synced: false,
     __sync: { operation, remote_id: remoteId },
   }
   const payload = recordForPush(row)
-  await db.put(storeName, row)
+  if (typeof onlyIf === 'function') {
+    const tx = db.transaction(storeName, 'readwrite')
+    const current = await tx.store.get(row[tx.store.keyPath])
+    if (!onlyIf(current)) {
+      await tx.done
+      return null
+    }
+    await tx.store.put(row)
+    await tx.done
+  } else {
+    await db.put(storeName, row)
+  }
   if (TRAINER_CACHE_STORES.has(storeName)) {
     invalidateTrainerWorkspaceCache()
     invalidateAdminClubWorkspaceCache()
