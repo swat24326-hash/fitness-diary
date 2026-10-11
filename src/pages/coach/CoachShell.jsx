@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { CalendarDays, Menu, MessageCircle } from 'lucide-react'
+import { CalendarDays, Menu, MessageCircle, Users } from 'lucide-react'
 import { OsMark } from '../../components/brand/OsMark.jsx'
 import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
 import { useClientBranding } from '../client/useClientBranding.js'
@@ -12,6 +12,7 @@ const COACH_MANIFEST = '/manifest-coach.json'
 const TABS = [
   { to: '/coach', end: true, icon: CalendarDays, label: 'Ежедневник' },
   { to: '/coach/chats', icon: MessageCircle, label: 'Сообщения', attention: true },
+  { to: '/coach/clients', icon: Users, label: 'Клиенты' },
 ]
 
 function CoachTabs() {

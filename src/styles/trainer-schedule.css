@@ -233,7 +233,7 @@
 
 .trainer-schedule-day__board {
   display: grid;
-  grid-template-columns: 52px 1fr;
+  grid-template-columns: var(--schedule-time-col, 52px) 1fr;
   gap: 8px;
   overflow: auto;
   max-height: min(68vh, 720px);

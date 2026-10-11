@@ -16,10 +16,24 @@ chat.client(CLIENT_ID, { action: 'chat-send', kind: 'trainer', body: 'Завтр
 const slot = (id, day, start, extra = {}) => ({
   id, club_id: CLUB_ID, trainer_id: TRAINER_ID, day_date: isoDay(day), start_minutes: start, duration_minutes: 60, title: '', client_ids: [CLIENT_ID], ...extra,
 })
+const own = (id, name, extra = {}) => ({ id, name, trainer_id: TRAINER_ID, club_id: CLUB_ID, phone: '', birth_date: null, ...extra })
+Object.assign(backend.state.clients[0], { phone: '+7 999 111-22-33', card_number: '5870' })
+backend.state.clients.push(
+  own('p-boris', 'Борис Продлеваев', { card_number: '3334', phone: '+7 999 222-33-44' }),
+  own('p-vera', 'Вера Новая', { lifecycle: 'pnk', birth_date: `1990-${isoDay(1).slice(5)}` }),
+)
+const mem = (id, clientId, start, end, total, used) => ({
+  id, client_id: clientId, start_date: isoDay(start), end_date: isoDay(end), total_trainings: total, used_trainings: used, membership_type_id: 'p-type',
+})
 const coach = createFakeCoach(backend.state, chat, {
   trainerId: TRAINER_ID,
   today: isoDay(0),
   schedule: [slot('p1', 0, 600), slot('p2', 0, 780, { title: 'Групповая', client_ids: [] }), slot('p3', 1, 1080)],
+  clientsData: {
+    memberships: [mem('p-m1', CLIENT_ID, -20, 3, 10, 3), mem('p-m0', CLIENT_ID, -80, -21, 8, 8), mem('p-m2', 'p-boris', -60, -5, 10, 6)],
+    trainings: [{ client_id: CLIENT_ID, date: isoDay(-2), status: 'completed' }],
+    typeCodeById: { 'p-type': 'ПЗ 10' },
+  },
 })
 backend.coach = coach.handle
 

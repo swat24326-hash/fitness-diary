@@ -1,0 +1,251 @@
+/* «Клиенты» на телефоне тренера (/coach/clients): поиск, чипы фильтров одной лентой, строки, шторка абонементов. */
+
+/* minmax(0, 1fr) — лента чипов листается внутри себя, а не растягивает страницу вбок. */
+.coach-clients {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.coach-clients .trainer-clients-filters,
+.coach-clients .trainer-clients-filters__row {
+  min-width: 0;
+}
+
+.coach-clients__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+
+.coach-clients__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+/* Все 7 чипов планшета — сетка 4 + 3 на ширину экрана, без прокрутки вбок; значки скрыты ради места.
+   Сверху короткие (Все, ПНК, ДР, Давно), снизу длинные (Истекает, Закончился, Не активные). */
+.coach-clients .trainer-clients-filters {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.coach-clients .trainer-clients-filters__row,
+.coach-clients .trainer-clients-filters__chips {
+  display: contents;
+}
+
+.coach-clients .trainer-clients-filters__legend,
+.coach-clients .trainer-clients-chip__icon {
+  display: none;
+}
+
+.coach-clients .trainer-clients-chip {
+  grid-column: span 4;
+  order: 2;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.coach-clients .trainer-clients-filters__row:first-of-type .trainer-clients-chip,
+.coach-clients .trainer-clients-filters__row:last-of-type .trainer-clients-chip:nth-child(3) {
+  grid-column: span 3;
+  order: 1;
+}
+
+.coach-clients .trainer-clients-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.coach-clients .trainer-clients-chip__count {
+  min-width: 0;
+  padding: 1px 5px;
+  font-size: 0.72rem;
+}
+
+.coach-clients__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-client {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.coach-client__main {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.coach-client__main .td-client-dot {
+  flex: none;
+  margin-top: 5px;
+}
+
+.coach-client__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coach-client__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.coach-client__mem {
+  font-size: 0.92rem;
+}
+
+.coach-client__meta,
+.coach-client__bday {
+  font-size: 0.82rem;
+}
+
+.coach-client__bday {
+  color: var(--accent-bright, var(--accent));
+}
+
+.coach-client__call {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+}
+
+/* Шторка снизу: абонементы клиента. */
+.coach-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.coach-sheet__panel {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top));
+  overflow-y: auto;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  background: var(--bg);
+}
+
+.coach-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coach-sheet__who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.coach-sheet__name {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.coach-sheet__actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.coach-sheet__actions .btn {
+  justify-content: center;
+}
+
+.coach-sheet__mems {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-mem {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.coach-mem__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.coach-mem__phase {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.coach-mem--current {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.coach-mem--current .coach-mem__phase {
+  color: var(--accent-bright, var(--accent));
+}
+
+.coach-mem--past,
+.coach-mem--depleted {
+  opacity: 0.75;
+}

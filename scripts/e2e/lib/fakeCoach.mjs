@@ -6,6 +6,7 @@ import { decideCoachDevice } from '../../../api/_lib/deviceBindingCore.js'
 import { buildCoachMe, buildCoachSchedule } from '../../../api/_lib/coach/coachViewCore.js'
 import { COACH_HANDOFF_GONE_RU, COACH_INVITE_GONE_RU, coachHandoffDenial, coachInviteDenial } from '../../../api/_lib/coach/coachInviteCore.js'
 import { buildCoachClub } from '../../../api/_lib/coach/coachManifestCore.js'
+import { buildCoachClients } from '../../../api/_lib/coach/coachClientsCore.js'
 import { COACH_SCHEDULE_WRITE_OPS, runCoachScheduleWrite } from '../../../api/_lib/coach/coachScheduleWriteCore.js'
 import { resolveCoachScheduleRange } from '../../../src/lib/trainer/coachScheduleEditCore.js'
 import { normalizeTrainerScheduleEntry } from '../../../src/lib/trainer/trainerScheduleCore.js'
@@ -15,10 +16,12 @@ const DENIED = { status: 401, json: { error: 'Вход с телефона за�
 /**
  * @param {{ users: object[], clients: object[] }} state
  * @param {ReturnType<import('./fakeChat.mjs').createFakeChat>} chat
- * @param {{ trainerId: string, today: string, schedule: object[], trainings?: Record<string, string> }} opts
+ * @param {{ trainerId: string, today: string, schedule: object[], trainings?: Record<string, string>,
+ *   clientsData?: { memberships?: object[], lifecycleRows?: object[], trainings?: object[], typeCodeById?: Record<string, string> } }} opts
  * trainings — статус тренировки по id (для записей с linked_training_id).
+ * clientsData — абонементы, ПЗ и завершённые тренировки для вкладки «Клиенты».
  */
-export function createFakeCoach(state, chat, { trainerId, today, schedule, trainings = {} }) {
+export function createFakeCoach(state, chat, { trainerId, today, schedule, trainings = {}, clientsData = {} }) {
   const coach = { devices: [], sessions: [], invites: [] }
   const seededAt = new Date(Date.now() - 3600_000).toISOString()
   for (const e of schedule) {
@@ -117,6 +120,17 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       return { status: 200, json: { days: buildCoachSchedule(schedule, names, today) } }
     }
     if (view === 'schedule-range') return scheduleRange(q)
+    if (view === 'clients') {
+      const clients = buildCoachClients({
+        trainerId,
+        clients: state.clients.filter((c) => c.trainer_id === trainerId && !c.archived_at),
+        memberships: clientsData.memberships ?? [],
+        lifecycleRows: clientsData.lifecycleRows ?? [],
+        trainings: clientsData.trainings ?? [],
+        typeCodeById: clientsData.typeCodeById ?? {},
+      })
+      return { status: 200, json: { today, clients } }
+    }
     if (view === 'chats') return staff({ view: 'list' })
     if (view === 'chat-thread') return staff({ view: 'thread', kind: 'trainer', client_id: q.get('client_id') })
     if (view === 'push-status') return { status: 200, json: { configured: false, public_key: '', subscribed: false } }

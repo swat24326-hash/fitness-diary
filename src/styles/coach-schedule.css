@@ -31,7 +31,10 @@
   flex: none;
 }
 
+/* «3 дня» влезают в 360px без прокрутки вбок; часы уже, чем на планшете (там 52px и колонка дня от 96px). */
 .coach-schedule {
+  --schedule-col-min: 72px;
+  --schedule-time-col: 36px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -92,6 +95,37 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.coach-schedule .trainer-schedule-day__board,
+.coach-schedule .trainer-schedule-day__col-heads {
+  column-gap: 4px;
+}
+
+/* Записи: шрифт мельче и легче; в «3 днях» имя переносится на вторую строку, а не обрезается после 6 букв. */
+.coach-schedule .trainer-schedule-day__entry-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.coach-schedule .trainer-schedule-day__entry--compact {
+  padding: 3px 4px 3px 5px;
+}
+
+.coach-schedule .trainer-schedule-day__entry--compact .trainer-schedule-day__entry-time {
+  font-size: 10px;
+}
+
+.coach-schedule .trainer-schedule-day__entry--compact .trainer-schedule-day__entry-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: unset;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 /* overscroll-behavior — докрутив часы до края, палец не утаскивает страницу. */

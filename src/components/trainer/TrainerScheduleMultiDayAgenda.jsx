@@ -23,7 +23,9 @@ import { TrainerScheduleKindLegend } from './TrainerScheduleKindPicker.jsx'
 const PX_PER_MIN_DEFAULT = 1.4
 const DAY_START_MIN = SCHEDULE_DAY_START_HOUR * 60
 const DAY_END_MIN = SCHEDULE_DAY_END_HOUR * 60
-const COL_MIN_PX = 96
+/** Узкий экран (телефон тренера) переопределяет через CSS `--schedule-col-min` / `--schedule-time-col`. */
+const COL_MIN = 'var(--schedule-col-min, 96px)'
+const TIME_COL = 'var(--schedule-time-col, 52px)'
 
 const ENTRY_MIN_HEIGHT_WITH_TRAINER = 78
 const ENTRY_MIN_HEIGHT = 48
@@ -93,8 +95,8 @@ export function TrainerScheduleMultiDayAgenda({
   const title = formatScheduleViewRangeLabel(days, formatDateRu)
   const rangeKey = days.join('|')
   const multiGrid = {
-    gridTemplateColumns: `52px repeat(${days.length}, minmax(${COL_MIN_PX}px, 1fr))`,
-    minWidth: `calc(52px + ${days.length} * ${COL_MIN_PX + 8}px)`,
+    gridTemplateColumns: `${TIME_COL} repeat(${days.length}, minmax(${COL_MIN}, 1fr))`,
+    minWidth: `calc(${TIME_COL} + ${days.length} * (${COL_MIN} + 8px))`,
   }
 
   const drag = useTrainerScheduleDrag({

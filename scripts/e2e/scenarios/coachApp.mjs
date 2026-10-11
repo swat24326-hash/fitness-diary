@@ -99,7 +99,39 @@ export async function run(browser) {
   }
   await runQrJoin(browser, c)
   await runIconHandoff(browser, c)
+  await runAndroidManifest(browser, c)
   return c.failures
+}
+
+/** Android: значок по manifest клуба — после входа и сразу при загрузке, ещё до приложения (manifest-boot.js). */
+async function runAndroidManifest(browser, c) {
+  const { backend, coach } = setup()
+  const context = await newE2eContext(browser, backend, {
+    ...PHONE,
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36',
+  })
+  const page = await context.newPage()
+  const clubManifest = `/api/coach?manifest=${CLUB_ID}`
+  const manifests = () =>
+    page.evaluate(() => [...globalThis.document.querySelectorAll('link[rel="manifest"]')].map((l) => l.getAttribute('href')))
+  try {
+    await page.goto(`${ORIGIN}/coach`)
+    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
+    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти' }).click()
+    coach.setPhoneStatus('approved')
+    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
+    await reaches(slot10(page))
+    c.ok(JSON.stringify(await manifests()) === JSON.stringify([clubManifest]), 'Android: после входа manifest клуба — значок назовётся как клуб')
+    await page.route('**/src/main.jsx*', (route) => route.abort())
+    await page.reload()
+    c.ok(JSON.stringify(await manifests()) === JSON.stringify([clubManifest]), 'Android: manifest клуба при загрузке, ещё до приложения')
+  } catch (e) {
+    await screenshot(page, 'coach-android-FAIL').catch(() => null)
+    c.ok(false, `Android manifest: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
 }
 
 /**

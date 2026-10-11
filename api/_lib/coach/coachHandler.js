@@ -2,6 +2,7 @@
  * /api/coach — данные телефона тренера. Только пропуск 'coach' (requireCoachUser), только онлайн.
  * GET  ?view=me | schedule | chats | chat-thread&client_id[&before] | push-status&endpoint
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
+ *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
  * GET  ?manifest=<club uuid> — без пропуска: manifest с названием клуба (браузер шлёт его без токена).
  * POST { op: 'chat-send', client_id, body | sticker } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
@@ -18,6 +19,7 @@ import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptio
 import { COACH_SCHEDULE_FIELDS, buildCoachMe, buildCoachSchedule, coachScheduleDays } from './coachViewCore.js'
 import { requireCoachUser } from './requireCoachUser.js'
 import { issueCoachHandoff } from './coachHandoffHandler.js'
+import { sendCoachClients } from './coachClientsHandler.js'
 import { COACH_SCHEDULE_WRITE_OPS, handleCoachScheduleWrite, sendCoachScheduleRange } from './coachScheduleHandler.js'
 import { buildCoachClub, buildCoachManifest, coachManifestUrl } from './coachManifestCore.js'
 import { coachStore } from './coachStore.js'
@@ -79,6 +81,7 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'me') return sendMe(ctx, res, store)
   if (view === 'schedule') return sendSchedule(ctx, res)
   if (view === 'schedule-range') return sendCoachScheduleRange(ctx, req, res)
+  if (view === 'clients') return sendCoachClients(ctx, res)
   if (view === 'push-status') return sendPushStatus(ctx, req, res)
   if (view === 'chats') return handleStaffChatGet(ctx, { query: { view: 'list' } }, res)
   if (view === 'chat-thread') {

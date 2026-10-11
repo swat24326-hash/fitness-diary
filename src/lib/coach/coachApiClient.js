@@ -26,6 +26,13 @@ export const deleteCoachScheduleEntry = (id, baseUpdatedAt) =>
 /** @returns {Promise<{ created: number }>} */
 export const saveCoachScheduleCopies = (entry, days) => coachRequest({}, { op: 'schedule-copies', entry, days })
 
+/**
+ * Свои «Активные» клиенты с абонементами (только просмотр).
+ * @returns {Promise<{ today: string, clients: Array<{ id: string, name: string, phone: string, card_number: string,
+ *   birth_date: string | null, lifecycle: string | null, last_training_date: string | null, memberships: object[] }> }>}
+ */
+export const fetchCoachClients = () => coachRequest({ view: 'clients' })
+
 /** @returns {Promise<{ threads: object[], attention: number }>} */
 export const fetchCoachChats = () => coachRequest({ view: 'chats' })
 

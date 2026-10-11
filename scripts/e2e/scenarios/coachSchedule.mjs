@@ -103,6 +103,11 @@ export async function run(browser) {
     await page.getByRole('tab', { name: '3 дня', exact: true }).click()
     await page.locator('.trainer-schedule-day--multi').waitFor({ timeout: 10_000 })
     c.ok(await fitsScreen(page), '3 дня: всё в одном экране')
+    const noSideScroll = await page.evaluate(() => {
+      const el = globalThis.document.querySelector('.trainer-schedule-day__scroll')
+      return el && el.scrollWidth <= el.clientWidth + 1
+    })
+    c.ok(noSideScroll, '3 дня: все три дня влезают по ширине, без прокрутки вбок')
     await screenshot(page, 'coach-calendar-3days')
     await page.getByRole('tab', { name: 'День', exact: true }).click()
     await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 10_000 })
