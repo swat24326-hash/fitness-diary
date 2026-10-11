@@ -1,6 +1,7 @@
 /**
  * Телефон тренера (/coach): вход паролем планшета → «ждёт разрешения» → админ разрешил → план дня
  * и «Новых диалогов: 1» → ответ клиенту → админ отозвал телефон → экран входа с объяснением.
+ * Отдельно — вход по QR с планшета.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
@@ -90,5 +91,39 @@ export async function run(browser) {
   } finally {
     await context.close()
   }
+  await runQrJoin(browser, c)
   return c.failures
+}
+
+/** QR с планшета: ссылка → «ждёт разрешения» (код убран из адреса, переживает перезагрузку) → разрешили → вошёл. */
+async function runQrJoin(browser, c) {
+  const { backend, coach } = setup()
+  const token = 'e2eQrToken_0123456789abcdefABCD'
+  coach.addInvite(token)
+  const context = await newE2eContext(browser, backend, PHONE)
+  const page = await context.newPage()
+  try {
+    await page.goto(`${ORIGIN}/coach/join#t=${token}`)
+    c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'QR: телефон без пароля сразу ждёт «Разрешить»')
+    c.ok(new URL(page.url()).hash === '', 'QR: код убран из адресной строки')
+    await page.reload()
+    c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'QR: после перезагрузки ждёт дальше, код помнится')
+    await screenshot(page, 'coach-qr-pending')
+
+    coach.setPhoneStatus('approved')
+    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
+    c.ok(await reaches(page.getByRole('region', { name: 'Сегодня' }).getByText('10:00')), 'QR: после разрешения — план дня')
+    c.ok(Boolean(coach.state.invites[0]?.used_at), 'QR: код погашен после входа')
+
+    await page.evaluate(() => globalThis.localStorage.clear())
+    await page.goto(`${ORIGIN}/coach/join#t=${token}`)
+    c.ok(await reaches(page.getByText('Не получилось войти по QR')), 'QR: тот же код второй раз — понятный отказ')
+    await page.getByRole('button', { name: 'Войти по логину и паролю' }).click()
+    c.ok(await reaches(page.getByLabel('Логин')), 'QR: из отказа — на вход по паролю')
+  } catch (e) {
+    await screenshot(page, 'coach-qr-FAIL').catch(() => null)
+    c.ok(false, `QR-вход: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
 }

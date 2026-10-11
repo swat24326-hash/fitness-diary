@@ -4,6 +4,7 @@
  */
 import { decideCoachDevice } from '../../../api/_lib/deviceBindingCore.js'
 import { buildCoachMe, buildCoachSchedule } from '../../../api/_lib/coach/coachViewCore.js'
+import { COACH_INVITE_GONE_RU, coachInviteDenial } from '../../../api/_lib/coach/coachInviteCore.js'
 
 const DENIED = { status: 401, json: { error: 'Вход с телефона закончился — войдите снова' } }
 
@@ -13,7 +14,7 @@ const DENIED = { status: 401, json: { error: 'Вход с телефона за�
  * @param {{ trainerId: string, today: string, schedule: object[] }} opts
  */
 export function createFakeCoach(state, chat, { trainerId, today, schedule }) {
-  const coach = { devices: [], sessions: [] }
+  const coach = { devices: [], sessions: [], invites: [] }
   const trainer = () => state.users.find((u) => u.id === trainerId)
   const deviceOf = (req) => String(req.headers['x-device-id'] ?? '')
 
@@ -24,23 +25,41 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule }) {
     return { access_token: row.access, refresh_token: row.refresh, expires_at: Math.floor(Date.now() / 1000) + 3600 }
   }
 
+  function admit(deviceId, beforeSession = () => {}) {
+    const decision = decideCoachDevice({ deviceId, devices: coach.devices })
+    if (decision.register) coach.devices.push({ id: `dev-${coach.devices.length + 1}`, device_id: deviceId, status: 'pending' })
+    if (decision.setStatus) coach.devices.find((d) => d.id === decision.deviceRowId).status = decision.setStatus
+    if (!decision.allow) return { status: 403, json: { error: 'Телефон ждёт разрешения администратора', code: 'device_pending' } }
+    beforeSession()
+    return { status: 200, json: { session: issue(deviceId), user: { name: trainer().name } } }
+  }
+
   function signIn(req) {
     const u = trainer()
     const login = String(req.body?.login ?? '').toLowerCase()
     if (!u || (login !== u.login && login !== u.email) || req.body?.password !== u.password) {
       return { status: 401, json: { error: 'Неверный логин или пароль' } }
     }
+    return admit(deviceOf(req))
+  }
+
+  function redeem(req) {
     const deviceId = deviceOf(req)
-    const decision = decideCoachDevice({ deviceId, devices: coach.devices })
-    if (decision.register) coach.devices.push({ id: `dev-${coach.devices.length + 1}`, device_id: deviceId, status: 'pending' })
-    if (decision.setStatus) coach.devices.find((d) => d.id === decision.deviceRowId).status = decision.setStatus
-    if (!decision.allow) return { status: 403, json: { error: 'Телефон ждёт разрешения администратора', code: 'device_pending' } }
-    return { status: 200, json: { session: issue(deviceId), user: { name: u.name } } }
+    const invite = coach.invites.find((i) => i.token === req.body?.token)
+    if (coachInviteDenial(invite, deviceId, Date.now())) return { status: 401, json: { error: COACH_INVITE_GONE_RU } }
+    invite.device_id = deviceId
+    return admit(deviceId, () => (invite.used_at = new Date().toISOString()))
+  }
+
+  /** Тренер открыл на планшете «QR для телефона». */
+  function addInvite(token) {
+    coach.invites.push({ token, device_id: null, used_at: null, expires_at: new Date(Date.now() + 600_000).toISOString() })
   }
 
   function auth(req) {
     const route = req.body?.action
     if (route === 'sign-in') return signIn(req)
+    if (route === 'redeem') return redeem(req)
     const s = coach.sessions.find((x) => x.refresh === req.body?.refresh_token)
     if (route === 'sign-out') {
       if (s) s.revoked = true
@@ -80,5 +99,5 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule }) {
     for (const d of coach.devices) d.status = status
   }
 
-  return { state: coach, handle: (req) => (req.path === '/api/coach-auth' ? auth(req) : data(req)), setPhoneStatus }
+  return { state: coach, handle: (req) => (req.path === '/api/coach-auth' ? auth(req) : data(req)), setPhoneStatus, addInvite }
 }

@@ -1,4 +1,5 @@
 import { useAuth } from '../../context/AuthContext'
+import { TrainerPhoneAppSection } from './TrainerPhoneAppSection.jsx'
 import { TrainerStatisticsSection } from './TrainerStatisticsSection'
 
 export function TrainerProfile() {
@@ -14,6 +15,8 @@ export function TrainerProfile() {
           {user?.name ?? user?.email ?? 'Тренер'}
         </p>
       </section>
+
+      <TrainerPhoneAppSection />
 
       <TrainerStatisticsSection />
     </div>

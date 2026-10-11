@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { LogIn, ShieldCheck } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { LogIn } from 'lucide-react'
 import { CoachPendingError, signInCoach } from '../../lib/coach/coachSession.js'
 import { useCoachApp } from './CoachAppContext.jsx'
+import { CoachPendingScreen } from './CoachPendingScreen.jsx'
 import { CoachShell } from './CoachShell.jsx'
-import { CoachStatus } from './CoachStatus.jsx'
-
-const PENDING_RETRY_MS = 15_000
 
 /**
- * Вход логином и паролем планшета. Новый телефон ждёт «Разрешить» админа: повторяем вход раз в 15 с,
- * пароль живёт только в памяти этой страницы (закрыли — вводить заново).
+ * Вход логином и паролем планшета. Пока телефон ждёт «Разрешить», пароль живёт только в памяти
+ * этой страницы (закрыли — вводить заново; вход по QR с планшета этого не требует).
  */
 export function CoachSignInPage() {
   const { notice, onSignedIn } = useCoachApp()
@@ -43,40 +41,22 @@ export function CoachSignInPage() {
     [onSignedIn],
   )
 
-  useEffect(() => {
-    if (!pending) return undefined
-    const t = window.setInterval(() => document.visibilityState === 'visible' && void attempt(true), PENDING_RETRY_MS)
-    return () => window.clearInterval(t)
-  }, [pending, attempt])
-
   const submit = (e) => {
     e.preventDefault()
     creds.current = { login: login.trim(), password }
     void attempt(false)
   }
 
-  if (pending) {
-    return (
-      <CoachShell tabs={false}>
-        <CoachStatus
-          icon={ShieldCheck}
-          title="Телефон ждёт разрешения"
-          hint="Попросите администратора клуба нажать «Разрешить» в разделе «Устройства тренеров». Экран войдёт сам."
-        >
-          <button type="button" className="btn btn-secondary btn-touch" disabled={busy} onClick={() => void attempt(false)}>
-            Проверить сейчас
-          </button>
-          {error ? <p className="coach-form__error" role="alert">{error}</p> : null}
-        </CoachStatus>
-      </CoachShell>
-    )
-  }
+  if (pending) return <CoachPendingScreen busy={busy} error={error} onRetry={attempt} />
 
   return (
     <CoachShell tabs={false}>
       <form className="coach-card coach-form" onSubmit={submit}>
         <h1 className="coach-form__title">Вход тренера</h1>
-        <p className="muted">Логин и пароль — те же, что на планшете. Первый вход с телефона разрешает администратор.</p>
+        <p className="muted">
+          Проще всего — QR: на планшете «Профиль» → «QR для телефона». Или логин и пароль, как на планшете. Первый вход с
+          телефона разрешает администратор.
+        </p>
         {notice && !error ? <p className="coach-form__notice" role="status">{notice}</p> : null}
         <label className="coach-form__field">
           <span>Логин</span>

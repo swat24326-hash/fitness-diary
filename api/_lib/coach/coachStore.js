@@ -47,6 +47,49 @@ export const coachStore = {
     return row
   },
 
+  /** Новый QR гасит прежние неиспользованные: живёт одна последняя ссылка. */
+  async createInvite({ userId, tokenHash, expiresAt }) {
+    const db = createServiceDataClient()
+    const closed = await db
+      .from('coach_invites')
+      .update({ expires_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('used_at', null)
+    if (closed.error) throw new Error(closed.error.message || 'Не удалось создать QR')
+    const { error } = await db.from('coach_invites').insert({ user_id: userId, token_hash: tokenHash, expires_at: expiresAt })
+    if (error) throw new Error(error.message || 'Не удалось создать QR')
+  },
+
+  async loadInviteByHash(tokenHash) {
+    return one(
+      createServiceDataClient().from('coach_invites').select('id, user_id, device_id, expires_at, used_at').eq('token_hash', tokenHash),
+    )
+  },
+
+  /** Закрепить ссылку за телефоном; false — её успел забрать другой. */
+  async bindInvite(id, deviceId, expiresAt) {
+    const { data, error } = await createServiceDataClient()
+      .from('coach_invites')
+      .update({ device_id: deviceId, expires_at: expiresAt })
+      .eq('id', id)
+      .is('device_id', null)
+      .is('used_at', null)
+      .select('id')
+    if (error) throw new Error(error.message || 'Не удалось проверить QR')
+    return Array.isArray(data) && data.length > 0
+  },
+
+  async markInviteUsed(id) {
+    const { data, error } = await createServiceDataClient()
+      .from('coach_invites')
+      .update({ used_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('used_at', null)
+      .select('id')
+    if (error) throw new Error(error.message || 'Не удалось проверить QR')
+    return Array.isArray(data) && data.length > 0
+  },
+
   touchSession: (sid) => authSessionsStore.touch(sid),
   revokeSession: (sid, userId) => authSessionsStore.revoke(sid, userId),
   devices: userDevicesStore,

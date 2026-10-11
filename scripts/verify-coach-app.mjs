@@ -1,12 +1,14 @@
 /**
  * Телефон тренера (/coach): куда ведёт push на телефоне, что уходит в расписании (белый список),
- * подписка помнит приложение. Без базы и сети.
+ * подписка помнит приложение, ссылка из QR планшета. Без базы и сети.
  * node scripts/verify-coach-app.mjs
  */
 import { buildCoachMe, buildCoachSchedule, coachScheduleDays } from '../api/_lib/coach/coachViewCore.js'
 import { handlePushSubscriptionPost } from '../api/_lib/pushSubscriptionHandler.js'
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
 import { PUSH_APP_COACH, coachPushUrl, pushUrlForApp } from '../src/lib/push/pushTargetUrlCore.js'
+import { buildCoachJoinUrl, coachQrTokenFromHash } from '../src/lib/coach/coachJoinLink.js'
+import { newInviteToken } from '../api/_lib/clientPortal/clientAuthCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -82,6 +84,14 @@ ok(coachDb.calls[0]?.row.app === 'coach', 'подписка с телефона 
 const staffDb = fakeDb()
 await handlePushSubscriptionPost({ user: { id: 'tr' }, supabaseAdmin: staffDb }, fakeRes(), { op: 'subscribe', ...sub })
 ok(staffDb.calls[0]?.row.app === 'staff', 'подписка планшета — app staff (тот же браузер снова уводит push на планшет)')
+
+// --- Ссылка из QR планшета ---
+const qrToken = newInviteToken()
+const joinUrl = new URL(buildCoachJoinUrl('https://app-core.ru/', qrToken))
+ok(joinUrl.pathname === '/coach/join' && !joinUrl.search, 'QR ведёт на /coach/join, код не в ?query (не попадёт в логи сервера)')
+ok(coachQrTokenFromHash(joinUrl.hash) === qrToken, 'телефон достаёт код из #фрагмента ссылки')
+ok(coachQrTokenFromHash('') === '' && coachQrTokenFromHash('#t=') === '', 'нет кода — обычный вход по паролю')
+ok(coachQrTokenFromHash('#t=<script>') === '' && coachQrTokenFromHash(`#t=${'a'.repeat(200)}`) === '', 'мусор и длинное — не отправляем')
 
 if (failed) {
   console.error(`\nverify-coach-app: ${failed} FAIL`)

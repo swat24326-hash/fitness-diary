@@ -1,13 +1,15 @@
 /**
- * POST /api/coach-auth { action: 'sign-in' | 'refresh' | 'sign-out', ... }, заголовок x-device-id = номер телефона (coach-…).
- * Без Bearer: вход с улицы. Лимиты — общие с /api/auth-sign-in; текст ошибки не говорит, есть ли такой логин.
+ * POST /api/coach-auth { action: 'sign-in' | 'redeem' | 'refresh' | 'sign-out' | 'invite', ... },
+ * заголовок x-device-id = номер телефона (coach-…). Без Bearer: вход с улицы (лимиты — общие с /api/auth-sign-in,
+ * текст ошибки не говорит, есть ли такой логин). Исключение — invite: QR выдаёт тренер с планшета по своему Bearer.
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { isOwnAuthProvider, verifyOwnPassword } from '../authOwnCore.js'
-import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders } from '../authRateLimitCore.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../authLoginResolveCore.js'
+import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders, createAuthFailLimiter } from '../authRateLimitCore.js'
 import { decideCoachDevice, isCoachDeviceId } from '../deviceBindingCore.js'
-import { deviceIdFromHeaders, deviceLabelFromHeaders, gateCoachDevice } from '../deviceBindingGate.js'
+import { deviceIdFromHeaders } from '../deviceBindingGate.js'
+import { admitCoachPhone, coachDeviceLabel } from './coachAdmit.js'
 import {
   COACH_BLOCKED_RU,
   COACH_INVALID_RU,
@@ -17,10 +19,14 @@ import {
   buildCoachSession,
   coachAccessDenial,
   coachSecret,
-  isCoachRole,
   readCoachToken,
 } from './coachAuthCore.js'
+import { issueCoachInvite, redeemCoachInvite } from './coachInviteHandler.js'
 import { coachStore } from './coachStore.js'
+
+const QR_KEY = 'coach-invite'
+// Общий счётчик «логина» выключен: иначе чужой перебор закрыл бы QR всем тренерам.
+const qrLimiter = createAuthFailLimiter({ perLoginIp: 10, perIp: 10, perLogin: Number.POSITIVE_INFINITY })
 
 const UNAVAILABLE_RU = 'Приложение на телефоне скоро будет доступно'
 
@@ -33,46 +39,19 @@ function parseBody(body) {
   }
 }
 
-/** Подпись для админа в «Устройствах тренеров». */
-export function coachDeviceLabel(headers) {
-  return `Телефон тренера · ${deviceLabelFromHeaders(headers)}`
-}
-
-function sendGate(res, gate) {
-  sendJson(res, gate.code === 'busy' ? 503 : 403, { error: gate.error, code: gate.code })
-}
-
-async function signIn(req, res, body, { secret, store, deviceDeps }) {
+async function signIn(req, res, body, env) {
   const deviceId = deviceIdFromHeaders(req.headers)
   if (!isCoachDeviceId(deviceId)) {
     sendJson(res, 400, { error: 'Обновите страницу и войдите снова', code: 'device_update' })
     return
   }
   const password = normalizePasswordInput(body.password)
-  const user = password ? await store.findUserByLogin(body.login) : null
+  const user = password ? await env.store.findUserByLogin(body.login) : null
   if (!user?.id || !(await verifyOwnPassword(password, user.password_hash))) {
     sendJson(res, 401, { error: COACH_INVALID_RU })
     return
   }
-  if (user.is_active === false) {
-    sendJson(res, 403, { error: COACH_BLOCKED_RU })
-    return
-  }
-  if (!isCoachRole(user.role)) {
-    sendJson(res, 403, { error: COACH_ONLY_TRAINER_RU })
-    return
-  }
-  const userId = String(user.id)
-  const gate = await gateCoachDevice({ userId, deviceId, label: coachDeviceLabel(req.headers) }, deviceDeps)
-  if (!gate.allow) {
-    sendGate(res, gate)
-    return
-  }
-  const sid = await store.createSession(userId, deviceId)
-  sendJson(res, 200, {
-    session: buildCoachSession({ userId, sid, deviceId }, secret),
-    user: { name: String(user.name ?? '') },
-  })
+  await admitCoachPhone({ req, res, user, deviceId }, env)
 }
 
 async function refresh(req, res, body, { secret, store }) {
@@ -110,11 +89,12 @@ async function signOut(res, body, { secret, store }) {
 }
 
 /**
- * @param {{ store?: typeof coachStore, limiter?: typeof authFailLimiter, deviceDeps?: Parameters<typeof gateCoachDevice>[1], ownAuth?: () => boolean }} [deps]
+ * @param {{ store?: typeof coachStore, limiter?: typeof authFailLimiter, qrLimiter?: typeof authFailLimiter, deviceDeps?: Parameters<typeof import('../deviceBindingGate.js').gateCoachDevice>[1], ownAuth?: () => boolean, auth?: typeof import('../adminSupabase.js').requireAuthUser }} [deps]
  */
 export function createCoachAuthHandler(deps = {}) {
   const store = deps.store ?? coachStore
   const limiter = deps.limiter ?? authFailLimiter
+  const redeemLimiter = deps.qrLimiter ?? qrLimiter
   const ownAuth = deps.ownAuth ?? isOwnAuthProvider
   return async function coachAuthHandler(req, res) {
     setCors(res, 'POST, OPTIONS')
@@ -137,12 +117,24 @@ export function createCoachAuthHandler(deps = {}) {
     const env = { secret, store, deviceDeps: deps.deviceDeps }
     if (action === 'refresh') return refresh(req, res, body, env)
     if (action === 'sign-out') return signOut(res, body, env)
+    if (action === 'invite') return issueCoachInvite(req, res, { store, ...(deps.auth ? { auth: deps.auth } : {}) })
+    const ip = clientIpFromHeaders(req.headers, req.remoteAddress ?? req.socket?.remoteAddress)
+    if (action === 'redeem') {
+      const qrGate = redeemLimiter.check(QR_KEY, ip)
+      if (!qrGate.ok) {
+        res.setHeader('Retry-After', String(qrGate.retryAfterSec))
+        sendJson(res, 429, { error: authRateLimitedMessageRu(qrGate.retryAfterSec) })
+        return
+      }
+      await redeemCoachInvite(req, res, body, env)
+      redeemLimiter.recordOutcome(QR_KEY, ip, res.statusCode)
+      return
+    }
     if (action !== 'sign-in') {
       sendJson(res, 400, { error: 'Неизвестное действие' })
       return
     }
     const login = normalizeLoginInput(body.login)
-    const ip = clientIpFromHeaders(req.headers, req.remoteAddress ?? req.socket?.remoteAddress)
     const gate = limiter.check(login, ip)
     if (!gate.ok) {
       res.setHeader('Retry-After', String(gate.retryAfterSec))

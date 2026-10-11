@@ -15,6 +15,7 @@ import {
   readCoachToken,
 } from '../api/_lib/coach/coachAuthCore.js'
 import { createCoachAuthHandler } from '../api/_lib/coach/coachAuthHandler.js'
+import { COACH_INVITE_TTL_MS, coachInviteDenial } from '../api/_lib/coach/coachInviteCore.js'
 import { requireCoachUser } from '../api/_lib/coach/requireCoachUser.js'
 import {
   decideCoachDevice,
@@ -81,11 +82,33 @@ async function memoryCoachStore({ role = 'trainer', active = true, devices = [] 
   const sessions = new Map()
   let n = 0
   const deviceStore = memoryDevices(devices)
+  const invites = []
   return {
     user,
     sessions,
+    invites,
     devices: deviceStore,
     db: {},
+    async createInvite({ userId, tokenHash, expiresAt }) {
+      for (const i of invites) if (i.user_id === userId && !i.used_at) i.expires_at = new Date().toISOString()
+      invites.push({ id: `inv-${invites.length + 1}`, user_id: userId, token_hash: tokenHash, device_id: null, expires_at: expiresAt, used_at: null })
+    },
+    async loadInviteByHash(hash) {
+      const i = invites.find((x) => x.token_hash === hash)
+      return i ? { ...i } : null
+    },
+    async bindInvite(id, deviceId, expiresAt) {
+      const i = invites.find((x) => x.id === id && !x.device_id && !x.used_at)
+      if (!i) return false
+      Object.assign(i, { device_id: deviceId, expires_at: expiresAt })
+      return true
+    },
+    async markInviteUsed(id) {
+      const i = invites.find((x) => x.id === id && !x.used_at)
+      if (!i) return false
+      i.used_at = new Date().toISOString()
+      return true
+    },
     async findUserByLogin(login) {
       return String(login).toLowerCase() === 'ivanov' ? { ...user, password_hash: passwordHash } : null
     },
@@ -269,6 +292,52 @@ try {
   const limited = authHandler(await memoryCoachStore())
   for (let i = 0; i < 3; i += 1) await call(limited, { action: 'sign-in', login: 'ivanov', password: 'bad' }, { ip: '10.9.9.9' })
   ok((await call(limited, { action: 'sign-in', login: 'ivanov', password: 'bad' }, { ip: '10.9.9.9' })).statusCode === 429, 'лимит попыток — 429')
+
+  // --- QR с планшета ---
+  const now = Date.parse('2026-10-11T10:00:00Z')
+  const fresh = { device_id: null, expires_at: new Date(now + 60_000).toISOString(), used_at: null }
+  ok(coachInviteDenial(fresh, PHONE, now) === null, 'свежий QR подходит любому телефону')
+  ok(coachInviteDenial({ ...fresh, device_id: PHONE_2 }, PHONE, now) === 'other_device', 'QR, закреплённый за другим телефоном, — отказ')
+  ok(coachInviteDenial({ ...fresh, device_id: PHONE }, PHONE, now) === null, 'свой телефон повторяет QR, пока ждёт разрешения')
+  ok(coachInviteDenial({ ...fresh, used_at: 'x' }, PHONE, now) === 'used', 'погашенный QR — отказ')
+  ok(coachInviteDenial({ ...fresh, expires_at: new Date(now - 1).toISOString() }, PHONE, now) === 'expired', 'просроченный QR — отказ')
+  ok(coachInviteDenial(null, PHONE, now) === 'missing', 'выдуманный QR — отказ')
+
+  const qrStore = await memoryCoachStore()
+  const asTrainer = async () => ({ isTrainer: true, user: { id: TRAINER } })
+  const qrHandler = createCoachAuthHandler({
+    store: qrStore,
+    ownAuth: () => true,
+    auth: asTrainer,
+    qrLimiter: createAuthFailLimiter({ perLoginIp: 3, perIp: 3, perLogin: Number.POSITIVE_INFINITY }),
+    deviceDeps: { store: qrStore.devices, notify: async () => {} },
+  })
+  const issued = await call(qrHandler, { action: 'invite' }, { device: null })
+  ok(issued.statusCode === 200 && issued.body?.token && Date.parse(issued.body.expires_at) - Date.now() <= COACH_INVITE_TTL_MS, 'тренер получает QR на 10 минут')
+  ok(qrStore.invites[0]?.token_hash && qrStore.invites[0].token_hash !== issued.body.token, 'в базе только отпечаток ссылки')
+  const asAdmin = createCoachAuthHandler({ store: qrStore, ownAuth: () => true, auth: async () => ({ isTrainer: false, isAdmin: true, user: { id: 'a1' } }) })
+  ok((await call(asAdmin, { action: 'invite' }, { device: null })).statusCode === 403, 'QR для телефона выдаёт только тренер')
+
+  const qrPending = await call(qrHandler, { action: 'redeem', token: issued.body.token })
+  ok(qrPending.statusCode === 403 && qrPending.body?.code === 'device_pending' && !qrPending.body.session, 'QR → телефон ждёт «Разрешить», без пропуска')
+  ok(qrStore.invites[0].device_id === PHONE && Date.parse(qrStore.invites[0].expires_at) - Date.now() > COACH_INVITE_TTL_MS, 'QR закреплён за телефоном и ждёт до суток')
+  ok((await call(qrHandler, { action: 'redeem', token: issued.body.token }, { device: PHONE_2 })).statusCode === 401, 'чужой телефон по тому же QR — 401')
+  qrStore.devices.rows.find((r) => r.device_id === PHONE).status = 'approved'
+  const qrIn = await call(qrHandler, { action: 'redeem', token: issued.body.token })
+  ok(qrIn.statusCode === 200 && qrIn.body?.session?.access_token && qrStore.invites[0].used_at, 'после «Разрешить» QR входит и гасится')
+  ok((await call(qrHandler, { action: 'redeem', token: issued.body.token })).statusCode === 401, 'повтор погашенного QR — 401')
+  ok((await call(qrHandler, { action: 'redeem', token: issued.body.token }, { device: TABLET })).statusCode === 400, 'QR без номера телефона — 400')
+
+  const second = await call(qrHandler, { action: 'invite' }, { device: null })
+  const third = await call(qrHandler, { action: 'invite' }, { device: null })
+  ok((await call(qrHandler, { action: 'redeem', token: second.body.token }, { ip: '10.0.0.2' })).statusCode === 401, 'новый QR гасит прежний')
+  ok(third.body.token !== second.body.token, 'каждый QR — новая ссылка')
+  qrStore.user.role = 'admin'
+  const roleGone = await call(qrHandler, { action: 'redeem', token: third.body.token }, { ip: '10.0.0.3' })
+  ok(roleGone.statusCode === 403 && !roleGone.body.session, 'тренера сделали админом — QR не пускает')
+  qrStore.user.role = 'trainer'
+  for (let i = 0; i < 3; i += 1) await call(qrHandler, { action: 'redeem', token: 'x'.repeat(32) }, { ip: '10.8.8.8' })
+  ok((await call(qrHandler, { action: 'redeem', token: 'x'.repeat(32) }, { ip: '10.8.8.8' })).statusCode === 429, 'перебор QR с одного адреса — 429')
 
   const off = createCoachAuthHandler({ store, ownAuth: () => false })
   ok((await call(off, { action: 'sign-in', login: 'ivanov', password: 'Secret-123' })).statusCode === 503, 'не свой Auth на сервере — «скоро будет доступно»')

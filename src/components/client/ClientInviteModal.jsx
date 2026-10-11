@@ -3,14 +3,7 @@ import { Copy, QrCode, RefreshCw } from 'lucide-react'
 import { ModalHeader } from '../ModalHeader.jsx'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { createClientInvite, revokeClientAppAccess } from '../../lib/client/clientInviteService.js'
-
-async function qrDataUrl(text) {
-  const { default: qrcode } = await import('qrcode-generator')
-  const qr = qrcode(0, 'M')
-  qr.addData(text)
-  qr.make()
-  return qr.createDataURL(8, 4)
-}
+import { qrDataUrl } from '../../lib/qrDataUrl.js'
 
 /**
  * QR и ссылка для входа клиента в /me. Ссылка одноразовая, живёт 72 часа;

@@ -7,6 +7,7 @@ import { fetchWithAppTimeout } from '../networkReachability.js'
 
 const SESSION_KEY = 'fd_coach_session_v1'
 const DEVICE_KEY = 'fd_coach_device_id'
+const QR_KEY = 'fd_coach_qr_v1'
 const FETCH_MS = 15_000
 
 export const COACH_OFFLINE_RU = 'Нет сети — данные на телефоне не хранятся'
@@ -101,13 +102,43 @@ function postAuth(body) {
   })
 }
 
-/** Вход логином и паролем планшета. Телефон ждёт «Разрешить» — CoachPendingError. */
-export async function signInCoach(login, password) {
-  const { res, data } = await postAuth({ action: 'sign-in', login, password })
+async function admit(body) {
+  const { res, data } = await postAuth(body)
   if (data?.code === 'device_pending') throw new CoachPendingError(data.error)
   if (!res.ok || !data?.session) throw new Error(data?.error || 'Не удалось войти')
   saveSession(data.session)
   return data.user ?? null
+}
+
+/** Вход логином и паролем планшета. Телефон ждёт «Разрешить» — CoachPendingError. */
+export function signInCoach(login, password) {
+  return admit({ action: 'sign-in', login, password })
+}
+
+/** QR с планшета закреплён за телефоном, пока ждёт «Разрешить»: помним код до входа или отказа. */
+export function readSavedCoachQr() {
+  return readJson(QR_KEY)?.token ?? ''
+}
+
+export function saveCoachQr(token) {
+  writeJson(QR_KEY, { token })
+}
+
+export function clearSavedCoachQr() {
+  writeJson(QR_KEY, null)
+}
+
+/** Вход по QR с планшета. Ждёт «Разрешить» — CoachPendingError (код сохранён); код негоден — сброшен. */
+export async function redeemCoachQr(token) {
+  saveCoachQr(token)
+  try {
+    const user = await admit({ action: 'redeem', token })
+    clearSavedCoachQr()
+    return user
+  } catch (e) {
+    if (!(e instanceof CoachPendingError) && e?.message !== COACH_OFFLINE_RU) clearSavedCoachQr()
+    throw e
+  }
 }
 
 async function validAccessToken() {
