@@ -92,6 +92,9 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
     return { status: 200, json: { session: issue(s.deviceId) } }
   }
 
+  /** Как coachHandler: с телефона — «Тренер» и «Жалобы и предложения». */
+  const coachKind = (kind) => (kind === 'supervisor' ? 'supervisor' : 'trainer')
+
   function data(req) {
     const token = String(req.headers.authorization ?? '').replace(/^Bearer /, '')
     const s = coach.sessions.find((x) => x.access === token)
@@ -111,7 +114,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       if (req.body?.op === 'client-invite') return clientInvite(user, req.body.client_id)
       if (req.body?.op === 'dm-send') return staff({}, { op: 'dm-send', user_id: req.body.user_id, body: req.body.body, sticker: req.body.sticker })
       if (req.body?.op !== 'chat-send') return { status: 400, json: { error: 'Неизвестное действие' } }
-      return staff({}, { client_id: req.body.client_id, kind: 'trainer', body: req.body.body, sticker: req.body.sticker })
+      return staff({}, { client_id: req.body.client_id, kind: coachKind(req.body.kind), body: req.body.body, sticker: req.body.sticker })
     }
     const view = q.get('view') ?? 'me'
     if (view === 'me') {
@@ -137,7 +140,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
     if (view === 'chats') return staff({ view: 'list' })
     if (view === 'contacts') return staff({ view: 'contacts' })
     if (view === 'dm-thread') return staff({ view: 'dm-thread', user_id: q.get('user_id') })
-    if (view === 'chat-thread') return staff({ view: 'thread', kind: 'trainer', client_id: q.get('client_id') })
+    if (view === 'chat-thread') return staff({ view: 'thread', kind: coachKind(q.get('kind')), client_id: q.get('client_id') })
     if (view === 'push-status') return { status: 200, json: { configured: false, public_key: '', subscribed: false } }
     return { status: 400, json: { error: 'Неизвестный запрос' } }
   }

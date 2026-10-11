@@ -21,7 +21,7 @@ export function chatThreadPreviewRu(t, viewerSide) {
 const CLIENT_EMPTY_RU = Object.freeze({
   trainer: 'Напишите тренеру: вопрос по тренировке, питанию или ссылку на товар. Ответ придёт сюда.',
   sales: 'Абонемент, продление, заморозка, оплата — менеджер клуба ответит здесь.',
-  supervisor: 'Предложение или жалоба — управляющий клуба прочитает лично.',
+  supervisor: 'Что-то не работает, есть идея или жалоба — управляющий клуба прочитает лично.',
 })
 
 export function chatClientEmptyRu(kind) {

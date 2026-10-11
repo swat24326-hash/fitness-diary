@@ -3,9 +3,10 @@
  * GET  dm-thread&user_id[&before] → { peer: { id, name, label }, can_write, messages, has_more, marked_read, peer_read_at }
  * POST { op: 'dm-send', user_id, body | sticker } → { message }
  * Текст сообщений в лог не пишем.
+ * Тренер, связанный с управляющим (linkedStaffStore), переписывается с коллегами от учётки управляющего.
  */
 import { sendJson } from '../adminSupabase.js'
-import { chatKindLabelRu, chatPeerReadAt, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
+import { chatPeerReadAt, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
 import {
   STAFF_DM_NO_ACCESS_RU,
@@ -17,9 +18,11 @@ import {
   staffDmSideOf,
   staffDmThreadForViewer,
   staffDmWriteAccess,
+  staffRoleLabelRu,
 } from '../../../src/lib/chat/staffDmAccessCore.js'
 import { buildStaffContacts } from '../../../src/lib/chat/staffDmContactsCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
+import { loadHiddenLinkedTrainers, staffDmCtx } from './linkedStaffStore.js'
 import { sendStaffDmPush } from './staffDmPushJob.js'
 import {
   ensureDmThread,
@@ -55,8 +58,9 @@ async function withDmTable(res, fn) {
   }
 }
 
-export function sendStaffDmThread(ctx, res, peerId, before) {
+export function sendStaffDmThread(authCtx, res, peerId, before) {
   return withDmTable(res, async () => {
+    const ctx = await staffDmCtx(authCtx)
     const db = ctx.supabaseAdmin
     const viewer = viewerOf(ctx)
     const peer = await loadPeer(ctx, res, peerId)
@@ -67,7 +71,7 @@ export function sendStaffDmThread(ctx, res, peerId, before) {
       return
     }
     const meta = {
-      peer: { id: String(peer.id), name: String(peer.name ?? '').trim(), label: chatKindLabelRu(staffDmRoleOf(peer.role)) },
+      peer: { id: String(peer.id), name: String(peer.name ?? '').trim(), label: staffRoleLabelRu(peer.role) },
       can_write: staffDmWriteAccess(viewer, peer).ok,
     }
     if (!thread) {
@@ -88,8 +92,9 @@ export function sendStaffDmThread(ctx, res, peerId, before) {
   })
 }
 
-export function sendStaffDmMessage(ctx, res, peerId, input) {
+export function sendStaffDmMessage(authCtx, res, peerId, input) {
   return withDmTable(res, async () => {
+    const ctx = await staffDmCtx(authCtx)
     const db = ctx.supabaseAdmin
     const viewer = viewerOf(ctx)
     const peer = await loadPeer(ctx, res, peerId)
@@ -122,14 +127,19 @@ export function sendStaffDmMessage(ctx, res, peerId, input) {
  * Люди для папок «Коллеги» / «Администрация»; null — роли нет в переписке сотрудников, клуба нет или таблиц ещё нет.
  * @returns {Promise<{ colleagues: object[], admin: object[] } | null>}
  */
-export async function loadStaffDmContacts(ctx) {
+export async function loadStaffDmContacts(authCtx) {
+  const ctx = await staffDmCtx(authCtx)
   const viewer = viewerOf(ctx)
   const clubId = String(viewer.club_id ?? '').trim()
   if (!staffDmRoleOf(viewer.role) || !clubId) return null
   const db = ctx.supabaseAdmin
   try {
-    const [staff, threads] = await Promise.all([loadClubStaff(db, clubId), loadDmThreadsFor(db, viewer.id)])
-    const peers = pickStaffDmPeers(viewer, staff)
+    const [staff, threads, hidden] = await Promise.all([
+      loadClubStaff(db, clubId),
+      loadDmThreadsFor(db, viewer.id),
+      loadHiddenLinkedTrainers(db, clubId),
+    ])
+    const peers = pickStaffDmPeers(viewer, staff).filter((p) => !hidden.has(String(p.id)))
     const liveUserIds = await loadLiveStaffIds(db, peers.map((p) => p.id))
     return buildStaffContacts({ viewerId: viewer.id, peers, liveUserIds, threads })
   } catch (e) {
@@ -139,7 +149,8 @@ export async function loadStaffDmContacts(ctx) {
 }
 
 /** Сколько личных диалогов ждут ответа — добавляется к числу на конверте / вкладке «Сообщения». */
-export async function staffDmAttention(ctx) {
+export async function staffDmAttention(authCtx) {
+  const ctx = await staffDmCtx(authCtx)
   if (!staffDmRoleOf(ctx.profile?.role)) return 0
   try {
     const viewerId = String(ctx.user?.id ?? '')

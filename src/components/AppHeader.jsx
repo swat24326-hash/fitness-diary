@@ -743,7 +743,9 @@ export function AppHeader() {
               ) : null}
               <HeaderStaffSettingsItems
                 showPush={supabaseReady && !isAdmin && !isSupervisor}
+                showChatSound={supabaseReady && (isDispatchInboxUser || isAdmin)}
                 showPhoneQr={supabaseReady && isTrainerRole}
+                showScheduleReminders={isTrainerRole}
                 clubId={String(user?.club_id ?? '').trim()}
                 onOpen={openSettingsModal}
               />

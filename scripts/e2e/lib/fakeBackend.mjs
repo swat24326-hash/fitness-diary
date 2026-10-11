@@ -194,6 +194,11 @@ export function createFakeBackend(seed) {
     if (path.startsWith('/api/') && !user) return { status: 401, json: { error: 'Нет сессии' } }
 
     if (path === '/api/me-profile') return { status: 200, json: { profile: profileOf(user) } }
+    if (path === '/api/list-trainers') {
+      const role = searchParams.get('role') || 'trainer'
+      const trainers = state.users.filter((u) => u.role === role).map((u) => profileOf(u))
+      return { status: 200, json: { trainers } }
+    }
     if (path === '/api/trainer-pull') return { status: 200, json: trainerPull(state, user) }
     if (path === '/api/get-client') {
       const id = searchParams.get('client_id')

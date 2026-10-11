@@ -59,6 +59,25 @@ async function scrollBoardTo(page, minutes) {
   )
 }
 
+/** Режим — через «⋮» справа в шапке календаря, как на телефоне. */
+async function pickView(page, name) {
+  await page.getByRole('button', { name: /^Режим календаря/ }).click()
+  await page.getByRole('menuitemradio', { name, exact: true }).click()
+}
+
+/** «+» в правом нижнем углу сетки и не заезжает на легенду цветов под ней. */
+function addIsFabAboveLegend(page) {
+  return page.evaluate(() => {
+    const d = globalThis.document
+    const add = d.querySelector('.trainer-schedule-day__add')
+    const body = d.querySelector('.trainer-schedule-day__body')?.getBoundingClientRect()
+    const legend = d.querySelector('.trainer-schedule-legend')?.getBoundingClientRect()
+    if (!add || !body || add.closest('.trainer-schedule-day__head')) return false
+    const b = add.getBoundingClientRect()
+    return b.width <= 40 && body.right - b.right <= 20 && body.bottom - b.bottom <= 20 && (!legend || b.bottom <= legend.top)
+  })
+}
+
 function entryAt(page, hhmm) {
   return page.locator(`.trainer-schedule-day__entry[aria-label^="${hhmm}"]`).first()
 }
@@ -76,11 +95,18 @@ export async function run(browser) {
   const rowsAt = (min) => (state.trainer_schedule_entries ?? []).filter((r) => r.start_minutes === min && r.id !== LOCKED_ENTRY_ID)
   try {
     await page.goto(`${ORIGIN}/trainer/calendar`, { waitUntil: 'domcontentloaded' })
-    await page.getByRole('tab', { name: 'День', exact: true }).click()
+    c.ok((await page.getByRole('tab', { name: 'Неделя', exact: true }).count()) === 0, 'вкладок режимов нет — как на телефоне, режим в «⋮»')
+    await page.locator('.trainer-schedule-month').waitFor({ timeout: 15_000 })
+    c.ok((await page.getByRole('button', { name: /выбрать месяц$/ }).count()) === 1, 'месяц: заголовок — кнопка выбора месяца')
+    await pickView(page, 'День')
     await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 15_000 })
 
     c.ok((await page.locator('.trainer-schedule-day__now').count()) === 1, 'линия «сейчас» есть в сегодняшнем дне')
-    c.ok(await page.getByRole('button', { name: 'Сегодня', exact: true }).isVisible(), 'кнопка «Сегодня» видна')
+    await page.getByRole('button', { name: /^Режим календаря/ }).click()
+    c.ok(await page.getByRole('menuitem', { name: 'Сегодня' }).isVisible(), '«Сегодня» — в меню «⋮»')
+    await screenshot(page, 'schedule-view-menu')
+    await page.keyboard.press('Escape')
+    c.ok(await addIsFabAboveLegend(page), '«+» — маленькая кнопка в правом нижнем углу сетки, легенду не закрывает')
     await screenshot(page, 'schedule-day-now')
 
     /* Повтор: запись на 10:00 у клиентки каждую неделю ×4. */
@@ -179,7 +205,7 @@ export async function run(browser) {
     c.ok(await page.locator('.trainer-schedule-legend').isVisible(), 'легенда цветов под сеткой')
     await screenshot(page, 'schedule-kinds-day')
 
-    await page.getByRole('tab', { name: 'Неделя', exact: true }).click()
+    await pickView(page, 'Неделя')
     await page.locator('.trainer-schedule-day--week').waitFor({ timeout: 10_000 })
     c.ok((await page.locator('.trainer-schedule-day__now').count()) === 1, 'неделя: линия «сейчас» только в одной колонке')
     await scrollBoardTo(page, 9 * 60)

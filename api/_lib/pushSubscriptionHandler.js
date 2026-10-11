@@ -5,6 +5,7 @@ import {
   normalizeVapidPublicKey,
 } from '../../src/lib/push/trainerPushCore.js'
 import { PUSH_APP_STAFF } from '../../src/lib/push/pushTargetUrlCore.js'
+import { handlePushPrefsPost } from './pushPrefsHandler.js'
 import { isWebPushConfigured, sendPushToUser } from './webPushCore.js'
 
 /**
@@ -17,6 +18,11 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
   const userId = String(ctx.user?.id ?? '').trim()
   if (!userId) {
     sendJson(res, 401, { error: 'Нет пользователя' })
+    return
+  }
+
+  if (op === 'prefs') {
+    await handlePushPrefsPost(ctx, res, body)
     return
   }
 

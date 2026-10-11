@@ -72,6 +72,13 @@ export async function run(browser) {
     await page.getByRole('link', { name: 'Меню', exact: true }).click()
     c.ok(await reaches(page.getByRole('button', { name: 'Выйти' })), 'три полоски в шапке открывают меню с выходом')
     c.ok(await page.getByRole('button', { name: 'Обновить' }).isVisible(), '«Обновить» — в меню')
+    c.ok(await page.getByRole('switch', { name: 'Уведомления' }).isVisible(), 'меню как на планшете: переключатель «Уведомления»')
+    const reminders = page.getByRole('switch', { name: 'Напоминания из Ежедневника' })
+    c.ok(await reminders.isDisabled(), 'напоминания Ежедневника ждут включённых уведомлений')
+    const soundSwitch = page.getByRole('switch', { name: 'Звуки сообщений' })
+    c.ok((await soundSwitch.getAttribute('aria-checked')) === 'false', 'звуки сообщений на телефоне по умолчанию выключены')
+    await soundSwitch.click()
+    c.ok((await soundSwitch.getAttribute('aria-checked')) === 'true', 'звуки сообщений включаются переключателем в меню')
     await screenshot(page, 'coach-menu')
 
     await attention.click()

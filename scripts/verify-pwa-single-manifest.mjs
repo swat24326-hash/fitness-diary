@@ -7,6 +7,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { countManifestLinks, dropManifestLinks } from '../src/lib/pwaHtmlCore.js'
+import { PRODUCT_BRAND_ASSETS_VERSION } from '../src/lib/productBrand.js'
+
+const HALL_MANIFEST = `/manifest.json?v=${PRODUCT_BRAND_ASSETS_VERSION}`
 
 let failed = 0
 function ok(cond, msg) {
@@ -41,7 +44,7 @@ function bootLinks(pathname, { ua = ANDROID, coachClub = null } = {}) {
 }
 for (const p of ['/', '/login', '/trainer', '/admin/clients', '/media']) {
   const links = bootLinks(p)
-  ok(links.length === 1 && links[0] === '/manifest.json?v=3', `${p}: manifest зала /manifest.json?v=3`)
+  ok(links.length === 1 && links[0] === HALL_MANIFEST, `${p}: manifest зала ${HALL_MANIFEST} (версия значков из productBrand.js)`)
 }
 for (const p of ['/me', '/me/', '/me/join', '/me/settings']) {
   ok(bootLinks(p).length === 0, `${p}: manifest зала не ставим`)

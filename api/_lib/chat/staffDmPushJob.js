@@ -4,14 +4,16 @@
  */
 import { buildStaffDmPushPayload } from '../../../src/lib/chat/staffDmAccessCore.js'
 import { sendWebPushToRow } from '../webPushCore.js'
-import { loadSubscriptions } from '../inbox/inboxPushJob.js'
 import { rows } from '../inbox/inboxStore.js'
-import { chatPushBlocker } from './chatPushJob.js'
+import { chatPushBlocker, staffPushSubscriptions } from './chatPushJob.js'
 
-/** Фоном после ответа API: ошибки только в лог, сообщение не откатываем. Круглосуточно — как переписка с клиентом. */
+/**
+ * Фоном после ответа API: ошибки только в лог, сообщение не откатываем. Круглосуточно — как переписка с клиентом.
+ * Получатель-управляющий со связанной тренерской учёткой получит push и на планшет / телефон тренера.
+ */
 export async function sendStaffDmPush(db, { recipientId, authorId, authorName, body }, send = sendWebPushToRow) {
   if (chatPushBlocker()) return { sent: 0, expired: 0 }
-  const subs = await loadSubscriptions(db, true, [{ user_id: String(recipientId) }])
+  const subs = await staffPushSubscriptions(db, [String(recipientId)], String(authorId))
   const payload = buildStaffDmPushPayload({ authorId: String(authorId), authorName, body })
   const expired = []
   let sent = 0

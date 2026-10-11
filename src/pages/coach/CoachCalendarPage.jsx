@@ -14,7 +14,7 @@ import { useScheduleCalendarNav } from '../../hooks/useScheduleCalendarNav.js'
 import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
 import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
 import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
-import { TrainerScheduleViewSwitcher } from '../../components/trainer/TrainerScheduleViewSwitcher.jsx'
+import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerScheduleViewMenu.jsx'
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
 import { TrainerScheduleNotice } from '../../components/trainer/TrainerScheduleNotice.jsx'
 import { useCoachApp } from './CoachAppContext.jsx'
@@ -51,12 +51,14 @@ export function CoachCalendarPage() {
     [entries, monthCursor.year, monthCursor.month],
   )
   const firstLoad = data.status !== 'ready' && !entries.length && !clients.length
+  const viewMenu = (
+    <TrainerScheduleViewMenu view={view} onChange={nav.onChangeView} views={PHONE_VIEWS} onToday={nav.goToday} />
+  )
 
   return (
     <CoachShell fill>
       <CoachInstallBanner />
       <div className="coach-schedule">
-        <TrainerScheduleViewSwitcher view={view} onChange={nav.onChangeView} views={PHONE_VIEWS} />
         {firstLoad || data.status === 'error' ? (
           <CoachLoadState status={data.status} error={data.error} onRetry={() => void reload()} />
         ) : view === SCHEDULE_VIEW_MONTH ? (
@@ -68,7 +70,9 @@ export function CoachCalendarPage() {
             onSelectDay={nav.onSelectDay}
             onPrevMonth={nav.prevMonth}
             onNextMonth={nav.nextMonth}
+            onPickMonth={nav.pickMonth}
             swipeNav
+            headEnd={viewMenu}
           />
         ) : (
           <TrainerScheduleMultiDayAgenda
@@ -82,12 +86,14 @@ export function CoachCalendarPage() {
             swipeNav
             onPrev={() => nav.shiftAnchor(-1)}
             onNext={() => nav.shiftAnchor(1)}
-            onToday={nav.goToday}
             onOpenDay={nav.onSelectDay}
             onAddAt={nav.openCreate}
             onOpenEntry={nav.openEdit}
             onMoveEntry={(entry, dayIso, startMinutes) => void move.moveEntry(entry, dayIso, startMinutes)}
             onMoveLocked={move.showLocked}
+            headEnd={viewMenu}
+            addFab
+            todayTick={nav.todayTick}
           />
         )}
       </div>

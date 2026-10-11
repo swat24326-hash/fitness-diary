@@ -6,7 +6,7 @@ import { useTrainerScheduleData } from '../../hooks/useTrainerScheduleData.js'
 import { useScheduleCalendarNav } from '../../hooks/useScheduleCalendarNav.js'
 import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
 import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
-import { TrainerScheduleViewSwitcher } from '../../components/trainer/TrainerScheduleViewSwitcher.jsx'
+import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerScheduleViewMenu.jsx'
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
 import { TrainerScheduleNotice } from '../../components/trainer/TrainerScheduleNotice.jsx'
 import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
@@ -32,6 +32,7 @@ export function TrainerCalendarPage() {
   )
 
   const wide = view !== SCHEDULE_VIEW_MONTH && agendaDays.length > 1
+  const viewMenu = <TrainerScheduleViewMenu view={view} onChange={nav.onChangeView} onToday={nav.goToday} />
 
   return (
     <div className={['trainer-schedule-page', wide ? 'trainer-schedule-page--wide' : ''].filter(Boolean).join(' ')}>
@@ -41,7 +42,6 @@ export function TrainerCalendarPage() {
           План дня: заметки и клиенты. Сохраняется на планшете и уходит в облако при Sync. Удерживайте
           запись, чтобы перенести её.
         </p>
-        <TrainerScheduleViewSwitcher view={view} onChange={nav.onChangeView} />
       </header>
 
       {loading ? (
@@ -59,6 +59,8 @@ export function TrainerCalendarPage() {
           onSelectDay={nav.onSelectDay}
           onPrevMonth={nav.prevMonth}
           onNextMonth={nav.nextMonth}
+          onPickMonth={nav.pickMonth}
+          headEnd={viewMenu}
         />
       ) : (
         <TrainerScheduleMultiDayAgenda
@@ -69,7 +71,9 @@ export function TrainerCalendarPage() {
           trainingById={trainingById}
           onPrev={() => nav.shiftAnchor(-1)}
           onNext={() => nav.shiftAnchor(1)}
-          onToday={nav.goToday}
+          headEnd={viewMenu}
+          addFab
+          todayTick={nav.todayTick}
           onOpenDay={nav.onSelectDay}
           onAddAt={nav.openCreate}
           onOpenEntry={nav.openEdit}

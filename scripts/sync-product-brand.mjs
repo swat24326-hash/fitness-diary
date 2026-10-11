@@ -20,7 +20,6 @@ const {
   PRODUCT_BRAND_LOCKUP,
   PRODUCT_BRAND_PWA_DESCRIPTION,
   PRODUCT_BRAND_TAGLINE,
-  PRODUCT_BRAND_ASSETS_VERSION,
   productBrandIconPath,
 } = brand
 
@@ -37,8 +36,8 @@ const indexHtml = `<!DOCTYPE html>
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="${icon192}" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <link rel="manifest" href="/manifest.json?v=${PRODUCT_BRAND_ASSETS_VERSION}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <script src="/manifest-boot.js"></script>
     <meta name="theme-color" content="#070908" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

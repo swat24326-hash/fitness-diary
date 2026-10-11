@@ -224,16 +224,16 @@
 }
 
 /* Ещё */
-.coach-push__row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.coach-menu-action,
-.coach-signout {
-  justify-self: center;
+/* «Меню» телефона — та же панель, что бургер планшета (.app-header__dropdown), только на всю ширину. */
+.coach-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 /* Диалог на телефоне: лента занимает экран, поле ввода у нижнего края. */

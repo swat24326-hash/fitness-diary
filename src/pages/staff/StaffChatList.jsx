@@ -4,7 +4,7 @@ import { ChatContactList } from '../../components/chat/ChatContactList.jsx'
 import { ChatFoldersView } from '../../components/chat/ChatFoldersView.jsx'
 import { ChatThreadList } from '../../components/chat/ChatThreadList.jsx'
 import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx'
-import { CHAT_FOLDER_CLIENTS, chatFolderLabelRu } from '../../lib/chat/chatContactsCore.js'
+import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COMPLAINTS, chatFolderLabelRu } from '../../lib/chat/chatContactsCore.js'
 import { chatThreadPreviewRu } from '../../lib/chat/chatUiCore.js'
 
 function Status({ icon: Icon, title, hint, spin = false }) {
@@ -19,6 +19,7 @@ function Status({ icon: Icon, title, hint, spin = false }) {
 
 const EMPTY_HINT = 'Здесь появятся сообщения клиентов из приложения клуба.'
 const clientHref = (c) => `/messages/chat/${c.id}/trainer`
+const complaintHref = (c) => `/messages/chat/${c.id}/supervisor`
 const staffHref = (c) => `/messages/dm/${c.id}`
 
 function ThreadList({ threads }) {
@@ -38,7 +39,8 @@ function ThreadList({ threads }) {
 }
 
 /**
- * Вкладка «Диалоги» в /messages: папки «Клиенты · Коллеги/Тренеры · Администрация».
+ * Вкладка «Диалоги» в /messages: папки «Клиенты · Коллеги/Тренеры · Администрация»
+ * (+ «Жалобы и предложения» у тренера, связанного с управляющим).
  * У тренера «Клиенты» — все свои, с приложением сверху, тусклого можно пригласить;
  * у менеджера и управляющего «Клиенты» — список диалогов, непрочитанные сверху.
  * @param {ReturnType<typeof import('../../hooks/useStaffChat.js').useStaffChats>} props
@@ -58,6 +60,8 @@ export function StaffChatList({ threads, folders, status, error }) {
     node:
       f.id === CHAT_FOLDER_CLIENTS ? (
         <ChatContactList contacts={f.contacts} kind="trainer" hrefFor={clientHref} onInvite={setInviting} />
+      ) : f.id === CHAT_FOLDER_COMPLAINTS ? (
+        <ChatContactList contacts={f.contacts} kind="supervisor" hrefFor={complaintHref} />
       ) : (
         <ChatContactList contacts={f.contacts} kind="trainer" hrefFor={staffHref} />
       ),

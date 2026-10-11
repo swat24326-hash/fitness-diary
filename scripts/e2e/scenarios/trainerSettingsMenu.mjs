@@ -37,6 +37,10 @@ export async function run(browser) {
     await settings.click()
     c.ok(await reaches(page.getByRole('button', { name: 'Восстановить приложение' })), 'раскрыли — «Восстановить приложение»')
     c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'раскрыли — переключатель «Уведомления»')
+    c.ok(
+      await page.getByRole('switch', { name: 'Напоминания из Ежедневника' }).isDisabled(),
+      'тренеру — «Напоминания из Ежедневника», без уведомлений неактивны',
+    )
     const menuBox = await page.locator('#app-header-account-menu').boundingBox()
     c.ok(Boolean(menuBox) && menuBox.y + menuBox.height <= TABLET.viewport.height, 'раскрытое меню не уходит за низ экрана')
     await screenshot(page, 'settings-menu-open')

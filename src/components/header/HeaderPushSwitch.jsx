@@ -1,8 +1,13 @@
 import { Bell, BellOff } from 'lucide-react'
 import { useTrainerPush } from '../../hooks/useTrainerPush.js'
+import { trainerPushPrefs } from '../../lib/push/trainerPushService.js'
+import { ScheduleReminderSwitch } from './ScheduleReminderSwitch.jsx'
 
-/** «Уведомления» в «Настройках» бургера — переключатель, как у клиента. «Проверить» / «Переподключить» — в «Помощи». */
-export function HeaderPushSwitch({ clubId }) {
+/**
+ * «Уведомления» в «Настройках» бургера — переключатель, как у клиента. «Проверить» / «Переподключить» — в «Помощи».
+ * scheduleReminders — тренеру ещё «Напоминания из Ежедневника» поверх этой же подписки.
+ */
+export function HeaderPushSwitch({ clubId, scheduleReminders = false }) {
   const push = useTrainerPush({ clubId })
   const on = push.subscribed
   const denied = push.permission === 'denied' && !on
@@ -34,6 +39,7 @@ export function HeaderPushSwitch({ clubId }) {
           {push.error}
         </p>
       ) : null}
+      {scheduleReminders ? <ScheduleReminderSwitch pushOn={on} prefs={trainerPushPrefs} /> : null}
     </div>
   )
 }

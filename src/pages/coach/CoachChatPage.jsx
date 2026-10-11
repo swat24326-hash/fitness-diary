@@ -5,29 +5,36 @@ import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
 import { fetchCoachChatThread, sendCoachChatMessage } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
+import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
 import { chatStaffReadOnlyRu } from '../../lib/chat/chatUiCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachLoadState } from './CoachStatus.jsx'
 
-/** /coach/chat/:clientId — диалог «Тренер» с клиентом; сюда же ведёт push о новом сообщении. */
+/**
+ * /coach/chat/:clientId — диалог «Тренер» с клиентом; сюда же ведёт push о новом сообщении.
+ * /coach/chat/:clientId/supervisor — «Жалобы и предложения» (тренер, связанный с управляющим; ответ — от управляющего).
+ */
 export function CoachChatPage() {
-  const { clientId = '' } = useParams()
+  const { clientId = '', kind: kindParam = '' } = useParams()
+  const kind = kindParam === 'supervisor' ? 'supervisor' : 'trainer'
   const { onSessionGone } = useCoachApp()
-  const load = useCallback((before) => fetchCoachChatThread(clientId, before), [clientId])
-  const send = useCallback((outgoing) => sendCoachChatMessage(clientId, outgoing), [clientId])
-  const chat = useChatThread({ key: clientId, side: 'staff', load, send })
+  const load = useCallback((before) => fetchCoachChatThread(clientId, before, kind), [clientId, kind])
+  const send = useCallback((outgoing) => sendCoachChatMessage(clientId, outgoing, kind), [clientId, kind])
+  const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send })
   const meta = chat.meta
+  const complaint = kind === 'supervisor'
 
   // useChatThread отдаёт только текст ошибки; закончившийся вход видно по стёртой сессии.
   useEffect(() => {
     if ((chat.status === 'error' || chat.sendError) && !hasCoachSession()) onSessionGone(chat.error || chat.sendError)
   }, [chat.status, chat.error, chat.sendError, onSessionGone])
 
+  const name = meta?.client?.name || 'Клиент'
   return (
     <CoachShell
       tabs={false}
-      title={meta?.client?.name || 'Клиент'}
+      title={complaint ? `${name} · ${chatKindLabelRu(kind)}` : name}
       actions={
         <Link to="/coach/chats" className="btn btn-ghost btn-icon-square btn-touch" aria-label="Все диалоги" title="Все диалоги">
           <ArrowLeft size={20} aria-hidden />
@@ -47,8 +54,12 @@ export function CoachChatPage() {
           sendError={chat.sendError}
           canWrite={Boolean(meta?.can_write)}
           readOnlyHint={chatStaffReadOnlyRu(meta)}
-          emptyHint="Сообщений пока нет. Клиент увидит ваш ответ в приложении клуба."
-          placeholder="Ответ клиенту"
+          emptyHint={
+            complaint
+              ? 'Сообщений пока нет. Клиент увидит ответ от управляющего в приложении клуба.'
+              : 'Сообщений пока нет. Клиент увидит ваш ответ в приложении клуба.'
+          }
+          placeholder={complaint ? 'Ответ от управляющего' : 'Ответ клиенту'}
         />
       )}
     </CoachShell>

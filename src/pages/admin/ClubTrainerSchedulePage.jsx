@@ -2,43 +2,23 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { CalendarDays } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { todayInTimeZoneIso } from '../../lib/dateRu.js'
-import {
-  SCHEDULE_VIEW_DAY,
-  SCHEDULE_VIEW_MONTH,
-  countScheduleEntriesByDay,
-  listScheduleViewDays,
-  shiftScheduleAnchorIso,
-} from '../../lib/trainer/trainerScheduleCore.js'
+import { SCHEDULE_VIEW_MONTH, countScheduleEntriesByDay } from '../../lib/trainer/trainerScheduleCore.js'
 import { resolveScheduleMonthWindow } from '../../lib/admin/trainerScheduleAdminCore.js'
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient.js'
 import { useClubTrainerScheduleData } from '../../hooks/useClubTrainerScheduleData.js'
+import { useScheduleCalendarNav } from '../../hooks/useScheduleCalendarNav.js'
 import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
 import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
-import { TrainerScheduleViewSwitcher } from '../../components/trainer/TrainerScheduleViewSwitcher.jsx'
+import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerScheduleViewMenu.jsx'
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
+import { ClubTrainerFilter } from './ClubTrainerFilter.jsx'
 import '../../styles/trainer-schedule.css'
 import '../../styles/trainer-schedule-interactions.css'
 import '../../styles/trainer-schedule-kinds.css'
-
-function parseMonthCursor(iso) {
-  const day = String(iso ?? '').slice(0, 10)
-  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(day)
-  if (!m) {
-    const t = todayInTimeZoneIso()
-    const tm = /^(\d{4})-(\d{2})-\d{2}$/.exec(t)
-    return { year: Number(tm?.[1] ?? 2026), month: Number(tm?.[2] ?? 1) }
-  }
-  return { year: Number(m[1]), month: Number(m[2]) }
-}
-
-function shiftMonth(year, month, delta) {
-  const d = new Date(year, month - 1 + delta, 1)
-  return { year: d.getFullYear(), month: d.getMonth() + 1 }
-}
+import '../../styles/admin-trainer-schedule.css'
 
 /**
- * Ежедневники тренеров клуба — read-only для админа и управляющего.
+ * Ежедневники тренеров клуба — read-only для админа и управляющего (монитор: вся ширина, тренер в один клик).
  * @param {{ accessMode?: 'admin' | 'supervisor' }} [props]
  */
 export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
@@ -58,20 +38,14 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
     return String(searchParams.get('club') ?? '').trim() || String(outlet?.clubId ?? '').trim()
   }, [isSup, outlet?.clubId, searchParams, user?.club_id])
 
-  const today = todayInTimeZoneIso()
-  const [view, setView] = useState(SCHEDULE_VIEW_MONTH)
-  const [selectedDay, setSelectedDay] = useState(today)
-  const [monthCursor, setMonthCursor] = useState(() => parseMonthCursor(today))
+  const nav = useScheduleCalendarNav({ initialView: SCHEDULE_VIEW_MONTH })
+  const { view, selectedDay, monthCursor, agendaDays } = nav
   const [trainerFilter, setTrainerFilter] = useState(() => String(searchParams.get('trainer') ?? '').trim())
   const [trainers, setTrainers] = useState([])
   const [trainersLoading, setTrainersLoading] = useState(false)
-  const [modalEntry, setModalEntry] = useState(/** @type {object | null} */ (null))
-  const [modalOpen, setModalOpen] = useState(false)
 
   const clientsBase = isSup ? '/club/clients' : '/admin/clients'
   const homeHref = isSup ? '/club' : '/admin'
-
-  const agendaDays = useMemo(() => listScheduleViewDays(selectedDay, view), [selectedDay, view])
 
   const loadRange = useMemo(() => {
     if (view === SCHEDULE_VIEW_MONTH) {
@@ -92,7 +66,9 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
     void (async () => {
       try {
         const res = await fetchTrainersViaAdminApi({ role: 'trainer' })
-        const list = (res?.trainers ?? []).filter((t) => String(t?.club_id ?? '') === clubId)
+        const list = (res?.trainers ?? []).filter(
+          (t) => String(t?.club_id ?? '') === clubId && t?.is_active !== false,
+        )
         if (!cancelled) setTrainers(list)
       } catch {
         if (!cancelled) setTrainers([])
@@ -125,63 +101,26 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
     [entries, monthCursor.year, monthCursor.month],
   )
 
-  const onSelectDay = (iso) => {
-    setSelectedDay(iso)
-    setMonthCursor(parseMonthCursor(iso))
-    setView(SCHEDULE_VIEW_DAY)
-  }
-
-  const onChangeView = (next) => {
-    setView(next)
-    if (next !== SCHEDULE_VIEW_MONTH) {
-      setMonthCursor(parseMonthCursor(selectedDay))
-    }
-  }
-
-  const shiftAnchor = (delta) => {
-    const next = shiftScheduleAnchorIso(selectedDay, view, delta)
-    setSelectedDay(next)
-    setMonthCursor(parseMonthCursor(next))
-  }
-
-  const openView = (entry) => {
-    const day = String(entry?.day_date ?? selectedDay).slice(0, 10)
-    if (day) {
-      setSelectedDay(day)
-      setMonthCursor(parseMonthCursor(day))
-    }
-    setModalEntry(entry)
-    setModalOpen(true)
-  }
-
-  const wide = view !== SCHEDULE_VIEW_MONTH && agendaDays.length > 1
+  const viewMenu = <TrainerScheduleViewMenu view={view} onChange={nav.onChangeView} onToday={nav.goToday} />
 
   return (
-    <div
-      className={[
-        'trainer-schedule-page',
-        'admin-trainer-schedule-page',
-        wide ? 'trainer-schedule-page--wide' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
+    <div className="trainer-schedule-page admin-trainer-schedule-page">
       <header className="trainer-schedule-page__hero">
         <div className="admin-trainer-schedule-page__head-row">
           <div>
             <h1 className="trainer-schedule-page__title">
               <CalendarDays size={28} aria-hidden className="admin-trainer-schedule-page__title-icon" />
               Ежедневники тренеров
+              <span className="admin-trainer-schedule-page__readonly">Только просмотр</span>
             </h1>
             <p className="trainer-schedule-page__subtitle muted">
-              План дня тренеров клуба — только просмотр. Редактирует тренер на планшете.
+              План дня тренеров клуба. Редактирует тренер на планшете или телефоне.
             </p>
           </div>
           <Link className="btn btn-secondary btn-sm" to={homeHref}>
             ← На главную
           </Link>
         </div>
-        {clubId ? <TrainerScheduleViewSwitcher view={view} onChange={onChangeView} /> : null}
       </header>
 
       {!clubId ? (
@@ -192,29 +131,17 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
         </p>
       ) : (
         <>
-          <div className="admin-trainer-schedule-page__filters card">
-            <label className="admin-trainer-schedule-page__filter">
-              <span>Тренер</span>
-              <select
-                value={trainerFilter}
-                onChange={(ev) => setTrainerFilter(ev.target.value)}
-                disabled={trainersLoading}
-              >
-                <option value="">Все тренеры</option>
-                {trainers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name || 'Тренер'}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {truncated ? (
-              <p className="admin-trainer-schedule-page__warn muted" role="status">
-                Показаны не все записи периода — сузьте фильтр по тренеру.
-              </p>
-            ) : null}
-          </div>
-
+          <ClubTrainerFilter
+            trainers={trainers}
+            value={trainerFilter}
+            onChange={setTrainerFilter}
+            loading={trainersLoading}
+          />
+          {truncated ? (
+            <p className="admin-trainer-schedule-page__warn muted" role="status">
+              Показаны не все записи периода — выберите одного тренера.
+            </p>
+          ) : null}
           {error ? (
             <p className="trainer-schedule-page__error" role="alert">
               {error}
@@ -232,9 +159,12 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               month={monthCursor.month}
               selectedDay={selectedDay}
               countsByDay={countsByDay}
-              onSelectDay={onSelectDay}
-              onPrevMonth={() => setMonthCursor((c) => shiftMonth(c.year, c.month, -1))}
-              onNextMonth={() => setMonthCursor((c) => shiftMonth(c.year, c.month, 1))}
+              showCounts
+              onSelectDay={nav.onSelectDay}
+              onPrevMonth={nav.prevMonth}
+              onNextMonth={nav.nextMonth}
+              onPickMonth={nav.pickMonth}
+              headEnd={viewMenu}
             />
           ) : (
             <TrainerScheduleMultiDayAgenda
@@ -246,34 +176,31 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               trainingById={trainingById}
               readOnly
               showTrainerName={!trainerFilter}
-              onPrev={() => shiftAnchor(-1)}
-              onNext={() => shiftAnchor(1)}
-              onToday={() => {
-                const t = todayInTimeZoneIso()
-                setSelectedDay(t)
-                setMonthCursor(parseMonthCursor(t))
-              }}
-              onOpenDay={onSelectDay}
+              onPrev={() => nav.shiftAnchor(-1)}
+              onNext={() => nav.shiftAnchor(1)}
+              onOpenDay={nav.onSelectDay}
               onAddAt={() => {}}
-              onOpenEntry={openView}
+              onOpenEntry={nav.openEdit}
+              headEnd={viewMenu}
+              todayTick={nav.todayTick}
             />
           )}
         </>
       )}
 
       <TrainerScheduleEntryModal
-        open={modalOpen}
-        draft={modalEntry}
+        open={nav.modalOpen}
+        draft={nav.modalDraft}
         dayIso={selectedDay}
         clubId={clubId}
-        trainerId={String(modalEntry?.trainer_id ?? '')}
+        trainerId={String(nav.modalDraft?.trainer_id ?? '')}
         clients={[]}
         clientNameById={clientNameById}
         trainerNameById={trainerNameById}
         trainingById={trainingById}
         readOnly
         clientsBase={clientsBase}
-        onClose={() => setModalOpen(false)}
+        onClose={nav.closeModal}
         onSaved={() => {}}
       />
     </div>

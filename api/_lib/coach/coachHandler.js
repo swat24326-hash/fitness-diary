@@ -1,12 +1,13 @@
 /**
  * /api/coach — данные телефона тренера. Только пропуск 'coach' (requireCoachUser), только онлайн.
- * GET  ?view=me | schedule | chats | contacts | chat-thread&client_id[&before] | push-status&endpoint
+ * GET  ?view=me | schedule | chats | contacts | chat-thread&client_id[&kind=supervisor][&before] | push-status&endpoint
  *      contacts — папки «Сообщений», клиенты с приложением сверху (chatContactsHandler.js)
  *      | dm-thread&user_id[&before] — переписка с коллегой / администрацией (staffDmHandler.js)
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
  *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
  * GET  ?manifest=<club uuid> — без пропуска: manifest с названием клуба (браузер шлёт его без токена).
- * POST { op: 'chat-send', client_id, body | sticker } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
+ * POST { op: 'chat-send', client_id, kind?, body | sticker } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
+ *      | { op: 'push-prefs', endpoint, schedule_reminders? } — напоминания Ежедневника на этом телефоне
  *      | { op: 'dm-send', user_id, body | sticker } — сообщение коллеге / администрации
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
@@ -30,6 +31,9 @@ import { sendCoachClients } from './coachClientsHandler.js'
 import { COACH_SCHEDULE_WRITE_OPS, handleCoachScheduleWrite, sendCoachScheduleRange } from './coachScheduleHandler.js'
 import { buildCoachClub, buildCoachManifest, coachManifestUrl } from './coachManifestCore.js'
 import { coachStore } from './coachStore.js'
+
+/** С телефона — «Тренер» и «Жалобы и предложения» (доступ к последнему есть только у связанного с управляющим). */
+const coachChatKind = (kind) => (String(kind ?? '') === 'supervisor' ? 'supervisor' : 'trainer')
 
 function parseBody(body) {
   if (typeof body !== 'string') return body ?? {}
@@ -95,7 +99,7 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before)
   if (view === 'chat-thread') {
     const { client_id, before } = req.query ?? {}
-    return handleStaffChatGet(ctx, { query: { view: 'thread', kind: 'trainer', client_id, before } }, res)
+    return handleStaffChatGet(ctx, { query: { view: 'thread', kind: coachChatKind(req.query?.kind), client_id, before } }, res)
   }
   sendJson(res, 400, { error: 'Неизвестный запрос' })
 }
@@ -105,7 +109,8 @@ async function handlePost(ctx, res, body, store) {
   if (op === 'handoff') return issueCoachHandoff(ctx, res, store)
   if (COACH_SCHEDULE_WRITE_OPS.includes(op)) return handleCoachScheduleWrite(ctx, res, op, body)
   if (op === 'chat-send') {
-    return handleStaffChatPost(ctx, res, { op: 'send', kind: 'trainer', client_id: body.client_id, body: body.body, sticker: body.sticker })
+    const kind = coachChatKind(body.kind)
+    return handleStaffChatPost(ctx, res, { op: 'send', kind, client_id: body.client_id, body: body.body, sticker: body.sticker })
   }
   if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body.user_id, { body: body.body, sticker: body.sticker })
   if (op === 'client-invite') {
@@ -119,6 +124,9 @@ async function handlePost(ctx, res, body, store) {
       res,
       { op: op === 'push-subscribe' ? 'subscribe' : 'unsubscribe', endpoint, p256dh, auth, user_agent, club_id: ctx.profile?.club_id ?? null },
     )
+  }
+  if (op === 'push-prefs') {
+    return handlePushSubscriptionPost(ctx, res, { op: 'prefs', endpoint: body.endpoint, schedule_reminders: body.schedule_reminders })
   }
   sendJson(res, 400, { error: 'Неизвестное действие' })
 }

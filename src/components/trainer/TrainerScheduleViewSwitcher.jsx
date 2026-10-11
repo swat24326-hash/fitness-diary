@@ -5,7 +5,7 @@ import {
   SCHEDULE_VIEW_WEEK,
 } from '../../lib/trainer/trainerScheduleCore.js'
 
-const OPTIONS = [
+export const SCHEDULE_VIEW_OPTIONS = [
   { id: SCHEDULE_VIEW_DAY, label: 'День' },
   { id: SCHEDULE_VIEW_DAYS3, label: '3 дня' },
   { id: SCHEDULE_VIEW_WEEK, label: 'Неделя' },
@@ -21,7 +21,9 @@ const OPTIONS = [
  * views — какие режимы показать (телефону неделя не помещается).
  */
 export function TrainerScheduleViewSwitcher({ view, onChange, views }) {
-  const options = views ? OPTIONS.filter((opt) => views.includes(opt.id)) : OPTIONS
+  const options = views
+    ? SCHEDULE_VIEW_OPTIONS.filter((opt) => views.includes(opt.id))
+    : SCHEDULE_VIEW_OPTIONS
   return (
     <div className="trainer-schedule-view-switch" role="tablist" aria-label="Режим календаря">
       {options.map((opt) => {

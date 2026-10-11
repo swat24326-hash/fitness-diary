@@ -58,7 +58,13 @@ function scrollTopForMinutes(minutes, pxPerMin) {
  *   onOpenEntry: (entry: object) => void,
  *   onMoveEntry?: (entry: object, dayIso: string, startMinutes: number) => void,
  *   onMoveLocked?: (entry: object) => void,
+ *   headEnd?: import('react').ReactNode,
+ *   addFab?: boolean,
+ *   todayTick?: number,
  * }} props
+ * todayTick — «Сегодня» из меню вне сетки: на каждое изменение сетка докручивает к текущему часу.
+ * headEnd — кнопка справа в шапке (телефон: меню режима «⋮»); слева — пустышка той же ширины, дата по центру.
+ * addFab — «+» плавающей кнопкой в правом нижнем углу сетки, как в Google Календаре на телефоне.
  */
 export function TrainerScheduleMultiDayAgenda({
   dayIsos,
@@ -80,6 +86,9 @@ export function TrainerScheduleMultiDayAgenda({
   onOpenEntry,
   onMoveEntry,
   onMoveLocked,
+  headEnd = null,
+  addFab = false,
+  todayTick = 0,
 }) {
   const boardRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const days = (dayIsos ?? []).map((d) => String(d).slice(0, 10)).filter(Boolean)
@@ -132,13 +141,28 @@ export function TrainerScheduleMultiDayAgenda({
     const el = boardRef.current
     if (!el) return
     el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes(days, today, nowMinutes), pxPerMin)
-  }, [rangeKey])
+  }, [rangeKey, todayTick])
 
   const goToday = () => {
     onToday?.()
     const el = boardRef.current
     if (el) el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes([today], today, nowMinutes), pxPerMin)
   }
+
+  const addButton =
+    !readOnly && addDefaultDay ? (
+      <button
+        type="button"
+        className={['btn btn-primary btn-sm trainer-schedule-day__add', addFab ? 'trainer-schedule-day__add--fab' : '']
+          .filter(Boolean)
+          .join(' ')}
+        onClick={() => onAddAt(addDefaultDay, 10 * 60)}
+        aria-label="Новая запись"
+      >
+        <Plus size={addFab ? 20 : 18} aria-hidden />
+        {addFab ? null : <span className="trainer-schedule-day__add-label">Запись</span>}
+      </button>
+    ) : null
 
   const minHeight = compact
     ? ENTRY_MIN_HEIGHT_COMPACT
@@ -264,6 +288,7 @@ export function TrainerScheduleMultiDayAgenda({
       ref={swipeAreaRef}
     >
       <div className="trainer-schedule-day__head">
+        {headEnd ? <span className="trainer-schedule-day__head-spacer" aria-hidden /> : null}
         <div className="trainer-schedule-day__nav">
           {swipeNav ? null : (
             <button type="button" className="btn btn-icon-square btn-secondary" onClick={onPrev} aria-label="Назад">
@@ -287,21 +312,15 @@ export function TrainerScheduleMultiDayAgenda({
             Сегодня
           </button>
         ) : null}
-        {!readOnly && addDefaultDay ? (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm trainer-schedule-day__add"
-            onClick={() => onAddAt(addDefaultDay, 10 * 60)}
-            aria-label="Новая запись"
-          >
-            <Plus size={18} aria-hidden />
-            <span className="trainer-schedule-day__add-label">Запись</span>
-          </button>
-        ) : readOnly ? (
+        {addButton && !addFab ? (
+          addButton
+        ) : readOnly && !headEnd ? (
           <span className="trainer-schedule-day__readonly-badge muted">Только просмотр</span>
         ) : null}
+        {headEnd}
       </div>
 
+      <div className="trainer-schedule-day__body">
       {compact ? (
         <div className="trainer-schedule-day__scroll" ref={swipeContentRef}>
           <div className="trainer-schedule-day__col-heads" style={multiGrid}>
@@ -355,12 +374,16 @@ export function TrainerScheduleMultiDayAgenda({
           {days.map((dayIso) => renderDayTrack(dayIso))}
         </div>
       )}
+      {addFab ? addButton : null}
+      </div>
 
       {days.every((d) => filterScheduleEntriesForDay(entries, d).length === 0) ? (
         <p className="trainer-schedule-day__empty muted">
           {readOnly
             ? 'На этот период записей нет.'
-            : 'Нажмите на час или «Запись», чтобы добавить пометку или клиента.'}
+            : addFab
+              ? 'Нажмите на час или «+», чтобы добавить пометку или клиента.'
+              : 'Нажмите на час или «Запись», чтобы добавить пометку или клиента.'}
         </p>
       ) : null}
       <TrainerScheduleKindLegend />

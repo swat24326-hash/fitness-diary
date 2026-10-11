@@ -2,7 +2,7 @@
  * Кто видит и пишет в диалог клиента. Решает сервер; экран только прячет недоступное.
  * «Тренер» — текущий тренер клиента (clients.trainer_id) + главный админ.
  * «Менеджер по продажам» — общий ящик менеджеров клуба клиента; управляющий клуба и админ тоже отвечают.
- * «Управляющий» — управляющий клуба клиента; админ только читает.
+ * «Жалобы и предложения» (kind supervisor) — управляющий клуба клиента; админ только читает.
  */
 
 export const CHAT_KINDS = Object.freeze(['trainer', 'sales', 'supervisor'])
@@ -10,7 +10,8 @@ export const CHAT_KINDS = Object.freeze(['trainer', 'sales', 'supervisor'])
 export const CHAT_NO_ACCESS_RU = 'Нет доступа к этой переписке'
 export const CHAT_NO_CLUB_RU = 'У вас не задан клуб — обратитесь к администратору'
 
-const KIND_LABEL_RU = Object.freeze({ trainer: 'Тренер', sales: 'Менеджер по продажам', supervisor: 'Управляющий' })
+/** Диалог «supervisor» клиент видит как «Жалобы и предложения» — ящик клуба, читает управляющий. */
+const KIND_LABEL_RU = Object.freeze({ trainer: 'Тренер', sales: 'Менеджер по продажам', supervisor: 'Жалобы и предложения' })
 
 export function isChatKind(kind) {
   return CHAT_KINDS.includes(String(kind ?? ''))

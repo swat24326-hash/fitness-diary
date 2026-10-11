@@ -57,6 +57,7 @@ function CoachRoutes() {
       <Route path="calendar" element={<Navigate to="/coach" replace />} />
       <Route path="chats" element={<CoachChatsPage />} />
       <Route path="chat/:clientId" element={<CoachChatPage />} />
+      <Route path="chat/:clientId/:kind" element={<CoachChatPage />} />
       <Route path="dm/:userId" element={<CoachDmPage />} />
       <Route path="clients" element={<CoachClientsPage />} />
       <Route path="more" element={<CoachMorePage />} />

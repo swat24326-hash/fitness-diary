@@ -94,7 +94,7 @@ async function clientWrites(c, browser, backend, chat) {
     const trainerRow = page.getByRole('link', { name: /^Тренер · / })
     c.ok(await reaches(trainerRow), '«Сообщения»: диалог с тренером на месте')
     c.ok(await reaches(page.getByRole('link', { name: /^Менеджер по продажам/ })), 'и диалог с менеджером по продажам')
-    c.ok(await reaches(page.getByRole('link', { name: /^Управляющий/ })), 'и диалог с управляющим')
+    c.ok(await reaches(page.getByRole('link', { name: /^Жалобы и предложения/ })), 'и «Жалобы и предложения» (читает управляющий)')
     await screenshot(page, 'client-chat-list')
     await trainerRow.click()
     await page.waitForURL(`${ORIGIN}/me/chat/trainer`)

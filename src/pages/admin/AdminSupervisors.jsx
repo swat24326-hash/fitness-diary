@@ -14,6 +14,8 @@ import {
   shouldShowUnassignedStaff,
 } from '../../lib/admin/filterStaffByClub'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
+import { SupervisorTrainerLinkCell } from './SupervisorTrainerLinkCell.jsx'
+import { useStaffLinks } from './useStaffLinks.js'
 
 const EMPTY_FORM = {
   name: '',
@@ -34,6 +36,7 @@ export function AdminSupervisors() {
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const links = useStaffLinks()
 
   const loadClubs = useCallback(async () => {
     if (!isSupabaseConfigured()) return
@@ -238,7 +241,7 @@ export function AdminSupervisors() {
             </div>
             <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>
               На клуб — один управляющий. Тренеры создаются во вкладке «Тренеры». Если человек ведёт зал — отдельный
-              профиль тренера.
+              профиль тренера, затем свяжите их в колонке «Он же тренер».
             </p>
             <div className="row td-modal-actions" style={{ marginTop: 4 }}>
               <button type="button" className="btn btn-ghost btn-touch" disabled={saving} onClick={closeCreate}>
@@ -284,6 +287,7 @@ export function AdminSupervisors() {
       </div>
 
       {msg ? <p className="muted admin-inline-note">{msg}</p> : null}
+      {links.error ? <p className="muted admin-inline-note">{links.error}</p> : null}
 
       <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
         Управляющий — почти админ своего клуба: клиенты, статистика, продажи, ПНК, челленджи, планёрка. Вместо
@@ -312,6 +316,7 @@ export function AdminSupervisors() {
                     <th>Логин</th>
                     <th>Email</th>
                     <th>Статус</th>
+                    <th>Он же тренер</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -321,6 +326,9 @@ export function AdminSupervisors() {
                       <td>{m.login}</td>
                       <td>{m.email ?? '—'}</td>
                       <td>{m.is_active === false ? 'выкл.' : 'активен'}</td>
+                      <td>
+                        <SupervisorTrainerLinkCell supervisor={m} links={links} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

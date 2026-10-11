@@ -7,13 +7,16 @@ import { chatUnreadCount, isChatUnreadFor } from './chatAccessCore.js'
 export const CHAT_FOLDER_CLIENTS = 'clients'
 export const CHAT_FOLDER_COLLEAGUES = 'colleagues'
 export const CHAT_FOLDER_ADMIN = 'admin'
-export const CHAT_FOLDERS = Object.freeze([CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_ADMIN])
+/** Только у тренера, связанного с управляющим (linkedStaffCore): обращения клиентов клуба к управляющему. */
+export const CHAT_FOLDER_COMPLAINTS = 'complaints'
+export const CHAT_FOLDERS = Object.freeze([CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_ADMIN, CHAT_FOLDER_COMPLAINTS])
 
 /** Вторая папка у тренера — «Коллеги», у менеджера и управляющего — «Тренеры». */
 export function chatFolderLabelRu(folder, viewerRole) {
   if (folder === CHAT_FOLDER_CLIENTS) return 'Клиенты'
   if (folder === CHAT_FOLDER_COLLEAGUES) return viewerRole === 'trainer' ? 'Коллеги' : 'Тренеры'
   if (folder === CHAT_FOLDER_ADMIN) return 'Администрация'
+  if (folder === CHAT_FOLDER_COMPLAINTS) return 'Жалобы и предложения'
   return ''
 }
 
@@ -50,6 +53,18 @@ export function buildClientContacts({ clients, liveClientIds, threads }) {
       has_thread: byClient.has(id),
       ...summary,
     }
+  })
+}
+
+/**
+ * Папка из уже начатых диалогов (клиент написал сам — значит, приложение у него есть).
+ * @param {object[]} threads строки chat_threads
+ * @param {Map<string, { name?: string }>} clients по client_id
+ */
+export function buildThreadContacts(threads, clients) {
+  return (threads ?? []).map((t) => {
+    const id = String(t.client_id)
+    return { id, name: String(clients.get(id)?.name ?? '').trim(), has_app: true, has_thread: true, ...threadSummary(t) }
   })
 }
 

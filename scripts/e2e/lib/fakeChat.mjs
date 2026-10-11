@@ -17,7 +17,9 @@ import {
   CHAT_FOLDER_ADMIN,
   CHAT_FOLDER_CLIENTS,
   CHAT_FOLDER_COLLEAGUES,
+  CHAT_FOLDER_COMPLAINTS,
   buildClientContacts,
+  buildThreadContacts,
   chatFolderLabelRu,
   chatFolderUnread,
   sortChatContacts,
@@ -32,7 +34,9 @@ import {
   staffDmSideOf,
   staffDmThreadForViewer,
   staffDmWriteAccess,
+  staffRoleLabelRu,
 } from '../../../src/lib/chat/staffDmAccessCore.js'
+import { hiddenLinkedTrainerIds, linkedSupervisorFor } from '../../../src/lib/chat/linkedStaffCore.js'
 import { buildStaffContacts } from '../../../src/lib/chat/staffDmContactsCore.js'
 import { buildChatMessageView, chatPreview } from '../../../src/lib/chat/chatMessageCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
@@ -54,6 +58,13 @@ export function createFakeChat(state) {
   const chat = { threads: [], messages: [], dm: { threads: [], messages: [], pushes: [] } }
   const names = () => new Map(state.users.map((u) => [String(u.id), u.name]))
   const threadOf = (clientId, kind) => chat.threads.find((t) => t.client_id === clientId && t.kind === kind)
+  /** Как linkedStaffStore: тренерская учётка, связанная с управляющим, → строка управляющего. */
+  const linkedSup = (user) => {
+    const me = state.users.find((u) => u.id === user?.id)
+    return me ? linkedSupervisorFor(me, state.users.find((u) => u.id === me.linked_user_id) ?? null) : null
+  }
+  const dmUser = (user) => linkedSup(user) ?? user
+  const actorFor = (user, kind) => (kind === 'supervisor' && linkedSup(user)) || user
 
   function page(thread, side) {
     if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null }
@@ -140,26 +151,38 @@ export function createFakeChat(state) {
     )
   }
 
-  /** Как chatContactsHandler: «Клиенты» у тренера + «Коллеги»/«Тренеры» и «Администрация» (живые — state.live_user_ids). */
+  const complaintThreads = (user) => {
+    const sup = role(user) === 'trainer' ? linkedSup(user) : null
+    if (!sup) return null
+    return chat.threads.filter((t) => t.kind === 'supervisor' && t.last_message_at && canStaffReadChat(staffCtx(sup), t.kind, find(t.client_id)))
+  }
+  const role = (user) => chatStaffRole(staffCtx(user))
+  const find = (id) => state.clients.find((c) => c.id === id)
+
+  /** Как chatContactsHandler: «Клиенты» у тренера + «Коллеги»/«Тренеры» и «Администрация» (живые — state.live_user_ids) + «Жалобы и предложения» у связанного. */
   function contacts(ctx, user) {
-    const role = chatStaffRole(ctx)
-    if (!role) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
-    const viewer = dmViewer(user)
+    const viewerRole = chatStaffRole(ctx)
+    if (!viewerRole) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+    const viewer = dmViewer(dmUser(user))
+    const hidden = hiddenLinkedTrainerIds(state.users)
     const staff =
       staffDmRoleOf(viewer.role) && viewer.club_id
         ? buildStaffContacts({
             viewerId: viewer.id,
-            peers: pickStaffDmPeers(viewer, state.users),
+            peers: pickStaffDmPeers(viewer, state.users).filter((p) => !hidden.has(String(p.id))),
             liveUserIds: state.live_user_ids ?? [],
             threads: chat.dm.threads,
           })
         : null
+    const complaints = complaintThreads(user)
+    const clientNames = new Map(state.clients.map((c) => [c.id, c]))
     const folders = [
-      clientsFolder(role, user),
-      staff ? folderOf(CHAT_FOLDER_COLLEAGUES, role, staff.colleagues) : null,
-      staff ? folderOf(CHAT_FOLDER_ADMIN, role, staff.admin) : null,
+      clientsFolder(viewerRole, user),
+      staff ? folderOf(CHAT_FOLDER_COLLEAGUES, viewerRole, staff.colleagues) : null,
+      staff ? folderOf(CHAT_FOLDER_ADMIN, viewerRole, staff.admin) : null,
+      complaints ? folderOf(CHAT_FOLDER_COMPLAINTS, viewerRole, buildThreadContacts(complaints, clientNames)) : null,
     ].filter(Boolean)
-    return { status: 200, json: { role, folders } }
+    return { status: 200, json: { role: viewerRole, folders } }
   }
 
   const dmViewer = (user) => ({ id: String(user?.id ?? ''), role: user?.role, club_id: user?.club_id })
@@ -170,14 +193,14 @@ export function createFakeChat(state) {
   }
 
   /** Как staffDmHandler.sendStaffDmThread. */
-  function dmThread(user, peerId) {
-    const viewer = dmViewer(user)
+  function dmThread(authUser, peerId) {
+    const viewer = dmViewer(dmUser(authUser))
     const peer = dmPeer(peerId)
     if (!peer) return { status: 404, json: { error: 'Сотрудник не найден' } }
     const thread = dmThreadOf(viewer.id, peer.id)
     if (!canReadStaffDm(viewer, peer, Boolean(thread))) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
     const meta = {
-      peer: { id: peer.id, name: peer.name, label: chatKindLabelRu(staffDmRoleOf(peer.role)) },
+      peer: { id: peer.id, name: peer.name, label: staffRoleLabelRu(peer.role) },
       can_write: staffDmWriteAccess(viewer, peer).ok,
     }
     if (!thread) return { status: 200, json: { ...meta, messages: [], has_more: false, marked_read: false, peer_read_at: null } }
@@ -192,7 +215,8 @@ export function createFakeChat(state) {
   }
 
   /** Как staffDmHandler.sendStaffDmMessage; push не шлём, а складываем в chat.dm.pushes. */
-  function dmSend(user, peerId, input) {
+  function dmSend(authUser, peerId, input) {
+    const user = dmUser(authUser)
     const viewer = dmViewer(user)
     const peer = dmPeer(peerId)
     const access = staffDmWriteAccess(viewer, peer)
@@ -221,24 +245,26 @@ export function createFakeChat(state) {
     return { status: 200, json: { message: buildStaffDmMessageView(m, viewer.id) } }
   }
 
-  const dmAttention = (user) =>
-    chat.dm.threads.filter((t) => staffDmSideOf(t, user.id) && isChatUnreadFor('staff', staffDmThreadForViewer(t, user.id))).length
+  const dmAttention = (authUser) => {
+    const user = dmUser(authUser)
+    return chat.dm.threads.filter((t) => staffDmSideOf(t, user.id) && isChatUnreadFor('staff', staffDmThreadForViewer(t, user.id))).length
+  }
 
   function staff(req, user) {
     if (req.searchParams.get('action') !== 'chat') return null
     const ctx = staffCtx(user)
-    const find = (id) => state.clients.find((c) => c.id === id)
     if (req.method === 'POST' && req.body?.op === 'dm-send') return dmSend(user, req.body.user_id, req.body)
     if (req.searchParams.get('view') === 'dm-thread') return dmThread(user, req.searchParams.get('user_id'))
     if (req.method === 'POST') {
       const row = find(req.body?.client_id)
-      if (!canStaffWriteChat(ctx, req.body?.kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
-      return send(row, req.body.kind, 'staff', user.id, req.body)
+      const actor = actorFor(user, req.body?.kind)
+      if (!canStaffWriteChat(staffCtx(actor), req.body?.kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+      return send(row, req.body.kind, 'staff', actor.id, req.body)
     }
     if (req.searchParams.get('view') === 'contacts') return contacts(ctx, user)
     if ((req.searchParams.get('view') || 'list') === 'list') {
-      const threads = chat.threads
-        .filter((t) => t.last_message_at && canStaffReadChat(ctx, t.kind, find(t.client_id)))
+      const own = chat.threads.filter((t) => t.last_message_at && canStaffReadChat(ctx, t.kind, find(t.client_id)))
+      const threads = [...own, ...(complaintThreads(user) ?? []).filter((t) => !own.includes(t))]
         .map((t) => ({
           client_id: t.client_id,
           client_name: find(t.client_id)?.name ?? '',
@@ -254,14 +280,15 @@ export function createFakeChat(state) {
     }
     const kind = req.searchParams.get('kind')
     const row = find(req.searchParams.get('client_id'))
-    if (!canStaffReadChat(ctx, kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+    const actorCtx = staffCtx(actorFor(user, kind))
+    if (!canStaffReadChat(actorCtx, kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
     return {
       status: 200,
       json: {
         client: { id: row.id, name: row.name, archived: false },
         kind,
         label: chatKindLabelRu(kind),
-        can_write: canStaffWriteChat(ctx, kind, row),
+        can_write: canStaffWriteChat(actorCtx, kind, row),
         ...page(threadOf(row.id, kind), 'staff'),
       },
     }

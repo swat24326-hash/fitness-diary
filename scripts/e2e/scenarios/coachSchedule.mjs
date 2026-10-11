@@ -71,11 +71,11 @@ async function scrollBoardTo(page, minutes) {
   )
 }
 
-/** Страница не листается: часы листаются внутри сетки, вкладки режимов всегда на экране. */
+/** Страница не листается: часы листаются внутри сетки, меню режимов «⋮» всегда на экране. */
 function fitsScreen(page) {
   return page.evaluate(() => {
     const d = globalThis.document
-    const sw = d.querySelector('.trainer-schedule-view-switch')?.getBoundingClientRect()
+    const sw = d.querySelector('.trainer-schedule-view-menu__toggle')?.getBoundingClientRect()
     const board = d.querySelector('.trainer-schedule-day__board')?.getBoundingClientRect()
     return (
       d.scrollingElement.scrollHeight <= globalThis.innerHeight + 1 &&
@@ -84,6 +84,41 @@ function fitsScreen(page) {
       Boolean(board) &&
       board.height >= 300
     )
+  })
+}
+
+async function pickView(page, name) {
+  await page.getByRole('button', { name: /^Режим календаря/ }).click()
+  await page.getByRole('menuitemradio', { name, exact: true }).click()
+}
+
+/** «⋮» справа, слева пустышка той же ширины — дата ровно по центру шапки. */
+function headIsSymmetric(page) {
+  return page.evaluate(() => {
+    const d = globalThis.document
+    const box = (sel) => d.querySelector(sel)?.getBoundingClientRect()
+    const head = box('.trainer-schedule-day__head')
+    const menu = box('.trainer-schedule-view-menu__toggle')
+    const spacer = box('.trainer-schedule-day__head-spacer')
+    const title = box('.trainer-schedule-day__title')
+    if (!head || !menu || !spacer || !title) return false
+    const mirrored = Math.abs(menu.width - spacer.width) <= 1 && Math.abs(spacer.left - head.left - (head.right - menu.right)) <= 1
+    const onRight = menu.left > head.left + head.width / 2
+    const centered = Math.abs(title.left + title.width / 2 - (head.left + head.width / 2)) <= 2
+    return mirrored && centered && onRight
+  })
+}
+
+/** «+» как в Google Календаре: маленькая плавающая кнопка в правом нижнем углу сетки, не в шапке. */
+function addIsFab(page) {
+  return page.evaluate(() => {
+    const d = globalThis.document
+    const add = d.querySelector('.trainer-schedule-day__add')
+    const card = d.querySelector('.trainer-schedule-day')?.getBoundingClientRect()
+    const body = d.querySelector('.trainer-schedule-day__body')?.getBoundingClientRect()
+    if (!add || !card || !body || add.closest('.trainer-schedule-day__head')) return false
+    const b = add.getBoundingClientRect()
+    return b.width <= 40 && body.right - b.right <= 20 && body.bottom - b.bottom <= 20 && b.top > card.top + card.height / 2
   })
 }
 
@@ -115,7 +150,14 @@ export async function run(browser) {
     c.ok((await page.locator('.trainer-schedule-day__entry-start').count()) === 0, 'на телефоне нет кнопки «Начать тренировку»')
     c.ok((await page.getByRole('button', { name: 'Вперёд' }).count()) === 0, 'стрелок нет — листаем пальцем, как в Google Календаре')
     await screenshot(page, 'coach-calendar-day')
-    c.ok(await fitsScreen(page), 'день: всё в одном экране, переключатель «День / 3 дня / Неделя / Месяц» не уезжает')
+    c.ok(await fitsScreen(page), 'день: всё в одном экране, меню режимов «⋮» не уезжает')
+    c.ok(await headIsSymmetric(page), 'шапка симметрична: «⋮» справа, дата по центру')
+    c.ok(await addIsFab(page), '«+» — маленькая кнопка в правом нижнем углу сетки, как в Google Календаре')
+    await page.getByRole('button', { name: /^Режим календаря/ }).click()
+    c.ok((await page.getByRole('menuitemradio').count()) === 4, 'меню «⋮»: четыре режима')
+    await screenshot(page, 'coach-calendar-view-menu')
+    await page.keyboard.press('Escape')
+    c.ok((await page.getByRole('menu').count()) === 0, 'меню «⋮»: Escape закрывает')
 
     const cdp = await context.newCDPSession(page)
     const dayTitle = await titleText(page, '.trainer-schedule-day__title')
@@ -126,7 +168,7 @@ export async function run(browser) {
     await touchSwipe(cdp, page, '.trainer-schedule-day__board', 160)
     c.ok((await titleText(page, '.trainer-schedule-day__title')) === dayTitle, 'взмах вправо — обратно на сегодня')
 
-    await page.getByRole('tab', { name: 'Неделя', exact: true }).click()
+    await pickView(page, 'Неделя')
     await page.locator('.trainer-schedule-day--week').waitFor({ timeout: 10_000 })
     c.ok(await fitsScreen(page), 'неделя: всё в одном экране')
     const weekFits = await page.evaluate(() => {
@@ -140,7 +182,7 @@ export async function run(browser) {
     await touchSwipe(cdp, page, '.trainer-schedule-day__board', -160)
     c.ok((await titleText(page, '.trainer-schedule-day__title')) !== weekTitle, 'неделя: взмах влево — следующая неделя')
     await touchSwipe(cdp, page, '.trainer-schedule-day__board', 160)
-    await page.getByRole('tab', { name: '3 дня', exact: true }).click()
+    await pickView(page, '3 дня')
     await page.locator('.trainer-schedule-day--multi').waitFor({ timeout: 10_000 })
     c.ok(await fitsScreen(page), '3 дня: всё в одном экране')
     const noSideScroll = await page.evaluate(() => {
@@ -149,7 +191,7 @@ export async function run(browser) {
     })
     c.ok(noSideScroll, '3 дня: все три дня влезают по ширине, без прокрутки вбок')
     await screenshot(page, 'coach-calendar-3days')
-    await page.getByRole('tab', { name: 'День', exact: true }).click()
+    await pickView(page, 'День')
     await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 10_000 })
 
     /* Новая запись с клиентом на 15:00. */
@@ -210,7 +252,7 @@ export async function run(browser) {
     c.ok(await page.getByText(/Тренировка по записи завершена/).isVisible(), 'завершённая тренировка — плашка, перенос не начат')
     c.ok(at(18 * 60).length === 1, 'сервер: завершённый слот остался на 18:00')
 
-    await page.getByRole('tab', { name: 'Месяц', exact: true }).click()
+    await pickView(page, 'Месяц')
     await page.locator('.trainer-schedule-month').first().waitFor({ timeout: 10_000 })
     await screenshot(page, 'coach-calendar-month')
     const monthTitle = await titleText(page, '.trainer-schedule-month__title')
@@ -218,6 +260,23 @@ export async function run(browser) {
     const nextMonth = await titleText(page, '.trainer-schedule-month__title')
     c.ok(nextMonth !== monthTitle, `месяц: взмах влево — следующий месяц (${monthTitle} → ${nextMonth})`)
     c.ok((await page.locator('.trainer-schedule-day').count()) === 0, 'взмах по месяцу не открыл день')
+
+    await page.getByRole('button', { name: /выбрать месяц$/ }).click()
+    const picker = page.getByRole('dialog', { name: 'Выбор месяца' })
+    c.ok((await picker.getByRole('button', { pressed: true }).innerText()) === 'Ноя', 'выбор месяца: открыт на текущем месяце листания')
+    await screenshot(page, 'coach-calendar-month-picker')
+    await picker.getByRole('button', { name: 'Дек', exact: true }).click()
+    c.ok((await titleText(page, '.trainer-schedule-month__title')) === 'Декабрь 2026', 'выбор месяца: тап «Дек» — Декабрь 2026')
+    await page.getByRole('button', { name: /выбрать месяц$/ }).click()
+    await picker.getByRole('button', { name: 'Следующий год' }).click()
+    await picker.getByRole('button', { name: 'Фев', exact: true }).click()
+    c.ok((await titleText(page, '.trainer-schedule-month__title')) === 'Февраль 2027', 'выбор месяца: стрелка года и «Фев» — Февраль 2027')
+    c.ok((await page.getByRole('dialog', { name: 'Выбор месяца' }).count()) === 0, 'выбор месяца закрылся после выбора')
+    await page.getByRole('button', { name: /^Режим календаря/ }).click()
+    await screenshot(page, 'coach-calendar-view-menu-today')
+    await page.getByRole('menuitem', { name: 'Сегодня' }).click()
+    const todayTitle = await titleText(page, '.trainer-schedule-month__title')
+    c.ok(todayTitle === monthTitle, `меню «⋮» → «Сегодня» вернуло к текущему месяцу (${todayTitle})`)
     c.ok(pageErrors.length === 0, `без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
     await screenshot(page, 'coach-schedule-FAIL').catch(() => null)

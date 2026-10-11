@@ -1,10 +1,11 @@
 import { useId, useState } from 'react'
 import { ChevronDown, Settings, Smartphone } from 'lucide-react'
 import { HeaderPushSwitch } from './HeaderPushSwitch.jsx'
+import { HeaderChatSoundSwitch } from './HeaderChatSoundSwitch.jsx'
 
 /** «Настройки» в бургере: служебные пункты свёрнуты, чтобы меню не разрасталось. */
-export function HeaderSettingsMenu({ attention = false, children }) {
-  const [open, setOpen] = useState(false)
+export function HeaderSettingsMenu({ attention = false, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen)
   const itemsId = useId()
   return (
     <div className="header-settings">
@@ -29,11 +30,15 @@ export function HeaderSettingsMenu({ attention = false, children }) {
   )
 }
 
-/** Пункты сотрудника: push (тренер, менеджер) и QR для приложения на телефоне (только тренер). */
-export function HeaderStaffSettingsItems({ showPush, showPhoneQr, clubId, onOpen }) {
+/**
+ * Пункты сотрудника: push (тренер, менеджер), звуки переписки; тренеру — напоминания Ежедневника
+ * и QR для приложения на телефоне.
+ */
+export function HeaderStaffSettingsItems({ showPush, showChatSound, showPhoneQr, showScheduleReminders, clubId, onOpen }) {
   return (
     <>
-      {showPush ? <HeaderPushSwitch clubId={clubId} /> : null}
+      {showPush ? <HeaderPushSwitch clubId={clubId} scheduleReminders={showScheduleReminders} /> : null}
+      {showChatSound ? <HeaderChatSoundSwitch /> : null}
       {showPhoneQr ? (
         <button type="button" className="app-header__menu-item" onClick={() => onOpen('phone-qr')}>
           <Smartphone size={18} aria-hidden />

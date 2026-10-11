@@ -8,6 +8,25 @@ import { pickInboxStaffRecipients, inboxStaffRoleValues } from '../../../src/lib
 import { isWebPushConfigured, sendWebPushToRow } from '../webPushCore.js'
 import { loadSubscriptions } from '../inbox/inboxPushJob.js'
 import { rows } from '../inbox/inboxStore.js'
+import { withLinkedTrainers } from './linkedStaffStore.js'
+
+/** Одно устройство под двумя учётками связанной пары — один push. */
+export function uniqueByEndpoint(subs) {
+  const seen = new Set()
+  return subs.filter((s) => {
+    const key = String(s.endpoint ?? s.id)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+/** Получатели-сотрудники + тренерские учётки связанных управляющих, без автора. */
+export async function staffPushSubscriptions(db, userIds, excludeUserId = '') {
+  const ids = (await withLinkedTrainers(db, userIds)).filter((id) => id !== String(excludeUserId ?? ''))
+  if (!ids.length) return []
+  return uniqueByEndpoint(await loadSubscriptions(db, true, ids.map((user_id) => ({ user_id }))))
+}
 
 /** @returns {'off'|null} null — можно слать (переписка и личные сообщения сотрудников) */
 export function chatPushBlocker(configured = isWebPushConfigured()) {
@@ -44,9 +63,12 @@ export async function sendChatPush(db, { kind, authorSide, client, authorUserId,
   const audience = chatPushAudience(kind, authorSide, client)
   if (!audience) return { sent: 0, expired: 0 }
   const staff = audience.to !== 'client'
-  const recipients = staff ? await staffRecipients(db, audience, String(authorUserId ?? '')) : [{ client_id: String(client.id) }]
+  const author = String(authorUserId ?? '')
+  const recipients = staff ? await staffRecipients(db, audience, author) : [{ client_id: String(client.id) }]
   if (!recipients.length) return { sent: 0, expired: 0 }
-  const subs = await loadSubscriptions(db, staff, recipients)
+  const subs = staff
+    ? await staffPushSubscriptions(db, recipients.map((r) => String(r.user_id)), author)
+    : await loadSubscriptions(db, false, recipients)
   const payload = buildChatPushPayload({ kind, authorSide, clientId: String(client.id), clientName: client.name, authorName, body })
   const expired = []
   let sent = 0

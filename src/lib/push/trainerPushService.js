@@ -71,6 +71,34 @@ export async function removeTrainerPushSubscription(endpoint) {
   return data
 }
 
+/**
+ * Напоминания Ежедневника на этом устройстве: без scheduleReminders — чтение.
+ * @param {string} endpoint
+ * @param {boolean} [scheduleReminders]
+ */
+export async function trainerPushPrefs(endpoint, scheduleReminders) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии')
+
+  const res = await fetch(`${apiOrigin()}/api/admin-data?action=push-subscription`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: JSON.stringify({
+      op: 'prefs',
+      endpoint,
+      ...(typeof scheduleReminders === 'boolean' ? { schedule_reminders: scheduleReminders } : {}),
+    }),
+  })
+  const data = await parseJson(res)
+  if (!res.ok) throw new Error(data?.error ?? `Ошибка (${res.status})`)
+  return data
+}
+
 export async function sendTrainerPushTest() {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии')

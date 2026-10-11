@@ -34,6 +34,7 @@ export function useScheduleCalendarNav({ initialView = SCHEDULE_VIEW_MONTH } = {
   const [monthCursor, setMonthCursor] = useState(() => parseMonthCursor(today))
   const [modalDraft, setModalDraft] = useState(/** @type {object | null} */ (null))
   const [modalOpen, setModalOpen] = useState(false)
+  const [todayTick, setTodayTick] = useState(0)
 
   const agendaDays = useMemo(() => listScheduleViewDays(selectedDay, view), [selectedDay, view])
 
@@ -79,8 +80,14 @@ export function useScheduleCalendarNav({ initialView = SCHEDULE_VIEW_MONTH } = {
     onSelectDay,
     onChangeView,
     shiftAnchor: (delta) => focusDay(shiftScheduleAnchorIso(selectedDay, view, delta)),
-    goToday: () => focusDay(todayInTimeZoneIso()),
+    /** Растёт на каждое «Сегодня» — сетка докручивает к текущему часу, даже если день не сменился. */
+    todayTick,
+    goToday: () => {
+      focusDay(todayInTimeZoneIso())
+      setTodayTick((n) => n + 1)
+    },
     prevMonth: () => setMonthCursor((c) => shiftMonth(c.year, c.month, -1)),
     nextMonth: () => setMonthCursor((c) => shiftMonth(c.year, c.month, 1)),
+    pickMonth: (year, month) => setMonthCursor({ year, month }),
   }
 }

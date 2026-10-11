@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { buildScheduleMonthGrid } from '../../lib/trainer/trainerScheduleCore.js'
 import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import { useScheduleSwipe } from '../../hooks/useScheduleSwipe.js'
+import { TrainerScheduleMonthPicker } from './TrainerScheduleMonthPicker.jsx'
 
 const MONTH_NAMES = [
   'Январь',
@@ -29,8 +30,14 @@ const MONTH_NAMES = [
  *   onPrevMonth: () => void,
  *   onNextMonth: () => void,
  *   swipeNav?: boolean,
+ *   headEnd?: import('react').ReactNode,
+ *   onPickMonth?: (year: number, month: number) => void,
+ *   showCounts?: boolean,
  * }} props
+ * showCounts — админ: в клетке число записей вместо точки (загрузка зала по дням).
+ * onPickMonth — заголовок «Октябрь 2026 ▾» открывает выбор месяца и года.
  * swipeNav — телефон: месяц листается пальцем вбок, без стрелок.
+ * headEnd — кнопка справа в шапке; слева ставится пустышка той же ширины, чтобы месяц стоял по центру.
  */
 export function TrainerScheduleMonthGrid({
   year,
@@ -41,6 +48,9 @@ export function TrainerScheduleMonthGrid({
   onPrevMonth,
   onNextMonth,
   swipeNav = false,
+  headEnd = null,
+  onPickMonth,
+  showCounts = false,
 }) {
   const grid = buildScheduleMonthGrid(year, month)
   const today = todayInTimeZoneIso()
@@ -56,17 +66,23 @@ export function TrainerScheduleMonthGrid({
       ref={areaRef}
     >
       <div className="trainer-schedule-month__head">
+        {headEnd ? <span className="trainer-schedule-month__head-spacer" aria-hidden /> : null}
         {swipeNav ? null : (
           <button type="button" className="btn btn-icon-square btn-secondary" onClick={onPrevMonth} aria-label="Предыдущий месяц">
             <ChevronLeft size={20} aria-hidden />
           </button>
         )}
-        <h2 className="trainer-schedule-month__title">{title}</h2>
+        {onPickMonth ? (
+          <TrainerScheduleMonthPicker title={title} year={year} month={month} onPick={onPickMonth} />
+        ) : (
+          <h2 className="trainer-schedule-month__title">{title}</h2>
+        )}
         {swipeNav ? null : (
           <button type="button" className="btn btn-icon-square btn-secondary" onClick={onNextMonth} aria-label="Следующий месяц">
             <ChevronRight size={20} aria-hidden />
           </button>
         )}
+        {headEnd}
       </div>
       <div className="trainer-schedule-month__body" ref={bodyRef}>
         <div className="trainer-schedule-month__weekdays" aria-hidden>
@@ -103,7 +119,13 @@ export function TrainerScheduleMonthGrid({
                   aria-pressed={isSelected}
                 >
                   <span className="trainer-schedule-month__day">{cell.day}</span>
-                  {count > 0 ? <span className="trainer-schedule-month__dot" aria-hidden /> : null}
+                  {count > 0 && showCounts ? (
+                    <span className="trainer-schedule-month__count" aria-hidden>
+                      {count}
+                    </span>
+                  ) : count > 0 ? (
+                    <span className="trainer-schedule-month__dot" aria-hidden />
+                  ) : null}
                 </button>
               )
             }),

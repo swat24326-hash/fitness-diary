@@ -57,6 +57,7 @@ import {
   handleCreateSalesManagerPost,
 } from './_lib/adminData/salesHandlers.js'
 import { handleCreateSupervisorPost } from './_lib/adminData/supervisorHandlers.js'
+import { handleStaffLinkGet, handleStaffLinkPost } from './_lib/adminData/staffLinkHandler.js'
 import { handlePriceListGet, handlePriceListPost } from './_lib/adminData/priceListHandlers.js'
 import { handleTzPriceListGet, handleTzPriceListPost } from './_lib/adminData/tzPriceListHandlers.js'
 import { handleAzPriceListGet, handleAzPriceListPost } from './_lib/adminData/azPriceListHandlers.js'
@@ -97,6 +98,7 @@ async function handler(req, res) {
       'gemini-analytics',
       'create-sales-manager',
       'create-supervisor',
+      'staff-link',
       'iskra-settings',
       'coach-quality-settings',
       'trainer-pay-plan-settings',
@@ -175,6 +177,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleCreateSupervisorPost(ctx, res, body)
+    }
+    if (action === 'staff-link') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleStaffLinkPost(ctx, res, body)
     }
     if (action === 'iskra-settings') {
       const ctx = await requireAdmin(req, res)
@@ -369,6 +376,12 @@ async function handler(req, res) {
     const ctx = await requireAuthUser(req, res)
     if (!ctx) return
     return handleStaffChatGet(ctx, req, res)
+  }
+
+  if (action === 'staff-link') {
+    const ctx = await requireAdmin(req, res)
+    if (!ctx) return
+    return handleStaffLinkGet(ctx, res)
   }
 
   const trainerActions = new Set([

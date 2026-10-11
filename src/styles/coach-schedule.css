@@ -1,6 +1,6 @@
 /* Ежедневник на телефоне тренера (/coach): календарь планшета в узком экране над нижними вкладками. */
 
-/* Экран ровно в высоту телефона: страница не листается, переключатель «День / 3 дня / Неделя / Месяц» всегда виден,
+/* Экран ровно в высоту телефона: страница не листается, режим «День / 3 дня / Неделя / Месяц» — бургер в шапке,
    сетка часов забирает всё место до нижних вкладок (сколько бы ни заняла подсказка про значок). */
 .coach-app--fill {
   box-sizing: border-box;
@@ -50,15 +50,6 @@
   flex: none;
 }
 
-.coach-schedule .trainer-schedule-view-switch {
-  width: 100%;
-}
-
-.coach-schedule .trainer-schedule-view-switch__btn {
-  flex: 1 1 0;
-  min-height: 44px;
-}
-
 .coach-schedule > .trainer-schedule-day {
   display: flex;
   flex-direction: column;
@@ -71,26 +62,30 @@
   flex: none;
 }
 
+/* Шапка в одну строку: пустышка слева, «⋮» справа (обе 44px), дата по центру. */
 .coach-schedule .trainer-schedule-day__head {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
 }
 
-/* Узкий экран: «+» без подписи, без «Сегодня», легенды цветов и подсказок — место отдаём часам. */
-.coach-schedule .trainer-schedule-day__today,
-.coach-schedule .trainer-schedule-day__add-label,
+.coach-schedule .trainer-schedule-day__nav {
+  min-width: 0;
+}
+
+/* Узкий экран: без легенды цветов и подсказок — место отдаём часам. */
 .coach-schedule .trainer-schedule-day__empty,
 .coach-schedule .trainer-schedule-legend {
   display: none;
 }
 
-.coach-schedule .trainer-schedule-day__add {
-  min-width: 44px;
-  min-height: 44px;
-  justify-content: center;
+/* У карточки отступ 10px — «+» ближе к краю сетки, чтобы от угла экрана было как раньше. */
+.coach-schedule .trainer-schedule-day .trainer-schedule-day__add.trainer-schedule-day__add--fab {
+  right: 4px;
+  bottom: 4px;
 }
 
-.coach-schedule .trainer-schedule-day > .trainer-schedule-day__scroll {
+.coach-schedule .trainer-schedule-day > .trainer-schedule-day__body,
+.coach-schedule .trainer-schedule-day__body > .trainer-schedule-day__scroll {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -138,7 +133,7 @@
 .coach-schedule .trainer-schedule-day__title,
 .coach-schedule .trainer-schedule-month__title {
   flex: 1;
-  text-align: left;
+  text-align: center;
 }
 
 /* Неделя на 360px: 7 узких колонок, шапка «Пн» над «12.10», в записи только имя мелко. */
@@ -184,7 +179,7 @@
 }
 
 /* overscroll-behavior — докрутив часы до края, палец не утаскивает страницу. */
-.coach-schedule .trainer-schedule-day > .trainer-schedule-day__board,
+.coach-schedule .trainer-schedule-day__body > .trainer-schedule-day__board,
 .coach-schedule .trainer-schedule-day__scroll > .trainer-schedule-day__board {
   flex: 1 1 auto;
   min-height: 180px;

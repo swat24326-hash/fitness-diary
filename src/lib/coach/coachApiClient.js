@@ -56,13 +56,14 @@ export function sendCoachDmMessage(userId, outgoing) {
   return coachRequest({}, { op: 'dm-send', user_id: userId, ...outgoing })
 }
 
-export function fetchCoachChatThread(clientId, before) {
-  return coachRequest({ view: 'chat-thread', client_id: clientId, ...(before ? { before } : {}) })
+/** kind 'supervisor' — «Жалобы и предложения» (только тренеру, связанному с управляющим). */
+export function fetchCoachChatThread(clientId, before, kind = 'trainer') {
+  return coachRequest({ view: 'chat-thread', client_id: clientId, kind, ...(before ? { before } : {}) })
 }
 
 /** @param {{ body: string } | { sticker: string }} outgoing */
-export function sendCoachChatMessage(clientId, outgoing) {
-  return coachRequest({}, { op: 'chat-send', client_id: clientId, ...outgoing })
+export function sendCoachChatMessage(clientId, outgoing, kind = 'trainer') {
+  return coachRequest({}, { op: 'chat-send', client_id: clientId, kind, ...outgoing })
 }
 
 export const fetchCoachPushStatus = (endpoint) => coachRequest({ view: 'push-status', endpoint: endpoint || '' })
@@ -71,3 +72,7 @@ export const fetchCoachPushStatus = (endpoint) => coachRequest({ view: 'push-sta
 export const subscribeCoachPush = (sub) => coachRequest({}, { op: 'push-subscribe', ...sub })
 
 export const unsubscribeCoachPush = (endpoint) => coachRequest({}, { op: 'push-unsubscribe', endpoint })
+
+/** Напоминания Ежедневника на этом телефоне: без scheduleReminders — чтение. */
+export const coachPushPrefs = (endpoint, scheduleReminders) =>
+  coachRequest({}, { op: 'push-prefs', endpoint, ...(typeof scheduleReminders === 'boolean' ? { schedule_reminders: scheduleReminders } : {}) })

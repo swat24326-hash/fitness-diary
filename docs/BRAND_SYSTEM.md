@@ -61,7 +61,7 @@ node scripts/verify-product-brand.mjs
 |---------|--------|
 | Wordmark | **ЯДРО** (`PRODUCT_BRAND_LOCKUP`) — капс, узкий гротеск |
 | Знак | Ядро + 2 орбиты + 3 спутника (`productBrandMark.js` / `OsMark`) |
-| Иконка PWA | Знак + «ЯДРО» — `npm run gen:icons`; локкап `public/brand/os-lockup.svg`; макет `public/brand/os-logo.png` |
+| Иконка PWA | Только знак по центру, **без надписи** (решение владельца 12.10.2026: подпись под значком телефон берёт из названия приложения — клуб) — `npm run gen:icons`, кэш значков — `PRODUCT_BRAND_ASSETS_VERSION`; локкап `public/brand/os-lockup.svg`; макет `public/brand/os-logo.png` |
 | Цвет знака | В UI — `currentColor` / `--accent`; в печати — чёрный на белом |
 | Не используем | Гантель FA; старые шевроны Порыва как mark; латиницу AXIS в основном UI (везде **Ядро**) |
 
