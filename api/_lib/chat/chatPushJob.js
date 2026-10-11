@@ -1,13 +1,18 @@
 /**
  * Push о новом сообщении в переписке. Сообщение уже сохранено — push только зовёт открыть.
- * Тихие часы и отключённый web push — как у «Входящих» (inboxPushBlocker).
+ * Круглосуточно, как в мессенджере: человек написал сам. Тихие часы — только у рассылок и напоминаний.
  */
 import { chatKindLabelRu, chatPushAudience } from '../../../src/lib/chat/chatAccessCore.js'
 import { CHAT_PUSH_PREVIEW_MAX, chatPreview } from '../../../src/lib/chat/chatMessageCore.js'
 import { pickInboxStaffRecipients, inboxStaffRoleValues } from '../../../src/lib/inbox/inboxAudienceCore.js'
-import { sendWebPushToRow } from '../webPushCore.js'
-import { inboxPushBlocker, loadSubscriptions } from '../inbox/inboxPushJob.js'
+import { isWebPushConfigured, sendWebPushToRow } from '../webPushCore.js'
+import { loadSubscriptions } from '../inbox/inboxPushJob.js'
 import { rows } from '../inbox/inboxStore.js'
+
+/** @returns {'off'|null} null — можно слать (переписка и личные сообщения сотрудников) */
+export function chatPushBlocker(configured = isWebPushConfigured()) {
+  return configured ? null : 'off'
+}
 
 /**
  * @param {{ kind: string, authorSide: 'client'|'staff', clientId: string, clientName: string, authorName: string, body: string }} p
@@ -35,7 +40,7 @@ async function staffRecipients(db, audience, excludeUserId) {
 
 /** Фоном после ответа API: ошибки только в лог, сообщение не откатываем. */
 export async function sendChatPush(db, { kind, authorSide, client, authorUserId, authorName, body }, send = sendWebPushToRow) {
-  if (inboxPushBlocker()) return { sent: 0, expired: 0 }
+  if (chatPushBlocker()) return { sent: 0, expired: 0 }
   const audience = chatPushAudience(kind, authorSide, client)
   if (!audience) return { sent: 0, expired: 0 }
   const staff = audience.to !== 'client'

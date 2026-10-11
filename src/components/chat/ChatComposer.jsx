@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Keyboard, Send, Smile } from 'lucide-react'
 import { CHAT_BODY_MAX } from '../../lib/chat/chatMessageCore.js'
 import { insertEmoji } from '../../lib/chat/chatEmojiCore.js'
+import { attachChatKeyboardInset } from '../../lib/chat/chatKeyboardInset.js'
 import { ChatEmojiPicker } from './ChatEmojiPicker.jsx'
 
 /** На компьютере Enter отправляет (Shift+Enter — перенос), на тач-экране Enter — перенос, как в Telegram. */
@@ -18,6 +19,9 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder }) {
   const [emojiOpen, setEmojiOpen] = useState(false)
   const inputRef = useRef(null)
   const caretRef = useRef(null)
+  const formRef = useRef(null)
+
+  useEffect(() => attachChatKeyboardInset(formRef.current), [])
 
   useEffect(() => {
     const el = inputRef.current
@@ -50,7 +54,7 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder }) {
   const canSend = Boolean(draft.trim()) && !sending
 
   return (
-    <form className="chat-compose" onSubmit={(e) => void submit(e)}>
+    <form ref={formRef} className="chat-compose" onSubmit={(e) => void submit(e)}>
       {sendError ? (
         <p className="chat-compose__error" role="alert">
           {sendError}

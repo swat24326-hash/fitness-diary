@@ -4,12 +4,13 @@
  */
 import { buildStaffDmPushPayload } from '../../../src/lib/chat/staffDmAccessCore.js'
 import { sendWebPushToRow } from '../webPushCore.js'
-import { inboxPushBlocker, loadSubscriptions } from '../inbox/inboxPushJob.js'
+import { loadSubscriptions } from '../inbox/inboxPushJob.js'
 import { rows } from '../inbox/inboxStore.js'
+import { chatPushBlocker } from './chatPushJob.js'
 
-/** Фоном после ответа API: ошибки только в лог, сообщение не откатываем. */
+/** Фоном после ответа API: ошибки только в лог, сообщение не откатываем. Круглосуточно — как переписка с клиентом. */
 export async function sendStaffDmPush(db, { recipientId, authorId, authorName, body }, send = sendWebPushToRow) {
-  if (inboxPushBlocker()) return { sent: 0, expired: 0 }
+  if (chatPushBlocker()) return { sent: 0, expired: 0 }
   const subs = await loadSubscriptions(db, true, [{ user_id: String(recipientId) }])
   const payload = buildStaffDmPushPayload({ authorId: String(authorId), authorName, body })
   const expired = []

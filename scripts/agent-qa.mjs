@@ -88,6 +88,8 @@ run('pwa single manifest link', 'node', ['scripts/verify-pwa-single-manifest.mjs
 run('client inbox', 'node', ['scripts/verify-inbox.mjs'])
 run('client chat', 'node', ['scripts/verify-chat.mjs'])
 run('chat emoji (Noto)', 'node', ['scripts/verify-chat-emoji.mjs'])
+run('chat keyboard inset', 'node', ['scripts/verify-chat-keyboard-inset.mjs'])
+run('chat push hours', 'node', ['scripts/verify-chat-push-hours.mjs'])
 run('chat contacts (папки)', 'node', ['scripts/verify-chat-contacts.mjs'])
 run('staff dm (переписка сотрудников)', 'node', ['scripts/verify-staff-dm.mjs'])
 run('batch + pg pool size', 'node', ['scripts/verify-batch-core.mjs'])
