@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => ({
   define: {
     __FITNESS_DIARY_BUILD_TIME__: JSON.stringify(appBuildTimeIso),
   },
+  /* Lottie грузится лениво (крупные смайлики переписки): без include dev-сервер находит его на лету и перезагружает страницу. */
+  optimizeDeps: { include: ['lottie-web/build/player/lottie_light'] },
   server:
     mode === 'development'
       ? {
@@ -101,6 +103,17 @@ export default defineConfig(({ mode }) => ({
                   },
                 },
               ],
+            },
+          },
+          {
+            /* Смайлики переписки (Noto, Google CDN): свой кэш, чтобы 600 картинок не вытесняли файлы приложения. */
+            urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com' && url.pathname.startsWith('/s/e/notoemoji/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'chat-emoji',
+              expiration: { maxEntries: 700, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              /* Только 200 (картинки с crossorigin): непрозрачный ответ браузер считает за ~7 МБ квоты. */
+              cacheableResponse: { statuses: [200] },
             },
           },
           {

@@ -1,9 +1,18 @@
 import { Check, CheckCheck } from 'lucide-react'
 import { chatTextParts } from '../../lib/chat/chatMessageCore.js'
 import { buildChatFeed } from '../../lib/chat/chatFeedCore.js'
+import { splitEmojiText } from '../../lib/chat/chatEmojiNotoCore.js'
+import { ChatEmojiAnimated } from './ChatEmojiAnimated.jsx'
+import { ChatEmojiGlyph } from './ChatEmojiGlyph.jsx'
 import { ChatSticker } from './stickers/ChatSticker.jsx'
 
 const TIME_FMT = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
+
+function TextWithEmoji({ text }) {
+  return splitEmojiText(text).map((p, i) =>
+    p.key ? <ChatEmojiGlyph key={i} emoji={p.text} emojiKey={p.key} /> : <span key={i}>{p.text}</span>,
+  )
+}
 
 function MessageText({ body }) {
   return chatTextParts(body).map((p, i) =>
@@ -12,8 +21,18 @@ function MessageText({ body }) {
         {p.text}
       </a>
     ) : (
-      <span key={i}>{p.text}</span>
+      <TextWithEmoji key={i} text={p.text} />
     ),
+  )
+}
+
+/** 1–3 смайлика без текста: анимация, как в Telegram; один — крупнее. */
+function BigEmoji({ body }) {
+  const parts = splitEmojiText(String(body ?? '').replace(/\s+/g, ''))
+  return (
+    <span className={`chat-big-emoji${parts.length === 1 ? ' chat-big-emoji--one' : ''}`}>
+      {parts.map((p, i) => (p.key ? <ChatEmojiAnimated key={i} emoji={p.text} emojiKey={p.key} /> : <span key={i}>{p.text}</span>))}
+    </span>
   )
 }
 
@@ -63,7 +82,13 @@ export function ChatFeed({ messages, peerReadAt }) {
           <span className="chat-msg__author">{item.author_name}</span>
         ) : null}
         <div className="chat-msg__body">
-          {item.sticker ? <ChatSticker id={item.sticker} /> : <MessageText body={item.body} />}
+          {item.sticker ? (
+            <ChatSticker id={item.sticker} />
+          ) : item.big ? (
+            <BigEmoji body={item.body} />
+          ) : (
+            <MessageText body={item.body} />
+          )}
           <Meta m={item} />
         </div>
       </div>

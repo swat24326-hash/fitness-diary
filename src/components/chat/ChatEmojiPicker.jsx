@@ -1,11 +1,22 @@
 import { useState } from 'react'
-import { Apple, Clock, Dumbbell, Hand, Smile, Sticker } from 'lucide-react'
+import { Apple, Clock, Flag, Heart, Leaf, Lightbulb, Plane, Smile, Sticker, Trophy } from 'lucide-react'
 import { CHAT_EMOJI_SETS, pushRecentEmoji } from '../../lib/chat/chatEmojiCore.js'
 import { CHAT_STICKERS } from '../../lib/chat/chatStickerCore.js'
+import { ChatEmojiGlyph } from './ChatEmojiGlyph.jsx'
 import { ChatSticker } from './stickers/ChatSticker.jsx'
 
 const RECENT_KEY = 'fd_chat_recent_emoji'
-const SET_ICON = { stickers: Sticker, smiles: Smile, gestures: Hand, sport: Dumbbell, food: Apple }
+const SET_ICON = {
+  stickers: Sticker,
+  smileys: Smile,
+  nature: Leaf,
+  food: Apple,
+  activity: Trophy,
+  travel: Plane,
+  objects: Lightbulb,
+  symbols: Heart,
+  flags: Flag,
+}
 
 function readRecent() {
   try {
@@ -82,7 +93,7 @@ export function ChatEmojiPicker({ onPick, onSticker, sending }) {
         <div className="chat-emoji__grid" role="tabpanel" aria-label={tab.label}>
           {tab.items.map((e) => (
             <button key={e} type="button" className="chat-emoji__item" onClick={() => pick(e)} aria-label={e}>
-              {e}
+              <ChatEmojiGlyph emoji={e} />
             </button>
           ))}
         </div>

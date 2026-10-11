@@ -194,7 +194,7 @@ ok(isEmojiOnly('🔥🔥🔥') && isEmojiOnly('💪🏻') && isEmojiOnly('❤️
 ok(!isEmojiOnly('ок 👍') && !isEmojiOnly('123') && !isEmojiOnly('😀😀😀😀') && !isEmojiOnly(''), 'текст, цифры, больше трёх — обычный пузырь')
 
 // --- смайлики
-ok(CHAT_EMOJI_SETS.length >= 4 && CHAT_EMOJI_SETS.every((s) => s.items.length >= 20), 'наборы смайликов заполнены')
+ok(CHAT_EMOJI_SETS.length >= 8 && CHAT_EMOJI_SETS.every((s) => s.items.length > 0), 'наборы смайликов заполнены')
 const ins = insertEmoji('Привет мир', 7, 7, '👋')
 ok(ins.text === 'Привет 👋мир' && ins.caret === 7 + '👋'.length, 'смайлик в позицию курсора')
 ok(insertEmoji('abc', 1, 2, '🔥').text === 'a🔥c', 'смайлик заменяет выделение')

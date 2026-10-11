@@ -73,6 +73,7 @@
     "bcryptjs": "^3.0.3",
     "chart.js": "^4.4.7",
     "idb": "^8.0.2",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^0.468.0",
     "msedge-tts": "^2.0.7",
     "pg": "^8.23.0",

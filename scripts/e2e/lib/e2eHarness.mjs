@@ -1,9 +1,10 @@
 /**
  * Обвязка автотестов экрана: Vite dev на 127.0.0.1, Chromium, перехват облака.
- * Ни один запрос не уходит наружу: облачные пути отвечает fakeBackend, чужие хосты — abort.
+ * Ни один запрос не уходит наружу: облачные пути отвечает fakeBackend, смайлики Noto — из fixtures/noto
+ * (нет файла — 404, приложение показывает символ), остальные чужие хосты — abort.
  */
 import { spawn } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
@@ -14,6 +15,17 @@ export const ORIGIN = `http://127.0.0.1:${PORT}`
 export const SHOT_DIR = join(ROOT, 'qa-screenshots', 'e2e')
 
 const CLOUD_PATH = /^\/(api|auth\/v1|rest\/v1)(\/|$)/
+const NOTO_RE = /^\/s\/e\/notoemoji\/latest\/([0-9a-f_]+)\/(emoji\.svg|lottie\.json)$/
+const NOTO_TYPE = { 'emoji.svg': 'image/svg+xml', 'lottie.json': 'application/json' }
+
+function fulfillNoto(route, url) {
+  const m = url.origin === 'https://fonts.gstatic.com' ? NOTO_RE.exec(url.pathname) : null
+  if (!m) return null
+  const file = join(ROOT, 'scripts', 'e2e', 'fixtures', 'noto', m[1], m[2])
+  const headers = { 'access-control-allow-origin': '*' }
+  if (!existsSync(file)) return route.fulfill({ status: 404, headers, body: '' })
+  return route.fulfill({ status: 200, headers, contentType: NOTO_TYPE[m[2]], body: readFileSync(file) })
+}
 
 const ENV = {
   VITE_SUPABASE_URL: ORIGIN,
@@ -79,7 +91,7 @@ export async function newE2eContext(browser, backend, opts = {}) {
   await context.route('**/*', async (route) => {
     const req = route.request()
     const url = new URL(req.url())
-    if (url.origin !== ORIGIN) return route.abort('blockedbyclient')
+    if (url.origin !== ORIGIN) return fulfillNoto(route, url) ?? route.abort('blockedbyclient')
     if (!CLOUD_PATH.test(url.pathname)) return route.continue()
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204 })
     let body = null

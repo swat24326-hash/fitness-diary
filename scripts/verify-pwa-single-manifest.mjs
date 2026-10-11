@@ -29,10 +29,14 @@ ok(fixed.includes('<link rel="stylesheet"') && fixed.includes('manifest-boot.js'
 ok(countManifestLinks(dropManifestLinks(`<LINK REL='manifest' href="/a"><link href="/b" rel="manifest">`)) === 0, 'регистр и порядок атрибутов')
 
 const bootSrc = readFileSync(new URL('../public/manifest-boot.js', import.meta.url), 'utf8')
-function bootLinks(pathname) {
+const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/129.0 Mobile Safari/537.36'
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
+function bootLinks(pathname, { ua = ANDROID, coachClub = null } = {}) {
   const head = []
   const document = { head: { appendChild: (el) => head.push(el) }, createElement: () => ({}) }
-  vm.runInNewContext(bootSrc, { document, location: { pathname } })
+  const store = { fd_coach_club_v1: coachClub == null ? null : JSON.stringify(coachClub) }
+  const localStorage = { getItem: (k) => store[k] ?? null }
+  vm.runInNewContext(bootSrc, { document, location: { pathname }, navigator: { userAgent: ua, maxTouchPoints: 0 }, localStorage })
   return head.filter((el) => el.rel === 'manifest').map((el) => el.href)
 }
 for (const p of ['/', '/login', '/trainer', '/admin/clients', '/media']) {
@@ -42,6 +46,19 @@ for (const p of ['/', '/login', '/trainer', '/admin/clients', '/media']) {
 for (const p of ['/me', '/me/', '/me/join', '/me/settings']) {
   ok(bootLinks(p).length === 0, `${p}: manifest зала не ставим`)
 }
+const club = { name: 'Fit City', manifest_url: '/api/coach?manifest=00000000-0000-4000-8000-000000000001' }
+ok(
+  JSON.stringify(bootLinks('/coach', { coachClub: club })) === JSON.stringify([club.manifest_url]),
+  '/coach на Android, клуб с прошлого входа: manifest клуба сразу при загрузке (значок = название клуба)',
+)
+ok(bootLinks('/coach/clients', { coachClub: club }).length === 1, '/coach/…: тоже manifest клуба')
+ok(bootLinks('/coach').length === 0, '/coach без клуба: manifest не ставим (добавит приложение)')
+ok(bootLinks('/coach', { ua: IPHONE, coachClub: club }).length === 0, '/coach на iPhone: без manifest (значок берёт текущий адрес)')
+ok(
+  bootLinks('/coach', { coachClub: { name: 'x', manifest_url: 'https://evil.example/m.json' } }).length === 0,
+  '/coach: чужой адрес manifest из хранилища не ставим',
+)
+ok(bootLinks('/coach', { coachClub: 'не json' }).length === 0, '/coach: битое хранилище — без manifest, без ошибки')
 
 const src = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 ok(countManifestLinks(src) === 0, 'index.html: без статичной ссылки на manifest')

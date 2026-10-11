@@ -1,0 +1,77 @@
+/* Смайлики Noto в переписке: в тексте, в панели и крупные анимированные (как в Telegram). */
+
+.chat-emoji-glyph {
+  display: inline-block;
+  width: 1.3em;
+  height: 1.3em;
+  margin: 0 0.04em;
+  vertical-align: -0.3em;
+  object-fit: contain;
+}
+
+.chat-emoji-glyph--text {
+  width: auto;
+  height: auto;
+  vertical-align: baseline;
+}
+
+/* Панель: 10 разделов — лентой вбок на узком экране, крупные чёткие картинки. */
+.chat-emoji .chat-emoji__tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chat-emoji .chat-emoji__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-emoji .chat-emoji__tab {
+  flex: 1 0 38px;
+  width: auto;
+  min-width: 38px;
+}
+
+.chat-emoji .chat-emoji__grid:not(.chat-emoji__grid--stickers) {
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  max-height: 264px;
+}
+
+.chat-emoji__item .chat-emoji-glyph {
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+/* Крупные: один — 128px, два-три — по 80px. */
+.chat-big-emoji {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.chat-emoji-anim {
+  position: relative;
+  display: inline-block;
+  width: 80px;
+  height: 80px;
+}
+
+.chat-big-emoji--one .chat-emoji-anim {
+  width: 128px;
+  height: 128px;
+}
+
+.chat-emoji-anim__player,
+.chat-emoji-anim__still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.chat-emoji-anim__still {
+  margin: 0;
+  font-size: 3rem;
+  line-height: 1;
+}
