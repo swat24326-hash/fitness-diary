@@ -15,7 +15,8 @@ import {
   readCoachToken,
 } from '../api/_lib/coach/coachAuthCore.js'
 import { createCoachAuthHandler } from '../api/_lib/coach/coachAuthHandler.js'
-import { COACH_INVITE_TTL_MS, coachInviteDenial } from '../api/_lib/coach/coachInviteCore.js'
+import { COACH_HANDOFF_TTL_MS, COACH_INVITE_TTL_MS, coachHandoffDenial, coachInviteDenial } from '../api/_lib/coach/coachInviteCore.js'
+import { issueCoachHandoff } from '../api/_lib/coach/coachHandoffHandler.js'
 import { requireCoachUser } from '../api/_lib/coach/requireCoachUser.js'
 import {
   decideCoachDevice,
@@ -89,9 +90,9 @@ async function memoryCoachStore({ role = 'trainer', active = true, devices = [] 
     invites,
     devices: deviceStore,
     db: {},
-    async createInvite({ userId, tokenHash, expiresAt }) {
-      for (const i of invites) if (i.user_id === userId && !i.used_at) i.expires_at = new Date().toISOString()
-      invites.push({ id: `inv-${invites.length + 1}`, user_id: userId, token_hash: tokenHash, device_id: null, expires_at: expiresAt, used_at: null })
+    async createInvite({ userId, tokenHash, expiresAt, kind = 'qr', deviceId = null }) {
+      for (const i of invites) if (i.user_id === userId && i.kind === kind && !i.used_at) i.expires_at = new Date().toISOString()
+      invites.push({ id: `inv-${invites.length + 1}`, user_id: userId, kind, token_hash: tokenHash, device_id: deviceId, expires_at: expiresAt, used_at: null })
     },
     async loadInviteByHash(hash) {
       const i = invites.find((x) => x.token_hash === hash)
@@ -338,6 +339,53 @@ try {
   qrStore.user.role = 'trainer'
   for (let i = 0; i < 3; i += 1) await call(qrHandler, { action: 'redeem', token: 'x'.repeat(32) }, { ip: '10.8.8.8' })
   ok((await call(qrHandler, { action: 'redeem', token: 'x'.repeat(32) }, { ip: '10.8.8.8' })).statusCode === 429, 'перебор QR с одного адреса — 429')
+
+  // --- Вход значка «Домой» на iPhone (свой хранилище, свой номер) ---
+  const hs = { kind: 'handoff', device_id: PHONE, expires_at: new Date(now + 60_000).toISOString(), used_at: null }
+  ok(coachHandoffDenial(hs, now) === null, 'свежий вход значка годится')
+  ok(coachHandoffDenial({ ...hs, kind: 'qr' }, now) === 'missing', 'QR с планшета входом значка не работает')
+  ok(coachHandoffDenial({ ...hs, device_id: null }, now) === 'missing', 'вход значка без телефона — отказ')
+  ok(coachHandoffDenial({ ...hs, used_at: 'x' }, now) === 'used', 'погашенный вход значка — отказ')
+  ok(coachHandoffDenial({ ...hs, expires_at: new Date(now - 1).toISOString() }, now) === 'expired', 'просроченный вход значка — отказ')
+  ok(coachInviteDenial(hs, PHONE, now) === 'missing', 'вход значка через QR-путь — отказ')
+
+  const hStore = await memoryCoachStore({ devices: [{ id: 'd1', user_id: TRAINER, device_id: PHONE, status: 'approved' }] })
+  const hHandler = createCoachAuthHandler({
+    store: hStore,
+    ownAuth: () => true,
+    auth: asTrainer,
+    qrLimiter: createAuthFailLimiter({ perLoginIp: 3, perIp: 3, perLogin: Number.POSITIVE_INFINITY }),
+    deviceDeps: { store: hStore.devices, notify: async () => {} },
+  })
+  const issueHandoff = async () => {
+    const res = fakeRes()
+    await issueCoachHandoff({ user: { id: TRAINER }, deviceId: PHONE }, res, hStore)
+    return res
+  }
+  const h1 = await issueHandoff()
+  const h1Row = hStore.invites.at(-1)
+  ok(
+    h1.statusCode === 200 && h1.body?.token && h1Row.kind === 'handoff' && h1Row.device_id === PHONE && h1Row.token_hash !== h1.body.token,
+    'вошедший телефон берёт вход для значка: свой номер, в базе отпечаток',
+  )
+  ok(Date.parse(h1.body.expires_at) - Date.now() <= COACH_HANDOFF_TTL_MS, 'вход значка живёт не дольше 2 часов')
+  const ICON = 'coach-icon-home-screen-0001'
+  const iconIn = await call(hHandler, { action: 'handoff', token: h1.body.token }, { device: ICON, ip: '10.1.0.1' })
+  const iconSession = [...hStore.sessions.values()].at(-1)
+  ok(iconIn.statusCode === 200 && iconIn.body?.session?.access_token && iconIn.body.device_id === PHONE, 'значок входит сразу и получает номер телефона из Safari')
+  ok(iconSession?.device_id === PHONE && hStore.devices.rows.length === 1, 'значок — тот же телефон: к админу второй раз не идёт')
+  ok((await call(hHandler, { action: 'handoff', token: h1.body.token }, { device: ICON, ip: '10.1.0.2' })).statusCode === 401, 'вход значка одноразовый')
+
+  const h2 = await issueHandoff()
+  ok((await call(hHandler, { action: 'redeem', token: h2.body.token }, { device: PHONE, ip: '10.1.0.3' })).statusCode === 401, 'вход значка как QR — 401')
+  const qrOfTrainer = await call(hHandler, { action: 'invite' }, { device: null })
+  ok((await call(hHandler, { action: 'handoff', token: qrOfTrainer.body.token }, { ip: '10.1.0.4' })).statusCode === 401, 'QR с экрана планшета как вход значка — 401')
+  const h3 = await issueHandoff()
+  ok((await call(hHandler, { action: 'handoff', token: h2.body.token }, { ip: '10.1.0.5' })).statusCode === 401, 'новый вход значка гасит прежний')
+  ok(!hStore.invites.find((i) => i.kind === 'qr').used_at && Date.parse(hStore.invites.find((i) => i.kind === 'qr').expires_at) > Date.now(), 'вход значка не гасит QR планшета')
+  hStore.devices.rows[0].status = 'revoked'
+  const revokedIcon = await call(hHandler, { action: 'handoff', token: h3.body.token }, { ip: '10.1.0.6' })
+  ok(revokedIcon.statusCode === 403 && !revokedIcon.body.session, 'отозванный телефон — значок не входит')
 
   const off = createCoachAuthHandler({ store, ownAuth: () => false })
   ok((await call(off, { action: 'sign-in', login: 'ivanov', password: 'Secret-123' })).statusCode === 503, 'не свой Auth на сервере — «скоро будет доступно»')

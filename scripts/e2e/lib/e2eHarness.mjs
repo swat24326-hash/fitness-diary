@@ -91,7 +91,7 @@ export async function newE2eContext(browser, backend, opts = {}) {
         body = Object.fromEntries(new URLSearchParams(raw))
       }
     }
-    const res = backend.handle({
+    const res = await backend.handle({
       method: req.method(),
       path: url.pathname,
       searchParams: url.searchParams,

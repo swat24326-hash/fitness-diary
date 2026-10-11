@@ -1,7 +1,8 @@
 /**
- * POST /api/coach-auth { action: 'sign-in' | 'redeem' | 'refresh' | 'sign-out' | 'invite', ... },
+ * POST /api/coach-auth { action: 'sign-in' | 'redeem' | 'handoff' | 'refresh' | 'sign-out' | 'invite', ... },
  * заголовок x-device-id = номер телефона (coach-…). Без Bearer: вход с улицы (лимиты — общие с /api/auth-sign-in,
  * текст ошибки не говорит, есть ли такой логин). Исключение — invite: QR выдаёт тренер с планшета по своему Bearer.
+ * handoff — вход значка iPhone под номером телефона из приглашения (coachHandoffHandler.js).
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { isOwnAuthProvider, verifyOwnPassword } from '../authOwnCore.js'
@@ -21,6 +22,7 @@ import {
   coachSecret,
   readCoachToken,
 } from './coachAuthCore.js'
+import { redeemCoachHandoff } from './coachHandoffHandler.js'
 import { issueCoachInvite, redeemCoachInvite } from './coachInviteHandler.js'
 import { coachStore } from './coachStore.js'
 
@@ -119,14 +121,14 @@ export function createCoachAuthHandler(deps = {}) {
     if (action === 'sign-out') return signOut(res, body, env)
     if (action === 'invite') return issueCoachInvite(req, res, { store, ...(deps.auth ? { auth: deps.auth } : {}) })
     const ip = clientIpFromHeaders(req.headers, req.remoteAddress ?? req.socket?.remoteAddress)
-    if (action === 'redeem') {
+    if (action === 'redeem' || action === 'handoff') {
       const qrGate = redeemLimiter.check(QR_KEY, ip)
       if (!qrGate.ok) {
         res.setHeader('Retry-After', String(qrGate.retryAfterSec))
         sendJson(res, 429, { error: authRateLimitedMessageRu(qrGate.retryAfterSec) })
         return
       }
-      await redeemCoachInvite(req, res, body, env)
+      await (action === 'redeem' ? redeemCoachInvite : redeemCoachHandoff)(req, res, body, env)
       redeemLimiter.recordOutcome(QR_KEY, ip, res.statusCode)
       return
     }

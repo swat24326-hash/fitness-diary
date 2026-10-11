@@ -1,6 +1,6 @@
 /**
- * Телефон тренера (/coach): вход паролем планшета → «ждёт разрешения» → админ разрешил → план дня
- * и «Новых диалогов: 1» → ответ клиенту → админ отозвал телефон → экран входа с объяснением.
+ * Телефон тренера (/coach): вход паролем планшета → «ждёт разрешения» → админ разрешил → Ежедневник
+ * и метка «1» на «Сообщениях» → ответ клиенту → админ отозвал телефон → экран входа с объяснением.
  * Отдельно — вход по QR с планшета.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
@@ -28,6 +28,8 @@ function reaches(locator, state = 'visible') {
     .then(() => true)
     .catch(() => false)
 }
+
+const slot10 = (page) => page.locator('.trainer-schedule-day__entry[aria-label^="10:00"]').first()
 
 function setup() {
   const backend = createFakeBackend(trainerClubSeed())
@@ -60,13 +62,17 @@ export async function run(browser) {
 
     coach.setPhoneStatus('approved')
     await page.getByRole('button', { name: 'Проверить сейчас' }).click()
-    const today = page.getByRole('region', { name: 'Сегодня' })
-    c.ok(await reaches(today.getByText('10:00')), 'после разрешения — план на сегодня со временем')
-    c.ok(await reaches(today.getByText(CLIENT_NAME)), 'в слоте имя клиента')
-    c.ok(await reaches(page.getByRole('region', { name: 'Завтра' }).getByText('Записей нет')), 'завтра пусто — так и написано')
-    const attention = page.getByRole('link', { name: /Новых диалогов: 1/ })
-    c.ok(await reaches(attention), 'сверху «Новых диалогов: 1»')
+    c.ok(await reaches(slot10(page)), 'после разрешения — сразу Ежедневник с записью 10:00')
+    c.ok(await reaches(slot10(page).getByText(CLIENT_NAME)), 'в записи имя клиента')
+    c.ok((await page.getByRole('link', { name: 'Сегодня' }).count()) === 0, 'вкладки «Сегодня» больше нет')
+    const attention = page.getByRole('link', { name: /новых диалогов: 1/ })
+    c.ok(await reaches(attention), 'на вкладке «Сообщения» метка «1»')
     await screenshot(page, 'coach-today')
+    c.ok((await page.getByRole('link', { name: 'Ещё' }).count()) === 0, 'вкладки «Ещё» внизу нет')
+    await page.getByRole('link', { name: 'Меню', exact: true }).click()
+    c.ok(await reaches(page.getByRole('button', { name: 'Выйти' })), 'три полоски в шапке открывают меню с выходом')
+    c.ok(await page.getByRole('button', { name: 'Обновить' }).isVisible(), '«Обновить» — в меню')
+    await screenshot(page, 'coach-menu')
 
     await attention.click()
     await page.getByRole('link', { name: new RegExp(CLIENT_NAME) }).click()
@@ -92,7 +98,55 @@ export async function run(browser) {
     await context.close()
   }
   await runQrJoin(browser, c)
+  await runIconHandoff(browser, c)
   return c.failures
+}
+
+/**
+ * iPhone: Safari вошёл и разрешён → подсказка «на экран Домой» с названием клуба, адрес несёт вход →
+ * значок (своё хранилище) открывает этот адрес и входит сам, без нового «Разрешить».
+ */
+async function runIconHandoff(browser, c) {
+  const { backend, coach } = setup()
+  const safari = await newE2eContext(browser, backend, PHONE)
+  const icon = await newE2eContext(browser, backend, PHONE)
+  await icon.addInitScript(() => Object.defineProperty(globalThis.navigator, 'standalone', { value: true }))
+  const page = await safari.newPage()
+  try {
+    await page.goto(`${ORIGIN}/coach`)
+    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
+    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти' }).click()
+    coach.setPhoneStatus('approved')
+    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
+    const banner = page.getByRole('region', { name: 'Значок на экран «Домой»' })
+    await banner.getByRole('button', { name: 'Как?' }).click()
+    c.ok(await reaches(banner.getByText('Откройте значок «E2E клуб»')), 'значок: подсказка в Safari (над Ежедневником) с названием клуба')
+    const withToken = await page
+      .waitForURL((u) => u.searchParams.has('h'), { timeout: 10_000 })
+      .then(() => page.url())
+      .catch(() => '')
+    c.ok(Boolean(withToken), 'значок: адрес в Safari несёт вход для значка')
+    c.ok((await page.locator('meta[name="apple-mobile-web-app-title"]').getAttribute('content')) === 'E2E клуб', 'значок: имя на iPhone — название клуба')
+    await screenshot(page, 'coach-install-hint')
+
+    const iconPage = await icon.newPage()
+    await iconPage.goto(withToken || `${ORIGIN}/coach`)
+    c.ok(await reaches(slot10(iconPage)), 'значок: открылся сразу с Ежедневником, без логина')
+    c.ok(coach.state.devices.length === 1, 'значок: тот же разрешённый телефон, админу не нужно разрешать снова')
+    c.ok(!new URL(iconPage.url()).searchParams.has('h'), 'значок: вход убран из адреса')
+    c.ok(coach.state.invites.some((i) => i.kind === 'handoff' && i.used_at), 'значок: приглашение погашено')
+    c.ok(!(await iconPage.getByRole('region', { name: 'Значок на экран «Домой»' }).isVisible()), 'значок: подсказки установки в значке нет')
+
+    await banner.getByRole('button', { name: 'Готово' }).click()
+    c.ok(!new URL(page.url()).searchParams.has('h'), 'значок: «Готово» в Safari убирает вход из адреса')
+  } catch (e) {
+    await screenshot(page, 'coach-handoff-FAIL').catch(() => null)
+    c.ok(false, `значок iPhone: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await safari.close()
+    await icon.close()
+  }
 }
 
 /** QR с планшета: ссылка → «ждёт разрешения» (код убран из адреса, переживает перезагрузку) → разрешили → вошёл. */
@@ -112,7 +166,7 @@ async function runQrJoin(browser, c) {
 
     coach.setPhoneStatus('approved')
     await page.getByRole('button', { name: 'Проверить сейчас' }).click()
-    c.ok(await reaches(page.getByRole('region', { name: 'Сегодня' }).getByText('10:00')), 'QR: после разрешения — план дня')
+    c.ok(await reaches(slot10(page)), 'QR: после разрешения — Ежедневник')
     c.ok(Boolean(coach.state.invites[0]?.used_at), 'QR: код погашен после входа')
 
     await page.evaluate(() => globalThis.localStorage.clear())

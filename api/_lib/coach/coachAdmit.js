@@ -12,10 +12,11 @@ export function coachDeviceLabel(headers) {
 }
 
 /**
- * @param {{ req: object, res: object, user: object, deviceId: string, beforeSession?: () => Promise<boolean> }} p
- *   beforeSession — false: вход не выдаём (например, QR уже погашен), ответ 401 отправлен вызывающим
+ * @param {{ req: object, res: object, user: object, deviceId: string, beforeSession?: () => Promise<boolean>, extra?: object }} p
+ *   beforeSession — false: вход не выдаём (например, QR уже погашен), ответ 401 отправлен вызывающим;
+ *   extra — поля в ответ (значку — номер телефона, под которым он входит)
  */
-export async function admitCoachPhone({ req, res, user, deviceId, beforeSession }, { secret, store, deviceDeps }) {
+export async function admitCoachPhone({ req, res, user, deviceId, beforeSession, extra = {} }, { secret, store, deviceDeps }) {
   if (user.is_active === false) {
     sendJson(res, 403, { error: COACH_BLOCKED_RU })
     return
@@ -35,5 +36,6 @@ export async function admitCoachPhone({ req, res, user, deviceId, beforeSession 
   sendJson(res, 200, {
     session: buildCoachSession({ userId, sid, deviceId }, secret),
     user: { name: String(user.name ?? '') },
+    ...extra,
   })
 }

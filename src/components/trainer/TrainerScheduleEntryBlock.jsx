@@ -27,6 +27,7 @@ import {
  *   trainingById?: Record<string, object>,
  *   now: { todayIso: string, nowMinutes: number },
  *   readOnly?: boolean,
+ *   canStartTraining?: boolean,
  *   variant?: 'normal' | 'drag-source' | 'ghost',
  *   dragHandlers?: object,
  *   onOpen?: () => void,
@@ -42,6 +43,7 @@ export function TrainerScheduleEntryBlock({
   trainingById = {},
   now,
   readOnly = false,
+  canStartTraining = true,
   variant = 'normal',
   dragHandlers = {},
   onOpen,
@@ -62,7 +64,11 @@ export function TrainerScheduleEntryBlock({
     </span>
   ) : null
   const showStart =
-    !readOnly && !compact && !ghost && (start.kind === 'open' || start.kind === 'new' || start.kind === 'pick_client')
+    canStartTraining &&
+    !readOnly &&
+    !compact &&
+    !ghost &&
+    (start.kind === 'open' || start.kind === 'new' || start.kind === 'pick_client')
 
   const body = compact ? (
     <>

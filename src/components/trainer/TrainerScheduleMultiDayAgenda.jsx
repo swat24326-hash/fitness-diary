@@ -20,19 +20,18 @@ import { useTrainerScheduleDrag } from '../../hooks/useTrainerScheduleDrag.js'
 import { TrainerScheduleEntryBlock } from './TrainerScheduleEntryBlock.jsx'
 import { TrainerScheduleKindLegend } from './TrainerScheduleKindPicker.jsx'
 
-const PX_PER_MIN = 1.4
+const PX_PER_MIN_DEFAULT = 1.4
 const DAY_START_MIN = SCHEDULE_DAY_START_HOUR * 60
 const DAY_END_MIN = SCHEDULE_DAY_END_HOUR * 60
-const TRACK_HEIGHT = (DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN
 const COL_MIN_PX = 96
 
 const ENTRY_MIN_HEIGHT_WITH_TRAINER = 78
 const ENTRY_MIN_HEIGHT = 48
 const ENTRY_MIN_HEIGHT_COMPACT = 36
 
-/** @param {number} minutes */
-function scrollTopForMinutes(minutes) {
-  return Math.max(0, (minutes - DAY_START_MIN) * PX_PER_MIN - 8)
+/** @param {number} minutes @param {number} pxPerMin */
+function scrollTopForMinutes(minutes, pxPerMin) {
+  return Math.max(0, (minutes - DAY_START_MIN) * pxPerMin - 8)
 }
 
 /**
@@ -44,7 +43,9 @@ function scrollTopForMinutes(minutes) {
  *   trainerNameById?: Record<string, string>,
  *   trainingById?: Record<string, object>,
  *   readOnly?: boolean,
+ *   canStartTraining?: boolean,
  *   showTrainerName?: boolean,
+ *   pxPerMin?: number,
  *   onPrev: () => void,
  *   onNext: () => void,
  *   onToday?: () => void,
@@ -63,7 +64,9 @@ export function TrainerScheduleMultiDayAgenda({
   trainerNameById = {},
   trainingById = {},
   readOnly = false,
+  canStartTraining = true,
   showTrainerName = false,
+  pxPerMin = PX_PER_MIN_DEFAULT,
   onPrev,
   onNext,
   onToday,
@@ -84,6 +87,7 @@ export function TrainerScheduleMultiDayAgenda({
     (days.includes(today) && today) ||
     days[0] ||
     ''
+  const trackHeight = (DAY_END_MIN - DAY_START_MIN) * pxPerMin
   const hours = []
   for (let h = SCHEDULE_DAY_START_HOUR; h < SCHEDULE_DAY_END_HOUR; h++) hours.push(h)
   const title = formatScheduleViewRangeLabel(days, formatDateRu)
@@ -97,7 +101,7 @@ export function TrainerScheduleMultiDayAgenda({
     boardRef,
     dayIsos: days,
     enabled: !readOnly && typeof onMoveEntry === 'function',
-    pxPerMin: PX_PER_MIN,
+    pxPerMin,
     dayStartMin: DAY_START_MIN,
     resolvePolicy: (entry) =>
       resolveScheduleDragPolicy(entry, entry.linked_training_id ? trainingById[entry.linked_training_id] : null),
@@ -110,13 +114,13 @@ export function TrainerScheduleMultiDayAgenda({
   useEffect(() => {
     const el = boardRef.current
     if (!el) return
-    el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes(days, today, nowMinutes))
+    el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes(days, today, nowMinutes), pxPerMin)
   }, [rangeKey])
 
   const goToday = () => {
     onToday?.()
     const el = boardRef.current
-    if (el) el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes([today], today, nowMinutes))
+    if (el) el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes([today], today, nowMinutes), pxPerMin)
   }
 
   const minHeight = compact
@@ -128,8 +132,8 @@ export function TrainerScheduleMultiDayAgenda({
   const entryStyle = (entry, startMinutes, laneIndex, laneCount) => {
     const widthPct = 100 / laneCount
     return {
-      top: (startMinutes - DAY_START_MIN) * PX_PER_MIN,
-      height: Math.max(minHeight, (Number(entry.duration_minutes) || 60) * PX_PER_MIN - 4),
+      top: (startMinutes - DAY_START_MIN) * pxPerMin,
+      height: Math.max(minHeight, (Number(entry.duration_minutes) || 60) * pxPerMin - 4),
       left: `${laneIndex * widthPct}%`,
       width: `calc(${widthPct}% - ${compact ? 2 : 4}px)`,
       right: 'auto',
@@ -144,7 +148,7 @@ export function TrainerScheduleMultiDayAgenda({
       <div
         key={dayIso}
         className="trainer-schedule-day__track"
-        style={{ height: TRACK_HEIGHT }}
+        style={{ height: trackHeight }}
         data-schedule-day={dayIso}
       >
         {hours.map((h) =>
@@ -152,14 +156,14 @@ export function TrainerScheduleMultiDayAgenda({
             <div
               key={`slot-${dayIso}-${h}`}
               className="trainer-schedule-day__hour-slot trainer-schedule-day__hour-slot--readonly"
-              style={{ top: (h * 60 - DAY_START_MIN) * PX_PER_MIN, height: 60 * PX_PER_MIN }}
+              style={{ top: (h * 60 - DAY_START_MIN) * pxPerMin, height: 60 * pxPerMin }}
             />
           ) : (
             <button
               key={`slot-${dayIso}-${h}`}
               type="button"
               className="trainer-schedule-day__hour-slot"
-              style={{ top: (h * 60 - DAY_START_MIN) * PX_PER_MIN, height: 60 * PX_PER_MIN }}
+              style={{ top: (h * 60 - DAY_START_MIN) * pxPerMin, height: 60 * pxPerMin }}
               onClick={() => onAddAt(dayIso, h * 60)}
               aria-label={`Добавить запись ${formatDateRu(dayIso)} в ${formatScheduleMinutes(h * 60)}`}
             />
@@ -168,7 +172,7 @@ export function TrainerScheduleMultiDayAgenda({
         {nowLine != null ? (
           <div
             className="trainer-schedule-day__now"
-            style={{ top: (nowLine - DAY_START_MIN) * PX_PER_MIN }}
+            style={{ top: (nowLine - DAY_START_MIN) * pxPerMin }}
             title={`Сейчас ${formatScheduleMinutes(nowLine)}`}
             aria-hidden
           />
@@ -191,6 +195,7 @@ export function TrainerScheduleMultiDayAgenda({
               trainingById={trainingById}
               now={now}
               readOnly={readOnly}
+              canStartTraining={canStartTraining}
               variant={preview?.entryId === String(entry.id) ? 'drag-source' : 'normal'}
               dragHandlers={drag.getEntryHandlers(entry)}
               onOpen={() => {
@@ -220,7 +225,7 @@ export function TrainerScheduleMultiDayAgenda({
   const hoursCol = (
     <div className="trainer-schedule-day__hours" aria-hidden>
       {hours.map((h) => (
-        <div key={h} className="trainer-schedule-day__hour-label" style={{ height: 60 * PX_PER_MIN }}>
+        <div key={h} className="trainer-schedule-day__hour-label" style={{ height: 60 * pxPerMin }}>
           {formatScheduleMinutes(h * 60)}
         </div>
       ))}
@@ -267,7 +272,7 @@ export function TrainerScheduleMultiDayAgenda({
             aria-label="Новая запись"
           >
             <Plus size={18} aria-hidden />
-            Запись
+            <span className="trainer-schedule-day__add-label">Запись</span>
           </button>
         ) : readOnly ? (
           <span className="trainer-schedule-day__readonly-badge muted">Только просмотр</span>

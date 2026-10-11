@@ -1,0 +1,180 @@
+/**
+ * Ежедневник на телефоне тренера (/coach/calendar): новая запись с клиентом, перенос пальцем и «Отменить»,
+ * правка устаревшей записи (планшет успел раньше) → «обновите», удаление, завершённая тренировка не двигается.
+ * Ждём: всё уходит на сервер сразу (без очереди), кнопки «Начать тренировку» на телефоне нет.
+ */
+import { createChecks, waitFor } from '../lib/e2eChecks.mjs'
+import { createFakeBackend } from '../lib/fakeBackend.mjs'
+import { createFakeChat } from '../lib/fakeChat.mjs'
+import { createFakeCoach } from '../lib/fakeCoach.mjs'
+import { ORIGIN, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
+
+export const name = 'телефон тренера: Ежедневник с правкой'
+
+const PHONE = {
+  viewport: { width: 390, height: 844 },
+  userAgent:
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+  hasTouch: true,
+  isMobile: true,
+}
+const PX_PER_MIN = 1
+const DONE_TRAINING = 'e2e-training-done'
+
+function setup() {
+  const backend = createFakeBackend(trainerClubSeed())
+  const chat = createFakeChat(backend.state)
+  const slot = (id, start, extra = {}) => ({
+    id, club_id: CLUB_ID, trainer_id: TRAINER_ID, day_date: isoDay(0), start_minutes: start, duration_minutes: 60, title: '', client_ids: [CLIENT_ID], ...extra,
+  })
+  const schedule = [slot('e2e-phone-10', 600), slot('e2e-phone-locked', 18 * 60, { linked_training_id: DONE_TRAINING })]
+  const coach = createFakeCoach(backend.state, chat, { trainerId: TRAINER_ID, today: isoDay(0), schedule, trainings: { [DONE_TRAINING]: 'completed' } })
+  backend.coach = coach.handle
+  return { backend, schedule, coach }
+}
+
+async function touchDrag(cdp, page, from, to) {
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from.x, y: from.y }] })
+  await page.waitForTimeout(650)
+  for (let i = 1; i <= 12; i++) {
+    const y = from.y + ((to.y - from.y) * i) / 12
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x, y }] })
+    await page.waitForTimeout(16)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+}
+
+async function scrollBoardTo(page, minutes) {
+  await page.evaluate(
+    ([m, ppm]) => {
+      const el = globalThis.document.querySelector('.trainer-schedule-day__board')
+      if (el) el.scrollTop = Math.max(0, m * ppm - 40)
+    },
+    [minutes, PX_PER_MIN],
+  )
+}
+
+/** Страница не листается: часы листаются внутри сетки, вкладки режимов всегда на экране. */
+function fitsScreen(page) {
+  return page.evaluate(() => {
+    const d = globalThis.document
+    const sw = d.querySelector('.trainer-schedule-view-switch')?.getBoundingClientRect()
+    const board = d.querySelector('.trainer-schedule-day__board')?.getBoundingClientRect()
+    return (
+      d.scrollingElement.scrollHeight <= globalThis.innerHeight + 1 &&
+      Boolean(sw) &&
+      sw.top >= 0 &&
+      Boolean(board) &&
+      board.height >= 300
+    )
+  })
+}
+
+const entryAt = (page, hhmm) => page.locator(`.trainer-schedule-day__entry[aria-label^="${hhmm}"]`).first()
+
+async function center(locator) {
+  const b = await locator.boundingBox()
+  return { x: b.x + b.width / 2, y: b.y + Math.min(20, b.height / 2) }
+}
+
+export async function run(browser) {
+  const c = createChecks('coach-schedule')
+  const { backend, schedule, coach } = setup()
+  const context = await newE2eContext(browser, backend, PHONE)
+  const page = await context.newPage()
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
+  const at = (min) => schedule.filter((e) => e.start_minutes === min && e.day_date === isoDay(0))
+  try {
+    await page.goto(`${ORIGIN}/coach`)
+    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
+    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти' }).click()
+    coach.setPhoneStatus('approved')
+    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
+    await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 15_000 })
+    await scrollBoardTo(page, 9 * 60)
+    c.ok(await entryAt(page, '10:00').isVisible(), 'день: запись 10:00 с сервера')
+    c.ok((await page.locator('.trainer-schedule-day__entry-start').count()) === 0, 'на телефоне нет кнопки «Начать тренировку»')
+    c.ok((await page.getByRole('tab', { name: 'Неделя' }).count()) === 0, 'режима «Неделя» на телефоне нет — не помещается')
+    await screenshot(page, 'coach-calendar-day')
+    c.ok(await fitsScreen(page), 'день: всё в одном экране, переключатель «День / 3 дня / Месяц» не уезжает')
+    await page.getByRole('tab', { name: '3 дня', exact: true }).click()
+    await page.locator('.trainer-schedule-day--multi').waitFor({ timeout: 10_000 })
+    c.ok(await fitsScreen(page), '3 дня: всё в одном экране')
+    await screenshot(page, 'coach-calendar-3days')
+    await page.getByRole('tab', { name: 'День', exact: true }).click()
+    await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 10_000 })
+
+    /* Новая запись с клиентом на 15:00. */
+    await scrollBoardTo(page, 14 * 60)
+    await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 15:00"]').click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel(CLIENT_NAME).check()
+    c.ok((await dialog.getByRole('button', { name: /Начать|Продолжить/ }).count()) === 0, 'в форме нет запуска тренировки')
+    await screenshot(page, 'coach-calendar-form')
+    await dialog.getByRole('button', { name: 'Сохранить' }).click()
+    await dialog.waitFor({ state: 'hidden', timeout: 10_000 })
+    const createdOk = await waitFor(() => at(900).some((e) => e.client_ids?.[0] === CLIENT_ID && e.trainer_id === TRAINER_ID), 10_000)
+    c.ok(createdOk, 'сервер: запись 15:00 с клиентом создана сразу')
+
+    /* Перенос пальцем 15:00 → 16:00 и «Отменить» (вторая правка той же записи — без ложного «обновите»). */
+    const cdp = await context.newCDPSession(page)
+    await scrollBoardTo(page, 14 * 60)
+    await entryAt(page, '15:00').waitFor({ timeout: 10_000 })
+    const from = await center(entryAt(page, '15:00'))
+    await touchDrag(cdp, page, from, { x: from.x, y: from.y + 60 * PX_PER_MIN })
+    c.ok(await waitFor(() => at(960).length === 1, 10_000), 'сервер: запись перенесена на 16:00')
+    c.ok(await page.getByText(/Перенесено на .*16:00/).isVisible(), 'плашка «Перенесено на … 16:00»')
+    await screenshot(page, 'coach-calendar-moved')
+    await page.getByRole('button', { name: 'Отменить' }).click()
+    c.ok(await waitFor(() => at(900).length === 1, 10_000), 'сервер: «Отменить» вернул запись на 15:00')
+
+    /* Планшет поменял запись, пока на телефоне была открыта форма. */
+    await scrollBoardTo(page, 14 * 60)
+    await entryAt(page, '15:00').click()
+    const edit = page.getByRole('dialog')
+    const row = at(900)[0]
+    row.duration_minutes = 90
+    row.updated_at = new Date(Date.now() + 1000).toISOString()
+    await edit.getByLabel('Время').fill('17:00')
+    await edit.getByRole('button', { name: 'Сохранить' }).click()
+    const conflictShown = await edit
+      .getByRole('alert')
+      .filter({ hasText: 'Запись изменилась на планшете' })
+      .waitFor({ timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false)
+    c.ok(conflictShown, 'устаревшая правка — «Запись изменилась на планшете — обновите»')
+    c.ok(at(900).length === 1 && at(900)[0].duration_minutes === 90, 'сервер: правка планшета не затёрта')
+    await screenshot(page, 'coach-calendar-conflict')
+    await edit.getByRole('button', { name: 'Отмена' }).click()
+
+    /* После обновления — удалить. */
+    await page.waitForTimeout(300)
+    await scrollBoardTo(page, 14 * 60)
+    await entryAt(page, '15:00').click()
+    page.once('dialog', (d) => void d.accept())
+    await page.getByRole('dialog').getByRole('button', { name: 'Удалить' }).click()
+    c.ok(await waitFor(() => at(900).length === 0, 10_000), 'сервер: запись удалена')
+
+    /* Завершённая тренировка не двигается. */
+    await scrollBoardTo(page, 17 * 60)
+    const lockedFrom = await center(entryAt(page, '18:00'))
+    await touchDrag(cdp, page, lockedFrom, { x: lockedFrom.x, y: lockedFrom.y + 60 * PX_PER_MIN })
+    c.ok(await page.getByText(/Тренировка по записи завершена/).isVisible(), 'завершённая тренировка — плашка, перенос не начат')
+    c.ok(at(18 * 60).length === 1, 'сервер: завершённый слот остался на 18:00')
+
+    await page.getByRole('tab', { name: 'Месяц', exact: true }).click()
+    await page.locator('.trainer-schedule-month').first().waitFor({ timeout: 10_000 })
+    await screenshot(page, 'coach-calendar-month')
+    c.ok(pageErrors.length === 0, `без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
+  } catch (e) {
+    await screenshot(page, 'coach-schedule-FAIL').catch(() => null)
+    c.ok(false, `Ежедневник на телефоне: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
+  return c.failures
+}

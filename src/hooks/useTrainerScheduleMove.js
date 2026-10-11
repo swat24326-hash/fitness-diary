@@ -7,11 +7,12 @@ const NOTICE_MS = 6000
 
 /**
  * Перенос записи ежедневника + плашка «Перенесено · Отменить».
- * @param {{ onSaved: () => void }} opts
+ * move — планшет пишет в IndexedDB, телефон через сервер; оба отвечают { ok, entry?, error? }.
+ * @param {{ onSaved: () => void, move?: (entry: object, dayIso: string, startMinutes: number) => Promise<{ ok: boolean, entry?: object, error?: string }> }} opts
  */
-export function useTrainerScheduleMove({ onSaved }) {
+export function useTrainerScheduleMove({ onSaved, move = moveTrainerScheduleEntry }) {
   const [notice, setNotice] = useState(
-    /** @type {{ text: string, tone: 'info' | 'error', undoEntry?: object } | null} */ (null),
+    /** @type {{ text: string, tone: 'info' | 'error', undoEntry?: object, movedEntry?: object } | null} */ (null),
   )
   const timerRef = useRef(0)
 
@@ -25,29 +26,29 @@ export function useTrainerScheduleMove({ onSaved }) {
 
   const moveEntry = useCallback(
     async (entry, dayIso, startMinutes) => {
-      const res = await moveTrainerScheduleEntry(entry, dayIso, startMinutes)
+      const res = await move(entry, dayIso, startMinutes)
       if (!res.ok) {
         show({ text: res.error ?? 'Не удалось перенести запись', tone: 'error' })
         return
       }
       onSaved()
       const when = `${weekdayShortRu(dayIso)} ${formatDateRu(dayIso).slice(0, 5)}, ${formatScheduleMinutes(startMinutes)}`
-      show({ text: `Перенесено на ${when}`, tone: 'info', undoEntry: entry })
+      show({ text: `Перенесено на ${when}`, tone: 'info', undoEntry: entry, movedEntry: res.entry ?? entry })
     },
-    [onSaved, show],
+    [move, onSaved, show],
   )
 
   const undo = useCallback(async () => {
     const prev = notice?.undoEntry
     if (!prev) return
     setNotice(null)
-    const res = await moveTrainerScheduleEntry(prev, prev.day_date, prev.start_minutes)
+    const res = await move(notice.movedEntry ?? prev, prev.day_date, prev.start_minutes)
     if (!res.ok) {
       show({ text: res.error ?? 'Не удалось отменить перенос', tone: 'error' })
       return
     }
     onSaved()
-  }, [notice, onSaved, show])
+  }, [move, notice, onSaved, show])
 
   const showLocked = useCallback(
     () => show({ text: 'Тренировка по записи завершена — запись не переносится', tone: 'error' }),

@@ -1,7 +1,11 @@
 /**
  * /api/coach — данные телефона тренера. Только пропуск 'coach' (requireCoachUser), только онлайн.
  * GET  ?view=me | schedule | chats | chat-thread&client_id[&before] | push-status&endpoint
+ *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
+ * GET  ?manifest=<club uuid> — без пропуска: manifest с названием клуба (браузер шлёт его без токена).
  * POST { op: 'chat-send', client_id, body | sticker } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
+ *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
+ *      | { op: 'schedule-save' | 'schedule-delete' | 'schedule-copies', ... } — правка Ежедневника
  * Переписка — те же обработчики, что у планшета (handleStaffChat*), только диалоги «Тренер» своих клиентов.
  */
 import { todayInTimeZoneIso } from '../../../src/lib/dateRu.js'
@@ -13,6 +17,10 @@ import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
 import { COACH_SCHEDULE_FIELDS, buildCoachMe, buildCoachSchedule, coachScheduleDays } from './coachViewCore.js'
 import { requireCoachUser } from './requireCoachUser.js'
+import { issueCoachHandoff } from './coachHandoffHandler.js'
+import { COACH_SCHEDULE_WRITE_OPS, handleCoachScheduleWrite, sendCoachScheduleRange } from './coachScheduleHandler.js'
+import { buildCoachClub, buildCoachManifest, coachManifestUrl } from './coachManifestCore.js'
+import { coachStore } from './coachStore.js'
 
 function parseBody(body) {
   if (typeof body !== 'string') return body ?? {}
@@ -53,10 +61,24 @@ async function sendPushStatus(ctx, req, res) {
   sendJson(res, 200, { ...pushServerStatus(), subscribed: found.length > 0 })
 }
 
-async function handleGet(ctx, req, res) {
+async function sendMe(ctx, res, store) {
+  const clubId = String(ctx.profile?.club_id ?? '').trim()
+  const clubName = clubId ? await store.loadClubName(clubId).catch(() => '') : ''
+  sendJson(res, 200, { ...buildCoachMe(ctx.profile), club: buildCoachClub(clubId, clubName) })
+}
+
+async function sendManifest(res, clubId, store) {
+  res.statusCode = 200
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8')
+  res.setHeader('Cache-Control', 'public, max-age=3600')
+  res.end(JSON.stringify(buildCoachManifest(await store.loadClubName(clubId))))
+}
+
+async function handleGet(ctx, req, res, store) {
   const view = String(req.query?.view ?? 'me')
-  if (view === 'me') return sendJson(res, 200, buildCoachMe(ctx.profile))
+  if (view === 'me') return sendMe(ctx, res, store)
   if (view === 'schedule') return sendSchedule(ctx, res)
+  if (view === 'schedule-range') return sendCoachScheduleRange(ctx, req, res)
   if (view === 'push-status') return sendPushStatus(ctx, req, res)
   if (view === 'chats') return handleStaffChatGet(ctx, { query: { view: 'list' } }, res)
   if (view === 'chat-thread') {
@@ -66,8 +88,10 @@ async function handleGet(ctx, req, res) {
   sendJson(res, 400, { error: 'Неизвестный запрос' })
 }
 
-async function handlePost(ctx, res, body) {
+async function handlePost(ctx, res, body, store) {
   const op = String(body.op ?? '')
+  if (op === 'handoff') return issueCoachHandoff(ctx, res, store)
+  if (COACH_SCHEDULE_WRITE_OPS.includes(op)) return handleCoachScheduleWrite(ctx, res, op, body)
   if (op === 'chat-send') {
     return handleStaffChatPost(ctx, res, { op: 'send', kind: 'trainer', client_id: body.client_id, body: body.body, sticker: body.sticker })
   }
@@ -82,7 +106,7 @@ async function handlePost(ctx, res, body) {
   sendJson(res, 400, { error: 'Неизвестное действие' })
 }
 
-export function createCoachHandler(auth = requireCoachUser) {
+export function createCoachHandler(auth = requireCoachUser, store = coachStore) {
   return async function coachHandler(req, res) {
     setCors(res, 'GET, POST, OPTIONS')
     if (req.method === 'OPTIONS') {
@@ -94,9 +118,14 @@ export function createCoachHandler(auth = requireCoachUser) {
       sendJson(res, 405, { error: 'Method not allowed' })
       return
     }
+    const manifestClub = req.method === 'GET' ? req.query?.manifest : null
+    if (manifestClub != null) {
+      if (!coachManifestUrl(manifestClub)) return sendJson(res, 400, { error: 'Неверный клуб' })
+      return sendManifest(res, String(manifestClub).trim(), store)
+    }
     const ctx = await auth(req, res)
     if (!ctx) return
-    if (req.method === 'GET') return handleGet(ctx, req, res)
-    return handlePost(ctx, res, parseBody(req.body))
+    if (req.method === 'GET') return handleGet(ctx, req, res, store)
+    return handlePost(ctx, res, parseBody(req.body), store)
   }
 }

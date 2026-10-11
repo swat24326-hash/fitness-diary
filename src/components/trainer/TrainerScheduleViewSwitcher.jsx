@@ -16,12 +16,15 @@ const OPTIONS = [
  * @param {{
  *   view: string,
  *   onChange: (view: string) => void,
+ *   views?: string[],
  * }} props
+ * views — какие режимы показать (телефону неделя не помещается).
  */
-export function TrainerScheduleViewSwitcher({ view, onChange }) {
+export function TrainerScheduleViewSwitcher({ view, onChange, views }) {
+  const options = views ? OPTIONS.filter((opt) => views.includes(opt.id)) : OPTIONS
   return (
     <div className="trainer-schedule-view-switch" role="tablist" aria-label="Режим календаря">
-      {OPTIONS.map((opt) => {
+      {options.map((opt) => {
         const active = view === opt.id
         return (
           <button

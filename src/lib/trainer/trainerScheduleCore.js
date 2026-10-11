@@ -230,7 +230,7 @@ export function formatScheduleViewRangeLabel(dayIsos, formatDay) {
   const days = (dayIsos ?? []).map((d) => String(d ?? '').slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
   if (!days.length) return '—'
   const fmt = typeof formatDay === 'function' ? formatDay : (iso) => iso
-  if (days.length === 1) return fmt(days[0])
+  if (days.length === 1) return `${weekdayShortRu(days[0])}, ${fmt(days[0])}`
   const first = days[0]
   const last = days[days.length - 1]
   const a = fmt(first)

@@ -1,6 +1,6 @@
 ---
 description: Ежедневник тренера — слоты, офлайн-запись, связь с тренировкой, права push; инварианты
-globs: src/lib/trainer/trainerSchedule*.js,src/lib/admin/trainerScheduleAdminCore.js,src/pages/trainer/TrainerCalendarPage.jsx,src/pages/admin/ClubTrainerSchedulePage.jsx,src/components/trainer/TrainerSchedule*.jsx,api/_lib/adminData/trainerScheduleHandler.js,src/styles/trainer-schedule*.css,src/hooks/useTrainerSchedule*.js,scripts/verify-trainer-schedule-*.mjs
+globs: src/lib/trainer/trainerSchedule*.js,src/lib/trainer/coachScheduleEditCore.js,src/lib/admin/trainerScheduleAdminCore.js,src/pages/trainer/TrainerCalendarPage.jsx,src/pages/admin/ClubTrainerSchedulePage.jsx,src/pages/coach/CoachCalendarPage.jsx,src/components/trainer/TrainerSchedule*.jsx,api/_lib/adminData/trainerScheduleHandler.js,api/_lib/coach/coachSchedule*.js,src/styles/trainer-schedule*.css,src/styles/coach-schedule.css,src/hooks/useTrainerSchedule*.js,src/hooks/useSchedule*.js,scripts/verify-trainer-schedule-*.mjs,scripts/verify-coach-schedule-edit.mjs
 alwaysApply: false
 ---
 
@@ -12,6 +12,8 @@ alwaysApply: false
 
 - **Пишет только тренер** и только своё: `trainerSchedulePushAuthCore.js` проверяет свой `trainer_id`, свой `club_id`, каждый `client_id` через `canAccessClient`, а `linked_training_id` — только на собственную тренировку. Админ, управляющий и менеджер слоты **не** создают.
 - Админ и управляющий — **просмотр** через `admin-data?action=trainer-schedule`; правит тренер на планшете. Не добавлять им редактирование «для удобства».
+- **Телефон тренера** (`/coach`, главный экран) правит онлайн через `/api/coach` → `coachScheduleWriteCore.js` → тот же `executePushRecord`/`authorizePush`. Не писать в таблицу мимо него. Каждая правка с `base_updated_at` (иначе 409), сервер ставит `updated_at = max(сейчас, прежняя + 1 мс)` и сам проверяет перенос (`coachScheduleEditCore.js`). Телефон не меняет `trainer_id`, `club_id`, `linked_training_id`, `created_at`; кнопки тренировки на телефоне нет (`canStartTraining={false}`).
+- Модалка и перенос общие: доступ к данным — только через проп `actions` / `move` (`trainerScheduleLocalActions.js` планшет, `coachScheduleActions.js` телефон). Не импортировать сервис IDB в общие компоненты обратно.
 
 ## Офлайн и очередь
 
@@ -35,4 +37,4 @@ alwaysApply: false
 
 ## Перед завершением
 
-`scripts/verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core`, `verify-trainer-schedule-interactions` (сейчас / повтор / перенос / категории; экран — `node scripts/e2e/run-screens.mjs "ежедневник"`), при правках прав — `verify-trainer-schedule-push-auth`, при админском просмотре — `verify-trainer-schedule-admin-core`. Тронули очередь или волны push — `npm run qa:critical`. Изменилось поведение из таблиц канона — строка в `docs/TRAINER_SCHEDULE.md`.
+`scripts/verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core`, `verify-trainer-schedule-interactions` (сейчас / повтор / перенос / категории; экран — `node scripts/e2e/run-screens.mjs "ежедневник"`), при правках прав — `verify-trainer-schedule-push-auth`, при админском просмотре — `verify-trainer-schedule-admin-core`, при правке с телефона — `verify-coach-schedule-edit` и `node scripts/e2e/run-screens.mjs "Ежедневник с правкой"`. Тронули очередь или волны push — `npm run qa:critical`. Изменилось поведение из таблиц канона — строка в `docs/TRAINER_SCHEDULE.md`.

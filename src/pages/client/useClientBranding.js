@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
+import { APP_BRAND_NAME } from '../../lib/appBrand.js'
 import { isIosUserAgent } from '../../lib/client/clientInstallCore.js'
 
 const STATIC_MANIFEST = '/manifest-client.json'
-const FALLBACK_TITLE = 'Мои тренировки'
 
 /**
  * На /me manifest зала не ставится (public/manifest-boot.js) — ссылку клуба добавляем сами.
@@ -31,18 +31,17 @@ function swapAttr(selector, attr, value) {
 }
 
 /**
- * /me — приложение клуба: свой manifest (название клуба на значке), заголовок вкладки
- * и подпись для iPhone «На экран Домой». Уход с /me возвращает рабочее приложение зала.
+ * /me и /coach — приложения «Результат Плюс»: свой manifest (название клуба на значке), заголовок вкладки,
+ * подпись для iPhone «На экран Домой». Уход возвращает рабочее приложение зала («Ядро»).
  */
 export function useClientBranding(clubName, manifestUrl) {
   useEffect(() => {
-    const title = clubName || FALLBACK_TITLE
+    const title = clubName || APP_BRAND_NAME
     const prevTitle = document.title
     document.title = title
     const restore = [
       setManifest(manifestUrl || STATIC_MANIFEST),
-      swapAttr('meta[name="apple-mobile-web-app-title"]', 'content', title),
-    ]
+      swapAttr('meta[name="apple-mobile-web-app-title"]', 'content', title),    ]
     return () => {
       document.title = prevTitle
       restore.forEach((fn) => fn())

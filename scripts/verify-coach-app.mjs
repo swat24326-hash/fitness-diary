@@ -8,6 +8,8 @@ import { handlePushSubscriptionPost } from '../api/_lib/pushSubscriptionHandler.
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
 import { PUSH_APP_COACH, coachPushUrl, pushUrlForApp } from '../src/lib/push/pushTargetUrlCore.js'
 import { buildCoachJoinUrl, coachQrTokenFromHash } from '../src/lib/coach/coachJoinLink.js'
+import { buildCoachClub, buildCoachManifest, coachManifestUrl } from '../api/_lib/coach/coachManifestCore.js'
+import { createCoachHandler } from '../api/_lib/coach/coachHandler.js'
 import { newInviteToken } from '../api/_lib/clientPortal/clientAuthCore.js'
 
 let failed = 0
@@ -84,6 +86,27 @@ ok(coachDb.calls[0]?.row.app === 'coach', 'подписка с телефона 
 const staffDb = fakeDb()
 await handlePushSubscriptionPost({ user: { id: 'tr' }, supabaseAdmin: staffDb }, fakeRes(), { op: 'subscribe', ...sub })
 ok(staffDb.calls[0]?.row.app === 'staff', 'подписка планшета — app staff (тот же браузер снова уводит push на планшет)')
+
+// --- Значок под названием клуба ---
+const CLUB = '3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b'
+ok(coachManifestUrl(CLUB) === `/api/coach?manifest=${CLUB}` && coachManifestUrl('../x') === null, 'manifest только по id клуба')
+const mf = buildCoachManifest('  Фитнес   Лайф ')
+ok(mf.name === 'Фитнес Лайф' && mf.short_name === 'Фитнес Лайф', 'значок называется как клуб')
+ok(mf.start_url === '/coach' && mf.scope === '/coach' && mf.id === '/coach/', 'значок открывает приложение тренера, не клиента и не планшет')
+ok(buildCoachManifest('').name === 'Результат Плюс · тренер', 'клуб без названия — «Результат Плюс · тренер»')
+ok(buildCoachClub(CLUB, 'Фитнес Лайф')?.manifest_url === coachManifestUrl(CLUB) && buildCoachClub('', 'X') === null, 'клуб для телефона: название и manifest')
+const denyAuth = async (_req, res) => {
+  res.statusCode = 401
+  res.end('{}')
+  return null
+}
+const mStore = { loadClubName: async (id) => (id === CLUB ? 'Фитнес Лайф' : '') }
+const mRes = { statusCode: 0, headers: {}, body: '', setHeader(k, v) { mRes.headers[k] = v }, end(b) { mRes.body = b } }
+await createCoachHandler(denyAuth, mStore)({ method: 'GET', headers: {}, query: { manifest: CLUB } }, mRes)
+ok(mRes.statusCode === 200 && JSON.parse(mRes.body).name === 'Фитнес Лайф', 'manifest отдаётся без пропуска (браузер шлёт без токена)')
+const badRes = { ...mRes, statusCode: 0, body: '', end(b) { badRes.body = b } }
+await createCoachHandler(denyAuth, mStore)({ method: 'GET', headers: {}, query: { manifest: 'не-клуб' } }, badRes)
+ok(badRes.statusCode === 400, 'manifest с мусором вместо клуба — 400')
 
 // --- Ссылка из QR планшета ---
 const qrToken = newInviteToken()

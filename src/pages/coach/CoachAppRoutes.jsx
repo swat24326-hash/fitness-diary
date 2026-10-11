@@ -1,35 +1,58 @@
 import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { handoffLaunchAction, handoffTokenFromSearch } from '../../lib/client/clientHandoffCore.js'
+import { isCoachStandalone } from '../../lib/coach/coachInstall.js'
 import { COACH_JOIN_PATH, coachQrTokenFromHash } from '../../lib/coach/coachJoinLink.js'
 import { hasCoachSession, readSavedCoachQr, saveCoachQr } from '../../lib/coach/coachSession.js'
 import { CoachAppProvider, useCoachApp } from './CoachAppContext.jsx'
+import { CoachCalendarPage } from './CoachCalendarPage.jsx'
 import { CoachChatPage } from './CoachChatPage.jsx'
 import { CoachChatsPage } from './CoachChatsPage.jsx'
 import { CoachJoinPage } from './CoachJoinPage.jsx'
 import { CoachMorePage } from './CoachMorePage.jsx'
 import { CoachSignInPage } from './CoachSignInPage.jsx'
-import { CoachTodayPage } from './CoachTodayPage.jsx'
 
-/** Код из QR сразу в хранилище и прочь из адресной строки (не остаётся в истории и закладках). */
-function takeQrToken() {
-  const { pathname, hash } = window.location
+/** Вход значка iPhone из адреса: переживает пересборку экрана, как сохранённый QR. */
+let launchHandoff = ''
+
+/**
+ * Код из QR — сразу в хранилище и прочь из адресной строки (не остаётся в истории и закладках).
+ * Значок «Домой» без входа с /coach?h=… — входит по приглашению из Safari.
+ * @returns {{ kind: 'qr' | 'handoff', token: string } | null}
+ */
+function takeLaunch() {
+  const { pathname, hash, search } = window.location
   if (pathname.replace(/\/$/, '') === COACH_JOIN_PATH) {
     const token = coachQrTokenFromHash(hash)
     if (token && !hasCoachSession()) saveCoachQr(token)
     window.history.replaceState(null, '', '/coach')
   }
-  return readSavedCoachQr()
+  const h = handoffTokenFromSearch(search)
+  if (h) {
+    const action = handoffLaunchAction({ standalone: isCoachStandalone(), hasSession: hasCoachSession(), token: h })
+    if (action !== 'none') window.history.replaceState(null, '', window.location.pathname)
+    if (action === 'redeem') launchHandoff = h
+  }
+  if (launchHandoff) return { kind: 'handoff', token: launchHandoff }
+  const qr = readSavedCoachQr()
+  return qr ? { kind: 'qr', token: qr } : null
 }
 
 function CoachRoutes() {
   const { signedIn } = useCoachApp()
-  const [qrToken, setQrToken] = useState(takeQrToken)
+  const [launch, setLaunch] = useState(takeLaunch)
   if (!signedIn) {
-    return qrToken ? <CoachJoinPage token={qrToken} onUsePassword={() => setQrToken('')} /> : <CoachSignInPage />
+    if (!launch) return <CoachSignInPage />
+    const usePassword = () => {
+      launchHandoff = ''
+      setLaunch(null)
+    }
+    return <CoachJoinPage key={launch.kind} kind={launch.kind} token={launch.token} onUsePassword={usePassword} />
   }
   return (
     <Routes>
-      <Route index element={<CoachTodayPage />} />
+      <Route index element={<CoachCalendarPage />} />
+      <Route path="calendar" element={<Navigate to="/coach" replace />} />
       <Route path="chats" element={<CoachChatsPage />} />
       <Route path="chat/:clientId" element={<CoachChatPage />} />
       <Route path="more" element={<CoachMorePage />} />

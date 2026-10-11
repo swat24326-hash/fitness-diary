@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchCoachPushStatus, subscribeCoachPush, unsubscribeCoachPush } from '../../lib/coach/coachApiClient.js'
+import { isCoachStandalone } from '../../lib/coach/coachInstall.js'
 import { CoachSessionGoneError } from '../../lib/coach/coachSession.js'
 import { isIosUserAgent } from '../../lib/client/clientInstallCore.js'
 import { clientPushMode } from '../../lib/client/clientPushModeCore.js'
@@ -9,10 +10,6 @@ import { useCoachApp } from './CoachAppContext.jsx'
 
 function permissionNow() {
   return typeof Notification === 'undefined' ? 'default' : Notification.permission
-}
-
-function isStandalone() {
-  return window.matchMedia?.('(display-mode: standalone)').matches === true || window.navigator.standalone === true
 }
 
 async function currentEndpoint() {
@@ -93,7 +90,7 @@ export function useCoachPush() {
     configured: server.configured,
     supported: isTrainerPushSupported(),
     ios: isIosUserAgent(navigator.userAgent, navigator.maxTouchPoints),
-    standalone: isStandalone(),
+    standalone: isCoachStandalone(),
     permission,
     subscribed: server.subscribed,
   })

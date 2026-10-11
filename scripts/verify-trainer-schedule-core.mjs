@@ -76,6 +76,7 @@ ok(
   }) === '06.09 – 08.09.2026',
   'range label same year',
 )
+ok(formatScheduleViewRangeLabel(['2026-10-11'], (d) => d) === 'Вс, 2026-10-11', 'day label with weekday')
 ok(normalizeScheduleClientIds(['a', 'a', 'b']).join(',') === 'a,b', 'dedupe client ids')
 
 const row = normalizeTrainerScheduleEntry({

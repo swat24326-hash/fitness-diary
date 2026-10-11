@@ -1,0 +1,113 @@
+/* Ежедневник на телефоне тренера (/coach): календарь планшета в узком экране над нижними вкладками. */
+
+/* Экран ровно в высоту телефона: страница не листается, переключатель «День / 3 дня / Месяц» всегда виден,
+   сетка часов забирает всё место до нижних вкладок (сколько бы ни заняла подсказка про значок). */
+.coach-app--fill {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+}
+
+.coach-app--fill .coach-app__top {
+  box-sizing: border-box;
+  flex: none;
+  width: 100%;
+}
+
+.coach-app--fill .coach-app__main {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.coach-app--fill .coach-app__main > * {
+  flex: none;
+}
+
+.coach-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.coach-app--fill .coach-app__main > .coach-schedule {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.coach-schedule > * {
+  flex: none;
+}
+
+.coach-schedule .trainer-schedule-view-switch {
+  width: 100%;
+}
+
+.coach-schedule .trainer-schedule-view-switch__btn {
+  flex: 1 1 0;
+  min-height: 44px;
+}
+
+.coach-schedule > .trainer-schedule-day {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px;
+}
+
+.coach-schedule .trainer-schedule-day > * {
+  flex: none;
+}
+
+.coach-schedule .trainer-schedule-day__head {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Узкий экран: «+» без подписи, без «Сегодня», легенды цветов и подсказок — место отдаём часам. */
+.coach-schedule .trainer-schedule-day__today,
+.coach-schedule .trainer-schedule-day__add-label,
+.coach-schedule .trainer-schedule-day__empty,
+.coach-schedule .trainer-schedule-legend {
+  display: none;
+}
+
+.coach-schedule .trainer-schedule-day__add {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.coach-schedule .trainer-schedule-day > .trainer-schedule-day__scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* overscroll-behavior — докрутив часы до края, палец не утаскивает страницу. */
+.coach-schedule .trainer-schedule-day > .trainer-schedule-day__board,
+.coach-schedule .trainer-schedule-day__scroll > .trainer-schedule-day__board {
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: none;
+  overscroll-behavior: contain;
+}
+
+/* Плашка «Перенесено · Отменить» — над вкладками, а не под пальцем на них. */
+.coach-schedule-layer .trainer-schedule-notice {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+}
+
+.coach-schedule-layer .trainer-schedule-modal__panel {
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+}

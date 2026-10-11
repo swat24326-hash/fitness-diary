@@ -1,12 +1,29 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { hasCoachSession, signOutCoach } from '../../lib/coach/coachSession.js'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { fetchCoachMe } from '../../lib/coach/coachApiClient.js'
+import { hasCoachSession, readCoachClub, saveCoachClub, signOutCoach } from '../../lib/coach/coachSession.js'
 
 const CoachAppContext = createContext(null)
 
-/** Вошёл ли телефон и почему вышел (отозван, блок) — для экрана входа. */
+/** Вошёл ли телефон и почему вышел (отозван, блок) — для экрана входа; клуб — название значка. */
 export function CoachAppProvider({ children }) {
   const [signedIn, setSignedIn] = useState(hasCoachSession)
   const [notice, setNotice] = useState('')
+  const [club, setClub] = useState(readCoachClub)
+
+  useEffect(() => {
+    if (!signedIn) return undefined
+    let alive = true
+    fetchCoachMe()
+      .then((me) => {
+        if (!alive) return
+        saveCoachClub(me?.club)
+        setClub(me?.club?.name ? me.club : null)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [signedIn])
 
   const onSignedIn = useCallback(() => {
     setNotice('')
@@ -25,8 +42,8 @@ export function CoachAppProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ signedIn, notice, onSignedIn, onSessionGone, signOut }),
-    [signedIn, notice, onSignedIn, onSessionGone, signOut],
+    () => ({ signedIn, notice, club, onSignedIn, onSessionGone, signOut }),
+    [signedIn, notice, club, onSignedIn, onSessionGone, signOut],
   )
   return <CoachAppContext.Provider value={value}>{children}</CoachAppContext.Provider>
 }

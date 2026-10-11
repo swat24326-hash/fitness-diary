@@ -1,23 +1,32 @@
 import { useCallback, useEffect, useState } from 'react'
-import { QrCode } from 'lucide-react'
-import { CoachPendingError, clearSavedCoachQr, redeemCoachQr } from '../../lib/coach/coachSession.js'
+import { QrCode, Smartphone } from 'lucide-react'
+import { CoachPendingError, clearSavedCoachQr, redeemCoachHandoff, redeemCoachQr } from '../../lib/coach/coachSession.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachPendingScreen } from './CoachPendingScreen.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachStatus } from './CoachStatus.jsx'
 
-/** Вход по QR с планшета тренера. Новый телефон ждёт «Разрешить»; код помним, пока ждём (можно закрыть браузер). */
-export function CoachJoinPage({ token, onUsePassword }) {
+const COPY = {
+  qr: { icon: QrCode, loading: 'Входим по QR…', hint: 'Проверяем код с планшета', failed: 'Не получилось войти по QR' },
+  handoff: { icon: Smartphone, loading: 'Входим…', hint: 'Значок переносит вход из Safari', failed: 'Не получилось войти' },
+}
+
+/**
+ * Вход без пароля: QR с планшета (новый телефон ждёт «Разрешить»; код помним, пока ждём)
+ * или первый запуск значка «Домой» на iPhone (телефон уже разрешён в Safari).
+ */
+export function CoachJoinPage({ kind = 'qr', token, onUsePassword }) {
   const { onSignedIn } = useCoachApp()
   const [phase, setPhase] = useState('loading')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const copy = COPY[kind] || COPY.qr
 
   const attempt = useCallback(
     async (quiet) => {
       if (!quiet) setBusy(true)
       try {
-        await redeemCoachQr(token)
+        await (kind === 'handoff' ? redeemCoachHandoff(token) : redeemCoachQr(token))
         onSignedIn()
       } catch (e) {
         if (e instanceof CoachPendingError) {
@@ -31,7 +40,7 @@ export function CoachJoinPage({ token, onUsePassword }) {
         if (!quiet) setBusy(false)
       }
     },
-    [token, onSignedIn],
+    [kind, token, onSignedIn],
   )
 
   useEffect(() => {
@@ -39,7 +48,7 @@ export function CoachJoinPage({ token, onUsePassword }) {
   }, [attempt])
 
   const usePassword = () => {
-    clearSavedCoachQr()
+    if (kind === 'qr') clearSavedCoachQr()
     onUsePassword()
   }
   const passwordButton = (
@@ -59,9 +68,9 @@ export function CoachJoinPage({ token, onUsePassword }) {
   return (
     <CoachShell tabs={false}>
       <CoachStatus
-        icon={QrCode}
-        title={phase === 'error' ? 'Не получилось войти по QR' : 'Входим по QR…'}
-        hint={phase === 'error' ? error : 'Проверяем код с планшета'}
+        icon={copy.icon}
+        title={phase === 'error' ? copy.failed : copy.loading}
+        hint={phase === 'error' ? error : copy.hint}
       >
         {phase === 'error' ? (
           <>

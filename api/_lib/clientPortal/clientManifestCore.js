@@ -1,10 +1,12 @@
 /**
- * Manifest приложения клиента под клуб: на телефоне значок называется как клуб, а не «Ядро».
+ * Manifest приложения клиента под клуб: на телефоне значок называется как клуб (без клуба — «Результат Плюс»).
  * Браузер берёт manifest без токена, поэтому в ответе только публичное: название клуба и наши иконки.
  */
+import { APP_BRAND_NAME, appBrandManifestIcons } from '../../../src/lib/appBrand.js'
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const NAME_MAX = 40
-export const CLIENT_APP_FALLBACK_NAME = 'Мои тренировки'
+export const CLIENT_APP_FALLBACK_NAME = APP_BRAND_NAME
 
 export function cleanClubName(raw) {
   const s = String(raw ?? '').replace(/\s+/g, ' ').trim()
@@ -35,9 +37,6 @@ export function buildClientManifest(clubName, startUrl = '/me') {
     theme_color: '#0a0a0a',
     background_color: '#0a0a0a',
     orientation: 'portrait',
-    icons: [
-      { src: '/icons/icon-192.png?v=3', sizes: '192x192', type: 'image/png' },
-      { src: '/icons/icon-512.png?v=3', sizes: '512x512', type: 'image/png' },
-    ],
+    icons: appBrandManifestIcons(),
   }
 }

@@ -1,0 +1,119 @@
+import { useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import { pluralRu } from '../../lib/client/clientMeUiCore.js'
+import {
+  SCHEDULE_VIEW_DAY,
+  SCHEDULE_VIEW_DAYS3,
+  SCHEDULE_VIEW_MONTH,
+  countScheduleEntriesByDay,
+} from '../../lib/trainer/trainerScheduleCore.js'
+import { resolveCoachScheduleWindow } from '../../lib/trainer/coachScheduleEditCore.js'
+import { createCoachScheduleActions } from '../../lib/coach/coachScheduleActions.js'
+import { useScheduleCalendarNav } from '../../hooks/useScheduleCalendarNav.js'
+import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
+import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
+import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
+import { TrainerScheduleViewSwitcher } from '../../components/trainer/TrainerScheduleViewSwitcher.jsx'
+import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
+import { TrainerScheduleNotice } from '../../components/trainer/TrainerScheduleNotice.jsx'
+import { useCoachApp } from './CoachAppContext.jsx'
+import { CoachInstallBanner } from './CoachInstallBanner.jsx'
+import { CoachShell } from './CoachShell.jsx'
+import { CoachLoadState } from './CoachStatus.jsx'
+import { useCoachScheduleData } from './useCoachScheduleData.js'
+import '../../styles/trainer-schedule.css'
+import '../../styles/trainer-schedule-interactions.css'
+import '../../styles/trainer-schedule-kinds.css'
+
+const PHONE_VIEWS = [SCHEDULE_VIEW_DAY, SCHEDULE_VIEW_DAYS3, SCHEDULE_VIEW_MONTH]
+/** Час = 60px (на планшете 84): на экране телефона виден больший кусок дня. */
+const PHONE_PX_PER_MIN = 1
+
+/** Главный экран телефона — Ежедневник: тот же календарь, что на планшете, правки сразу на сервер (без очереди). */
+export function CoachCalendarPage() {
+  const { onSessionGone } = useCoachApp()
+  const nav = useScheduleCalendarNav({ initialView: SCHEDULE_VIEW_DAY })
+  const { view, selectedDay, monthCursor, agendaDays } = nav
+  const range = resolveCoachScheduleWindow(monthCursor.year, monthCursor.month, view === SCHEDULE_VIEW_MONTH ? [] : agendaDays)
+  const data = useCoachScheduleData(range.from, range.to)
+  const { entries, clients, clientNameById, trainingById, reload } = data
+
+  const actions = useMemo(
+    () => createCoachScheduleActions({ onStale: () => void reload(), onSessionGone }),
+    [reload, onSessionGone],
+  )
+  const move = useTrainerScheduleMove({ onSaved: () => void reload(), move: actions.move })
+
+  const countsByDay = useMemo(
+    () => countScheduleEntriesByDay(entries, monthCursor.year, monthCursor.month),
+    [entries, monthCursor.year, monthCursor.month],
+  )
+  const firstLoad = data.status !== 'ready' && !entries.length && !clients.length
+
+  return (
+    <CoachShell fill>
+      <CoachInstallBanner />
+      <div className="coach-schedule">
+        <TrainerScheduleViewSwitcher view={view} onChange={nav.onChangeView} views={PHONE_VIEWS} />
+        {firstLoad || data.status === 'error' ? (
+          <CoachLoadState status={data.status} error={data.error} onRetry={() => void reload()} />
+        ) : view === SCHEDULE_VIEW_MONTH ? (
+          <TrainerScheduleMonthGrid
+            year={monthCursor.year}
+            month={monthCursor.month}
+            selectedDay={selectedDay}
+            countsByDay={countsByDay}
+            onSelectDay={nav.onSelectDay}
+            onPrevMonth={nav.prevMonth}
+            onNextMonth={nav.nextMonth}
+          />
+        ) : (
+          <TrainerScheduleMultiDayAgenda
+            dayIsos={agendaDays}
+            anchorDayIso={selectedDay}
+            entries={entries}
+            clientNameById={clientNameById}
+            trainingById={trainingById}
+            canStartTraining={false}
+            pxPerMin={PHONE_PX_PER_MIN}
+            onPrev={() => nav.shiftAnchor(-1)}
+            onNext={() => nav.shiftAnchor(1)}
+            onToday={nav.goToday}
+            onOpenDay={nav.onSelectDay}
+            onAddAt={nav.openCreate}
+            onOpenEntry={nav.openEdit}
+            onMoveEntry={(entry, dayIso, startMinutes) => void move.moveEntry(entry, dayIso, startMinutes)}
+            onMoveLocked={move.showLocked}
+          />
+        )}
+      </div>
+
+      {createPortal(
+        <div className="coach-schedule-layer">
+          <TrainerScheduleNotice notice={move.notice} onUndo={() => void move.undo()} onDismiss={move.dismiss} />
+          <TrainerScheduleEntryModal
+            open={nav.modalOpen}
+            draft={nav.modalDraft}
+            dayIso={selectedDay}
+            clubId=""
+            trainerId=""
+            clients={clients}
+            clientNameById={clientNameById}
+            trainingById={trainingById}
+            entries={entries}
+            actions={actions}
+            canStartTraining={false}
+            onClose={nav.closeModal}
+            onSaved={(result) => {
+              void reload()
+              if (result?.repeated) {
+                move.notify(`Добавлено ещё ${result.repeated} ${pluralRu(result.repeated, 'запись', 'записи', 'записей')}`)
+              }
+            }}
+          />
+        </div>,
+        document.body,
+      )}
+    </CoachShell>
+  )
+}

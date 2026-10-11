@@ -31,6 +31,11 @@ export const coachStore = {
     return synthPattern ? one(db.from('users').select(cols).ilike('email', synthPattern)) : null
   },
 
+  async loadClubName(id) {
+    const row = await one(createServiceDataClient().from('clubs').select('name').eq('id', id))
+    return String(row?.name ?? '')
+  },
+
   async loadUser(id) {
     return one(createServiceDataClient().from('users').select(USER_COLS).eq('id', id))
   },
@@ -47,22 +52,28 @@ export const coachStore = {
     return row
   },
 
-  /** Новый QR гасит прежние неиспользованные: живёт одна последняя ссылка. */
-  async createInvite({ userId, tokenHash, expiresAt }) {
+  /** Новый вход гасит прежние неиспользованные того же вида: живёт один последний QR и один вход значка. */
+  async createInvite({ userId, tokenHash, expiresAt, kind = 'qr', deviceId = null }) {
     const db = createServiceDataClient()
     const closed = await db
       .from('coach_invites')
       .update({ expires_at: new Date().toISOString() })
       .eq('user_id', userId)
+      .eq('kind', kind)
       .is('used_at', null)
-    if (closed.error) throw new Error(closed.error.message || 'Не удалось создать QR')
-    const { error } = await db.from('coach_invites').insert({ user_id: userId, token_hash: tokenHash, expires_at: expiresAt })
-    if (error) throw new Error(error.message || 'Не удалось создать QR')
+    if (closed.error) throw new Error(closed.error.message || 'Не удалось создать вход')
+    const { error } = await db
+      .from('coach_invites')
+      .insert({ user_id: userId, token_hash: tokenHash, expires_at: expiresAt, kind, device_id: deviceId })
+    if (error) throw new Error(error.message || 'Не удалось создать вход')
   },
 
   async loadInviteByHash(tokenHash) {
     return one(
-      createServiceDataClient().from('coach_invites').select('id, user_id, device_id, expires_at, used_at').eq('token_hash', tokenHash),
+      createServiceDataClient()
+        .from('coach_invites')
+        .select('id, user_id, kind, device_id, expires_at, used_at')
+        .eq('token_hash', tokenHash),
     )
   },
 

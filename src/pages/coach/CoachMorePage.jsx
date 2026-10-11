@@ -1,4 +1,4 @@
-import { Bell, BellOff, LogOut } from 'lucide-react'
+import { Bell, BellOff, LogOut, RefreshCw } from 'lucide-react'
 import { fetchCoachMe } from '../../lib/coach/coachApiClient.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachShell } from './CoachShell.jsx'
@@ -11,7 +11,10 @@ const PUSH_HINT = {
   none: 'Уведомления на этом телефоне недоступны.',
 }
 
-/** «Ещё»: уведомления о сообщениях и выход. Данных клуба на телефоне нет — выход ничего не теряет. */
+/**
+ * «Меню» (три полоски в шапке): обновить, уведомления о сообщениях и выход.
+ * Данных клуба на телефоне нет — ни перезагрузка, ни выход ничего не теряют.
+ */
 export function CoachMorePage() {
   const { signOut } = useCoachApp()
   const me = useCoachLoad(fetchCoachMe)
@@ -20,10 +23,10 @@ export function CoachMorePage() {
   const canToggle = on || push.mode === 'off'
 
   return (
-    <CoachShell title="Ещё">
+    <CoachShell title="Меню">
       <section className="coach-card">
         <strong>{me.data?.name || 'Тренер'}</strong>
-        <p className="muted">Расписание и клиенты правятся на планшете. На телефоне — ответы клиентам и план дня.</p>
+        <p className="muted">Ежедневник правится и здесь, и на планшете. Тренировки и карточки клиентов — на планшете.</p>
       </section>
       <section className="coach-card coach-push">
         <div className="coach-push__row">
@@ -43,6 +46,9 @@ export function CoachMorePage() {
         {!canToggle && push.ready ? <p className="muted">{PUSH_HINT[push.mode] ?? PUSH_HINT.none}</p> : null}
         {push.error ? <p className="coach-form__error" role="alert">{push.error}</p> : null}
       </section>
+      <button type="button" className="btn btn-secondary btn-touch coach-menu-action" onClick={() => window.location.reload()}>
+        <RefreshCw size={18} aria-hidden /> Обновить
+      </button>
       <button type="button" className="btn btn-ghost btn-touch coach-signout" onClick={() => void signOut()}>
         <LogOut size={18} aria-hidden /> Выйти
       </button>
