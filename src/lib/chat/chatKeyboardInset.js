@@ -1,6 +1,7 @@
 /**
  * Поле ввода переписки над клавиатурой телефона. iPhone, Яндекс Браузер, Samsung Internet не сжимают страницу
  * под клавиатуру, а только видимую область (visualViewport): sticky bottom: 0 уходит под клавиатуру.
+ * То же, если страница шире экрана: Chrome растягивает область раскладки вниз (innerHeight > clientHeight).
  * Подъём = часть страницы ниже видимой области.
  */
 
@@ -36,7 +37,7 @@ export function attachChatKeyboardInset(el) {
   const sync = () => {
     raf = 0
     const px = chatKeyboardInsetPx({
-      layoutHeight: document.documentElement.clientHeight,
+      layoutHeight: Math.max(window.innerHeight, document.documentElement.clientHeight),
       viewHeight: vv.height,
       viewOffsetTop: vv.offsetTop,
       scale: vv.scale,

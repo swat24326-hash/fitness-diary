@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchCoachChats } from '../../lib/coach/coachApiClient.js'
+import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
 
 const POLL_MS = 60_000
 
@@ -7,8 +8,8 @@ const POLL_MS = 60_000
 let lastCount = 0
 
 /**
- * Сколько диалогов ждут ответа — метка на вкладке «Сообщения»: при открытии, раз в минуту, пока приложение на экране,
- * и сразу при возврате в приложение. Ошибка сети оставляет прежнее число.
+ * Сколько диалогов ждут ответа — метка на вкладке «Сообщения»: при открытии, сразу при приходе push,
+ * раз в минуту, пока приложение на экране, и при возврате в приложение. Ошибка сети оставляет прежнее число.
  */
 export function useCoachAttention() {
   const [count, setCount] = useState(lastCount)
@@ -26,10 +27,12 @@ export function useCoachAttention() {
     load()
     const t = window.setInterval(load, POLL_MS)
     document.addEventListener('visibilitychange', load)
+    const offPush = onPushReceived(load)
     return () => {
       alive = false
       window.clearInterval(t)
       document.removeEventListener('visibilitychange', load)
+      offPush()
     }
   }, [])
   return count

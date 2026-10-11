@@ -313,6 +313,16 @@ button {
     column-gap: 8px;
   }
 
+  /* Шапка не шире экрана: иначе Chrome растягивает страницу, и прилипшее к низу (поле ввода переписки) уходит
+     за видимую часть. Сжимается сначала название клуба (многоточие), потом кнопки (листаются в .app-header__tools). */
+  .app-header__brand-slot {
+    flex-shrink: 100;
+  }
+
+  .app-header__right {
+    flex-shrink: 1;
+  }
+
   .app-header--admin .app-header__brand-slot {
     flex: 1 1 auto;
     max-width: min(42vw, 12rem);

@@ -74,7 +74,7 @@ GET `admin-data?action=push-subscription` доступен ролям `admin`, `
 
 | Слой | Путь |
 |------|------|
-| SW handler | `public/push-sw.js` |
+| SW handler | `public/push-sw.js` (показ уведомления + сигнал `push-received` открытым окнам → `src/lib/push/pushReceivedSignal.js`) |
 | API | `admin-data?action=push-subscription` |
 | Отправка | `api/_lib/webPushCore.js` (при create dispatch) |
 | UI | `TrainerPushPrompt`, `TrainerPushSettings` |

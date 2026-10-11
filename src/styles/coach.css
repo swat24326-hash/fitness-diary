@@ -6,13 +6,15 @@
     radial-gradient(120% 60% at 50% -10%, var(--premium-bg-radial), transparent 60%),
     var(--bg);
   color: var(--text);
-  padding: env(safe-area-inset-top) 0 calc(20px + env(safe-area-inset-bottom));
+  padding: 0 0 calc(20px + env(safe-area-inset-bottom));
 }
 
 .coach-app.coach-app--tabs {
   padding-bottom: calc(84px + env(safe-area-inset-bottom));
 }
 
+/* Строка состояния iPhone прозрачная (black-translucent): отступ под неё — внутри прилипшей шапки,
+   иначе при сдвиге страницы кнопки шапки уезжают под часы и не нажимаются. */
 .coach-app__top {
   position: sticky;
   top: 0;
@@ -23,7 +25,7 @@
   gap: 12px;
   max-width: 560px;
   margin: 0 auto;
-  padding: 10px 16px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
   background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -72,6 +74,11 @@
   max-width: 560px;
   margin: 0 auto;
   padding: 4px 16px 0;
+}
+
+/* Экран без шапки (заставка загрузки) — отступ под строку состояния сам. */
+.coach-app > .coach-app__main:first-child {
+  padding-top: calc(4px + env(safe-area-inset-top));
 }
 
 .coach-card {

@@ -18,13 +18,20 @@ self.addEventListener('push', (event) => {
   const tag = data.tag || 'iskra-dispatch'
 
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-96.png',
-      tag,
-      data: { url },
-    }),
+    Promise.all([
+      self.registration.showNotification(title, {
+        body,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-96.png',
+        tag,
+        data: { url },
+      }),
+      /* Открытое приложение сразу обновляет числа и ленту — не ждёт опроса (pushReceivedSignal.js). */
+      self.clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((list) => list.forEach((client) => client.postMessage({ type: 'push-received', url, tag })))
+        .catch(() => {}),
+    ]),
   )
 })
 

@@ -8,6 +8,7 @@ import {
 import { fetchStaffChats } from '../../lib/chat/staffChatApiClient.js'
 import { didInboxCountRise } from '../../lib/chat/chatSoundCore.js'
 import { armChatSound, playChatSound } from '../../lib/chat/chatSoundPlayer.js'
+import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
 
 const COUNT_POLL_MS = 120_000
 
@@ -58,7 +59,7 @@ export function useStaffInboxItem(id) {
 }
 
 /**
- * Точка на конверте в шапке: рассылки + диалоги с клиентами; раз в 2 минуты, при возврате на вкладку и после чтения. Офлайн — тихо.
+ * Точка на конверте в шапке: рассылки + диалоги с клиентами; сразу при push, раз в 2 минуты, при возврате на вкладку и после чтения. Офлайн — тихо.
  * Число выросло — звук, если сотрудник включил «Звуки сообщений».
  */
 export function useStaffInboxCount(enabled) {
@@ -85,11 +86,13 @@ export function useStaffInboxCount(enabled) {
     const t = window.setInterval(load, COUNT_POLL_MS)
     window.addEventListener(STAFF_INBOX_CHANGED, load)
     document.addEventListener('visibilitychange', onVisible)
+    const offPush = onPushReceived(load)
     return () => {
       alive = false
       window.clearInterval(t)
       window.removeEventListener(STAFF_INBOX_CHANGED, load)
       document.removeEventListener('visibilitychange', onVisible)
+      offPush()
     }
   }, [enabled])
   return count

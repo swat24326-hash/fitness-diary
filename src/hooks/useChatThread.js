@@ -3,13 +3,14 @@ import { mergeChatMessages } from '../lib/chat/chatMessageCore.js'
 import { countNewPeerMessages } from '../lib/chat/chatSoundCore.js'
 import { armChatSound, playChatSound } from '../lib/chat/chatSoundPlayer.js'
 import { isAppOnline } from '../lib/networkReachability.js'
+import { onPushReceived } from '../lib/push/pushReceivedSignal.js'
 
 const POLL_MS = 10_000
 export const CHAT_OFFLINE_RU = 'Нет сети — сообщение не отправлено'
 
 /**
  * Лента одного диалога — общая для клиента и сотрудника. Только онлайн: очередь sync не трогаем.
- * Пока экран открыт и виден — свежие сообщения раз в 10 с.
+ * Пока экран открыт и виден — свежие сообщения раз в 10 с и сразу при приходе push.
  * @param {{ key: string, side: 'client' | 'staff', load: (before?: string) => Promise<{ messages: object[], has_more: boolean }>, send: (outgoing: { body: string } | { sticker: string }) => Promise<{ message: object }> }} p
  */
 export function useChatThread({ key, side, load, send }) {
@@ -51,9 +52,11 @@ export function useChatThread({ key, side, load, send }) {
     const tick = () => document.visibilityState === 'visible' && isAppOnline() && void refresh(true)
     const t = window.setInterval(tick, POLL_MS)
     document.addEventListener('visibilitychange', tick)
+    const offPush = onPushReceived(tick)
     return () => {
       window.clearInterval(t)
       document.removeEventListener('visibilitychange', tick)
+      offPush()
     }
   }, [key, refresh])
 

@@ -120,6 +120,34 @@ async function supervisorAnswers(c, browser, backend, chat) {
   }
 }
 
+/** Тренер в приложении зала на узком телефоне: шапка не шире экрана, поле ввода у низа видимой части (INC-2026-10-11-04). */
+async function trainerNarrowPhoneThread(c, browser, backend) {
+  const context = await newE2eContext(browser, backend, { ...PHONE, viewport: { width: 360, height: 780 } })
+  const page = await context.newPage()
+  try {
+    await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.goto(`${ORIGIN}/messages/dm/${SUP_ID}`)
+    await page.getByTestId('chat-input').waitFor()
+    await page.evaluate(() => globalThis.scrollTo(0, 0))
+    const m = await page.evaluate(() => {
+      const root = globalThis.document.documentElement
+      return {
+        wide: root.scrollWidth - root.clientWidth,
+        composerBottom: globalThis.document.querySelector('.chat-compose').getBoundingClientRect().bottom,
+        visible: globalThis.visualViewport?.height ?? globalThis.innerHeight,
+      }
+    })
+    c.ok(m.wide <= 0, `узкий телефон тренера: страница не шире экрана (лишних ${m.wide}px)`)
+    c.ok(m.composerBottom <= m.visible + 1, `поле ввода в видимой части (низ ${Math.round(m.composerBottom)} из ${Math.round(m.visible)})`)
+    await screenshot(page, 'staff-dm-trainer-narrow')
+  } catch (e) {
+    await screenshot(page, 'staff-dm-trainer-narrow-FAIL').catch(() => null)
+    c.ok(false, `узкий телефон тренера: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
+}
+
 export async function run(browser) {
   const c = createChecks('staff-dm')
   const { backend, chat, coach } = setup()
@@ -129,8 +157,19 @@ export async function run(browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await trainerWrites(c, page, chat, coach)
+    await page.getByRole('link', { name: 'Все диалоги' }).click()
+    const tab = page.getByRole('link', { name: 'Сообщения, новых диалогов: 1' })
+    c.ok(await reaches(page.getByRole('link', { name: 'Сообщения', exact: true })), 'вкладка «Сообщения» без числа, пока ответа нет')
     await supervisorAnswers(c, browser, backend, chat)
-    await page.reload()
+    await page.evaluate(() =>
+      globalThis.navigator.serviceWorker.dispatchEvent(new globalThis.MessageEvent('message', { data: { type: 'push-received' } })),
+    )
+    c.ok(
+      await tab.waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false),
+      'пришёл push — число на вкладке «Сообщения» сразу, без переключения вкладок',
+    )
+    await trainerNarrowPhoneThread(c, browser, backend)
+    await page.goto(`${ORIGIN}/coach/dm/${SUP_ID}`)
     c.ok(await reaches(page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: ANSWER })), 'тренер видит ответ управляющей')
     c.ok(await reaches(page.locator('.chat-msg--mine .chat-msg__tick.is-read').first()), 'у тренера две галочки — прочитано')
     await screenshot(page, 'staff-dm-coach-thread')
