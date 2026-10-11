@@ -7,6 +7,7 @@ import { isPwaUpdateInFlight } from './lib/appUpdateInFlightSession.js'
 import { AppChromeTop } from './components/AppChromeTop'
 import { AppHeader } from './components/AppHeader'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
+import { UnknownRouteRedirect } from './components/UnknownRouteRedirect.jsx'
 import { AppWelcomeSplash } from './components/AppWelcomeSplash'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
@@ -368,7 +369,7 @@ export default function App() {
               </Route>
             </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<UnknownRouteRedirect />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
