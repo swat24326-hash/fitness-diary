@@ -7,6 +7,8 @@ import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { AlertTriangle, BarChart3, CalendarDays, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
 import { OsMark } from './brand/OsMark.jsx'
+import { HeaderSettingsMenu, HeaderStaffSettingsItems } from './header/HeaderSettingsMenu.jsx'
+import { HeaderSettingsModals } from './header/HeaderSettingsModals.jsx'
 import { IskraOrb } from './iskra/IskraOrb.jsx'
 import { PRODUCT_BRAND_NAME, productBrandAriaOnline, productBrandDocumentTitle } from '../lib/productBrand.js'
 import {
@@ -67,6 +69,8 @@ export function AppHeader() {
   const [inboxPending, setInboxPending] = useState(0)
   const [updatePending, setUpdatePending] = useState(false)
   const [recoverBusy, setRecoverBusy] = useState(false)
+  const [settingsModal, setSettingsModal] = useState(null)
+  const isTrainerRole = !isAdmin && !isSalesManager && !isSupervisor
 
   const {
     showHeaderSync,
@@ -285,6 +289,11 @@ export function AppHeader() {
       window.removeEventListener('keydown', onKey)
     }
   }, [menuOpen])
+
+  const openSettingsModal = (which) => {
+    setMenuOpen(false)
+    setSettingsModal(which)
+  }
 
   const doSignOut = () => {
     setMenuOpen(false)
@@ -715,72 +724,72 @@ export function AppHeader() {
                 </>
               )}
             </div>
-            <div className="app-header__menu-user">
-              <User size={16} aria-hidden className="app-header__menu-user-icon" />
-              <div className="app-header__menu-user-text">
-                <span className="app-header__menu-user-name">
-                  {user?.name ?? user?.email ?? '—'}
-                  {!supabaseReady && ' · локально'}
-                  {!isAdmin && !online && ' · офлайн'}
-                </span>
+            <HeaderSettingsMenu attention={needsAttention || updatePending}>
+              <div className="app-header__menu-user">
+                <User size={16} aria-hidden className="app-header__menu-user-icon" />
+                <div className="app-header__menu-user-text">
+                  <span className="app-header__menu-user-name">
+                    {user?.name ?? user?.email ?? '—'}
+                    {!supabaseReady && ' · локально'}
+                    {!isAdmin && !online && ' · офлайн'}
+                  </span>
+                </div>
               </div>
-            </div>
-            {supabaseReady ? (
+              {supabaseReady ? (
+                <button
+                  type="button"
+                  className="app-header__menu-item"
+                  disabled={syncBusy}
+                  onClick={() => void syncNow()}
+                >
+                  <RefreshCw size={18} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
+                  {syncBusy
+                    ? syncProgress.label
+                      ? `${syncProgress.percent}% — ${syncProgress.label}`
+                      : `Синхронизация… ${syncProgress.percent}%`
+                    : syncMenuLabel}
+                </button>
+              ) : null}
+              <HeaderStaffSettingsItems
+                showPush={supabaseReady && !isAdmin && !isSupervisor}
+                showPhoneQr={supabaseReady && isTrainerRole}
+                clubId={String(user?.club_id ?? '').trim()}
+                onOpen={openSettingsModal}
+              />
               <button
                 type="button"
                 className="app-header__menu-item"
-                disabled={syncBusy}
-                onClick={() => void syncNow()}
+                disabled={recoverBusy}
+                onClick={() => void doRecoverApp()}
               >
-                <RefreshCw size={18} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
-                {syncBusy
-                  ? syncProgress.label
-                    ? `${syncProgress.percent}% — ${syncProgress.label}`
-                    : `Синхронизация… ${syncProgress.percent}%`
-                  : syncMenuLabel}
+                <RefreshCw size={18} className={recoverBusy ? 'icon-spin' : undefined} aria-hidden />
+                {recoverBusy ? 'Восстанавливаем…' : 'Восстановить приложение'}
               </button>
-            ) : null}
-            <button
-              type="button"
-              className="app-header__menu-item"
-              disabled={recoverBusy}
-              onClick={() => void doRecoverApp()}
-            >
-              <RefreshCw size={18} className={recoverBusy ? 'icon-spin' : undefined} aria-hidden />
-              {recoverBusy ? 'Восстанавливаем…' : 'Восстановить приложение'}
-            </button>
-            <button
-              type="button"
-              className="app-header__menu-item app-header__menu-item--journal"
-              onClick={openErrorJournal}
-            >
-              <span className="app-header__menu-item-main">
-                {isAdmin ? (
-                  <AlertTriangle size={18} aria-hidden />
-                ) : (
-                  <CircleHelp size={18} aria-hidden />
-                )}
-                {isAdmin ? 'Журнал ошибок' : 'Помощь'}
-              </span>
-              {persistentErrorCount > 0 || updatePending ? (
-                <span
-                  className="app-header__error-badge"
-                  aria-label={
-                    updatePending && persistentErrorCount > 0
-                      ? `Обновление отложено; записей в журнале: ${persistentErrorCount}`
-                      : updatePending
-                        ? 'Доступна новая версия'
-                        : `Записей в журнале: ${persistentErrorCount}`
-                  }
-                >
-                  {persistentErrorCount > 0
-                    ? persistentErrorCount > 99
-                      ? '99+'
-                      : persistentErrorCount
-                    : '↑'}
+              <button
+                type="button"
+                className="app-header__menu-item app-header__menu-item--journal"
+                onClick={openErrorJournal}
+              >
+                <span className="app-header__menu-item-main">
+                  {isAdmin ? <AlertTriangle size={18} aria-hidden /> : <CircleHelp size={18} aria-hidden />}
+                  {isAdmin ? 'Журнал ошибок' : 'Помощь'}
                 </span>
-              ) : null}
-            </button>
+                {persistentErrorCount > 0 || updatePending ? (
+                  <span
+                    className="app-header__error-badge"
+                    aria-label={
+                      updatePending && persistentErrorCount > 0
+                        ? `Обновление отложено; записей в журнале: ${persistentErrorCount}`
+                        : updatePending
+                          ? 'Доступна новая версия'
+                          : `Записей в журнале: ${persistentErrorCount}`
+                    }
+                  >
+                    {persistentErrorCount > 0 ? (persistentErrorCount > 99 ? '99+' : persistentErrorCount) : '↑'}
+                  </span>
+                ) : null}
+              </button>
+            </HeaderSettingsMenu>
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>
               <LogOut size={18} aria-hidden />
               Выйти
@@ -799,6 +808,7 @@ export function AppHeader() {
       syncBusy={syncBusy}
       onSignOut={doSignOut}
     />
+    <HeaderSettingsModals which={settingsModal} onClose={() => setSettingsModal(null)} />
     {isDispatchInboxUser ? (
       <TrainerInboxPanel
         open={inboxOpen}

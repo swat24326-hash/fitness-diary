@@ -6,7 +6,7 @@
 export const COACH_INVITE_TTL_MS = 10 * 60 * 1000
 export const COACH_INVITE_PAIRED_TTL_MS = 24 * 60 * 60 * 1000
 
-export const COACH_INVITE_GONE_RU = 'QR-код устарел — откройте на планшете «Профиль» → «QR для телефона» ещё раз'
+export const COACH_INVITE_GONE_RU = 'QR-код устарел — откройте на планшете меню → «Настройки» → «QR для телефона» ещё раз'
 export const COACH_INVITE_ONLY_TRAINER_RU = 'QR для телефона — только у тренера'
 
 /**

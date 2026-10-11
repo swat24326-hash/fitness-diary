@@ -54,7 +54,7 @@ export function CoachSignInPage() {
       <form className="coach-card coach-form" onSubmit={submit}>
         <h1 className="coach-form__title">Вход тренера</h1>
         <p className="muted">
-          Проще всего — QR: на планшете «Профиль» → «QR для телефона». Или логин и пароль, как на планшете. Первый вход с
+          Проще всего — QR: на планшете меню → «Настройки» → «QR для телефона». Или логин и пароль, как на планшете. Первый вход с
           телефона разрешает администратор.
         </p>
         {notice && !error ? <p className="coach-form__notice" role="status">{notice}</p> : null}

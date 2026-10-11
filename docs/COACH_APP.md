@@ -11,7 +11,7 @@
 
 ## Как пользоваться
 
-**Тренер, проще всего — QR:** на планшете «Профиль» → «QR для телефона» → навести камеру телефона на код. Откроется приложение тренера без пароля; дальше, как и при входе по паролю, телефон ждёт «Разрешить». Код одноразовый, живёт 10 минут; закрыть браузер, пока ждёт админа, можно — при следующем открытии `/coach` ожидание продолжится.
+**Тренер, проще всего — QR:** на планшете меню (☰) → «Настройки» → «QR для телефона» → навести камеру телефона на код. Откроется приложение тренера без пароля; дальше, как и при входе по паролю, телефон ждёт «Разрешить». Код одноразовый, живёт 10 минут; закрыть браузер, пока ждёт админа, можно — при следующем открытии `/coach` ожидание продолжится.
 
 **Тренер, по паролю:** открыть на телефоне `https://app-core.ru/coach` → логин и пароль те же, что на планшете. Первый вход с телефона ждёт администратора («Телефон ждёт разрешения»); экран сам проверяет каждые 15 с и входит после «Разрешить». На iPhone — «Поделиться» → «На экран Домой» (значок открывает `/coach`, не планшетный вход). Если тренер раньше входил с этого телефона в обычное приложение и по ссылке открылась главная тренера — открыть `/coach` ещё раз: в первый раз обновилась сохранённая версия (INC-2026-10-11-01).
 
@@ -33,7 +33,7 @@
 
 - Вид устройства — в номере: телефон получает `coach-…` (`src/lib/coach/coachSession.js`), поэтому правила планшетов в `api/_lib/deviceBindingCore.js` телефоны не видят, а `decideCoachDevice` решает только за телефоны. Новых колонок в `user_devices` / `auth_sessions` нет.
 - Вход и продление: `/api/coach-auth` → `api/_lib/coach/coachAuthHandler.js` (тот же лимит неудачных входов, что у `/api/auth-sign-in`), токены — `coachAuthCore.js`, сессия в `auth_sessions` с `device_id = coach-…`. Каждый запрос `/api/coach` проверяет пользователя, сессию и разрешение телефона (`requireCoachUser.js`); любой отказ — 401.
-- QR: планшет (`src/pages/trainer/TrainerPhoneAppSection.jsx` → `CoachPhoneQrModal.jsx`) берёт код `coach-auth { action: 'invite' }` со своим входом; ссылка `/coach/join#t=…` (`src/lib/coach/coachJoinLink.js`) — код в #, не в логах сервера; телефон сразу сохраняет код и убирает его из адреса (`CoachAppRoutes.jsx` → `CoachJoinPage.jsx`). Сервер — `coachInviteHandler.js` + `coachInviteCore.js`, в базе только отпечаток кода (`coach_invites`). Пускать ли телефон, решает тот же `admitCoachPhone`, что и при пароле.
+- QR: планшет (бургер → «Настройки», `src/components/header/HeaderSettingsMenu.jsx` → `HeaderSettingsModals.jsx` → `CoachPhoneQrModal.jsx`, окно порталом в `body`) берёт код `coach-auth { action: 'invite' }` со своим входом; ссылка `/coach/join#t=…` (`src/lib/coach/coachJoinLink.js`) — код в #, не в логах сервера; телефон сразу сохраняет код и убирает его из адреса (`CoachAppRoutes.jsx` → `CoachJoinPage.jsx`). Сервер — `coachInviteHandler.js` + `coachInviteCore.js`, в базе только отпечаток кода (`coach_invites`). Пускать ли телефон, решает тот же `admitCoachPhone`, что и при пароле.
 - Данные: `/api/coach` → `coachHandler.js`; расписание — `coachViewCore.js`; переписка — те же `handleStaffChatGet/Post`, что у планшета, только диалог «Тренер».
 - Push: колонка `user_push_subscriptions.app` (`staff` | `coach`). Подписка с телефона — `coach`; при отправке ссылка переписывается под приложение (`src/lib/push/pushTargetUrlCore.js`): диалог «Тренер» → `/coach/chat/:clientId`, остальное → `/coach`.
 - Экраны: `src/pages/coach/` (вход, «Сегодня», «Сообщения», диалог, «Ещё»), стили `src/styles/coach.css`, manifest `public/manifest-coach.json`.

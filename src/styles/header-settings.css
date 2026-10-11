@@ -1,0 +1,71 @@
+/* «Настройки» в бургер-меню шапки: свёрнутый блок служебных пунктов. */
+.header-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Раскрытые «Настройки» выше экрана планшета в альбомной ориентации — меню прокручивается, «Выйти» доступен. */
+.app-header__dropdown {
+  max-height: calc(100dvh - 88px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.header-settings__label {
+  flex: 1;
+}
+
+.header-settings__dot {
+  width: 10px;
+  height: 10px;
+  background: #ff5252;
+  border: 2px solid #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #0a0f0c;
+}
+
+.header-settings__chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s var(--ease-out);
+}
+
+.header-settings__chevron--open {
+  transform: rotate(180deg);
+}
+
+.header-settings__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(94, 232, 132, 0.18);
+}
+
+.header-push__row {
+  cursor: default;
+}
+
+.header-push__row:hover {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.header-push__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.header-push__label small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.header-push__error {
+  margin: 4px 2px 0;
+  font-size: 0.82rem;
+  color: var(--danger);
+}

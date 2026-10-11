@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { QrCode, RefreshCw } from 'lucide-react'
 import { ModalHeader } from '../ModalHeader.jsx'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
@@ -8,6 +9,7 @@ import { qrDataUrl } from '../../lib/qrDataUrl.js'
 /**
  * QR для входа в приложение тренера на своём телефоне. Ссылки нет — только код на экране:
  * одноразовый, 10 минут; телефон после сканирования ждёт «Разрешить» админа.
+ * Портал в body: внутри анимированных карточек и шапки position:fixed запирается в их рамке.
  * @param {{ open: boolean, onClose: () => void }} props
  */
 export function CoachPhoneQrModal({ open, onClose }) {
@@ -43,9 +45,9 @@ export function CoachPhoneQrModal({ open, onClose }) {
     void issue()
   }, [open])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={() => !busy && onClose()}>
       <div className="modal-panel client-invite-modal" onClick={(e) => e.stopPropagation()}>
         <ModalHeader titleId={titleId} title="Приложение на телефоне" onClose={onClose} closeDisabled={busy} />
@@ -72,6 +74,7 @@ export function CoachPhoneQrModal({ open, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
