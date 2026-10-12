@@ -23,12 +23,6 @@
   font-weight: 650;
 }
 
-.trainer-schedule-page__subtitle {
-  margin: 0;
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
 .trainer-schedule-page__loading {
   margin: 0 0 12px;
 }

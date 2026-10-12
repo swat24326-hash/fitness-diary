@@ -122,9 +122,6 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               Ежедневники тренеров
               <span className="admin-trainer-schedule-page__readonly">Только просмотр</span>
             </h1>
-            <p className="trainer-schedule-page__subtitle muted">
-              План дня тренеров клуба. Редактирует тренер на планшете или телефоне.
-            </p>
           </div>
           <Link className="btn btn-secondary btn-sm" to={homeHref}>
             ← На главную

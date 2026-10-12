@@ -47,11 +47,6 @@ export function TrainerCalendarPage() {
     <div className={['trainer-schedule-page', wide ? 'trainer-schedule-page--wide' : ''].filter(Boolean).join(' ')}>
       <header className="trainer-schedule-page__hero">
         <h1 className="trainer-schedule-page__title">Ежедневник</h1>
-        <p className="trainer-schedule-page__subtitle muted">
-          План дня: заметки и клиенты. Сохраняется на планшете и уходит в облако при Sync. Листайте
-          пальцем вбок; удерживайте запись, чтобы перенести её (у края — на следующую неделю); два пальца —
-          масштаб.
-        </p>
       </header>
 
       {loading ? (
