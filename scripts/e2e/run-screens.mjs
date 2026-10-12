@@ -21,8 +21,9 @@ import * as staffDm from './scenarios/staffDm.mjs'
 import * as linkedStaff from './scenarios/linkedStaff.mjs'
 import * as settingsMenu from './scenarios/trainerSettingsMenu.mjs'
 import * as adminSchedule from './scenarios/adminTrainerSchedule.mjs'
+import * as clientTrainerPlans from './scenarios/clientTrainerPlans.mjs'
 
-const SCENARIOS = [offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, trainerSchedule, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, linkedStaff, settingsMenu]
+const SCENARIOS = [offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, clientTrainerPlans, trainerSchedule, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, linkedStaff, settingsMenu]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

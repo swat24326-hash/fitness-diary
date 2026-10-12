@@ -10,6 +10,7 @@ import {
 } from '../../../api/_lib/clientPortal/clientMeCore.js'
 import { cleanClubName, clientManifestUrl } from '../../../api/_lib/clientPortal/clientManifestCore.js'
 import { buildClientTrainingView } from '../../../api/_lib/clientPortal/clientTrainingViewCore.js'
+import { sanitizeClientPlanPayload, summarizeClientPlan } from '../../../src/lib/clientPlans/clientPlanCore.js'
 import { fakeJwt } from './fakeBackend.mjs'
 
 /**
@@ -44,6 +45,26 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
       if (!row) return { status: 404, json: { error: 'Тренировка не найдена' } }
       return { status: 200, json: { training: buildClientTrainingView(row, names.get(row.trainer_id) ?? null) } }
     }
+    const plans = (state.client_plans ?? [])
+      .filter((p) => p.client_id === clientId)
+      .sort((a, b) => String(b.sent_at).localeCompare(String(a.sent_at)))
+    const brief = (p) => ({
+      id: p.id,
+      kind: p.kind,
+      sent_at: p.sent_at,
+      trainer_name: names.get(p.sent_by) ?? null,
+      seen: Boolean(p.client_seen_at),
+      summary: summarizeClientPlan(p.kind, sanitizeClientPlanPayload(p.kind, p.payload)),
+    })
+    if (method !== 'GET' && body?.action === 'plan-list') {
+      return { status: 200, json: { items: plans.filter((p) => p.kind === body.kind).map(brief) } }
+    }
+    if (method !== 'GET' && body?.action === 'plan-item') {
+      const row = plans.find((p) => p.id === body.id)
+      if (!row) return { status: 404, json: { error: 'Задание не найдено' } }
+      row.client_seen_at ??= new Date().toISOString()
+      return { status: 200, json: { item: { ...brief(row), payload: sanitizeClientPlanPayload(row.kind, row.payload) } } }
+    }
     if (method !== 'GET') return { status: 200, json: { ok: true } }
 
     const client = state.clients.find((c) => c.id === clientId)
@@ -64,6 +85,10 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
         next_session: pickNextClientSession(schedule, today, 0, names),
         progress: buildClientProgress(trainings, [], [], today),
         loyalty: null,
+        plans: {
+          homework: plans.find((p) => p.kind === 'homework') ? brief(plans.find((p) => p.kind === 'homework')) : null,
+          nutrition: plans.find((p) => p.kind === 'nutrition') ? brief(plans.find((p) => p.kind === 'nutrition')) : null,
+        },
       },
     }
   }

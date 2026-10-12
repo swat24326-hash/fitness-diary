@@ -11,7 +11,8 @@ alwaysApply: false
 ## Хранение: рацион и ДЗ ведут себя по-разному
 
 - **Рацион сохраняется** в карту здоровья: `nutrition_plan`, `nutrition_plan_generated_at`, `nutrition_plan_history` через `saveLocalWithSync` (`nutritionPlanService.js`). Только офлайн-путь, не прямой `supabase.from`. Прошлый план уходит в историю (`archivePreviousPlan`), а не затирается.
-- **План ДЗ — черновик сессии** (`homeworkPlanCore.js`): в `health_cards` его **не** пишем. Результат работы — PNG и отправка клиенту. Не добавлять «заодно» сохранение в облако.
+- **План ДЗ — черновик сессии** (`homeworkPlanCore.js`): в `health_cards` его **не** пишем. Результат работы — PNG и отправка клиенту. Не добавлять «заодно» сохранение черновика в облако.
+- **Отправленное «В приложение» — снимок в `client_plans`** (`clientPlanSendService.js` → `saveLocalWithSync`, только insert). Поля снимка — только белый список `src/lib/clientPlans/clientPlanCore.js` (без заметок тренера, опросника, веса, id каталога); клиенту рацион не отдаём из `health_cards`. Сборка снимка — `homeworkAppSendCore.js` / `nutritionAppSendCore.js`; устаревший или несохранённый рацион не отправляется. Канон — `docs/CLIENT_APP.md` § «ДЗ и питание от тренера», verify — `scripts/verify-client-plans.mjs`.
 - **Справочники синхронизируются:** `nutrition_products` и `homework_presets` — в allowlist push, нормализация и merge при pull в `*Core.js`, payload в `*PushPayload.js`. Pull не затирает строки с pending.
 
 ## Что не развилка (частые ошибки)

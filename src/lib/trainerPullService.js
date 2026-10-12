@@ -107,6 +107,7 @@ async function cacheTrainerPull(
     sale_clips,
     client_hall_lifecycle,
     trainer_schedule_entries,
+    client_plans,
     club_id,
     outreach_templates,
   },
@@ -147,6 +148,13 @@ async function cacheTrainerPull(
   for (const row of client_hall_lifecycle ?? []) {
     try {
       await putStoreUnlessPendingSync('client_hall_lifecycle', row, pending)
+    } catch {
+      /* store ещё не создан до reload */
+    }
+  }
+  for (const row of client_plans ?? []) {
+    try {
+      await putStoreUnlessPendingSync('client_plans', row, pending)
     } catch {
       /* store ещё не создан до reload */
     }

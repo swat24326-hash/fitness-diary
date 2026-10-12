@@ -1,24 +1,18 @@
-import { Navigate } from 'react-router-dom'
-import { Gift, Inbox, RefreshCw, WifiOff } from 'lucide-react'
+import { Navigate, useSearchParams } from 'react-router-dom'
+import { Gift, Inbox, Megaphone, MessagesSquare, RefreshCw, WifiOff } from 'lucide-react'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
-import { inboxPointsLineRu } from '../../lib/client/clientInboxUiCore.js'
+import { CLIENT_INBOX_NEWS_PATH, clientInboxTab, inboxPointsLineRu } from '../../lib/client/clientInboxUiCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientChatThreadsSection } from './ClientChatThreadsSection.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
+import { ClientSegments } from './ClientSegments.jsx'
 import { useClientChats } from './useClientChat.js'
 import { useClientInbox } from './useClientInbox.js'
 
-/** /me/inbox — «Сообщения»: диалоги с тренером и клубом сверху, ниже объявления и опросы клуба. */
-export function ClientInboxPage() {
-  const { items, points, status, error, reload } = useClientInbox()
-  const chats = useClientChats()
-  if (!hasClientSession() || status === 'signed_out' || chats.status === 'signed_out') return <Navigate to="/me" replace />
-  const club = readClientMeCache()?.data?.club ?? null
+function NewsSection({ items, points, status, error }) {
   const pointsLine = inboxPointsLineRu(points)
-  const refreshing = status === 'loading' || chats.status === 'loading'
-
   let content
   if (!items) {
     content =
@@ -32,24 +26,8 @@ export function ClientInboxPage() {
   } else {
     content = <InboxItemList items={items} basePath="/me/inbox" />
   }
-
   return (
-    <ClientMeShell
-      actions={
-        <ClientPageActions
-          onRefresh={() => {
-            reload()
-            chats.reload()
-          }}
-          refreshing={refreshing}
-        />
-      }
-      club={club}
-      tabs
-    >
-      <ClientPageTitle title="Сообщения" back={false} />
-      <ClientChatThreadsSection threads={chats.threads} error={chats.status === 'error' ? chats.error : ''} />
-      <h2 className="chat-threads__section-title">Объявления и опросы</h2>
+    <>
       {items && status === 'error' ? (
         <p className="client-me-offline" role="alert">
           {error}
@@ -62,6 +40,49 @@ export function ClientInboxPage() {
         </p>
       ) : null}
       {content}
+    </>
+  )
+}
+
+/** /me/inbox — «Сообщения»: переключатель «Диалоги» (тренер и клуб) | «От клуба» (?tab=news). */
+export function ClientInboxPage() {
+  const inbox = useClientInbox()
+  const chats = useClientChats()
+  const [params] = useSearchParams()
+  if (!hasClientSession() || inbox.status === 'signed_out' || chats.status === 'signed_out') return <Navigate to="/me" replace />
+  const cached = readClientMeCache()?.data
+  const chatAttention = Number(cached?.chat_attention) || 0
+  const inboxAttention = Number(cached?.inbox_attention) || 0
+  const tab = clientInboxTab(params.get('tab'), { chatAttention, inboxAttention })
+  const refreshing = inbox.status === 'loading' || chats.status === 'loading'
+
+  return (
+    <ClientMeShell
+      actions={
+        <ClientPageActions
+          onRefresh={() => {
+            inbox.reload()
+            chats.reload()
+          }}
+          refreshing={refreshing}
+        />
+      }
+      club={cached?.club ?? null}
+      tabs
+    >
+      <ClientPageTitle title="Сообщения" back={false} />
+      <ClientSegments
+        label="Разделы сообщений"
+        items={[
+          { key: 'chats', to: '/me/inbox?tab=chats', label: 'Диалоги', icon: MessagesSquare, active: tab === 'chats', count: chatAttention },
+          { key: 'news', to: CLIENT_INBOX_NEWS_PATH, label: 'От клуба', icon: Megaphone, active: tab === 'news', count: inboxAttention },
+        ]}
+      />
+      {tab === 'chats' ? (
+        <ClientChatThreadsSection threads={chats.threads} error={chats.status === 'error' ? chats.error : ''} />
+      ) : (
+        <NewsSection items={inbox.items} points={inbox.points} status={inbox.status} error={inbox.error} />
+      )}
     </ClientMeShell>
   )
 }

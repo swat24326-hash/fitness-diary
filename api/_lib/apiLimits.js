@@ -50,3 +50,6 @@ export const TRAINER_PULL_WEIGHT_ENTRIES_MONTHS = 24
 
 /** Макс. записей веса в trainer-pull за один запрос. */
 export const TRAINER_PULL_MAX_WEIGHT_ENTRIES = 3_000
+
+/** Окно отметок «отправлено / клиент открыл» (client_plans без снимка) в trainer-pull, дней. */
+export const TRAINER_PULL_CLIENT_PLANS_DAYS = 45

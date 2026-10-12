@@ -83,6 +83,7 @@ run('client membership visits', 'node', ['scripts/verify-client-membership-visit
 run('client app highlights', 'node', ['scripts/verify-client-me-highlights.mjs'])
 run('client weight graph shake', 'node', ['scripts/verify-spark-shake.mjs'])
 run('client app reminders', 'node', ['scripts/verify-client-reminders.mjs'])
+run('client app trainer plans', 'node', ['scripts/verify-client-plans.mjs'])
 run('trainer schedule reminders', 'node', ['scripts/verify-schedule-reminders.mjs'])
 run('client app onboarding', 'node', ['scripts/verify-client-onboarding.mjs'])
 run('client app iphone handoff', 'node', ['scripts/verify-client-handoff.mjs'])

@@ -18,6 +18,17 @@ export function inboxButtonLabelRu(count) {
   return n > 0 ? `Сообщения: новых ${n}` : 'Сообщения'
 }
 
+export const CLIENT_INBOX_NEWS_PATH = '/me/inbox?tab=news'
+
+/**
+ * Вкладка «Сообщений»: 'chats' — диалоги, 'news' — «От клуба» (объявления и опросы).
+ * Явный ?tab= главнее; без него — опросы, только если новое есть лишь там.
+ */
+export function clientInboxTab(param, { chatAttention = 0, inboxAttention = 0 } = {}) {
+  if (param === 'news' || param === 'chats') return param
+  return Number(inboxAttention) > 0 && !(Number(chatAttention) > 0) ? 'news' : 'chats'
+}
+
 export function inboxBadgeText(count) {
   const n = Number(count) || 0
   if (n <= 0) return ''

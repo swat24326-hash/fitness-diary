@@ -18,6 +18,7 @@ import {
   needsClientClubForTrainerCheck,
 } from '../../src/lib/trainer/trainerPushClubBindingCore.js'
 import { assertChallengeClub } from '../../src/lib/challengePushClubCore.js'
+import { assertClientPlanPush } from '../../src/lib/clientPlans/clientPlanCore.js'
 import { logDbError } from './dbErrorPublicCore.js'
 
 const UUID_RE =
@@ -474,9 +475,29 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'sale_clips',
   'client_hall_lifecycle',
   'trainer_schedule_entries',
+  'client_plans',
 ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
+  }
+
+  if (table_name === 'client_plans') {
+    try {
+      let client = null
+      if (isUuid(payload.client_id)) {
+        const res = await supabaseAdmin
+          .from('clients')
+          .select('id, trainer_id, club_id, archived_at')
+          .eq('id', payload.client_id)
+          .maybeSingle()
+        if (res.error) throw res.error
+        client = res.data
+      }
+      return assertClientPlanPush({ op, isAdmin, isTrainer, userId: user.id, payload, client })
+    } catch (e) {
+      logDbError('push-auth', e)
+      return { ok: false, error: 'Ошибка проверки доступа' }
+    }
   }
 
   if (table_name === 'trainer_schedule_entries') {

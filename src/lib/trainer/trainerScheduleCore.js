@@ -9,6 +9,9 @@ export const SCHEDULE_DAY_END_HOUR = 24
 /** При открытии дня скролл к этому часу (ночные слоты выше по скроллу). */
 export const SCHEDULE_DAY_FOCUS_HOUR = 7
 export const SCHEDULE_DEFAULT_DURATION_MIN = 60
+/** Как CHECK в таблице trainer_schedule_entries. */
+export const SCHEDULE_MIN_DURATION_MIN = 15
+export const SCHEDULE_MAX_DURATION_MIN = 480
 export const SCHEDULE_MAX_CLIENTS = 10
 export const SCHEDULE_PULL_DAYS_BACK = 30
 export const SCHEDULE_PULL_DAYS_FORWARD = 120
@@ -62,7 +65,12 @@ export function normalizeTrainerScheduleEntry(raw) {
   if (!id || !clubId || !trainerId || !/^\d{4}-\d{2}-\d{2}$/.test(dayDate)) return null
 
   const startMinutes = clampInt(r.start_minutes, 9 * 60, 0, 23 * 60 + 59)
-  const durationMinutes = clampInt(r.duration_minutes, SCHEDULE_DEFAULT_DURATION_MIN, 15, 480)
+  const durationMinutes = clampInt(
+    r.duration_minutes,
+    SCHEDULE_DEFAULT_DURATION_MIN,
+    SCHEDULE_MIN_DURATION_MIN,
+    SCHEDULE_MAX_DURATION_MIN,
+  )
   const title = String(r.title ?? '').trim().slice(0, 240)
   const clientIds = normalizeScheduleClientIds(r.client_ids)
   const linkedTrainingId = String(r.linked_training_id ?? '').trim() || null
@@ -94,6 +102,22 @@ export function formatScheduleMinutes(minutes) {
   const h = Math.floor(m / 60)
   const min = m % 60
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+}
+
+/**
+ * Длительность, введённая тренером руками: целые минуты в пределах таблицы, иначе null.
+ * @param {unknown} raw
+ */
+export function parseScheduleDurationInput(raw) {
+  const text = String(raw ?? '').trim()
+  if (!/^\d{1,3}$/.test(text)) return null
+  const n = Number(text)
+  return n >= SCHEDULE_MIN_DURATION_MIN && n <= SCHEDULE_MAX_DURATION_MIN ? n : null
+}
+
+/** Время окончания «до 13:15»; после полуночи — по кругу. @param {number} startMinutes @param {number} durationMinutes */
+export function formatScheduleEndTime(startMinutes, durationMinutes) {
+  return formatScheduleMinutes((Number(startMinutes) + Number(durationMinutes)) % (24 * 60))
 }
 
 /** @param {string} hhmm */

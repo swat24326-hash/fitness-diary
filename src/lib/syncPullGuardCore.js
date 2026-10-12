@@ -13,6 +13,7 @@ export const PULL_MERGE_GUARD_STORE_LIST = Object.freeze([
   'sale_clips',
   'client_hall_lifecycle',
   'trainer_schedule_entries',
+  'client_plans',
 ])
 
 export const PULL_MERGE_GUARD_STORES = new Set(PULL_MERGE_GUARD_STORE_LIST)

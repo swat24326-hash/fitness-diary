@@ -4,7 +4,7 @@
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { TRAINER_PULL_MAX_TRAININGS, TRAINER_PULL_BODY_MEASUREMENTS_MONTHS, TRAINER_PULL_MAX_BODY_MEASUREMENTS, TRAINER_PULL_WEIGHT_ENTRIES_MONTHS, TRAINER_PULL_MAX_WEIGHT_ENTRIES } from './_lib/apiLimits.js'
+import { TRAINER_PULL_MAX_TRAININGS, TRAINER_PULL_BODY_MEASUREMENTS_MONTHS, TRAINER_PULL_MAX_BODY_MEASUREMENTS, TRAINER_PULL_WEIGHT_ENTRIES_MONTHS, TRAINER_PULL_MAX_WEIGHT_ENTRIES, TRAINER_PULL_CLIENT_PLANS_DAYS } from './_lib/apiLimits.js'
 import { loadClubIskraSettings } from './_lib/iskraSettingsHandler.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import {
@@ -356,6 +356,23 @@ async function handler(req, res) {
     }
   }
 
+  const client_plans = []
+  const plansSince = new Date(Date.now() - TRAINER_PULL_CLIENT_PLANS_DAYS * 86_400_000).toISOString()
+  for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
+    const chunk = clientIds.slice(i, i + IN_CHUNK)
+    if (!chunk.length) continue
+    try {
+      const { data: plans, error: pe } = await supabaseAdmin
+        .from('client_plans')
+        .select('id, client_id, club_id, kind, sent_by, sent_at, client_seen_at')
+        .in('client_id', chunk)
+        .gte('sent_at', plansSince)
+      if (!pe) client_plans.push(...(plans ?? []))
+    } catch {
+      /* миграция client_plans ещё не применена */
+    }
+  }
+
   let trainer_schedule_entries = []
   try {
     const todayMsk = todayInTimeZoneIso()
@@ -388,6 +405,7 @@ async function handler(req, res) {
     sale_clips,
     client_hall_lifecycle,
     trainer_schedule_entries,
+    client_plans,
     club_id: trainerClubId || null,
     outreach_templates,
     trainings_truncated: trainingsTruncated,
@@ -407,6 +425,7 @@ async function handler(req, res) {
       pnk_funnel_events: pnk_funnel_events.length,
       sale_clips: sale_clips.length,
       trainer_schedule_entries: trainer_schedule_entries.length,
+      client_plans: client_plans.length,
     },
     schedule_pull_window: {
       day_from: resolveTrainerSchedulePullWindow(todayInTimeZoneIso()).dayFrom,

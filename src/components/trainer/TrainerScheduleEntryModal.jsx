@@ -13,8 +13,6 @@ import { TrainerScheduleRepeatFields } from './TrainerScheduleRepeatFields.jsx'
 import { TrainerScheduleKindPicker } from './TrainerScheduleKindPicker.jsx'
 import { TrainerScheduleClientPicker } from './TrainerScheduleClientPicker.jsx'
 
-const DURATIONS = [30, 60, 90, 120]
-
 /**
  * @param {{
  *   open: boolean,
@@ -185,13 +183,23 @@ export function TrainerScheduleEntryModal({
             </label>
             <label className="trainer-schedule-modal__field">
               <span>Длительность</span>
-              <select className="select" value={form.duration} onChange={(ev) => form.setDuration(Number(ev.target.value))}>
-                {DURATIONS.map((d) => (
-                  <option key={d} value={d}>
-                    {d} мин
-                  </option>
-                ))}
-              </select>
+              <span className="trainer-schedule-modal__duration">
+                <input
+                  className="input"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={form.duration}
+                  onChange={(ev) => form.setDuration(ev.target.value)}
+                  onFocus={(ev) => ev.target.select()}
+                  aria-label="Длительность в минутах"
+                  data-testid="schedule-duration"
+                />
+                <span className="trainer-schedule-modal__duration-unit" aria-hidden>
+                  мин
+                </span>
+              </span>
+              <small className="trainer-schedule-modal__duration-hint">{form.endLabel ? `до ${form.endLabel}` : 'от 15 до 480'}</small>
             </label>
           </div>
 

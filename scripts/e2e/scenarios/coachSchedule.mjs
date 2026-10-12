@@ -210,11 +210,20 @@ export async function run(browser) {
     const dialog = page.getByRole('dialog')
     await dialog.getByLabel(CLIENT_NAME).check()
     c.ok((await dialog.getByRole('button', { name: /Начать|Продолжить/ }).count()) === 0, 'в форме нет запуска тренировки')
+    const durationInput = dialog.getByTestId('schedule-duration')
+    await durationInput.fill('500')
+    await dialog.getByRole('button', { name: 'Сохранить' }).click()
+    c.ok(await dialog.getByText('Длительность — от 15 до 480 минут').isVisible(), 'длительность 500 мин не сохраняется — понятная ошибка')
+    await durationInput.fill('45')
+    c.ok(await dialog.getByText('до 15:45').isVisible(), 'подсказка конца записи «до 15:45»')
     await screenshot(page, 'coach-calendar-form')
     await dialog.getByRole('button', { name: 'Сохранить' }).click()
     await dialog.waitFor({ state: 'hidden', timeout: 10_000 })
-    const createdOk = await waitFor(() => at(900).some((e) => e.client_ids?.[0] === CLIENT_ID && e.trainer_id === TRAINER_ID), 10_000)
-    c.ok(createdOk, 'сервер: запись 15:00 с клиентом создана сразу')
+    const createdOk = await waitFor(
+      () => at(900).some((e) => e.client_ids?.[0] === CLIENT_ID && e.trainer_id === TRAINER_ID && e.duration_minutes === 45),
+      10_000,
+    )
+    c.ok(createdOk, 'сервер: запись 15:00 с клиентом на 45 мин создана сразу')
 
     /* Перенос пальцем 15:00 → 16:00 и «Отменить» (вторая правка той же записи — без ложного «обновите»). */
     await scrollBoardTo(page, 14 * 60)

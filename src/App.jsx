@@ -88,6 +88,7 @@ const ClientSettingsPage = lazy(() =>
 const ClientTrainingsPage = lazy(() =>
   import('./pages/client/ClientTrainingsPage.jsx').then((m) => ({ default: m.ClientTrainingsPage })),
 )
+const ClientPlanPage = lazy(() => import('./pages/client/ClientPlanPage.jsx').then((m) => ({ default: m.ClientPlanPage })))
 const ClientInboxPage = lazy(() => import('./pages/client/ClientInboxPage.jsx').then((m) => ({ default: m.ClientInboxPage })))
 const ClientInboxItemPage = lazy(() =>
   import('./pages/client/ClientInboxItemPage.jsx').then((m) => ({ default: m.ClientInboxItemPage })),
@@ -132,6 +133,8 @@ function ClientAppRoutes() {
           <Route path="join" element={<ClientJoinPage />} />
           <Route path="settings" element={<ClientSettingsPage />} />
           <Route path="trainings" element={<ClientTrainingsPage />} />
+          <Route path="task" element={<ClientPlanPage key="homework" kind="homework" />} />
+          <Route path="nutrition" element={<ClientPlanPage key="nutrition" kind="nutrition" />} />
           <Route path="inbox" element={<ClientInboxPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />
           <Route path="chat/:kind" element={<ClientChatPage />} />

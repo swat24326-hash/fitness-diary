@@ -16,11 +16,13 @@ import {
   countScheduleEntriesByDay,
   assignScheduleEntryLanes,
   filterScheduleEntriesForDay,
+  formatScheduleEndTime,
   formatScheduleMinutes,
   formatScheduleViewRangeLabel,
   listScheduleViewDays,
   normalizeScheduleClientIds,
   normalizeTrainerScheduleEntry,
+  parseScheduleDurationInput,
   parseScheduleTimeToMinutes,
   planTrainerSchedulePrune,
   resolveTrainerSchedulePullWindow,
@@ -49,6 +51,15 @@ ok(parseScheduleTimeToMinutes('10:30') === 630, 'parse 10:30')
 ok(formatScheduleMinutes(630) === '10:30', 'format 10:30')
 ok(parseScheduleTimeToMinutes('00:00') === 0, 'parse midnight')
 ok(parseScheduleTimeToMinutes('23:00') === 1380, 'parse 23:00')
+ok(parseScheduleDurationInput('45') === 45, 'duration 45 free input')
+ok(parseScheduleDurationInput(' 15 ') === 15 && parseScheduleDurationInput('480') === 480, 'duration bounds inclusive')
+ok(parseScheduleDurationInput('14') === null && parseScheduleDurationInput('481') === null, 'duration out of range')
+ok(
+  parseScheduleDurationInput('') === null && parseScheduleDurationInput('4.5') === null && parseScheduleDurationInput('-30') === null,
+  'duration empty / fraction / negative',
+)
+ok(formatScheduleEndTime(600, 75) === '11:15', 'end time 10:00 + 75')
+ok(formatScheduleEndTime(23 * 60 + 30, 60) === '00:30', 'end time past midnight')
 ok(
   SCHEDULE_DAY_START_HOUR === 0 && SCHEDULE_DAY_END_HOUR === 24 && SCHEDULE_DAY_FOCUS_HOUR === 7,
   'day grid 00–23 (focus 07)',

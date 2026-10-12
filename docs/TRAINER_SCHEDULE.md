@@ -42,7 +42,7 @@
 | `trainer_id` | UUID | Тренер-владелец |
 | `day_date` | DATE | Календарный день (МСК) |
 | `start_minutes` | INT | Минуты от полуночи (0–1439) |
-| `duration_minutes` | INT | Длительность, по умолчанию 60 |
+| `duration_minutes` | INT | Длительность, по умолчанию 60; 15–480 (CHECK). В форме — свободный ввод минут с подсказкой «до ЧЧ:ММ» (с 12.10; раньше список 30/60/90/120), разбор — `parseScheduleDurationInput` |
 | `title` | TEXT | Текст заметки (если без клиентов) |
 | `client_ids` | JSONB | Массив UUID клиентов (0…10) |
 | `linked_training_id` | UUID? | Связь с `trainings` (опционально) |

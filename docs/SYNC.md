@@ -71,7 +71,9 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Allowlist push (`PUSH_ALLOWED_TABLES`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**, **`client_plans`**.
+
+**`client_plans`** (задание и рацион «В приложение», с 12.10.2026): только `insert`; сервер берёт поля по белому списку (`normalizeClientPlanPushPayload`, снимает `client_seen_at` / `notified_at`), `authorizePush` — тренер этого клиента или админ, `sent_by` = сам отправитель, клиент не в архиве, `club_id` = клуб клиента (`assertClientPlanPush` в `clientPlanCore.js`). После вставки сервер в фоне шлёт push клиенту (тихие часы — досылает cron). Pull тренеру — только отметки без `payload` за 45 дней. Verify: `verify-client-plans.mjs`.
 
 **Локальные поля не в облаке:** `synced` и `__sync` живут только в IndexedDB. Перед `/api/push-record` их снимает `recordForPush` (клиент и `executePushRecord`). Иначе PostgREST отвечает HTTP 400 «column synced does not exist» — журнал ошибок админа, очередь при этом может быть пуста. Админский Sync повторно шлёт в облако только челленджи без `synced: true`, не все строки из кэша.
 
@@ -91,7 +93,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**, **`client_plans`**.
 
 `health_cards` в IDB ключуется по **`client_id`**, не по `id` записи — учитывать в ключах очереди.
 

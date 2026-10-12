@@ -4,7 +4,7 @@ import { resolveQueueItemAfterPushAck } from './syncQueueAckCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 19
+const DB_VERSION = 20
 
 /** @type {Promise<import('idb').IDBPDatabase> | null} */
 let dbPromise = null
@@ -182,6 +182,13 @@ function upgradeFitnessDb(db, oldVersion, _newVersion, transaction) {
       schedule.createIndex('by_trainer_day', ['trainer_id', 'day_date'], { unique: false })
     }
   }
+
+  if (oldVersion < 20) {
+    if (!db.objectStoreNames.contains('client_plans')) {
+      const plans = db.createObjectStore('client_plans', { keyPath: 'id' })
+      plans.createIndex('by_client_id', 'client_id', { unique: false })
+    }
+  }
 }
 
 function openFitnessDb() {
@@ -321,6 +328,7 @@ export async function buildPendingSyncKeysByTable() {
     sale_clips: new Set(),
     client_hall_lifecycle: new Set(),
     trainer_schedule_entries: new Set(),
+    client_plans: new Set(),
   }
   for (const item of queue) {
     const op = item.operation
@@ -425,6 +433,7 @@ export async function removeClientFromLocalCacheOnly(clientId) {
   await deleteAllByIndexKey('memberships', 'by_client_id', cid)
   await deleteAllByIndexKey('body_measurements', 'by_client_id', cid)
   await deleteAllByIndexKey('client_weight_entries', 'by_client_id', cid)
+  await deleteAllByIndexKey('client_plans', 'by_client_id', cid)
   try {
     await db.delete('health_cards', cid)
   } catch {

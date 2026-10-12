@@ -46,6 +46,7 @@ export const PUSH_TABLES = new Set([
   'sale_clips',
   'client_hall_lifecycle',
   'trainer_schedule_entries',
+  'client_plans',
 ])
 
 const PUSH_RECORD_TIMEOUT_MS = 28_000

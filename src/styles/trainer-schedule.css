@@ -788,6 +788,31 @@
   color: var(--text-muted);
 }
 
+.trainer-schedule-modal__field > .trainer-schedule-modal__duration {
+  position: relative;
+  display: block;
+  color: inherit;
+}
+
+.trainer-schedule-modal__duration input {
+  padding-right: 48px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trainer-schedule-modal__duration-unit {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.trainer-schedule-modal__duration-hint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
 .trainer-schedule-modal__field input,
 .trainer-schedule-modal__field select,
 .trainer-schedule-modal__field textarea {

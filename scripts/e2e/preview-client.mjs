@@ -14,6 +14,46 @@ const INVITE = 'preview-invite'
 const backend = createFakeBackend(weightHistorySeed())
 const chat = createFakeChat(backend.state)
 chat.client(CLIENT_ID, { action: 'chat-send', kind: 'trainer', body: 'Можно перенести четверг на вечер?' })
+const daysAgo = (n, hh) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 11) + `${hh}:00:00.000Z`
+const plan = (id, kind, sentAt, payload, seen) => ({
+  id: `00000000-0000-4000-8000-0000000000${id}`,
+  client_id: CLIENT_ID,
+  kind,
+  sent_by: TRAINER_ID,
+  sent_at: sentAt,
+  client_seen_at: seen ? sentAt : null,
+  payload,
+})
+backend.state.client_plans = [
+  plan('a1', 'homework', daysAgo(6, '15'), {
+    title: 'Домашнее задание',
+    blocks: [{ label: 'Основное', exercises: [{ name: 'Планка', sets: 3, reps: '40 с', rest_sec: 30 }] }],
+  }, true),
+  plan('a2', 'homework', daysAgo(0, '10'), {
+    title: 'Спина и пресс',
+    comment: 'Через день, без боли. Если тянет поясницу — пропусти скручивания.',
+    blocks: [
+      { label: 'Разминка', exercises: [{ name: 'Кошка-корова', sets: 2, reps: '10', rest_sec: 0 }] },
+      {
+        label: 'Основное',
+        exercises: [
+          { name: 'Тяга резинки к поясу', sets: 3, reps: '15', rest_sec: 45 },
+          { name: 'Супермен', sets: 3, reps: '12', rest_sec: 30 },
+          { name: 'Скручивания', sets: 3, reps: '20', rest_sec: 30 },
+        ],
+      },
+    ],
+  }, false),
+  plan('b1', 'nutrition', daysAgo(3, '12'), {
+    goal: 'Снижение веса',
+    kcal_target: 1850,
+    totals: { kcal: 1840, proteinG: 125, fatG: 60, carbsG: 195 },
+    meals: [
+      { label: 'Завтрак', items: [{ label: 'Овсянка на воде', portion: '60 г сухой', kcal: 220, proteinG: 8, fatG: 4, carbsG: 38 }, { label: 'Яйца', portion: '2 шт', kcal: 155, proteinG: 13, fatG: 11, carbsG: 1 }], subtotal: { kcal: 375, proteinG: 21, fatG: 15, carbsG: 39 } },
+      { label: 'Обед', items: [{ label: 'Куриная грудка', portion: '150 г', kcal: 245, proteinG: 46, fatG: 5, carbsG: 0 }, { label: 'Гречка', portion: '70 г сухой', kcal: 240, proteinG: 9, fatG: 2, carbsG: 45 }], subtotal: { kcal: 485, proteinG: 55, fatG: 7, carbsG: 45 } },
+    ],
+  }, true),
+]
 const portal = createFakeClientPortal(backend.state, {
   clientId: CLIENT_ID,
   inviteToken: INVITE,

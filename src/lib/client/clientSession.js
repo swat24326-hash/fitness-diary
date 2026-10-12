@@ -6,6 +6,8 @@ import { fetchWithAppTimeout } from '../networkReachability.js'
 
 const SESSION_KEY = 'fd_client_session_v1'
 const CACHE_KEY = 'fd_client_me_cache_v1'
+/** Задания и рационы, открытые клиентом, — чтобы в магазине без сети посмотреть ужин (clientPlansService.js). */
+export const CLIENT_PLANS_CACHE_KEY = 'fd_client_plans_v1'
 const FETCH_MS = 15_000
 
 export class ClientSessionGoneError extends Error {}
@@ -48,10 +50,19 @@ function saveSession(session) {
 export function clearClientSession() {
   writeJson(SESSION_KEY, null)
   writeJson(CACHE_KEY, null)
+  writeJson(CLIENT_PLANS_CACHE_KEY, null)
 }
 
 export function readClientMeCache() {
   return readJson(CACHE_KEY)
+}
+
+/** Поправить сохранённый ответ /api/client-me на месте (например, погасить «Новое» у открытого задания). */
+export function patchClientMeCache(patch) {
+  const cache = readJson(CACHE_KEY)
+  if (!cache?.data) return
+  const data = patch(cache.data)
+  if (data !== cache.data) writeJson(CACHE_KEY, { ...cache, data })
 }
 
 export const CLIENT_OFFLINE_RU = 'Нет связи с сервером — проверьте интернет'

@@ -1,8 +1,9 @@
 import { Send, Share2, Trash2 } from 'lucide-react'
 import { countHomeworkExercises } from '../../lib/homework/homeworkPlanCore.js'
+import { ClientPlanAppButton, ClientPlanAppStatus } from './ClientPlanAppButton.jsx'
 
 /**
- * Превью черновика ДЗ + комментарий + отправка в Max / другой мессенджер.
+ * Превью черновика ДЗ + комментарий + отправка в Max / другой мессенджер / приложение клиента.
  */
 export function HomeworkPlanDisplay({
   draft,
@@ -15,6 +16,8 @@ export function HomeworkPlanDisplay({
   onSendOther,
   onClear,
   statusMsg = '',
+  app = null,
+  onSendApp,
 }) {
   const count = countHomeworkExercises(draft)
   if (!draft || count === 0) {
@@ -152,8 +155,10 @@ export function HomeworkPlanDisplay({
               <Share2 size={18} aria-hidden />
               Другой мессенджер
             </button>
+            <ClientPlanAppButton app={app} disabled={busy || count === 0} onClick={onSendApp} />
           </div>
           {statusMsg ? <p className="homework-preview__status">{statusMsg}</p> : null}
+          <ClientPlanAppStatus app={app} />
         </div>
       ) : null}
     </section>

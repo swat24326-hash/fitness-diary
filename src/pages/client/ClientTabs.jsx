@@ -1,46 +1,60 @@
-import { NavLink } from 'react-router-dom'
-import { House, ListChecks, MessageCircle } from 'lucide-react'
+import { NavLink, useLocation } from 'react-router-dom'
+import { ClipboardList, House, ListChecks, MessageCircle } from 'lucide-react'
 import { inboxBadgeText, inboxButtonLabelRu } from '../../lib/client/clientInboxUiCore.js'
+import { CLIENT_PLAN_ROUTES, clientPlanFresh, clientPlanTabTarget } from '../../lib/client/clientPlanUiCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
 
-const TABS = [
-  { to: '/me', end: true, icon: House, label: 'Главная' },
-  { to: '/me/trainings', icon: ListChecks, label: 'Тренировки' },
-  { to: '/me/inbox', icon: MessageCircle, label: 'Сообщения', inbox: true },
-]
+const PLAN_PATHS = Object.values(CLIENT_PLAN_ROUTES)
 
 /** Новые сообщения и непройденные опросы — из ответа /api/client-me. */
 export function clientAttention(data) {
   return (Number(data?.inbox_attention) || 0) + (Number(data?.chat_attention) || 0)
 }
 
-/** Нижние вкладки /me — как у тренера. Число на «Сообщениях» — с последнего ответа сервера (или кэша). */
+function Tab({ to, end, active, icon: Icon, label, ariaLabel, badge = '', dot = false }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) => `coach-tabs__tab${(active ?? isActive) ? ' is-active' : ''}`}
+      aria-label={ariaLabel ?? label}
+    >
+      <span className="coach-tabs__icon">
+        <Icon size={22} aria-hidden />
+        {badge ? (
+          <span className="coach-tabs__badge" aria-hidden>
+            {badge}
+          </span>
+        ) : null}
+        {dot ? <span className="client-plan-tab__dot" aria-hidden /> : null}
+      </span>
+      <span>{label}</span>
+    </NavLink>
+  )
+}
+
+/**
+ * Нижние вкладки /me — как у тренера. Число на «Сообщениях» и точка «Новое» на «От тренера» —
+ * с последнего ответа сервера (или кэша).
+ */
 export function ClientTabs({ attention }) {
-  const count = attention ?? clientAttention(readClientMeCache()?.data)
+  const { pathname } = useLocation()
+  const cached = readClientMeCache()?.data
+  const count = attention ?? clientAttention(cached)
+  const fresh = clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition')
   return (
     <nav className="coach-tabs" aria-label="Разделы">
-      {TABS.map(({ to, end, icon: Icon, label, inbox }) => {
-        const badge = inbox ? inboxBadgeText(count) : ''
-        return (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive }) => `coach-tabs__tab${isActive ? ' is-active' : ''}`}
-            aria-label={inbox ? inboxButtonLabelRu(count) : label}
-          >
-            <span className="coach-tabs__icon">
-              <Icon size={22} aria-hidden />
-              {badge ? (
-                <span className="coach-tabs__badge" aria-hidden>
-                  {badge}
-                </span>
-              ) : null}
-            </span>
-            <span>{label}</span>
-          </NavLink>
-        )
-      })}
+      <Tab to="/me" end icon={House} label="Главная" />
+      <Tab to="/me/trainings" icon={ListChecks} label="Тренировки" />
+      <Tab
+        to={clientPlanTabTarget(cached?.plans)}
+        active={PLAN_PATHS.includes(pathname)}
+        icon={ClipboardList}
+        label="От тренера"
+        ariaLabel={`Задание и питание от тренера${fresh ? ', новое' : ''}`}
+        dot={fresh}
+      />
+      <Tab to="/me/inbox" icon={MessageCircle} label="Сообщения" ariaLabel={inboxButtonLabelRu(count)} badge={inboxBadgeText(count)} />
     </nav>
   )
 }

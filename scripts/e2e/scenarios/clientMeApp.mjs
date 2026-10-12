@@ -110,7 +110,7 @@ export async function run(browser) {
     backend.cloudDown = false
 
     const tabs = page.getByRole('navigation', { name: 'Разделы' })
-    c.ok((await tabs.getByRole('link').count()) === 3, 'внизу три вкладки: Главная, Тренировки, Сообщения')
+    c.ok((await tabs.getByRole('link').count()) === 4, 'внизу четыре вкладки: Главная, Тренировки, От тренера, Сообщения')
     await tabs.getByRole('link', { name: 'Тренировки' }).click()
     await page.waitForURL(`${ORIGIN}/me/trainings`, { timeout: 10_000 })
     c.ok(await visible(page, 'Списано 2 из 8'), 'тренировки по абонементу: «Списано 2 из 8» — как цифра на главной')

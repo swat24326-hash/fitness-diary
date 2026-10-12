@@ -16,6 +16,8 @@ import {
 } from '../../lib/homework/homeworkPlanCore.js'
 import { sendHomeworkDraft } from '../../lib/homework/homeworkShareCore.js'
 import { HomeworkPlanDisplay } from '../../components/trainer/HomeworkPlanDisplay.jsx'
+import { buildHomeworkAppSnapshot } from '../../lib/homework/homeworkAppSendCore.js'
+import { useClientPlanSend } from './useClientPlanSend.js'
 
 const MODES = {
   presets: 'presets',
@@ -35,6 +37,7 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
   const [busy, setBusy] = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
   const [clubName, setClubName] = useState('')
+  const app = useClientPlanSend('homework', client, readOnly)
 
   const reloadPresets = useCallback(async () => {
     if (!clubId) {
@@ -157,6 +160,19 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
       }
     } finally {
       setBusy(false)
+    }
+  }
+
+  const onSendApp = async () => {
+    const sent = await app.send(() => {
+      const snap = buildHomeworkAppSnapshot(draft)
+      return snap.ok ? snap : { ok: false, message: 'Добавьте упражнения' }
+    })
+    if (!sent) return
+    try {
+      await onHomeworkIssued?.()
+    } catch {
+      /* отметка ПНК не должна ломать отправку ДЗ */
     }
   }
 
@@ -286,6 +302,8 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
         onClear={onClear}
         onSendMax={() => onSend('max')}
         onSendOther={() => onSend('other')}
+        app={app}
+        onSendApp={onSendApp}
       />
     </div>
   )

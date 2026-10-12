@@ -60,6 +60,7 @@ const AUTO_PUSH_TABLES = new Set([
   'sale_clips',
   'client_hall_lifecycle',
   'trainer_schedule_entries',
+  'client_plans',
 ])
 
 export function initConnectivityListeners() {

@@ -36,6 +36,7 @@ import {
 import { isMilestoneTrainingRow, nthTrainingDate, pickMilestoneCampaigns } from '../src/lib/inbox/inboxTriggerCore.js'
 import { formatLoyaltyJournalRow, mergeLoyaltyJournalSources } from '../src/lib/loyalty/loyaltyJournalUiCore.js'
 import {
+  clientInboxTab,
   firstMissingInboxAnswer,
   inboxBadgeText,
   inboxItemMetaRu,
@@ -243,6 +244,11 @@ ok(inboxItemMetaRu({ kind: 'survey', open: true, reward_points: 50 }) === 'Оп�
 ok(inboxItemMetaRu({ kind: 'survey', open: false }) === 'Опрос закрыт' && inboxItemMetaRu({ kind: 'notice' }) === 'Объявление', 'клиент: закрыт / объявление')
 ok(inboxItemMetaRu({ kind: 'survey', status: 'answered', open: false }) === 'Опрос пройден', 'клиент: пройденный — не «закрыт»')
 ok(inboxBadgeText(0) === '' && inboxBadgeText(3) === '3' && inboxBadgeText(12) === '9+', 'точка: пусто / число / 9+')
+ok(clientInboxTab(null) === 'chats', '«Сообщения»: по умолчанию — диалоги')
+ok(clientInboxTab(null, { inboxAttention: 2 }) === 'news', 'новое только в опросах — сразу «Опросы и новости»')
+ok(clientInboxTab(null, { inboxAttention: 2, chatAttention: 1 }) === 'chats', 'новое и там, и там — диалоги первыми')
+ok(clientInboxTab('news', { chatAttention: 3 }) === 'news' && clientInboxTab('chats', { inboxAttention: 3 }) === 'chats', 'явный ?tab= главнее')
+ok(clientInboxTab('мусор') === 'chats', 'неизвестный ?tab= — диалоги')
 ok(firstMissingInboxAnswer(qs, { q1: 5, q2: 0, q3: [] }) === 3 && firstMissingInboxAnswer(qs, a1.answers) === 0, 'форма: первый пропущенный обязательный')
 ok(firstMissingInboxAnswer(qs, { q1: 5, q2: 0, q3: [1], q4: '  ' }) === 0, 'форма: необязательный пустой не мешает')
 ok(toggleInboxMultiOption([2], 0).join() === '0,2' && toggleInboxMultiOption([0, 2], 2).join() === '0', 'форма: переключение вариантов')

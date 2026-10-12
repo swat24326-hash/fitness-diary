@@ -1,0 +1,63 @@
+/* Переключатель разделов внутри вкладки /me: «Задание | Питание», «Диалоги | От клуба». */
+.client-segments {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.client-segments__opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: calc(var(--radius-md) - 4px);
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.client-segments__opt svg {
+  flex: none;
+}
+
+.client-segments__opt.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+}
+
+.client-segments__opt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.client-segments__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+}
+
+.client-segments__badge {
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}

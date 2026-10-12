@@ -33,6 +33,8 @@ import {
 import { assessTotalsAgainstReferents } from '../../lib/nutrition/nutritionReferentsCore.js'
 import { attachSurveyKeyToPlan, planMatchesSurvey } from '../../lib/nutrition/nutritionPlanSessionCore.js'
 import { sendNutritionPlanPng } from '../../lib/nutrition/nutritionPlanShareCore.js'
+import { buildNutritionAppSnapshot, NUTRITION_APP_SEND_ERRORS_RU } from '../../lib/nutrition/nutritionAppSendCore.js'
+import { useClientPlanSend } from './useClientPlanSend.js'
 import { buildDayProductSummary, setPlanItemGrams } from '../../lib/nutrition/nutritionPlanEditCore.js'
 import { formatDateRu } from '../../lib/dateRu'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
@@ -106,6 +108,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
   const [catalogMap, setCatalogMap] = useState(() => buildNutritionCatalogMap([]))
   const [catalogLabel, setCatalogLabel] = useState('Базовый справочник')
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const planApp = useClientPlanSend('nutrition', client, readOnly)
 
   const surveyLoadedRef = useRef(false)
   const planUnsavedRef = useRef(false)
@@ -510,6 +513,12 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     }
   }
 
+  const sendToApp = () =>
+    planApp.send(() => {
+      const snap = buildNutritionAppSnapshot(savedPlan, { health, planUnsaved, goalKindLabel })
+      return snap.ok ? snap : { ok: false, message: NUTRITION_APP_SEND_ERRORS_RU[snap.error] }
+    })
+
   const exportPng = async (channel = 'max') => {
     const plan = displayPlan ?? savedPlan
     if (!plan) return
@@ -744,6 +753,8 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
             exportStatus={exportStatus}
             onExportMax={() => exportPng('max')}
             onExportOther={() => exportPng('other')}
+            app={planApp}
+            onSendApp={sendToApp}
             clubName={clubName}
             onItemGramsChange={onItemGramsChange}
             hasPendingChanges={hasPendingChanges && pageView === PAGE_VIEWS.ration}
@@ -1031,6 +1042,8 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 exportStatus={exportStatus}
                 onExportMax={() => exportPng('max')}
                 onExportOther={() => exportPng('other')}
+                app={planApp}
+                onSendApp={sendToApp}
                 clubName={clubName}
                 onItemGramsChange={onItemGramsChange}
                 hasPendingChanges={planUnsaved && draftAligned}

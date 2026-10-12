@@ -32,6 +32,8 @@ import {
 import { recordForPush } from '../../src/lib/syncUnsyncedCore.js'
 import { isSaleClipMissingLinkFkError, saleClipPushWhenClientMissing } from '../../src/lib/admin/saleClipClientGoneCore.js'
 import { cancelAwaitingSaleClipsForClient, prepareSaleClipUpdateForPush } from './saleClipClientGone.js'
+import { normalizeClientPlanPushPayload } from '../../src/lib/clientPlans/clientPlanCore.js'
+import { notifyClientPlanSent } from './clientPlans/clientPlanNotify.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -49,6 +51,7 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'sale_clips',
   'client_hall_lifecycle',
   'trainer_schedule_entries',
+  'client_plans',
 ])
 
 function friendlyExerciseDbError(error, operation) {
@@ -384,6 +387,11 @@ export async function executePushRecord(ctx, item) {
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
         payload = prep.data
       }
+      if (table_name === 'client_plans') {
+        const prep = normalizeClientPlanPushPayload(payload)
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        payload = prep.data
+      }
       let lifeBefore = null
       if (table_name === 'client_hall_lifecycle') {
         const prev = await supabaseAdmin
@@ -458,6 +466,9 @@ export async function executePushRecord(ctx, item) {
           payload,
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
         })
+      }
+      if (table_name === 'client_plans') {
+        notifyClientPlanSent(supabaseAdmin, payload).catch((e) => console.warn('[client-plan-push]', e?.message || e))
       }
       return { ok: true }
     }

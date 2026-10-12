@@ -133,6 +133,7 @@ function trainerPull(state, user) {
     sale_clips: [],
     client_hall_lifecycle: [],
     trainer_schedule_entries: (state.trainer_schedule_entries ?? []).filter((r) => r.trainer_id === user.id),
+    client_plans: byClient(state.client_plans ?? []).map(({ payload: _p, ...mark }) => mark),
     outreach_templates: null,
   }
 }

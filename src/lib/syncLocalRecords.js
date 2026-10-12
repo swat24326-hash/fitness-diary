@@ -34,6 +34,7 @@ const UNSYNCED_SCAN = [
   { store: 'pnk_funnel_events', table: 'pnk_funnel_events', table_name: 'pnk_funnel_events' },
   { store: 'client_hall_lifecycle', table: 'client_hall_lifecycle', table_name: 'client_hall_lifecycle' },
   { store: 'trainer_schedule_entries', table: 'trainer_schedule_entries', table_name: 'trainer_schedule_entries' },
+  { store: 'client_plans', table: 'client_plans', table_name: 'client_plans' },
 ]
 
 const STORE_BY_TABLE = {
@@ -50,6 +51,7 @@ const STORE_BY_TABLE = {
   pnk_funnel_events: 'pnk_funnel_events',
   client_hall_lifecycle: 'client_hall_lifecycle',
   trainer_schedule_entries: 'trainer_schedule_entries',
+  client_plans: 'client_plans',
 }
 
 /** Для verify: таблицы, которые помечаются synced после push. */

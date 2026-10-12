@@ -6,7 +6,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 
 ---
 
-## IndexedDB (`fitness-diary`, version **19**)
+## IndexedDB (`fitness-diary`, version **20**)
 
 | Store | keyPath | Заметки |
 |-------|---------|---------|
@@ -31,6 +31,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `client_hall_lifecycle` | `id` | Закрытие ПЗ/ТЗ/АЗ (`hall`, `closed_at`, `close_reason`); индексы `client_id`, `club_id` |
 | `trainer_schedule_entries` | `id` | Ежедневник тренера: день, время, заметка и/или `client_ids[]`, категория `kind` (цвет); индексы `trainer_id`, `[trainer_id, day_date]` — см. [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |
 | `loyalty_glance` | `client_id` | Кэш снимка баллов (GET `loyalty-glance`, не sync_queue) |
+| `client_plans` | `id` | С v20. Отправленные клиенту «В приложение» задание (`kind: homework`) и рацион (`nutrition`): локально — новая запись с `payload` до push; из `trainer-pull` — только отметки (`sent_at`, `client_seen_at`, без `payload`, 45 дней). Индекс `by_client_id`. Postgres: `client_plans` (`payload` — снимок по белому списку `clientPlanCore.js`, `summary`, `sent_by`, `client_seen_at`, `notified_at`), RLS без политик, миграция `20261017120000_client_plans.sql`, [CLIENT_APP.md](./CLIENT_APP.md) § «ДЗ и питание от тренера» |
 
 ### Postgres only (не stores IndexedDB)
 

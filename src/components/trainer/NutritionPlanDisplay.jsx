@@ -1,6 +1,7 @@
 import { Send, Share2 } from 'lucide-react'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 import { NutritionTableBlock } from './NutritionTableBlock.jsx'
+import { ClientPlanAppButton, ClientPlanAppStatus } from './ClientPlanAppButton.jsx'
 
 function mapSummaryRow(row) {
   return {
@@ -51,6 +52,8 @@ export function NutritionPlanDisplay({
   busy,
   formatDateRu,
   clubName = '',
+  app = null,
+  onSendApp,
 }) {
   if (!displayPlan) return null
 
@@ -188,7 +191,9 @@ export function NutritionPlanDisplay({
               <Share2 size={18} aria-hidden />
               Другой мессенджер
             </button>
+            <ClientPlanAppButton app={app} disabled={!canSend} onClick={onSendApp} />
           </div>
+          <ClientPlanAppStatus app={app} />
           {planUnsaved ? (
             <p className="muted nutrition-share-actions__hint">Сначала сохраните рацион — затем отправка.</p>
           ) : exportStatus ? (

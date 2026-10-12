@@ -38,6 +38,8 @@
 @import './styles/client-me-menu.css';
 @import './styles/client-me-spark.css';
 @import './styles/client-trainings.css';
+@import './styles/client-plans.css';
+@import './styles/client-segments.css';
 @import './styles/client-inbox.css';
 @import './styles/admin-inbox.css';
 @import './styles/staff-inbox.css';
