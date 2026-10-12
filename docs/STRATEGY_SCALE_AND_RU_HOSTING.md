@@ -359,10 +359,12 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Серверные ключи Supabase убраны с ВМ — `scripts/r4-drop-supabase-env-vm.sh` (07.10 14:18: health ок, API без токена 401, копия `.env` с ключом уничтожена; в журнале `cloudKey: missing` — так и должно быть). Повторная выгрузка из Supabase теперь только с ключом из кабинета.
 - [x] Владелец: Supabase → **Pause project** ✅ 07.10 14:26 (проект «фитнес-дневник»; возобновить можно до 11.11.2027, потом только скачать бэкап).
 - [x] Своя ночная копия Managed PG на ВМ (`scripts/pg-backup-install-vm.sh`, 04:30 МСК, 14 дн.) ✅ 07.10 — плюс автокопии Yandex 7 дн.; восстановление — RUNBOOK §8.
-- [ ] Защита кластера от удаления — GrokBot `2026-10-07-02` (ждёт «да» владельца). Копия вне аккаунта Yandex — ⏸ отдельным решением.
+- [x] Защита кластера от удаления — ✅ 07.10 (GrokBot `2026-10-07-02`).
+- [x] Копия вне аккаунта Yandex — **временно ноутбук владельца** (12.10, до своего сервера через ~2 мес.): `scripts/pg-backup-pull-laptop.ps1` → `C:\fd-backups` (вне OneDrive), файл зашифрован паролем копий бакета, сверка SHA-256, 8 последних; задача Планировщика `FitnessDiary-DB-Backup` — пн 10:00, журнал `C:\fd-backups\pull.log`. После покупки сервера — перенести туда.
 - [ ] ~21.10, если ничего не понадобилось: Supabase → Delete project (копия уже на ВМ). Vercel: redirect держим, пока не уйдут старые ярлыки планшетов, затем Delete project.
-- [ ] После удаления: CORS только свой домен, убрать `authPortSupabase` / ветки «не pg», `supabase/functions/`, обновить DEPLOY / HANDOFF / GROWTH.
-- [ ] Обновить [DEPLOY.md](./DEPLOY.md), [RUNBOOK.md](./RUNBOOK.md), [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md), GROWTH_PLAYBOOK (хостер = РФ).
+- [x] CORS `/api/*` только свой домен — 🔧 12.10 в репо (`corsOriginCore.js` из `PUBLIC_ORIGIN`, `verify-cors-origin`). Не ждали удаления Vercel: старые ярлыки и так не ходят в API — предзапрос CORS через redirect 307 браузер не пропускает.
+- [ ] После удаления Supabase: убрать `authPortSupabase` / ветки «не pg», `supabase/functions/`.
+- [x] [DEPLOY.md](./DEPLOY.md), [RUNBOOK.md](./RUNBOOK.md) §3–4c/§8, [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — хостер = РФ (12.10); GROWTH_PLAYBOOK уже с пометкой «история».
 - [ ] Vercel/Supabase — отменить или оставить только CI-preview по решению команды.
 
 ### 5.5. Риски и как снижаем

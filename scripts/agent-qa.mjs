@@ -63,6 +63,7 @@ run('qa password not hardcoded', 'node', ['scripts/verify-qa-password-not-hardco
 run('rls coverage', 'node', ['scripts/verify-rls-coverage.mjs'])
 run('auth rate limit', 'node', ['scripts/verify-auth-rate-limit.mjs'])
 run('push club binding', 'node', ['scripts/verify-push-club-binding.mjs'])
+run('cors origin', 'node', ['scripts/verify-cors-origin.mjs'])
 run('api error sanitize', 'node', ['scripts/verify-api-error-sanitize.mjs'])
 run('security audit behavior', 'node', ['scripts/verify-security-audit-behavior.mjs'])
 run('portable host security', 'node', ['scripts/verify-portable-host-security.mjs'])

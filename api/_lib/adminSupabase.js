@@ -3,6 +3,7 @@ import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
 import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
 import { ilikeExactPattern } from '../../src/lib/ilikeExactCore.js'
 import { authRuntimeEnvError, verifyBearer } from './authPort.js'
+import { resolveCorsOrigin } from './corsOriginCore.js'
 import {
   AUTH_PROFILE_BLOCKED_RU,
   AUTH_PROFILE_CLOUD_UNAVAILABLE_RU,
@@ -98,7 +99,7 @@ export function sendJson(res, status, body) {
 }
 
 export function setCors(res, methods = 'GET, POST, OPTIONS') {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Origin', resolveCorsOrigin())
   res.setHeader('Access-Control-Allow-Methods', methods)
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type, x-device-id, x-device-touch')
 }

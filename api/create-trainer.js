@@ -4,6 +4,7 @@
  * (или VITE_* для URL/anon — service role без префикса VITE_).
  */
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { resolveCorsOrigin } from './_lib/corsOriginCore.js'
 import { createServiceDataClient } from './_lib/pgRest/serviceClient.js'
 import { authRuntimeEnvError, adminCreateUser, adminDeleteUser, passwordHashForUsersRow, verifyBearer } from './_lib/authPort.js'
 import { formatClientName } from '../src/lib/clientNameFormat.js'
@@ -27,7 +28,7 @@ function sendJson(res, status, body) {
 }
 
 async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Origin', resolveCorsOrigin())
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type')
 

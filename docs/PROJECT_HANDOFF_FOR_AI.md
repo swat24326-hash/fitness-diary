@@ -8,8 +8,8 @@
 
 Правила кода для Cursor — `.cursor/rules/` (политика). Этот handoff — **нарратив**: что за продукт и куда смотреть. Не дублировать политику целиком.
 
-**Хостинг:** сейчас Vercel + Supabase. Переезд на **российские серверы — в будущем** (курс C2 + Yandex). **R1 prep в коде (2026-08-09):** portable `server/` + Docker + `db:migrate:pg` (stub `auth.*`) + `/api/health` + шов Auth — [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md), [AUTH_C2_MAP.md](./AUTH_C2_MAP.md). День 1 R2 = **hybrid** (хост на РФ, данные пока Supabase). Прод не переключали. Стенд R2 / cutover — только по явной команде. Портативность — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Стек / TypeScript vs переезд — STRATEGY **§5.9**.  
-**Безопасность (усиление):** ⏸ после РФ — STRATEGY §5.7; до cutover не кодить rate limit / админ-email без команды. Гигиена в фичах — `fitness-diary-security.mdc`.
+**Хостинг (актуально 12.10.2026):** прод в РФ — Yandex Cloud: ВМ `os-hybrid-staging` (Node `server/` как сервис `os-hybrid` + Caddy) и Managed PostgreSQL `os-c2-staging`; свой Auth (`AUTH_PROVIDER=own`, `DATA_BACKEND=pg`). R3 cutover 01.10 ([R3_NIGHT.md](./R3_NIGHT.md)), идёт R4 — снятие старого края: Supabase на паузе (удаление ~21.10), Vercel только redirect. Имена `supabase*` в коде и `supabase/migrations/` — исторические (тот же SQL накатывается на PG `scripts/r2-pg-migrate-vm.sh`). Деплой — `scripts/r3-deploy-vm.sh` (правило `fitness-diary-ship.mdc`). Портативность — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Стек / TypeScript — STRATEGY **§5.9**.  
+**Безопасность:** спринт после РФ (STRATEGY §5.7) ✅ 07.10; чеклист прода — [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md). Гигиена в фичах — `fitness-diary-security.mdc`.
 
 ---
 
@@ -28,7 +28,7 @@
 - статистика клуба, продажи / финансы, **ИСКРА** (AI-советник админки), качество ведения;
 - офлайн: **IndexedDB** + **очередь sync** → `/api/push-record(s)` → pull (`trainer-pull`, `admin-data`).
 
-Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`, Caddy — [R3_NIGHT.md](./R3_NIGHT.md)). Старый `https://fitness-diary-bice.vercel.app` — redirect 307; Supabase — копия для отката до R4.
+Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`, Caddy — [R3_NIGHT.md](./R3_NIGHT.md)). Старый `https://fitness-diary-bice.vercel.app` — redirect 307; Supabase на паузе с 07.10 (выгрузка на ВМ), удаление ~21.10.
 
 Привязка устройств тренера (✅ в проде с 10.10 22:31 МСК): заголовок `x-device-id` на входе и продлении, таблица `user_devices`, экран админа `/admin/devices`; включается env `DEVICE_BINDING_SINCE` — [RUNBOOK §4e](./RUNBOOK.md).
 
@@ -41,7 +41,7 @@ Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUT
 | UI | React 19, React Router 7 |
 | Сборка | Vite 6, `@vitejs/plugin-react` |
 | PWA | `vite-plugin-pwa` (SW в production) |
-| Бэкенд | Supabase (Postgres, Auth) + **Vercel serverless** `api/*.js` |
+| Бэкенд | Managed PostgreSQL (Yandex) + Node-хост `server/` с handlers `api/*.js` и своим Auth (контракт PostgREST/Auth совместим с прежним Supabase) |
 | Локальное хранилище | `idb` → `src/lib/localDb.js` (версия IDB **19**) |
 | Стили | `src/index.css`, `src/styles/` |
 | AI | Gemini через `admin-data?action=gemini-analytics` (ключ только на сервере) |
@@ -93,12 +93,13 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 Публичные (фронт, префикс **`VITE_`**):
 
-- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (JWT `eyJ…`, не `sb_publishable_…`)
+- `VITE_SUPABASE_URL` (на проде = `https://app-core.ru`), `VITE_SUPABASE_ANON_KEY` (JWT `eyJ…`)
 - опционально `VITE_VAPID_PUBLIC_KEY`, `VITE_ADMIN_EMAILS`
 
-Только сервер (Vercel / Edge, **без** `VITE_`):
+Только сервер (`.env` на ВМ, **без** `VITE_`):
 
-- `SUPABASE_SERVICE_ROLE_KEY`, опционально `SUPABASE_URL` / `SUPABASE_ANON_KEY`
+- `DATABASE_URL`, `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`, `PUBLIC_ORIGIN` (свой домен; им же ограничен CORS `/api/*`), `DEVICE_BINDING_SINCE`
+- `SUPABASE_SERVICE_ROLE_KEY` — только вне прода (старый контур; с ВМ убран в R4)
 - ИСКРА (модель ответа, `api/_lib/iskraLlmCore.js`): `YANDEX_FOLDER_ID` + (`YANDEX_LLM_AUTH=metadata` — токен сервисного аккаунта ВМ `iskra-llm`, так на проде; или `YANDEX_LLM_API_KEY` вне Yandex Cloud) → Yandex AI Studio (прод в РФ; опционально `YANDEX_LLM_MODEL`, по умолчанию `deepseek-v4-flash`, запасная `yandexgpt-5.1`). Без них — `GEMINI_API_KEY` (+ `GEMINI_MODEL`); Gemini из РФ не работает. Принудительно — `ISKRA_LLM_PROVIDER=yandex|gemini`. Голос ИСКРЫ (`admin-data?action=iskra-tts`) — те же переменные: при Яндексе SpeechKit (роль `ai.speechkit-tts.user` у `iskra-llm`), иначе Edge TTS (из РФ не работает)
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
 - сторож прода → ВК (только cron на ВМ, приложение не читает): `VK_ALERT_TOKEN` (ключ закрытого сообщества), `VK_ALERT_PEER_IDS` — [RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md), [RUNBOOK.md](./RUNBOOK.md) §9
@@ -200,11 +201,11 @@ UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domai
 
 ---
 
-## 10. API (Vercel serverless)
+## 10. API (`api/*.js` на Node-хосте ВМ)
 
 Каталог endpoints: [API.md](./API.md).
 
-- Vercel: `admin-data`, `trainer-pull`, `push-record(s)`, auth, list-*, **`create-trainer`**, `update-trainer-club`, …
+- Handlers: `admin-data`, `trainer-pull`, `push-record(s)`, auth, list-*, **`create-trainer`**, `update-trainer-club`, …
 - Удаление тренера: `admin-data?action=delete-trainer` (не отдельный `api/*.js`).
 - Hobby **≤12** `api/*.js` — новое действие → `admin-data?action=`, не новый файл.
 - Edge Functions в `supabase/functions/` — **legacy**; прод ходит в `/api/*` (см. [DEPLOY.md](./DEPLOY.md)).
