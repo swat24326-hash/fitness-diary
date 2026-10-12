@@ -344,12 +344,36 @@ export async function run(browser) {
     const pageScale = await page.evaluate(() => globalThis.visualViewport?.scale ?? 1)
     c.ok(pageScale === 1, `щипок по сетке не зумит всю страницу (scale ${pageScale})`)
     await screenshot(page, 'schedule-zoom-pinch')
+    const labelsFit = () =>
+      page.evaluate(() => {
+        const els = [...globalThis.document.querySelectorAll('.trainer-schedule-day__page:not([aria-hidden]) .trainer-schedule-day__entry')]
+        const clipped = els.filter((el) => {
+          const l = el.querySelector('.trainer-schedule-day__entry-label')?.getBoundingClientRect()
+          const box = el.getBoundingClientRect()
+          return !l || l.height === 0 || l.bottom > box.bottom + 1
+        }).length
+        return { total: els.length, clipped }
+      })
+    const weekLabels = await labelsFit()
+    c.ok(weekLabels.total > 0 && weekLabels.clipped === 0, `мелкий масштаб, неделя: имя видно в каждой записи (${JSON.stringify(weekLabels)})`)
+    await page.getByRole('button', { name: /^Режим календаря/ }).click()
+    await page.getByRole('menuitem', { name: 'Сегодня' }).click()
+    await pickView(page, 'День')
+    await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 10_000 })
+    const dayLabels = await labelsFit()
+    await screenshot(page, 'schedule-zoom-day-small')
+    c.ok(dayLabels.total > 0 && dayLabels.clipped === 0, `мелкий масштаб, день: имя видно, не только время (${JSON.stringify(dayLabels)})`)
+    await pickView(page, 'Неделя')
+    await page.locator('.trainer-schedule-day--week').waitFor({ timeout: 10_000 })
 
     await page.waitForTimeout(500)
     await page.reload({ waitUntil: 'domcontentloaded' })
-    await page.locator('.trainer-schedule-month').waitFor({ timeout: 15_000 })
-    await pickView(page, 'День')
-    await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 15_000 })
+    const weekRestored = await page
+      .locator('.trainer-schedule-day--week')
+      .waitFor({ timeout: 15_000 })
+      .then(() => true)
+      .catch(() => false)
+    c.ok(weekRestored, 'вид «Неделя» запомнился после перезагрузки — не сбросился на месяц')
     c.ok(Math.round(await hourPx()) === 42, `масштаб запомнился после перезагрузки (${await hourPx()})`)
 
     /* Приложение планшета, открытое на телефоне: «⋮» в одной строке с датой, не уезжает вниз. */

@@ -6,6 +6,7 @@ import {
   formatScheduleMinutes,
 } from '../../lib/trainer/trainerScheduleCore.js'
 import { resolveScheduleNowLineMinutes } from '../../lib/trainer/trainerScheduleNowCore.js'
+import { isScheduleEntryOneLine } from '../../lib/trainer/scheduleZoomCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 import { TrainerScheduleEntryBlock } from './TrainerScheduleEntryBlock.jsx'
 
@@ -60,11 +61,14 @@ export function TrainerScheduleDayTrack({
   const nowLine = resolveScheduleNowLineMinutes(dayIso, now.todayIso, now.nowMinutes)
   const slotsReadOnly = readOnly || !interactive
 
+  const entryHeight = (entry) => Math.max(minHeight, (Number(entry.duration_minutes) || 60) * pxPerMin - 4)
+  const oneLine = (entry) => isScheduleEntryOneLine(entryHeight(entry), { compact, withTrainer: showTrainerName })
+
   const entryStyle = (entry, startMinutes, laneIndex, laneCount) => {
     const widthPct = 100 / laneCount
     return {
       top: (startMinutes - DAY_START_MIN) * pxPerMin,
-      height: Math.max(minHeight, (Number(entry.duration_minutes) || 60) * pxPerMin - 4),
+      height: entryHeight(entry),
       minHeight,
       left: `${laneIndex * widthPct}%`,
       width: `calc(${widthPct}% - ${compact ? 2 : 4}px)`,
@@ -112,6 +116,7 @@ export function TrainerScheduleDayTrack({
             entry={entry}
             style={entryStyle(entry, Number(entry.start_minutes), laneIndex, laneCount)}
             compact={compact}
+            oneLine={oneLine(entry)}
             laneCount={laneCount}
             trainerName={trainerName}
             clientNameById={clientNameById}
@@ -133,6 +138,7 @@ export function TrainerScheduleDayTrack({
           entry={{ ...preview.entry, day_date: dayIso, start_minutes: preview.startMinutes }}
           style={entryStyle(preview.entry, preview.startMinutes, 0, 1)}
           compact={compact}
+          oneLine={oneLine(preview.entry)}
           laneCount={1}
           clientNameById={clientNameById}
           trainingById={trainingById}

@@ -716,6 +716,29 @@
   line-height: 1.2;
 }
 
+/* Мелкий масштаб: запись не вмещает две строки — одно имя (у админа + тренер), время читается по сетке. Специфичность выше правил телефона. */
+.trainer-schedule-day__track .trainer-schedule-day__entry-wrap .trainer-schedule-day__entry.trainer-schedule-day__entry--one-line {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.trainer-schedule-day__track .trainer-schedule-day__entry-wrap .trainer-schedule-day__entry--one-line .trainer-schedule-day__entry-label {
+  display: block;
+  flex: 1 1 auto;
+  width: auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+}
+
+.trainer-schedule-day__track .trainer-schedule-day__entry-wrap .trainer-schedule-day__entry--one-line .trainer-schedule-day__entry-time {
+  display: inline;
+  flex: 0 0 auto;
+}
+
 .trainer-schedule-day__empty {
   margin: 12px 0 0;
   font-size: 0.9rem;

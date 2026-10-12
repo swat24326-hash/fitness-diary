@@ -54,12 +54,12 @@
   --hr-zone-mid: #3dd68c;
   --hr-zone-hard: #f07167;
 
-  /* Категории ежедневника: одинаковы во всех ролях (ролевой accent не трогает) */
+  /* Категории ежедневника: одинаковы во всех ролях (ролевой accent не трогает); оттенки разнесены по кругу, без двух зелёно-голубых */
   --schedule-kind-training: #14d89a;
-  --schedule-kind-group: #6eb5ff;
-  --schedule-kind-trial: #fbbf24;
-  --schedule-kind-work: #22d3ee;
-  --schedule-kind-personal: #a8b2ac;
+  --schedule-kind-group: #4d94ff;
+  --schedule-kind-trial: #ffc21a;
+  --schedule-kind-work: #f472b6;
+  --schedule-kind-personal: #b8c2cc;
   --radius: 22px;
   --radius-md: 16px;
   --radius-sm: 12px;

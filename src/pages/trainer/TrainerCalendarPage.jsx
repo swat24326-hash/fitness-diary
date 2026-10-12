@@ -17,7 +17,7 @@ import '../../styles/trainer-schedule-kinds.css'
 
 export function TrainerCalendarPage() {
   const { user } = useAuth()
-  const nav = useScheduleCalendarNav()
+  const nav = useScheduleCalendarNav({ scope: 'tablet' })
   const { view, selectedDay, monthCursor, agendaDays } = nav
   const zoom = useScheduleZoom('tablet')
 

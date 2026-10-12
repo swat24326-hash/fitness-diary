@@ -1,5 +1,5 @@
 /**
- * Ежедневник: масштаб сетки (щипок, Ctrl+колёсико, кнопки меню) — чистые правила.
+ * Ежедневник: масштаб сетки (щипок, Ctrl+колёсико, кнопки меню) и запомненный вид — чистые правила.
  * node scripts/verify-schedule-zoom.mjs
  */
 import {
@@ -8,6 +8,7 @@ import {
   SCHEDULE_ZOOM_MIN,
   clampScheduleZoom,
   formatScheduleZoomPercent,
+  isScheduleEntryOneLine,
   parseStoredScheduleZoom,
   resolvePinchScheduleZoom,
   resolveScheduleEntryMinHeight,
@@ -16,6 +17,7 @@ import {
   scheduleZoomStorageKey,
   stepScheduleZoom,
 } from '../src/lib/trainer/scheduleZoomCore.js'
+import { parseStoredScheduleView, scheduleViewStorageKey } from '../src/lib/trainer/scheduleViewPrefsCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -78,8 +80,22 @@ console.log('высота записи / подпись')
 ok(resolveScheduleEntryMinHeight(48, 1.4) === 48, 'обычный масштаб — прежний минимум 48')
 ok(resolveScheduleEntryMinHeight(48, 0.5) === 26, 'мелкий масштаб — часовая запись не наезжает на следующий час')
 ok(resolveScheduleEntryMinHeight(78, 0.1) === 20, 'минимум не меньше 20px — запись остаётся тапабельной')
+ok(!isScheduleEntryOneLine(60 * 1.4 - 4), 'час на обычном масштабе — две строки (время + имя)')
+ok(isScheduleEntryOneLine(60 * 0.6 - 4), 'час на мелком масштабе — одна строка, имя не пропадает')
+ok(isScheduleEntryOneLine(26, { compact: true }), 'неделя, мелкий масштаб — одна строка')
+ok(!isScheduleEntryOneLine(36, { compact: true }), 'неделя, обычная высота — две строки')
+ok(isScheduleEntryOneLine(50, { withTrainer: true }), 'админ: имя тренера не влезает третьей строкой — одна строка')
 ok(formatScheduleZoomPercent(1.4, 1.4) === '100%', 'умолчание экрана = 100%')
 ok(formatScheduleZoomPercent(2, 1) === '200%', 'телефон 2 px/мин = 200%')
+
+console.log('вид (День / 3 дня / Неделя / Месяц)')
+ok(parseStoredScheduleView(null, 'month') === 'month', 'нет сохранённого → вид экрана по умолчанию')
+ok(parseStoredScheduleView('week', 'month') === 'week', 'сохранённая «Неделя» открывается снова')
+ok(parseStoredScheduleView('days3', 'day') === 'days3', 'сохранённые «3 дня» открываются снова')
+ok(parseStoredScheduleView('year', 'month') === 'month', 'неизвестный вид → умолчание')
+ok(parseStoredScheduleView('', 'day') === 'day', 'пустая строка → умолчание')
+ok(scheduleViewStorageKey('phone') !== scheduleViewStorageKey('tablet'), 'телефон и планшет хранят вид раздельно')
+ok(scheduleViewStorageKey('admin') !== scheduleZoomStorageKey('admin'), 'вид и масштаб не делят ключ')
 
 if (failed) {
   console.error(`\nverify-schedule-zoom: ${failed} failed`)

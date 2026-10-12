@@ -6,6 +6,25 @@ import {
   listScheduleViewDays,
   shiftScheduleAnchorIso,
 } from '../lib/trainer/trainerScheduleCore.js'
+import { parseStoredScheduleView, scheduleViewStorageKey } from '../lib/trainer/scheduleViewPrefsCore.js'
+
+/** @param {string} key @param {string} fallback */
+function readView(key, fallback) {
+  try {
+    return parseStoredScheduleView(localStorage.getItem(key), fallback)
+  } catch {
+    return fallback
+  }
+}
+
+/** @param {string} key @param {string} view */
+function writeView(key, view) {
+  try {
+    localStorage.setItem(key, view)
+  } catch {
+    /* приватный режим — вид живёт до ухода с экрана */
+  }
+}
 
 function parseMonthCursor(iso) {
   const day = String(iso ?? '').slice(0, 10)
@@ -25,11 +44,13 @@ function shiftMonth(year, month, delta) {
 
 /**
  * Навигация Ежедневника (вид, выбранный день, месяц, модалка записи) — общая для планшета и телефона.
- * @param {{ initialView?: string }} [opts]
+ * Вид из меню запоминается по `scope`; переход в «День» по тапу на дату — нет (это навигация, не выбор вида).
+ * @param {{ scope: 'tablet' | 'phone' | 'admin', initialView?: string }} opts
  */
-export function useScheduleCalendarNav({ initialView = SCHEDULE_VIEW_MONTH } = {}) {
+export function useScheduleCalendarNav({ scope, initialView = SCHEDULE_VIEW_MONTH }) {
   const today = todayInTimeZoneIso()
-  const [view, setView] = useState(initialView)
+  const viewKey = scheduleViewStorageKey(scope)
+  const [view, setView] = useState(() => readView(viewKey, initialView))
   const [selectedDay, setSelectedDay] = useState(today)
   const [monthCursor, setMonthCursor] = useState(() => parseMonthCursor(today))
   const [modalDraft, setModalDraft] = useState(/** @type {object | null} */ (null))
@@ -73,6 +94,7 @@ export function useScheduleCalendarNav({ initialView = SCHEDULE_VIEW_MONTH } = {
 
   const onChangeView = (next) => {
     setView(next)
+    writeView(viewKey, next)
     if (next !== SCHEDULE_VIEW_MONTH) setMonthCursor(parseMonthCursor(selectedDay))
   }
 

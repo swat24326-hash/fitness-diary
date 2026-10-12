@@ -21,6 +21,7 @@ import {
  *   entry: object,
  *   style: object,
  *   compact: boolean,
+ *   oneLine?: boolean,
  *   laneCount: number,
  *   trainerName?: string,
  *   clientNameById?: Record<string, string>,
@@ -37,6 +38,7 @@ export function TrainerScheduleEntryBlock({
   entry,
   style,
   compact,
+  oneLine = false,
   laneCount,
   trainerName = '',
   clientNameById = {},
@@ -70,7 +72,13 @@ export function TrainerScheduleEntryBlock({
     !ghost &&
     (start.kind === 'open' || start.kind === 'new' || start.kind === 'pick_client')
 
-  const body = compact ? (
+  const body = oneLine ? (
+    <>
+      {doneMark}
+      <span className="trainer-schedule-day__entry-label">{label}</span>
+      {trainerName && !compact ? <span className="trainer-schedule-day__entry-time">{trainerName}</span> : null}
+    </>
+  ) : compact ? (
     <>
       <span className="trainer-schedule-day__entry-time">
         {doneMark}
@@ -106,6 +114,7 @@ export function TrainerScheduleEntryBlock({
     state.draft ? 'trainer-schedule-day__entry--draft' : '',
     trainerName ? 'trainer-schedule-day__entry--with-trainer' : '',
     compact ? 'trainer-schedule-day__entry--compact' : '',
+    oneLine ? 'trainer-schedule-day__entry--one-line' : '',
   ]
     .filter(Boolean)
     .join(' ')

@@ -39,7 +39,7 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
     return String(searchParams.get('club') ?? '').trim() || String(outlet?.clubId ?? '').trim()
   }, [isSup, outlet?.clubId, searchParams, user?.club_id])
 
-  const nav = useScheduleCalendarNav({ initialView: SCHEDULE_VIEW_MONTH })
+  const nav = useScheduleCalendarNav({ scope: 'admin', initialView: SCHEDULE_VIEW_MONTH })
   const { view, selectedDay, monthCursor, agendaDays } = nav
   const zoom = useScheduleZoom('admin')
   const [trainerFilter, setTrainerFilter] = useState(() => String(searchParams.get('trainer') ?? '').trim())

@@ -9,9 +9,9 @@
 
 /* --- Запись в сетке --- */
 .trainer-schedule-day__entry.trainer-schedule-day__entry--kind {
-  background: color-mix(in srgb, var(--kind) 20%, rgba(255, 255, 255, 0.04));
-  border: 1px solid color-mix(in srgb, var(--kind) 34%, transparent);
-  border-left: 3px solid var(--kind);
+  background: color-mix(in srgb, var(--kind) 32%, rgba(255, 255, 255, 0.04));
+  border: 1px solid color-mix(in srgb, var(--kind) 60%, transparent);
+  border-left: 4px solid var(--kind);
 }
 
 .trainer-schedule-day__entry.trainer-schedule-day__entry--draft {
@@ -69,7 +69,7 @@
 
 .trainer-schedule-kinds__chip--on {
   border-color: var(--kind);
-  background: color-mix(in srgb, var(--kind) 22%, transparent);
+  background: color-mix(in srgb, var(--kind) 30%, transparent);
 }
 
 /* --- Легенда под сеткой --- */

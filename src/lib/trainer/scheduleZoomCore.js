@@ -62,6 +62,18 @@ export function resolveScheduleEntryMinHeight(base, zoom) {
   return Math.min(base, Math.max(ENTRY_MIN_HEIGHT_FLOOR, 60 * zoom - 4))
 }
 
+/** Высота, с которой запись вмещает «время» и «имя» двумя строками (с тренером — три строки у админа). */
+const ENTRY_TWO_LINE_MIN_PX = { compact: 32, normal: 44, withTrainer: 58 }
+
+/**
+ * Ниже порога запись рисуется в одну строку — только имя (время читается по сетке), иначе имя обрезается и видно только время.
+ * @param {number} heightPx @param {{ compact?: boolean, withTrainer?: boolean }} [opts]
+ */
+export function isScheduleEntryOneLine(heightPx, { compact = false, withTrainer = false } = {}) {
+  const need = withTrainer ? ENTRY_TWO_LINE_MIN_PX.withTrainer : compact ? ENTRY_TWO_LINE_MIN_PX.compact : ENTRY_TWO_LINE_MIN_PX.normal
+  return Number(heightPx) < need
+}
+
 /** «100%» в меню — относительно масштаба экрана по умолчанию. @param {number} zoom @param {number} base */
 export function formatScheduleZoomPercent(zoom, base) {
   return `${Math.round((zoom / (base || 1)) * 100)}%`

@@ -33,7 +33,7 @@ const PHONE_VIEWS = [SCHEDULE_VIEW_DAY, SCHEDULE_VIEW_DAYS3, SCHEDULE_VIEW_WEEK,
 /** Главный экран телефона — Ежедневник: тот же календарь, что на планшете, правки сразу на сервер (без очереди). */
 export function CoachCalendarPage() {
   const { onSessionGone } = useCoachApp()
-  const nav = useScheduleCalendarNav({ initialView: SCHEDULE_VIEW_DAY })
+  const nav = useScheduleCalendarNav({ scope: 'phone', initialView: SCHEDULE_VIEW_DAY })
   const { view, selectedDay, monthCursor, agendaDays } = nav
   /** По умолчанию час = 60px (на планшете 84): на экране телефона виден больший кусок дня. */
   const zoom = useScheduleZoom('phone')
