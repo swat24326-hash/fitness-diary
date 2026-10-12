@@ -4,6 +4,12 @@
 import { planSupersededAwaitingSaleClips } from '../../src/lib/admin/saleClipPullPruneCore.js'
 import { normalizeSalesCardNumber } from '../../src/lib/admin/salesClientMatchCore.js'
 import { buildSalesCardsOrIlikeExpr } from '../../src/lib/admin/salesClientLookupCore.js'
+import { isTransientDbError } from './dbErrorPublicCore.js'
+
+/** Неполное чтение при сбое базы выглядит как «клиента нет» → план снял бы живую заявку. */
+function throwIfTransient(error) {
+  if (error && isTransientDbError(error)) throw error
+}
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
@@ -34,6 +40,7 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
       .select('id, card_number, club_id, name, archived_at')
       .in('club_id', clubIds.slice(0, 20))
       .or(buildSalesCardsOrIlikeExpr([...wanted]))
+    throwIfTransient(cardErr)
     if (cardErr || clubIds.length > 20 || cards.length > 200) cardLookupOk = false
     for (const row of clients ?? []) {
       if (row?.archived_at) continue
@@ -53,10 +60,11 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
   /** @type {Map<string, object>} */
   const clientsById = new Map()
   if (clientIds.length) {
-    const { data: byIdRows } = await supabaseAdmin
+    const { data: byIdRows, error: byIdErr } = await supabaseAdmin
       .from('clients')
       .select('id, card_number, club_id, name, archived_at')
       .in('id', clientIds.slice(0, 800))
+    throwIfTransient(byIdErr)
     for (const row of byIdRows ?? []) {
       const id = String(row?.id ?? '').trim()
       if (id) clientsById.set(id, row)
@@ -72,6 +80,7 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
       .from('memberships')
       .select('id, client_id, clip_id, created_at, paid_amount, total_trainings, start_date, membership_type_id')
       .in('client_id', clientIds.slice(0, 800))
+    throwIfTransient(error)
     if (!error) {
       for (const m of mems ?? []) {
         const cid = String(m.client_id ?? '').trim()
@@ -92,10 +101,11 @@ export async function reconcileAndFilterAwaitingSaleClips(supabaseAdmin, awaitin
   /** @type {object[]} */
   let membershipTypes = []
   if (membershipTypeIds.size) {
-    const { data: types } = await supabaseAdmin
+    const { data: types, error: typesErr } = await supabaseAdmin
       .from('membership_types')
       .select('id, code, name, is_pnk_trial, is_active')
       .in('id', [...membershipTypeIds].slice(0, 400))
+    throwIfTransient(typesErr)
     membershipTypes = types ?? []
   }
 

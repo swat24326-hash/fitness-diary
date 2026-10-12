@@ -2,7 +2,8 @@
  * Одна запись очереди → Supabase (используется push-record и push-records).
  */
 import { authorizePush } from './mutationAuth.js'
-import { logDbError, publicDbErrorMessage } from './dbErrorPublicCore.js'
+import { DB_BUSY_RU, isTransientDbError, logDbError, publicDbErrorMessage } from './dbErrorPublicCore.js'
+import { strictTransientClient } from './pgRest/transientStrictClient.js'
 import {
   isMissingTrainingsUpdatedAtError,
   prepareTrainingPushPayload,
@@ -323,12 +324,16 @@ export async function executePushRecord(ctx, item) {
     return { ok: false, status: 400, error: 'Таблица не поддерживается' }
   }
 
-  const authz = await authorizePush(ctx, table_name, operation, data, remote_id)
+  // Временный сбой базы — исключение → 503 (планшет отложит запись), а не «не найдено» → 403/400.
+  const supabaseAdmin = strictTransientClient(ctx.supabaseAdmin)
+  // После успешной записи: повтор по 503 не должен дублировать начисления/уведомления.
+  const sideEffectsAdmin = ctx.supabaseAdmin
+
+  const authz = await authorizePush({ ...ctx, supabaseAdmin }, table_name, operation, data, remote_id)
   if (!authz.ok) {
-    return { ok: false, status: 403, error: authz.error }
+    return { ok: false, status: authz.transient ? 503 : 403, error: authz.transient ? DB_BUSY_RU : authz.error }
   }
 
-  const { supabaseAdmin } = ctx
   const allowDeskAerobicTypes = Boolean(ctx.isAdmin || ctx.isSalesManager || ctx.isSupervisor)
 
   try {
@@ -406,7 +411,7 @@ export async function executePushRecord(ctx, item) {
           return { ok: false, status: 400, error: publicDbErrorMessage(up.error, 'push') }
         }
         await applyLoyaltyHallLifecyclePushSideEffects({
-          supabaseAdmin,
+          supabaseAdmin: sideEffectsAdmin,
           before: lifeBefore,
           after: payload,
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
@@ -461,14 +466,14 @@ export async function executePushRecord(ctx, item) {
       }
       if (table_name === 'clients') {
         await applyLoyaltyClientPushSideEffects({
-          supabaseAdmin,
+          supabaseAdmin: sideEffectsAdmin,
           before: null,
           payload,
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
         })
       }
       if (table_name === 'client_plans') {
-        notifyClientPlanSent(supabaseAdmin, payload).catch((e) => console.warn('[client-plan-push]', e?.message || e))
+        notifyClientPlanSent(sideEffectsAdmin, payload).catch((e) => console.warn('[client-plan-push]', e?.message || e))
       }
       return { ok: true }
     }
@@ -595,12 +600,12 @@ export async function executePushRecord(ctx, item) {
       }
       if (table_name === 'clients' && clientBeforeReady) {
         await applyLoyaltyClientPushSideEffects({
-          supabaseAdmin,
+          supabaseAdmin: sideEffectsAdmin,
           before: clientBefore,
           payload,
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
         })
-        await recordClientRestoreEvent(supabaseAdmin, {
+        await recordClientRestoreEvent(sideEffectsAdmin, {
           before: clientBefore,
           payload,
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
@@ -609,7 +614,7 @@ export async function executePushRecord(ctx, item) {
       }
       if (table_name === 'client_hall_lifecycle') {
         await applyLoyaltyHallLifecyclePushSideEffects({
-          supabaseAdmin,
+          supabaseAdmin: sideEffectsAdmin,
           before: lifeBefore,
           after: { ...lifeBefore, ...payload, id: remote_id },
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
@@ -634,6 +639,7 @@ export async function executePushRecord(ctx, item) {
     return { ok: false, status: 400, error: 'Некорректные operation / remote_id' }
   } catch (e) {
     logDbError('push', e)
+    if (isTransientDbError(e)) return { ok: false, status: 503, error: DB_BUSY_RU }
     return { ok: false, status: 500, error: 'Внутренняя ошибка сервера' }
   }
 }

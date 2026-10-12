@@ -3,6 +3,7 @@
  * когда писать «не работает» / «восстановилось», утренняя сводка, отправка в ВК.
  */
 import { buildNightReport, lastBackupOk, summarizeApiLog } from '../api/_lib/opsAlert/nightReport.js'
+import { APT_STALE_DAYS, buildServerUpdates, manualUpgrades } from '../api/_lib/opsAlert/serverUpdates.js'
 import { parseVkPeerIds, sendVkAlert } from '../api/_lib/opsAlert/vkAlertSend.js'
 import { REMIND_EVERY_MS, nextWatchdogState } from '../api/_lib/opsAlert/watchdogState.js'
 
@@ -101,6 +102,26 @@ const drillFail = buildNightReport({ apiLines: [], backupLines: [...okBackup, 'p
 ok(drillFail.problems && drillFail.text.includes('НЕ ПРОШЛО 2026-10-01 k: clients'), 'восстановление не прошло — проблема с причиной')
 const drillNone = buildNightReport({ apiLines: [], backupLines: [...okBackup, 'pg-backup: облако ок k'], drillLines: [], cloudExpected: true, state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
 ok(drillNone.problems && drillNone.text.includes('не было больше месяца'), 'восстановления не было > 40 дн. — проблема')
+
+const DAY = 24 * 60 * MIN
+const apt = [
+  'Listing...',
+  'caddy/any-version 2.11.7 amd64 [upgradable from: 2.11.4]',
+  'libx11-6/noble-security 2:1.8.7-1ubuntu0.1 amd64 [upgradable from: 2:1.8.7-1build1]',
+  'nodejs/nodistro 22.21.0-1nodesource1 amd64 [upgradable from: 22.20.0-1nodesource1]',
+]
+ok(manualUpgrades(apt).join('; ') === 'caddy 2.11.4 → 2.11.7; nodejs 22.20.0-1nodesource1 → 22.21.0-1nodesource1', 'вручную — только Caddy и Node, пакеты Ubuntu ставит unattended')
+const upd = buildServerUpdates({ upgradableLines: apt, aptSuccessMs: T0 - DAY, rebootRequired: true, now: T0 })
+ok(!upd.problem && upd.lines.length === 2 && upd.lines[1].includes('перезагрузка'), 'свежие источники: обновления и перезагрузка — справка, не тревога')
+const stale = buildServerUpdates({ upgradableLines: [], aptSuccessMs: T0 - APT_STALE_DAYS * DAY, rebootRequired: false, now: T0 })
+ok(stale.problem && stale.lines[0].includes(`не обновлялись ${APT_STALE_DAYS} дн.`), 'источник обновлений сломан (402 и т.п.) — проблема')
+ok(buildServerUpdates({ upgradableLines: [], aptSuccessMs: null, rebootRequired: false, now: T0 }).problem, 'нет отметки apt — проблема')
+const quiet = buildServerUpdates({ upgradableLines: ['Listing...'], aptSuccessMs: T0 - MIN, rebootRequired: false, now: T0 })
+ok(!quiet.problem && quiet.lines.length === 0, 'всё обновлено — строк нет')
+const withUpd = buildNightReport({ apiLines: [], backupLines: ['pg-backup: ок x'], updates: stale, state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
+ok(withUpd.problems && withUpd.text.endsWith(stale.lines[0]), 'сломанный apt — в сводке и «ЕСТЬ ПРОБЛЕМЫ»')
+const withInfo = buildNightReport({ apiLines: [], backupLines: ['pg-backup: ок x'], updates: upd, state: null, diskUsedPct: 10, now: T0, label: 'Ядро' })
+ok(!withInfo.problems && withInfo.text.includes('caddy 2.11.4 → 2.11.7'), 'новая версия Caddy — в сводке, сутки «всё в порядке»')
 
 ok(parseVkPeerIds(' 123, abc,456,123,') .join() === '123,456', 'получатели: только числа, без повторов')
 

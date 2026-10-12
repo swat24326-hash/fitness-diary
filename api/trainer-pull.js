@@ -18,10 +18,17 @@ import {
   SCHEDULE_PULL_DAYS_BACK,
   SCHEDULE_PULL_DAYS_FORWARD,
 } from '../src/lib/trainer/trainerScheduleCore.js'
-import { publicDbErrorMessage } from './_lib/dbErrorPublicCore.js'
+import { isTransientDbError, logDbError, pgErrorPublic } from './_lib/dbErrorPublicCore.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
+
+/** Временный сбой базы → 503 (планшет повторит и не тронет кэш), остальное — 400 как раньше. */
+function sendDbFail(res, err) {
+  logDbError('trainer-pull', err)
+  const pub = pgErrorPublic(err)
+  sendJson(res, pub.status === 503 ? 503 : 400, { error: pub.message })
+}
 
 async function handleTrainerPayrollGet(ctx, req, res) {
   const dateFrom = String(req.query?.date_from ?? req.query?.dateFrom ?? '').slice(0, 10)
@@ -40,7 +47,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
     .maybeSingle()
   const clubId = String(profileRes.data?.club_id ?? '').trim()
   if (profileRes.error) {
-    sendJson(res, 400, { error: publicDbErrorMessage(profileRes.error, 'trainer-pull') })
+    sendDbFail(res, profileRes.error)
     return
   }
   if (!clubId) {
@@ -66,7 +73,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
 
   const err = typesRes.error || dailyRes.error
   if (err) {
-    sendJson(res, 400, { error: publicDbErrorMessage(err, 'trainer-pull') })
+    sendDbFail(res, err)
     return
   }
 
@@ -174,7 +181,7 @@ async function handler(req, res) {
     }
     const { data, error } = await q.order('name', { ascending: true }).range(from, from + PAGE - 1)
     if (error) {
-      sendJson(res, 400, { error: publicDbErrorMessage(error, 'trainer-pull') })
+      sendDbFail(res, error)
       return
     }
     const rows = data ?? []
@@ -193,14 +200,14 @@ async function handler(req, res) {
 
     const { data: mem, error: me } = await supabaseAdmin.from('memberships').select('*').in('client_id', chunk)
     if (me) {
-      sendJson(res, 400, { error: publicDbErrorMessage(me, 'trainer-pull') })
+      sendDbFail(res, me)
       return
     }
     memberships.push(...(mem ?? []))
 
     const { data: hc, error: he } = await supabaseAdmin.from('health_cards').select('*').in('client_id', chunk)
     if (he) {
-      sendJson(res, 400, { error: publicDbErrorMessage(he, 'trainer-pull') })
+      sendDbFail(res, he)
       return
     }
     health_cards.push(...(hc ?? []))
@@ -223,7 +230,7 @@ async function handler(req, res) {
       .gte('date', measurementsSinceIso)
       .order('date', { ascending: false })
     if (bme) {
-      sendJson(res, 400, { error: publicDbErrorMessage(bme, 'trainer-pull') })
+      sendDbFail(res, bme)
       return
     }
     for (const row of bm ?? []) {
@@ -253,7 +260,7 @@ async function handler(req, res) {
       .gte('date', weightSinceIso)
       .order('date', { ascending: false })
     if (wee) {
-      sendJson(res, 400, { error: publicDbErrorMessage(wee, 'trainer-pull') })
+      sendDbFail(res, wee)
       return
     }
     for (const row of we ?? []) {
@@ -284,7 +291,7 @@ async function handler(req, res) {
         .gte('date', dateFromIso)
         .order('date', { ascending: false })
       if (te) {
-        sendJson(res, 400, { error: publicDbErrorMessage(te, 'trainer-pull') })
+        sendDbFail(res, te)
         return
       }
       for (const row of tr ?? []) {
@@ -297,12 +304,19 @@ async function handler(req, res) {
     }
   }
 
+  // Нет таблицы — раздел пустой; временный сбой базы — весь ответ 503: планшет чистит кэш по этим спискам.
+  let busyErr = null
+  const noteBusy = (e) => {
+    if (e && !busyErr && isTransientDbError(e)) busyErr = e
+  }
+
   let outreach_templates = null
   if (trainerClubId) {
     try {
       const settings = await loadClubIskraSettings(supabaseAdmin, trainerClubId)
       outreach_templates = settings.outreach_templates ?? null
-    } catch {
+    } catch (e) {
+      noteBusy(e)
       outreach_templates = null
     }
   }
@@ -318,7 +332,9 @@ async function handler(req, res) {
       .order('occurred_at', { ascending: false })
       .limit(200)
     if (!evErr) pnk_funnel_events = evRows ?? []
-  } catch {
+    else noteBusy(evErr)
+  } catch (e) {
+    noteBusy(e)
     pnk_funnel_events = []
   }
 
@@ -336,8 +352,9 @@ async function handler(req, res) {
     if (!clipErr) {
       const { reconcileAndFilterAwaitingSaleClips } = await import('./_lib/saleClipsReconcile.js')
       sale_clips = await reconcileAndFilterAwaitingSaleClips(supabaseAdmin, clipRows ?? [])
-    }
-  } catch {
+    } else noteBusy(clipErr)
+  } catch (e) {
+    noteBusy(e)
     sale_clips = []
   }
 
@@ -351,7 +368,9 @@ async function handler(req, res) {
         .select('*')
         .in('client_id', chunk)
       if (!le) client_hall_lifecycle.push(...(life ?? []))
-    } catch {
+      else noteBusy(le)
+    } catch (e) {
+      noteBusy(e)
       /* таблица ещё не накачана */
     }
   }
@@ -368,7 +387,9 @@ async function handler(req, res) {
         .in('client_id', chunk)
         .gte('sent_at', plansSince)
       if (!pe) client_plans.push(...(plans ?? []))
-    } catch {
+      else noteBusy(pe)
+    } catch (e) {
+      noteBusy(e)
       /* миграция client_plans ещё не применена */
     }
   }
@@ -390,8 +411,14 @@ async function handler(req, res) {
     }
     const { data: schedRows, error: schedErr } = await schedQuery
     if (!schedErr) trainer_schedule_entries = schedRows ?? []
-  } catch {
+    else noteBusy(schedErr)
+  } catch (e) {
+    noteBusy(e)
     trainer_schedule_entries = []
+  }
+  if (busyErr) {
+    sendDbFail(res, busyErr)
+    return
   }
 
   sendJson(res, 200, {

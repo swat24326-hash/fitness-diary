@@ -267,6 +267,8 @@
 | место на диске | занято ≥ 95% | старые копии в `/var/backups/fitness-diary/`, журналы `journalctl --vacuum-size` |
 | «Копия базы: СВЕЖЕЙ НЕТ» | ночной `pg-backup` упал | `journalctl -t fd-pg-backup --since -2d`, запустить `sudo bash scripts/pg-backup-vm.sh` |
 | «Копия в хранилище: НЕ УШЛА» / «Пробное восстановление: НЕ ПРОШЛО» | бакет, права или пароль шифрования | `journalctl -t fd-pg-backup -t fd-pg-restore-drill --since -2d`; вручную `sudo bash scripts/pg-restore-drill-vm.sh` |
+| «Источники обновлений: не обновлялись N дн.» | `apt-get update` падает (источник Caddy / Node отвечает ошибкой) — обновления безопасности не приходят | `sudo apt-get update` — какой источник с ошибкой; временный сбой — пройдёт сам, долгий — сменить источник |
+| «Обновить вручную ночью: caddy … → …» / «нужна ночная перезагрузка ВМ» | справка, не авария: Caddy и Node сами не обновляются; Ubuntu ждёт перезагрузки после обновления | ночью, когда зал пуст: `sudo apt-get install --only-upgrade caddy`, `caddy validate --config /etc/caddy/Caddyfile`, проверить сайт; перезагрузка ВМ — ~1 мин простоя, только с «да» владельца |
 | «проверка снаружи: сайт не отвечает снаружи» (без сообщений сторожа ВМ) | ВМ лежит целиком или сеть до неё | консоль Yandex Cloud → Compute → `os-hybrid-staging`: статус; при Stopped — запустить (задача GrokBot) |
 
 Залу при «НЕ РАБОТАЕТ» ничего делать не нужно: тренировки сохраняются на планшете и уйдут при следующем Sync. Внешняя проверка — функция Yandex Cloud `app-core-uptime` ([RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md) 2b); при сбое всего Yandex Cloud молчат обе. Журнал сторожа: `journalctl -t fd-ops-alerts`.

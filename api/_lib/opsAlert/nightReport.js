@@ -62,10 +62,10 @@ export function lastDrill(lines) {
 }
 
 /**
- * @param {{ apiLines: string[], backupLines: string[], drillLines?: string[], cloudExpected?: boolean, state: import('./watchdogState.js').WatchdogState | null, diskUsedPct: number, now: number, label: string }} input
+ * @param {{ apiLines: string[], backupLines: string[], drillLines?: string[], cloudExpected?: boolean, updates?: { lines: string[], problem: boolean } | null, state: import('./watchdogState.js').WatchdogState | null, diskUsedPct: number, now: number, label: string }} input
  * @returns {{ text: string, problems: boolean }}
  */
-export function buildNightReport({ apiLines, backupLines, drillLines = [], cloudExpected = false, state, diskUsedPct, now, label }) {
+export function buildNightReport({ apiLines, backupLines, drillLines = [], cloudExpected = false, updates = null, state, diskUsedPct, now, label }) {
   const api = summarizeApiLog(apiLines)
   const backup = lastBackupOk(backupLines)
   const cloud = cloudExpected ? lastAfter(backupLines, 'pg-backup: облако ок') : null
@@ -74,7 +74,7 @@ export function buildNightReport({ apiLines, backupLines, drillLines = [], cloud
   const downNow = Object.entries(state?.checks ?? {}).filter(([, c]) => c.downSince != null)
   const problems =
     api.errors5xx > 0 || api.crashes > 0 || api.dbErrors > 0 || !backup || outages.length > 0 || downNow.length > 0 || diskUsedPct >= DISK_WARN_PCT ||
-    (cloudExpected && (!cloud || !drill?.ok))
+    (cloudExpected && (!cloud || !drill?.ok)) || Boolean(updates?.problem)
 
   const lines = [`${label}: сводка за сутки — ${problems ? 'ЕСТЬ ПРОБЛЕМЫ' : 'всё в порядке'}`]
   if (downNow.length) lines.push(`Сейчас не работает: ${downNow.map(([k]) => CHECK_LABELS_RU[k] ?? k).join(', ')}`)
@@ -94,5 +94,6 @@ export function buildNightReport({ apiLines, backupLines, drillLines = [], cloud
     else lines.push(drill.ok ? `Пробное восстановление: ок ${drill.text}` : `Пробное восстановление: НЕ ПРОШЛО ${drill.text}`)
   }
   lines.push(`Диск занят: ${Math.round(diskUsedPct)}%${diskUsedPct >= DISK_WARN_PCT ? ' — пора чистить или расширять' : ''}`)
+  if (updates) lines.push(...updates.lines)
   return { text: lines.join('\n'), problems }
 }

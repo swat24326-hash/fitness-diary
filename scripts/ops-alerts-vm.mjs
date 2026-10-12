@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import { getPgRestPool } from '../api/_lib/pgRest/pool.js'
 import { buildNightReport } from '../api/_lib/opsAlert/nightReport.js'
+import { buildServerUpdates } from '../api/_lib/opsAlert/serverUpdates.js'
 import { parseVkPeerIds, sendVkAlert, vkCall } from '../api/_lib/opsAlert/vkAlertSend.js'
 import { nextWatchdogState } from '../api/_lib/opsAlert/watchdogState.js'
 
@@ -54,6 +55,18 @@ function readState() {
   }
 }
 
+function readServerUpdates() {
+  let upgradableLines = []
+  try {
+    upgradableLines = execFileSync('apt', ['list', '--upgradable'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n')
+  } catch (e) {
+    console.error('ops-alerts: apt list', e?.message || e)
+  }
+  const aptStamp = fs.statSync('/var/lib/apt/periodic/update-success-stamp', { throwIfNoEntry: false })
+  const aptSuccessMs = aptStamp ? aptStamp.mtimeMs : null
+  return buildServerUpdates({ upgradableLines, aptSuccessMs, rebootRequired: fs.existsSync('/var/run/reboot-required'), now: Date.now() })
+}
+
 function journal(args) {
   return execFileSync('journalctl', [...args, '-o', 'cat', '--no-pager'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\n')
 }
@@ -88,6 +101,7 @@ try {
       backupLines: journal(['-t', 'fd-pg-backup', '--since', '26 hours ago']),
       drillLines: journal(['-t', 'fd-pg-restore-drill', '--since', '40 days ago']),
       cloudExpected: Boolean(String(process.env.PG_BACKUP_BUCKET ?? '').trim()),
+      updates: readServerUpdates(),
       state: readState(),
       diskUsedPct: diskUsedPct(),
       now: Date.now(),

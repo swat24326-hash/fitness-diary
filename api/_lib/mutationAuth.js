@@ -19,7 +19,7 @@ import {
 } from '../../src/lib/trainer/trainerPushClubBindingCore.js'
 import { assertChallengeClub } from '../../src/lib/challengePushClubCore.js'
 import { assertClientPlanPush } from '../../src/lib/clientPlans/clientPlanCore.js'
-import { logDbError } from './dbErrorPublicCore.js'
+import { isTransientDbError, logDbError } from './dbErrorPublicCore.js'
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -262,7 +262,7 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
     return { ok: false, error: 'Нет доступа' }
   } catch (e) {
     logDbError('push-auth', e)
-    return { ok: false, error: 'Ошибка проверки доступа' }
+    return { ok: false, error: 'Ошибка проверки доступа', transient: isTransientDbError(e) }
   }
 }
 
@@ -442,7 +442,7 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
     return { ok: false, error: 'Нет доступа' }
   } catch (e) {
     logDbError('push-auth', e)
-    return { ok: false, error: 'Ошибка проверки доступа' }
+    return { ok: false, error: 'Ошибка проверки доступа', transient: isTransientDbError(e) }
   }
 }
 
@@ -496,7 +496,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       return assertClientPlanPush({ op, isAdmin, isTrainer, userId: user.id, payload, client })
     } catch (e) {
       logDbError('push-auth', e)
-      return { ok: false, error: 'Ошибка проверки доступа' }
+      return { ok: false, error: 'Ошибка проверки доступа', transient: isTransientDbError(e) }
     }
   }
 
@@ -547,7 +547,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       return { ok: true }
     } catch (e) {
       logDbError('push-auth', e)
-    return { ok: false, error: 'Ошибка проверки доступа' }
+    return { ok: false, error: 'Ошибка проверки доступа', transient: isTransientDbError(e) }
     }
   }
 
@@ -819,6 +819,6 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     return { ok: false, error: 'Нет доступа' }
   } catch (e) {
     logDbError('push-auth', e)
-    return { ok: false, error: 'Ошибка проверки доступа' }
+    return { ok: false, error: 'Ошибка проверки доступа', transient: isTransientDbError(e) }
   }
 }

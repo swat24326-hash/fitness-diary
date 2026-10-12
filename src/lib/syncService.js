@@ -29,7 +29,7 @@ import { isDuplicateInsertError } from './syncFlushResult'
 import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
 import { stampTrainingUpdatedAt } from './trainingUpdatedAtCore.js'
 import { syncQueueSortKey, splitSyncPushWaves } from './syncQueuePriorityCore.js'
-import { judgeFlushDrain } from './syncFlushResult.js'
+import { isDeferrablePushFailure, judgeFlushDrain } from './syncFlushResult.js'
 
 export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave, judgeFlushDrain } from './syncFlushResult'
 
@@ -486,6 +486,11 @@ async function processOneSyncQueueItem(item) {
     local_id: item.local_id,
   })
   if (pushedViaApi.ok || pushedViaApi.dropped) return { ok: true }
+  if (isDeferrablePushFailure(pushedViaApi.status)) {
+    const busy = new Error(String(pushedViaApi.error ?? 'Сервер занят'))
+    busy.defer = true
+    throw busy
+  }
   if (isUnrecoverablePushError(pushedViaApi.status, pushedViaApi.error)) {
     await removeSyncItem(item.local_id)
     try {

@@ -46,6 +46,11 @@ export function isSyncQueueOrphanForCloudClients(item, remoteClientIds, pendingC
   return !!clientId && !ids.has(clientId)
 }
 
+/** Сервер занят / недоступен: запись ждёт следующего Sync, попытка не засчитывается (иначе 12 → снятие). */
+export function isDeferrablePushFailure(status) {
+  return [502, 503, 504].includes(Number(status))
+}
+
 export function isUnrecoverablePushError(status, message) {
   const code = Number(status)
   const msg = String(message ?? '').toLowerCase()

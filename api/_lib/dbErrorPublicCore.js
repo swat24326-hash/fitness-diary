@@ -26,6 +26,24 @@ const BY_CODE = {
 }
 
 export const DB_ERROR_PUBLIC_FALLBACK_RU = 'Ошибка базы данных — повторите или обратитесь к администратору'
+export const DB_BUSY_CODE = 'DB_BUSY'
+export const DB_BUSY_RU = 'Сервер занят — повторите через минуту'
+
+const TRANSIENT_NET_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'EAI_AGAIN', 'ENOTFOUND'])
+const TRANSIENT_MESSAGE_RE = /timeout exceeded when trying to connect|connection terminated|connection refused|connection error/i
+
+/**
+ * Сбой, который пройдёт сам: нет свободного соединения в пуле (нагрузка), обрыв связи с базой, перезапуск,
+ * нехватка ресурсов, таймаут запроса. Клиенту — 503 «повторите», не 400: очередь планшета не штрафует запись.
+ * @param {{ code?: unknown, message?: unknown } | null | undefined} e
+ */
+export function isTransientDbError(e) {
+  const code = String(e?.code ?? '')
+  if (code === DB_BUSY_CODE) return true
+  if (SQLSTATE_RE.test(code)) return ['08', '53'].includes(code.slice(0, 2)) || code === '57014' || code.startsWith('57P')
+  if (TRANSIENT_NET_CODES.has(code)) return true
+  return TRANSIENT_MESSAGE_RE.test(String(e?.message ?? ''))
+}
 
 /**
  * @param {{ code?: unknown, message?: unknown } | null | undefined} e
@@ -33,6 +51,9 @@ export const DB_ERROR_PUBLIC_FALLBACK_RU = 'Ошибка базы данных �
  */
 export function pgErrorPublic(e) {
   const code = e?.code != null && String(e.code) ? String(e.code) : 'PGRST000'
+  if (isTransientDbError(e)) {
+    return { status: 503, code: SQLSTATE_RE.test(code) ? code : DB_BUSY_CODE, message: BY_CODE[code]?.message ?? DB_BUSY_RU }
+  }
   const hit = BY_CODE[code]
   const constraint = hit ? CONSTRAINT_RE.exec(String(e?.message ?? ''))?.[1] : null
   const base = hit?.message ?? DB_ERROR_PUBLIC_FALLBACK_RU
@@ -66,6 +87,10 @@ export function pgErrorForServer(e) {
   const code = err?.code != null && String(err.code) ? String(err.code) : null
   const sqlstate = code && SQLSTATE_RE.test(code) ? code : null
   const raw = String(err?.message ?? '')
+  if (!sqlstate && isTransientDbError(err)) {
+    const pub = pgErrorPublic(err)
+    return { message: pub.message, code: pub.code, details: null, hint: null }
+  }
   const message =
     !sqlstate || INFRA_CLASSES.has(sqlstate.slice(0, 2)) || !raw
       ? pgErrorPublic({ code: sqlstate ?? undefined }).message
