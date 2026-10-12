@@ -61,16 +61,6 @@
   flex: none;
 }
 
-/* Шапка в одну строку: пустышка слева, «⋮» справа (обе 44px), дата по центру. */
-.coach-schedule .trainer-schedule-day__head {
-  flex-wrap: nowrap;
-  gap: 8px;
-}
-
-.coach-schedule .trainer-schedule-day__nav {
-  min-width: 0;
-}
-
 /* Узкий экран: без легенды цветов и подсказок — место отдаём часам. */
 .coach-schedule .trainer-schedule-day__empty,
 .coach-schedule .trainer-schedule-legend {

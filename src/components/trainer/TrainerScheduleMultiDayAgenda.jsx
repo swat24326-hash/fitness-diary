@@ -213,7 +213,7 @@ export function TrainerScheduleMultiDayAgenda({
       aria-label={`Расписание: ${title}`}
       ref={swipeAreaRef}
     >
-      <div className="trainer-schedule-day__head">
+      <div className={['trainer-schedule-day__head', headEnd ? 'trainer-schedule-day__head--with-end' : ''].filter(Boolean).join(' ')}>
         {headEnd ? <span className="trainer-schedule-day__head-spacer" aria-hidden /> : null}
         <div className="trainer-schedule-day__nav">
           {swipeNav ? null : (

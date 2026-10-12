@@ -392,6 +392,16 @@
   min-width: min(100%, 16rem);
 }
 
+/* Шапка с «⋮» — всегда одна строка (пустышка · дата · «⋮»), и на узком экране телефона тоже. */
+.trainer-schedule-day__head--with-end {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.trainer-schedule-day__head--with-end .trainer-schedule-day__nav {
+  min-width: 0;
+}
+
 .trainer-schedule-day__title {
   margin: 0;
   flex: 1;
@@ -515,6 +525,26 @@
 .trainer-schedule-day--edge-next .trainer-schedule-day__body::after {
   right: 0;
   background: linear-gradient(270deg, color-mix(in srgb, var(--accent) 45%, transparent), transparent);
+}
+
+/* Неделя на телефоне (приложение планшета на узком экране): «Пн» над «12.10» мелко, дата влезает в колонку. */
+@media (max-width: 520px) {
+  .trainer-schedule-day--week .trainer-schedule-day__col-head {
+    padding: 4px 0;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .trainer-schedule-day--week .trainer-schedule-day__col-wd,
+  .trainer-schedule-day--week .trainer-schedule-day__col-date {
+    display: block;
+  }
+
+  .trainer-schedule-day--week .trainer-schedule-day__col-date {
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.8;
+  }
 }
 
 .trainer-schedule-day--week .trainer-schedule-day__board {

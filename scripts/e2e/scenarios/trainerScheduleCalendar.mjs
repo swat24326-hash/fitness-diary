@@ -352,6 +352,29 @@ export async function run(browser) {
     await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 15_000 })
     c.ok(Math.round(await hourPx()) === 42, `масштаб запомнился после перезагрузки (${await hourPx()})`)
 
+    /* Приложение планшета, открытое на телефоне: «⋮» в одной строке с датой, не уезжает вниз. */
+    await page.setViewportSize({ width: 360, height: 740 })
+    await pickView(page, 'Неделя')
+    await page.locator('.trainer-schedule-day--week').waitFor({ timeout: 10_000 })
+    const headRow = await page.evaluate(() => {
+      const d = globalThis.document
+      const t = d.querySelector('.trainer-schedule-day__title')?.getBoundingClientRect()
+      const m = d.querySelector('.trainer-schedule-day__head .trainer-schedule-view-menu__toggle')?.getBoundingClientRect()
+      return t && m ? { dy: Math.abs(t.top + t.height / 2 - (m.top + m.height / 2)), right: m.right, vw: globalThis.innerWidth } : null
+    })
+    c.ok(
+      headRow && headRow.dy < 8 && headRow.right <= headRow.vw,
+      `телефон 360px: «⋮» в одной строке с датой (${JSON.stringify(headRow)})`,
+    )
+    const clippedDates = await page.evaluate(
+      () =>
+        [...globalThis.document.querySelectorAll('.trainer-schedule-day__col-heads .trainer-schedule-day__page:not([aria-hidden]) .trainer-schedule-day__col-date')].filter(
+          (el) => el.scrollWidth > el.parentElement.clientWidth + 1,
+        ).length,
+    )
+    c.ok(clippedDates === 0, `телефон 360px: даты в шапке недели не обрезаны (обрезано: ${clippedDates})`)
+    await screenshot(page, 'schedule-phone-narrow')
+
     c.ok(pageErrors.length === 0, `без ошибок JS на странице${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
     await screenshot(page, 'trainer-schedule-FAIL').catch(() => null)
