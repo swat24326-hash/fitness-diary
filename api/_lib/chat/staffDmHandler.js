@@ -1,7 +1,8 @@
 /**
  * Переписка сотрудник ↔ сотрудник: /api/coach (view=dm-thread, op dm-send) и admin-data?action=chat (те же view/op).
- * GET  dm-thread&user_id[&before] → { peer: { id, name, label }, can_write, messages, has_more, marked_read, peer_read_at }
- * POST { op: 'dm-send', user_id, body | sticker } → { message }
+ * GET  dm-thread&user_id[&before][&seen=0 — не отмечать прочитанным] → { peer: { id, name, label }, can_write, messages, has_more, marked_read, peer_read_at }
+ * POST { op: 'dm-send', user_id, body | sticker, reply_to? } → { message } (reply_to — ответ с цитатой, только на сообщение этого диалога)
+ * POST { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
  * Текст сообщений в лог не пишем.
  * Тренер, связанный с управляющим (linkedStaffStore), переписывается с коллегами от учётки управляющего.
  */
@@ -14,6 +15,9 @@ import {
   isChatSendLimited,
   normalizeClientMsgId,
 } from '../../../src/lib/chat/chatDeliveryCore.js'
+import { CHAT_REACTION_GONE_RU, chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
+import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
+import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
 import {
   STAFF_DM_NO_ACCESS_RU,
@@ -31,6 +35,8 @@ import {
 import { buildStaffContacts } from '../../../src/lib/chat/staffDmContactsCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { isLinkedPairIds, loadHiddenLinkedTrainers, staffDmCtx } from './linkedStaffStore.js'
+import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatReactionStore.js'
+import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { sendStaffDmPush } from './staffDmPushJob.js'
 import {
   countRecentDmMessages,
@@ -75,7 +81,7 @@ async function withDmTable(res, fn) {
   }
 }
 
-export function sendStaffDmThread(authCtx, res, peerId, before) {
+export function sendStaffDmThread(authCtx, res, peerId, before, seen) {
   return withDmTable(res, async () => {
     const ctx = await staffDmCtx(authCtx)
     const db = ctx.supabaseAdmin
@@ -99,11 +105,25 @@ export function sendStaffDmThread(authCtx, res, peerId, before) {
     const view = staffDmThreadForViewer(thread, viewer.id)
     const marked =
       !before &&
+      chatSeenFromRequest(seen) &&
       isChatUnreadFor('staff', view) &&
       (await markDmRead(db, thread, staffDmSideOf(thread, viewer.id), page.messages.at(-1)?.created_at))
+    const reactor = chatReactorKey('staff', viewer.id)
+    const [reactions, quoted] = await Promise.all([
+      loadReactionsFor(db, 'dm', page.messages.map((m) => m.id), reactor),
+      loadReplyTargets(db, 'dm', thread.id, page.messages),
+    ])
+    if (!before && chatSeenFromRequest(seen) && chatUnseenReaction('staff', view)) {
+      await markReactionSeen(db, 'dm', thread.id, `${staffDmSideOf(thread, viewer.id)}_reaction_seen_at`)
+    }
+    const toView = (m) => buildStaffDmMessageView(m, viewer.id)
     sendJson(res, 200, {
       ...meta,
-      messages: page.messages.map((m) => buildStaffDmMessageView(m, viewer.id)),
+      messages: page.messages.map((m) => ({
+        ...toView(m),
+        reply: chatReplyQuoteFor(m, quoted, toView, meta.peer.name),
+        reactions: reactions.get(String(m.id)) ?? [],
+      })),
       has_more: page.has_more,
       marked_read: marked,
       peer_read_at: chatPeerReadAt('staff', view),
@@ -138,18 +158,54 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
         return
       }
     }
+    const target = earlier ? null : await loadReplyTarget(db, 'dm', thread.id, input?.reply_to)
     const { message, duplicate } = earlier
       ? { message: earlier, duplicate: true }
-      : await insertDmMessage(db, thread, { authorId: viewer.id, body: checked.body, sticker: checked.sticker, clientMsgId })
+      : await insertDmMessage(db, thread, {
+          authorId: viewer.id,
+          body: checked.body,
+          sticker: checked.sticker,
+          clientMsgId,
+          replyTo: target?.id ?? null,
+        })
+    const quoted = await loadReplyTargets(db, 'dm', thread.id, [message])
+    const toView = (m) => buildStaffDmMessageView(m, viewer.id)
+    const view = { ...toView(message), reply: chatReplyQuoteFor(message, quoted, toView, String(peer.name ?? '').trim()), reactions: [] }
     if (duplicate) {
-      sendJson(res, 200, { message: buildStaffDmMessageView(message, viewer.id) })
+      sendJson(res, 200, { message: view })
       return
     }
     const authorName = String(ctx.profile?.name ?? '').trim()
     sendStaffDmPush(db, { recipientId: peer.id, authorId: viewer.id, authorName, body: checked.body }).catch((e) =>
       console.warn('[staff-dm-push]', e?.message || e),
     )
-    sendJson(res, 200, { message: buildStaffDmMessageView(message, viewer.id) })
+    sendJson(res, 200, { message: view })
+  })
+}
+
+/** Своя реакция на сообщение диалога; ставит тот, кто может писать собеседнику. */
+export function reactStaffDmMessage(authCtx, res, peerId, input) {
+  return withDmTable(res, async () => {
+    const ctx = await staffDmCtx(authCtx)
+    const db = ctx.supabaseAdmin
+    const viewer = viewerOf(ctx)
+    const peer = await loadPeer(ctx, res, peerId)
+    if (!peer) return
+    const access = await dmWriteAccess(db, viewer, peer)
+    if (!access.ok) {
+      sendJson(res, access.status, { error: access.error })
+      return
+    }
+    const thread = await loadDmThread(db, staffDmPair(viewer.id, peer.id))
+    const out = thread
+      ? await setMessageReaction(db, 'dm', {
+          threadId: thread.id,
+          messageId: input?.message_id,
+          reactor: chatReactorKey('staff', viewer.id),
+          emoji: input?.emoji,
+        })
+      : { status: 404, body: { error: CHAT_REACTION_GONE_RU } }
+    sendJson(res, out.status, out.body)
   })
 }
 

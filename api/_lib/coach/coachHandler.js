@@ -1,14 +1,15 @@
 /**
  * /api/coach — данные телефона тренера. Только пропуск 'coach' (requireCoachUser), только онлайн.
- * GET  ?view=me | schedule | chats | contacts | chat-thread&client_id[&kind=supervisor][&before] | push-status&endpoint
+ * GET  ?view=me | schedule | chats | contacts | chat-thread&client_id[&kind=supervisor][&before][&seen=0] | push-status&endpoint
  *      contacts — папки «Сообщений», клиенты с приложением сверху (chatContactsHandler.js)
  *      | dm-thread&user_id[&before] — переписка с коллегой / администрацией (staffDmHandler.js)
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
  *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
  * GET  ?manifest=<club uuid> — без пропуска: manifest с названием клуба (браузер шлёт его без токена).
- * POST { op: 'chat-send', client_id, kind?, body | sticker } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
+ * POST { op: 'chat-send', client_id, kind?, body | sticker, reply_to? } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
  *      | { op: 'push-prefs', endpoint, schedule_reminders? } — напоминания Ежедневника на этом телефоне
- *      | { op: 'dm-send', user_id, body | sticker } — сообщение коллеге / администрации
+ *      | { op: 'dm-send', user_id, body | sticker, reply_to? } — сообщение коллеге / администрации (reply_to — ответ с цитатой)
+ *      | { op: 'chat-react', client_id, kind?, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } — реакция
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
  *      | { op: 'schedule-save' | 'schedule-delete' | 'schedule-copies', ... } — правка Ежедневника
@@ -20,7 +21,7 @@ import { sendJson, setCors } from '../adminSupabase.js'
 import { loadInChunks } from '../batchCore.js'
 import { handleStaffChatGet, handleStaffChatPost } from '../chat/chatStaffHandler.js'
 import { sendChatContacts } from '../chat/chatContactsHandler.js'
-import { sendStaffDmMessage, sendStaffDmThread } from '../chat/staffDmHandler.js'
+import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmThread } from '../chat/staffDmHandler.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
 import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
@@ -96,10 +97,10 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'push-status') return sendPushStatus(ctx, req, res)
   if (view === 'chats') return handleStaffChatGet(ctx, { query: { view: 'list' } }, res)
   if (view === 'contacts') return sendChatContacts(ctx, res)
-  if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before)
+  if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
   if (view === 'chat-thread') {
-    const { client_id, before } = req.query ?? {}
-    return handleStaffChatGet(ctx, { query: { view: 'thread', kind: coachChatKind(req.query?.kind), client_id, before } }, res)
+    const { client_id, before, seen } = req.query ?? {}
+    return handleStaffChatGet(ctx, { query: { view: 'thread', kind: coachChatKind(req.query?.kind), client_id, before, seen } }, res)
   }
   sendJson(res, 400, { error: 'Неизвестный запрос' })
 }
@@ -110,9 +111,25 @@ async function handlePost(ctx, res, body, store) {
   if (COACH_SCHEDULE_WRITE_OPS.includes(op)) return handleCoachScheduleWrite(ctx, res, op, body)
   if (op === 'chat-send') {
     const kind = coachChatKind(body.kind)
-    return handleStaffChatPost(ctx, res, { op: 'send', kind, client_id: body.client_id, body: body.body, sticker: body.sticker, client_msg_id: body.client_msg_id })
+    return handleStaffChatPost(ctx, res, {
+      op: 'send',
+      kind,
+      client_id: body.client_id,
+      body: body.body,
+      sticker: body.sticker,
+      client_msg_id: body.client_msg_id,
+      reply_to: body.reply_to,
+    })
   }
-  if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body.user_id, { body: body.body, sticker: body.sticker, client_msg_id: body.client_msg_id })
+  if (op === 'chat-react') {
+    const kind = coachChatKind(body.kind)
+    return handleStaffChatPost(ctx, res, { op: 'react', kind, client_id: body.client_id, message_id: body.message_id, emoji: body.emoji })
+  }
+  if (op === 'dm-send') {
+    const { body: text, sticker, client_msg_id, reply_to } = body
+    return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, client_msg_id, reply_to })
+  }
+  if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body.user_id, { message_id: body.message_id, emoji: body.emoji })
   if (op === 'client-invite') {
     const out = await issueClientInvite(ctx, { client_id: body.client_id })
     return sendJson(res, out.status, out.body)

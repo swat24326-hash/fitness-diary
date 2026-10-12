@@ -26,7 +26,7 @@ export async function inboxApiCall(action, method, params, body) {
     throw new Error('Нет связи с сервером — проверьте интернет')
   }
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
+  if (!res.ok) throw Object.assign(new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`), { status: res.status })
   return data
 }
 

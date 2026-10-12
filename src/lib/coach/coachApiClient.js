@@ -1,4 +1,5 @@
 /** Запросы телефона тренера к /api/coach. Только онлайн — очередь sync и IndexedDB не трогаем. */
+import { chatSeenParam } from '../chat/chatSeenCore.js'
 import { buildClientJoinUrl } from '../client/clientJoinUrl.js'
 import { coachRequest } from './coachSession.js'
 
@@ -47,8 +48,8 @@ export async function createCoachClientInvite(clientId) {
 }
 
 /** Переписка с коллегой / администрацией. */
-export function fetchCoachDmThread(userId, before) {
-  return coachRequest({ view: 'dm-thread', user_id: userId, ...(before ? { before } : {}) })
+export function fetchCoachDmThread(userId, before, seen) {
+  return coachRequest({ view: 'dm-thread', user_id: userId, ...(before ? { before } : {}), ...chatSeenParam(seen) })
 }
 
 /** @param {{ body: string } | { sticker: string }} outgoing */
@@ -57,13 +58,22 @@ export function sendCoachDmMessage(userId, outgoing) {
 }
 
 /** kind 'supervisor' — «Жалобы и предложения» (только тренеру, связанному с управляющим). */
-export function fetchCoachChatThread(clientId, before, kind = 'trainer') {
-  return coachRequest({ view: 'chat-thread', client_id: clientId, kind, ...(before ? { before } : {}) })
+export function fetchCoachChatThread(clientId, before, kind = 'trainer', seen) {
+  return coachRequest({ view: 'chat-thread', client_id: clientId, kind, ...(before ? { before } : {}), ...chatSeenParam(seen) })
 }
 
 /** @param {{ body: string } | { sticker: string }} outgoing */
 export function sendCoachChatMessage(clientId, outgoing, kind = 'trainer') {
   return coachRequest({}, { op: 'chat-send', client_id: clientId, kind, ...outgoing })
+}
+
+/** emoji null — снять свою реакцию. */
+export function reactCoachChatMessage(clientId, messageId, emoji, kind = 'trainer') {
+  return coachRequest({}, { op: 'chat-react', client_id: clientId, kind, message_id: messageId, emoji })
+}
+
+export function reactCoachDmMessage(userId, messageId, emoji) {
+  return coachRequest({}, { op: 'dm-react', user_id: userId, message_id: messageId, emoji })
 }
 
 export const fetchCoachPushStatus = (endpoint) => coachRequest({ view: 'push-status', endpoint: endpoint || '' })

@@ -1,10 +1,13 @@
 /**
  * Переписка клиента через /api/client-me (токен клиента, только свои диалоги).
- * POST { action: 'chat-list' } | { action: 'chat-thread', kind, before? } (отмечает прочитанным) | { action: 'chat-send', kind, body }
+ * POST { action: 'chat-list' } | { action: 'chat-thread', kind, before?, seen? } (отмечает прочитанным; seen=0 — нет) | { action: 'chat-send', kind, body, reply_to? }
+ *      | { action: 'chat-react', kind, message_id, emoji|null } → { message_id, reactions }
  */
 import { sendJson } from '../adminSupabase.js'
 import { chatKindLabelRu, chatUnreadCount, clientChatAttention, clientChatKinds, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
-import { openChatThread, sendChatMessage } from './chatConversation.js'
+import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
+import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
+import { openChatThread, reactChatMessage, sendChatMessage } from './chatConversation.js'
 import { isMissingChatTable, loadClientThreads, loadStaffNames } from './chatStore.js'
 
 const UNAVAILABLE_RU = 'Сообщения пока недоступны — попробуйте позже'
@@ -34,6 +37,7 @@ async function listThreads(db, client) {
       last_author: t?.last_author ?? null,
       unread: isChatUnreadFor('client', t),
       unread_count: chatUnreadCount('client', t),
+      reaction: chatUnseenReaction('client', t),
     }
   })
   return { threads, attention: threads.filter((t) => t.unread).length }
@@ -53,14 +57,35 @@ export async function handleClientChatPost(db, ctx, body, res) {
     }
     if (body.action === 'chat-thread') {
       const [page, names] = await Promise.all([
-        openChatThread(db, { client, kind, side: 'client', before: body.before }),
+        openChatThread(db, {
+          client,
+          kind,
+          side: 'client',
+          reactor: chatReactorKey('client', client.id),
+          before: body.before,
+          markRead: chatSeenFromRequest(body.seen),
+        }),
         kind === 'trainer' ? loadStaffNames(db, [client.trainer_id]) : new Map(),
       ])
       sendJson(res, 200, { ...page, kind, name: names.get(String(client.trainer_id ?? '')) ?? '' })
       return
     }
     if (body.action === 'chat-send') {
-      const out = await sendChatMessage(db, { client, kind, side: 'client', body: body.body, sticker: body.sticker, clientMsgId: body.client_msg_id })
+      const out = await sendChatMessage(db, {
+        client,
+        kind,
+        side: 'client',
+        body: body.body,
+        sticker: body.sticker,
+        clientMsgId: body.client_msg_id,
+        replyTo: body.reply_to,
+      })
+      sendJson(res, out.status, out.body)
+      return
+    }
+    if (body.action === 'chat-react') {
+      const reactor = chatReactorKey('client', client.id)
+      const out = await reactChatMessage(db, { client, kind, reactor, messageId: body.message_id, emoji: body.emoji })
       sendJson(res, out.status, out.body)
       return
     }

@@ -119,7 +119,7 @@ async function clientMeRequest(init = {}, failRu) {
     clearClientSession()
     throw new ClientSessionGoneError(data?.error)
   }
-  if (!res.ok) throw new Error(data?.error || failRu)
+  if (!res.ok) throw Object.assign(new Error(data?.error || failRu), { status: res.status })
   return data
 }
 

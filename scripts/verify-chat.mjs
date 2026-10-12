@@ -16,14 +16,16 @@ import {
 } from '../src/lib/chat/chatAccessCore.js'
 import {
   buildChatMessageView,
+  chatLengthCounter,
+  chatPasteCut,
   chatPreview,
-  chatTextParts,
   chatTimeRu,
   chronological,
   mergeChatMessages,
   normalizeChatBody,
   CHAT_BODY_MAX,
 } from '../src/lib/chat/chatMessageCore.js'
+import { chatTextParts } from '../src/lib/chat/chatTextLinksCore.js'
 import {
   chatInitials,
   chatStaffReadOnlyRu,
@@ -32,7 +34,7 @@ import {
   chatUnreadBadge,
 } from '../src/lib/chat/chatUiCore.js'
 import { buildChatFeed, chatDayLabelRu, isEmojiOnly } from '../src/lib/chat/chatFeedCore.js'
-import { CHAT_EMOJI_SETS, CHAT_RECENT_MAX, insertEmoji, pushRecentEmoji } from '../src/lib/chat/chatEmojiCore.js'
+import { CHAT_EMOJI_SETS, insertEmoji } from '../src/lib/chat/chatEmojiCore.js'
 import { chatPeerReadAt, chatUnreadCount } from '../src/lib/chat/chatAccessCore.js'
 import {
   CHAT_STICKERS,
@@ -144,6 +146,9 @@ ok(
 )
 ok(chatTextParts('без ссылок').length === 1 && !chatTextParts('без ссылок')[0].href, 'текст без ссылок — один кусок')
 ok(!chatTextParts('javascript:alert(1)').some((p) => p.href), 'не http(s) — не ссылка')
+ok(chatLengthCounter(1799) === '' && chatLengthCounter(1950) === `1950 / ${CHAT_BODY_MAX}`, 'счётчик символов — только у предела')
+ok(chatPasteCut(1900, 0, 101) && !chatPasteCut(1900, 0, 100), 'вставка сверх лимита — подсказка, ровно до лимита — нет')
+ok(!chatPasteCut(1990, 500, 400), 'вставка поверх выделенного: выделенное заменится — влезает')
 
 // --- подписи
 ok(chatThreadTitleRu('trainer', 'Анна') === 'Тренер · Анна' && chatThreadTitleRu('sales', '') === 'Менеджер по продажам', 'заголовок диалога')
@@ -199,10 +204,6 @@ const ins = insertEmoji('Привет мир', 7, 7, '👋')
 ok(ins.text === 'Привет 👋мир' && ins.caret === 7 + '👋'.length, 'смайлик в позицию курсора')
 ok(insertEmoji('abc', 1, 2, '🔥').text === 'a🔥c', 'смайлик заменяет выделение')
 ok(insertEmoji('abc', undefined, undefined, '🔥').text === 'abc🔥', 'без курсора — в конец')
-const recent = pushRecentEmoji(['😀', '👍'], '👍')
-ok(recent.join() === '👍,😀', 'недавние: повтор поднимается первым')
-ok(pushRecentEmoji(Array.from({ length: 40 }, (_, i) => String(i)), 'x').length === CHAT_RECENT_MAX, 'недавних не больше лимита')
-
 // --- стикеры
 ok(CHAT_STICKERS.length >= 10 && new Set(CHAT_STICKERS.map((s) => s.id)).size === CHAT_STICKERS.length, 'стикеры: набор без повторов')
 ok(CHAT_STICKERS.every((s) => /^[a-z0-9-]{1,32}$/.test(s.id) && s.label), 'id стикера проходит CHECK в базе, подпись есть')

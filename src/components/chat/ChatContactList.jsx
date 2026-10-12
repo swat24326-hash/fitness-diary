@@ -48,6 +48,7 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite }) {
               unread={c.unread}
               unreadCount={c.unread_count}
               at={c.last_message_at}
+              reaction={c.reaction}
               tail={dim && !c.has_thread && onInvite ? <span className="chat-contacts__invite-tag">Пригласить</span> : null}
             />
           )

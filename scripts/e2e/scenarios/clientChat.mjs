@@ -8,7 +8,7 @@ import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeClientPortal } from '../lib/fakeClientPortal.mjs'
 import { ORIGIN, chatComposeAtBottom, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
-import { CLIENT_ID, CLIENT_NAME, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, completedTodaySeed, isoDay } from '../lib/fixtures.mjs'
+import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, completedTodaySeed, isoDay } from '../lib/fixtures.mjs'
 
 export const name = 'переписка: клиент пишет, тренер отвечает'
 
@@ -23,7 +23,7 @@ const TABLET = { viewport: { width: 1180, height: 820 }, hasTouch: true }
 const INVITE = 'e2e-chat-invite'
 const WB = 'https://www.wildberries.ru/catalog/123456/detail.aspx'
 const QUESTION = `Посмотрите резинку ${WB}, подойдёт?`
-const REPLY = 'Подойдёт, берите среднюю жёсткость'
+const REPLY = 'Подойдёт, берите среднюю жёсткость или ozon.ru/t/abc, вопросы — 8 999 123-45-67'
 
 /** Подменяет Web Audio счётчиком: сколько тонов сыграли звуки переписки. */
 async function spySounds(page) {
@@ -67,6 +67,15 @@ function reaches(locator, state = 'visible') {
     .waitFor({ state, timeout: 10_000 })
     .then(() => true)
     .catch(() => false)
+}
+
+/** Ответ сервера приходит после мгновенного показа — ждём, а не смотрим сразу. */
+async function eventually(check) {
+  for (let i = 0; i < 50; i += 1) {
+    if (check()) return true
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  return false
 }
 
 function wireClient(backend, chat) {
@@ -113,6 +122,10 @@ async function clientWrites(c, browser, backend, chat) {
     c.ok(chat.state.messages[0]?.body === QUESTION && chat.state.messages[0]?.author_side === 'client', 'на сервер ушло сообщение клиента')
     c.ok(await chatComposeAtBottom(page), 'поле ввода у нижнего края экрана')
     c.ok((await page.getByTestId('chat-input').inputValue()) === '', 'поле ввода очищено после отправки')
+    c.ok(!(await page.getByTestId('chat-counter').isVisible()), 'короткий текст — счётчика символов нет')
+    await page.getByTestId('chat-input').fill('я'.repeat(1950))
+    c.ok((await page.getByTestId('chat-counter').innerText()) === '1950 / 2000', 'у предела — счётчик «1950 / 2000»')
+    await page.getByTestId('chat-input').fill('')
     c.ok((await tones(page)) > 0, 'клиент: звук отправки (у клиента звуки включены по умолчанию)')
     await page.getByTestId('chat-emoji-toggle').click()
     const picker = page.getByTestId('chat-emoji-picker')
@@ -130,6 +143,13 @@ async function clientWrites(c, browser, backend, chat) {
     c.ok(await reaches(lottieSvg), 'крупный смайлик — анимация Lottie, как в Telegram')
     c.ok(((await lottieSvg.boundingBox())?.width ?? 0) >= 120, 'анимация во всю рамку (128px)')
     c.ok(!(await picker.isVisible()), 'после отправки панель смайликов закрылась')
+    await page.getByTestId('chat-emoji-toggle').click()
+    const frequentTab = picker.getByRole('tab', { name: 'Часто используемые' })
+    c.ok((await frequentTab.getAttribute('aria-selected')) === 'true', 'панель открывается на «Часто используемые»')
+    const frequent = picker.getByRole('tabpanel', { name: 'Часто используемые' }).locator('.chat-emoji__item')
+    c.ok((await frequent.first().getAttribute('aria-label')) === '💪' && (await frequent.count()) === 24, 'отправленный 💪 — первым, вкладка заполнена (24)')
+    await screenshot(page, 'client-chat-emoji-frequent')
+    await page.getByTestId('chat-emoji-toggle').click()
     c.ok(await reaches(page.locator('.chat-day', { hasText: 'Сегодня' })), 'плашка дня «Сегодня»')
     await screenshot(page, 'client-chat-sent')
   } catch (e) {
@@ -173,13 +193,40 @@ async function trainerReplies(c, browser, backend, chat) {
     c.ok(Boolean(await popup.catch(() => null)) && (await reaches(ask, 'hidden')), '«Открыть» — сайт в новой вкладке')
     for (const p of context.pages()) if (p !== page) await p.close()
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения клуба', exact: true })), 'открыл диалог — конверт без числа')
+    const question = page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: 'Посмотрите резинку' })
+    await question.click({ button: 'right', position: { x: 12, y: 8 } })
+    const menu = page.getByTestId('chat-react-menu')
+    c.ok(await reaches(menu), 'правая кнопка (на телефоне — долгое нажатие) по сообщению — меню реакций')
+    c.ok((await menu.getByRole('menuitem').count()) === 8, 'в меню 6 реакций, «Ответить» и «Копировать»')
+    await screenshot(page, 'staff-chat-react-menu')
+    await menu.getByRole('menuitem', { name: 'Реакция ❤️' }).click()
+    c.ok(await reaches(question.getByRole('button', { name: /^Убрать реакцию ❤️/ })), 'под сообщением клиента — плашка ❤️ тренера')
+    c.ok(
+      await eventually(() => chat.state.reactions.some((r) => r.emoji === '❤️' && r.reactor === `u:${TRAINER_ID}`)),
+      'на сервер ушла реакция от имени тренера',
+    )
+    c.ok(await reaches(page.getByTestId('chat-react-menu'), 'hidden'), 'после выбора меню закрылось')
+    const clientName = backend.state.clients.find((x) => x.id === CLIENT_ID)?.name
+    await question.click({ button: 'right', position: { x: 12, y: 8 } })
+    await page.getByTestId('chat-react-menu').getByRole('menuitem', { name: 'Ответить' }).click()
+    const draft = page.getByTestId('chat-reply-draft')
+    c.ok(await reaches(draft.getByText(`Ответ ${clientName}`)), '«Ответить» — над полем «Ответ <клиент>» и цитата, как в Telegram')
+    c.ok(await reaches(draft.getByText(/Посмотрите резинку/)), 'в полоске — начало сообщения клиента')
+    c.ok(await page.getByTestId('chat-input').evaluate((el) => el === el.ownerDocument.activeElement), 'курсор сразу в поле ввода')
     await page.getByTestId('chat-input').fill(REPLY)
+    await screenshot(page, 'staff-chat-reply-draft')
     await page.getByTestId('chat-send').click()
-    c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: REPLY })), 'ответ тренера в ленте')
+    const sent = page.locator('.chat-msg--mine', { hasText: REPLY })
+    c.ok(await reaches(sent), 'ответ тренера в ленте')
+    c.ok(await reaches(sent.getByTestId('chat-reply-quote').getByText(clientName)), 'над ответом — цитата с именем клиента')
+    c.ok(await reaches(draft, 'hidden'), 'отправил — полоска «Ответ» исчезла')
     const saved = chat.state.messages.at(-1)
     c.ok(saved?.author_side === 'staff' && saved?.author_user_id === TRAINER_ID, 'на сервер ушёл ответ от имени тренера')
+    const asked = chat.state.messages.find((m) => m.author_side === 'client' && String(m.body).startsWith('Посмотрите резинку'))
+    c.ok(saved?.reply_to === asked?.id, 'на сервере ответ помнит, на какое сообщение')
     c.ok((await tones(page)) === 0, 'планшет молчит: у сотрудника звуки выключены по умолчанию')
     await page.getByTestId('chat-emoji-toggle').click()
+    await page.getByTestId('chat-emoji-picker').getByRole('tab', { name: 'Стикеры' }).click()
     await screenshot(page, 'staff-chat-stickers')
     await page.getByRole('button', { name: 'Отправить стикер «Отличная работа»' }).click()
     c.ok(await reaches(page.locator('.chat-msg--mine.chat-msg--sticker').getByRole('img', { name: 'Стикер: Отличная работа' })), 'стикер тренера в ленте')
@@ -188,6 +235,11 @@ async function trainerReplies(c, browser, backend, chat) {
     await page.getByTestId('chat-emoji-toggle').click()
     await screenshot(page, 'staff-chat-thread')
     c.ok(pageErrors.length === 0, `без ошибок JS у тренера${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
+    const foreign = { id: 'e2e00000-0000-4000-8000-0000000000f9', name: 'Чужой Клиент', club_id: CLUB_ID, trainer_id: 'e2e-other-trainer' }
+    backend.state.clients.push(foreign)
+    await page.goto(`${ORIGIN}/messages/chat/${foreign.id}/trainer`)
+    c.ok(await reaches(page.getByRole('link', { name: 'К диалогам' })), 'чужой клиент: «Нет доступа» — кнопка «К диалогам», а не бесполезный «Повторить»')
+    backend.state.clients.pop()
   } catch (e) {
     await screenshot(page, 'staff-chat-FAIL').catch(() => null)
     c.ok(false, `тренер: сценарий прерван: ${e.message.split('\n')[0]}`)
@@ -196,20 +248,75 @@ async function trainerReplies(c, browser, backend, chat) {
   }
 }
 
-async function clientReads(c, browser, backend) {
+async function clientReads(c, browser, backend, chat) {
   const context = await newE2eContext(browser, backend, IPHONE)
   const page = await context.newPage()
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
     await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения: новых 1' })), 'клиент: на вкладке «Сообщения» /me — 1 новое')
-    await page.goto(`${ORIGIN}/me/chat/trainer`)
+    await page.goto(`${ORIGIN}/me/inbox`)
+    const trainerRow = page.getByRole('link', { name: /^Тренер · / })
+    c.ok(await reaches(trainerRow.getByTestId('chat-row-reaction')), 'список диалогов: значок ❤️ — тренер отреагировал на сообщение')
+    await screenshot(page, 'client-chat-list-reaction')
+    await trainerRow.click()
+    await page.waitForURL(`${ORIGIN}/me/chat/trainer`)
     const reply = page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: REPLY })
     c.ok(await reaches(reply), 'клиент видит ответ тренера')
     const trainerName = backend.state.users.find((u) => u.id === TRAINER_ID)?.name
     c.ok(await reaches(reply.getByText(trainerName)), 'у ответа подписано имя тренера')
+    c.ok((await reply.locator('a', { hasText: 'ozon.ru/t/abc' }).getAttribute('href')) === 'https://ozon.ru/t/abc', 'сайт без https:// в ответе — кликабелен')
+    const tel = reply.locator('a', { hasText: '8 999 123-45-67' })
+    c.ok((await tel.getAttribute('href')) === 'tel:+79991234567' && !(await tel.getAttribute('target')), 'телефон в ответе — звонок, без новой вкладки')
     c.ok(await reaches(page.locator('.chat-msg--mine .chat-msg__tick.is-read').first()), 'свои сообщения с двумя галочками — тренер прочитал')
     c.ok(await reaches(page.getByRole('img', { name: 'Стикер: Отличная работа' })), 'клиент видит стикер тренера')
+    const mineQuestion = page.locator('.chat-msg--mine', { hasText: 'Посмотрите резинку' })
+    const heart = mineQuestion.getByRole('button', { name: /^Поставить ❤️/ })
+    c.ok(await reaches(heart), 'клиент видит ❤️ тренера под своим сообщением')
+    c.ok((await heart.getAttribute('title')) === trainerName, 'по наведению (на телефоне — удержанию) видно, кто поставил')
+    await heart.click({ button: 'right' })
+    c.ok(await reaches(mineQuestion.getByRole('tooltip', { name: trainerName })), 'удержание плашки — подсказка с именем тренера')
+
+    const quote = reply.getByTestId('chat-reply-quote')
+    c.ok(await reaches(quote.getByText('Вы', { exact: true })), 'клиент видит цитату своего вопроса над ответом тренера («Вы»)')
+    await quote.click()
+    c.ok(await reaches(page.locator('.chat-msg.is-flash', { hasText: 'Посмотрите резинку' })), 'нажал цитату — исходное сообщение подсвечено')
+
+    const replyBody = reply.locator('.chat-msg__body')
+    const box = await replyBody.boundingBox()
+    await replyBody.dblclick({ position: { x: 8, y: Math.round(box.height - 12) } })
+    const thumb = reply.getByRole('button', { name: /^Убрать реакцию 👍/ })
+    c.ok(await reaches(thumb), 'двойной тап по сообщению — сразу 👍, как в Telegram')
+    c.ok(await reaches(reply.locator('.chat-reactions__burst')), 'новая реакция — «взрыв» анимированного смайлика')
+    await screenshot(page, 'client-chat-reactions')
+
+    await reply.click({ button: 'right', position: { x: 12, y: 8 } })
+    const menu = page.getByTestId('chat-react-menu')
+    await menu.getByRole('button', { name: 'Все смайлики' }).click()
+    c.ok(await reaches(page.getByTestId('chat-react-all')), 'стрелка «ещё» — весь набор смайликов')
+    await screenshot(page, 'client-chat-react-all')
+    await menu.getByRole('menuitem', { name: 'Реакция 🍕' }).click()
+    const pizza = reply.getByRole('button', { name: /^Убрать реакцию 🍕/ })
+    c.ok((await reaches(pizza)) && !(await thumb.isVisible()), 'выбрал из набора 🍕 — заменила 👍 (одна реакция от человека)')
+    c.ok(await eventually(() => chat.state.reactions.some((r) => r.reactor.startsWith('c:') && r.emoji === '🍕')), 'на сервере у клиента 🍕')
+    await pizza.click()
+    c.ok(await reaches(reply.getByTestId('chat-reactions'), 'hidden'), 'тап по своей плашке — реакция снята')
+    c.ok(await eventually(() => !chat.state.reactions.some((r) => r.reactor.startsWith('c:'))), 'на сервере реакции клиента больше нет')
+
+    await reply.click({ button: 'right', position: { x: 12, y: 8 } })
+    await page.getByTestId('chat-react-menu').getByRole('menuitem', { name: 'Ответить' }).click()
+    const draft = page.getByTestId('chat-reply-draft')
+    c.ok(await reaches(draft.getByText(`Ответ ${trainerName}`)), 'клиент: «Ответить» — над полем «Ответ <тренер>»')
+    await page.getByTestId('chat-input').press('Escape')
+    c.ok(await reaches(draft, 'hidden'), 'Esc — передумал отвечать, полоска исчезла')
+    await reply.click({ button: 'right', position: { x: 12, y: 8 } })
+    await page.getByTestId('chat-react-menu').getByRole('menuitem', { name: 'Ответить' }).click()
+    await page.getByTestId('chat-input').fill('Спасибо, беру!')
+    await page.getByTestId('chat-send').click()
+    const thanks = page.locator('.chat-msg--mine', { hasText: 'Спасибо, беру!' })
+    c.ok(await reaches(thanks.getByTestId('chat-reply-quote').getByText(trainerName)), 'ответ клиента — с цитатой тренера')
+    const reqReply = chat.state.messages.at(-1)
+    c.ok(reqReply?.author_side === 'client' && reqReply?.reply_to === chat.state.messages.find((m) => m.body === REPLY)?.id, 'на сервере ответ клиента помнит сообщение тренера')
     await screenshot(page, 'client-chat-reply')
   } catch (e) {
     await screenshot(page, 'client-chat-read-FAIL').catch(() => null)
@@ -227,6 +334,6 @@ export async function run(browser) {
   await clientWrites(c, browser, backend, chat)
   await trainerReplies(c, browser, backend, chat)
   wireClient(backend, chat)
-  await clientReads(c, browser, backend)
+  await clientReads(c, browser, backend, chat)
   return c.failures
 }

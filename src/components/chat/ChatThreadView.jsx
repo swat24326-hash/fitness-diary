@@ -10,7 +10,11 @@ import { attachChatStickToBottom, chatNewMessageAction, scrollChatToEnd } from '
  *   messages: object[]|null, hasMore: boolean, onLoadOlder: () => void, peerReadAt?: string|null,
  *   onSubmit: (body: string) => Promise<boolean>, sending: boolean, sendError: string,
  *   canWrite?: boolean, readOnlyHint?: string, emptyHint: string, placeholder?: string,
+ *   onAtBottom?: (atBottom: boolean) => void, onReact?: (messageId: string, emoji: string) => void,
+ *   reply?: { to: object|null, start: (message: object) => void, cancel: () => void },
  * }} props
+ * reply — «Ответить» с цитатой (useChatThread().reply)
+ * onAtBottom — внизу ли человек: «прочитано» ставим, только когда новое на экране (useChatThread)
  */
 export function ChatThreadView({
   messages,
@@ -24,13 +28,18 @@ export function ChatThreadView({
   readOnlyHint = '',
   emptyHint,
   placeholder = 'Сообщение',
+  onAtBottom,
+  onReact,
+  reply,
 }) {
   const endRef = useRef(null)
   const atBottomRef = useRef(true)
+  const onAtBottomRef = useRef(onAtBottom)
   const shownLastIdRef = useRef(undefined)
   const [newBelow, setNewBelow] = useState(false)
   const last = messages?.[messages.length - 1]
   const lastId = last?.id
+  onAtBottomRef.current = onAtBottom
 
   useEffect(
     () =>
@@ -38,6 +47,7 @@ export function ChatThreadView({
         onChange: (atBottom) => {
           atBottomRef.current = atBottom
           if (atBottom) setNewBelow(false)
+          onAtBottomRef.current?.(atBottom)
         },
       }),
     [],
@@ -81,7 +91,12 @@ export function ChatThreadView({
             <p>{emptyHint}</p>
           </div>
         ) : null}
-        <ChatFeed messages={messages ?? []} peerReadAt={peerReadAt} />
+        <ChatFeed
+          messages={messages ?? []}
+          peerReadAt={peerReadAt}
+          onReact={canWrite ? onReact : undefined}
+          onReply={canWrite ? reply?.start : undefined}
+        />
         <div ref={endRef} />
       </div>
 
@@ -92,6 +107,8 @@ export function ChatThreadView({
           sendError={sendError}
           placeholder={placeholder}
           above={newBelowButton}
+          replyTo={reply?.to ?? null}
+          onCancelReply={reply?.cancel}
         />
       ) : readOnlyHint ? (
         <>

@@ -11,6 +11,7 @@ import { createFakeCoach } from '../lib/fakeCoach.mjs'
 import { ORIGIN, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 import { coachPushUrl } from '../../../src/lib/push/pushTargetUrlCore.js'
+import { staffDmSideOf } from '../../../src/lib/chat/staffDmAccessCore.js'
 
 export const name = 'переписка сотрудников: тренер ↔ управляющий'
 
@@ -169,18 +170,22 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
     /* Читает историю выше, а собеседник ответил — лента не прыгает вниз, появляется «↓ Новые». */
     await page.evaluate(() => globalThis.scrollTo(0, 0))
     await page.waitForTimeout(200)
-    const peerMsg = chat.state.dm.messages.find((m) => m.author_user_id === SUP_ID)
-    chat.state.dm.messages.push({ ...peerMsg, id: 'dmm-late', body: 'Пока ты листал', created_at: new Date(Date.now() + 60_000).toISOString() })
+    const sup = backend.state.users.find((u) => u.id === SUP_ID)
+    chat.staff({ method: 'POST', searchParams: new URLSearchParams({ action: 'chat' }), body: { op: 'dm-send', user_id: TRAINER_ID, body: 'Пока ты листал' } }, sup)
+    const dmThread = chat.state.dm.threads.find((t) => staffDmSideOf(t, TRAINER_ID) && staffDmSideOf(t, SUP_ID))
+    const trainerUnread = () => dmThread[`${staffDmSideOf(dmThread, TRAINER_ID)}_unread`]
     await page.evaluate(() =>
       globalThis.navigator.serviceWorker.dispatchEvent(new globalThis.MessageEvent('message', { data: { type: 'push-received' } })),
     )
     const newBelow = page.getByTestId('chat-new-below')
     c.ok(await reaches(newBelow), 'читает историю, пришёл ответ — кнопка «↓ Новые»')
     c.ok((await page.evaluate(() => globalThis.scrollY)) < 50, 'лента не дёрнулась вниз, пока читает историю')
+    c.ok(trainerUnread() === 1, 'новое ещё не на экране — «прочитано» не поставлено, у управляющей без ✓✓')
     await screenshot(page, 'staff-dm-new-below')
     await newBelow.click()
     c.ok(await reaches(page.getByTestId('chat-new-below'), 'hidden'), '«↓ Новые» — вниз к ответу, кнопка исчезла')
     await page.waitForTimeout(800)
+    c.ok(trainerUnread() === 0, 'долистал до нового — «прочитано» поставлено сразу, без ожидания опроса')
     const lateBox = await page.locator('.chat-msg', { hasText: 'Пока ты листал' }).boundingBox()
     const composeTop = await page.evaluate(() => globalThis.document.querySelector('.chat-compose').getBoundingClientRect().top)
     c.ok(lateBox && lateBox.y + lateBox.height <= composeTop + 1, 'новое сообщение видно над полем ввода')

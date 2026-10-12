@@ -3,6 +3,7 @@
  * В папке по умолчанию все люди: с приложением — ярко и сверху, без — тускло и ниже. Без React и базы.
  */
 import { chatUnreadCount, isChatUnreadFor } from './chatAccessCore.js'
+import { chatUnseenReaction } from './chatReactionCore.js'
 
 export const CHAT_FOLDER_CLIENTS = 'clients'
 export const CHAT_FOLDER_COLLEAGUES = 'colleagues'
@@ -25,13 +26,14 @@ export function chatFolderLabelRu(folder, viewerRole) {
  * @param {object | null | undefined} thread строка chat_threads / staff_dm_threads, приведённая к виду staff
  */
 export function threadSummary(thread) {
-  if (!thread) return { last_preview: '', last_author: null, last_message_at: null, unread: false, unread_count: 0 }
+  if (!thread) return { last_preview: '', last_author: null, last_message_at: null, unread: false, unread_count: 0, reaction: null }
   return {
     last_preview: String(thread.last_preview ?? ''),
     last_author: thread.last_author ?? null,
     last_message_at: thread.last_message_at ?? null,
     unread: isChatUnreadFor('staff', thread),
     unread_count: chatUnreadCount('staff', thread),
+    reaction: chatUnseenReaction('staff', thread),
   }
 }
 

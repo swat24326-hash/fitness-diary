@@ -13,14 +13,17 @@ export function CoachStatus({ icon: Icon, spin = false, title, hint, children })
 }
 
 /** Загрузка или ошибка с «Повторить»; null — данные готовы. */
-export function CoachLoadState({ status, error, onRetry }) {
+/** action — своя кнопка вместо «Повторить» (диалог без доступа — «К диалогам»). */
+export function CoachLoadState({ status, error, onRetry, action = null }) {
   if (status === 'loading') return <CoachStatus icon={RefreshCw} spin title="Загружаем…" />
   if (status !== 'error') return null
   return (
     <CoachStatus icon={WifiOff} title="Не загрузилось" hint={error}>
-      <button type="button" className="btn btn-secondary btn-touch" onClick={onRetry}>
-        Повторить
-      </button>
+      {action ?? (
+        <button type="button" className="btn btn-secondary btn-touch" onClick={onRetry}>
+          Повторить
+        </button>
+      )}
     </CoachStatus>
   )
 }

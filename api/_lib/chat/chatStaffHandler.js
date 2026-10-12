@@ -3,8 +3,10 @@
  * GET  view=list → { threads, attention } (attention — ещё и личные диалоги сотрудников, ждущие ответа)
  * GET  view=contacts → папки «Клиенты · Коллеги · Администрация» (chatContactsHandler.js)
  * GET  view=dm-thread&user_id / POST { op: 'dm-send', user_id } — переписка сотрудников (staffDmHandler.js)
- * GET  view=thread&client_id&kind[&before] → { client, kind, can_write, messages, has_more } (отмечает прочитанным)
+ * GET  view=thread&client_id&kind[&before][&seen=0] → { client, kind, can_write, messages, has_more } (отмечает прочитанным; seen=0 — нет)
  * POST { op: 'send', client_id, kind, body } → { message }
+ * POST { op: 'react', client_id, kind, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
+ *      (реакцию ставит тот, кто может писать в диалог)
  * Тренер, связанный с управляющим (linkedStaffStore), ведёт «Жалобы и предложения» (kind supervisor) от учётки управляющего.
  */
 import { sendJson } from '../adminSupabase.js'
@@ -20,10 +22,12 @@ import {
   isStaffChatUnread,
 } from '../../../src/lib/chat/chatAccessCore.js'
 import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
+import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
+import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
-import { openChatThread, sendChatMessage } from './chatConversation.js'
+import { openChatThread, reactChatMessage, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
-import { sendStaffDmMessage, sendStaffDmThread, staffDmAttention } from './staffDmHandler.js'
+import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmThread, staffDmAttention } from './staffDmHandler.js'
 import { isMissingChatTable, loadChatClient, loadClientsByIds, loadStaffThreads } from './chatStore.js'
 import { linkedComplaintThreads, linkedSupervisorCtx } from './linkedStaffStore.js'
 
@@ -64,6 +68,7 @@ async function listThreads(ctx, scope) {
       last_author: t.last_author,
       unread,
       unread_count: unread ? chatUnreadCount('staff', t) : 0,
+      reaction: chatUnseenReaction('staff', t),
     })
   }
   out.sort((a, b) => Number(b.unread) - Number(a.unread) || String(b.last_message_at ?? '').localeCompare(String(a.last_message_at ?? '')))
@@ -91,7 +96,7 @@ async function resolveClient(ctx, res, clientId, kind, write) {
 export async function handleStaffChatGet(ctx, req, res) {
   const view = String(req.query?.view ?? 'list')
   if (view === 'contacts') return sendChatContacts(ctx, res)
-  if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before)
+  if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
   const scope = scopeOf(ctx, res)
   if (!scope) return
   try {
@@ -108,8 +113,9 @@ export async function handleStaffChatGet(ctx, req, res) {
       client,
       kind,
       side: 'staff',
+      reactor: chatReactorKey('staff', actor.user?.id ?? scope.userId),
       before: req.query?.before,
-      markRead: staffMarksChatRead(scope.role),
+      markRead: staffMarksChatRead(scope.role) && chatSeenFromRequest(req.query?.seen),
     })
     sendJson(res, 200, {
       client: { id: String(client.id), name: client.name ?? '', archived: Boolean(client.archived_at), archived_at: client.archived_at ?? null },
@@ -126,10 +132,12 @@ export async function handleStaffChatGet(ctx, req, res) {
 }
 
 export async function handleStaffChatPost(ctx, res, body) {
-  if (String(body?.op ?? '') === 'dm-send') return sendStaffDmMessage(ctx, res, body?.user_id, body)
+  const op = String(body?.op ?? '')
+  if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body?.user_id, body)
+  if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body?.user_id, body)
   const scope = scopeOf(ctx, res)
   if (!scope) return
-  if (String(body?.op ?? '') !== 'send') {
+  if (op !== 'send' && op !== 'react') {
     sendJson(res, 400, { error: 'Неизвестное действие' })
     return
   }
@@ -139,6 +147,12 @@ export async function handleStaffChatPost(ctx, res, body) {
     if (!found) return
     const { client, actor } = found
     const userId = String(actor.user?.id ?? scope.userId)
+    if (op === 'react') {
+      const reactor = chatReactorKey('staff', userId)
+      const out = await reactChatMessage(ctx.supabaseAdmin, { client, kind, reactor, messageId: body?.message_id, emoji: body?.emoji })
+      sendJson(res, out.status, out.body)
+      return
+    }
     const out = await sendChatMessage(ctx.supabaseAdmin, {
       client,
       kind,
@@ -147,6 +161,7 @@ export async function handleStaffChatPost(ctx, res, body) {
       body: body?.body,
       sticker: body?.sticker,
       clientMsgId: body?.client_msg_id,
+      replyTo: body?.reply_to,
     })
     sendJson(res, out.status, out.body)
   } catch (e) {

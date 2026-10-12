@@ -24,6 +24,7 @@ export function ClientChatThreadsSection({ threads, error }) {
     unread: t.unread,
     unreadCount: t.unread_count,
     at: t.last_message_at,
+    reaction: t.reaction,
   }))
   return (
     <section aria-label="Переписка с клубом">

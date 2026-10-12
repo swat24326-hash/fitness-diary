@@ -1,9 +1,10 @@
 import { useCallback, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
-import { fetchCoachChatThread, sendCoachChatMessage } from '../../lib/coach/coachApiClient.js'
+import { fetchCoachChatThread, reactCoachChatMessage, sendCoachChatMessage } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
 import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
 import { chatStaffReadOnlyRu } from '../../lib/chat/chatUiCore.js'
@@ -19,9 +20,10 @@ export function CoachChatPage() {
   const { clientId = '', kind: kindParam = '' } = useParams()
   const kind = kindParam === 'supervisor' ? 'supervisor' : 'trainer'
   const { onSessionGone } = useCoachApp()
-  const load = useCallback((before) => fetchCoachChatThread(clientId, before, kind), [clientId, kind])
+  const load = useCallback((before, opts) => fetchCoachChatThread(clientId, before, kind, opts?.seen), [clientId, kind])
   const send = useCallback((outgoing) => sendCoachChatMessage(clientId, outgoing, kind), [clientId, kind])
-  const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send })
+  const react = useCallback((messageId, emoji) => reactCoachChatMessage(clientId, messageId, emoji, kind), [clientId, kind])
+  const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react })
   const meta = chat.meta
   const complaint = kind === 'supervisor'
 
@@ -42,9 +44,16 @@ export function CoachChatPage() {
       }
     >
       {!chat.messages ? (
-        <CoachLoadState status={chat.status} error={chat.error} onRetry={chat.reload} />
+        <CoachLoadState
+          status={chat.status}
+          error={chat.error}
+          action={<ChatOpenErrorAction errorStatus={chat.errorStatus} onRetry={chat.reload} backTo="/coach/chats" />}
+        />
       ) : (
         <ChatThreadView
+          onAtBottom={chat.onAtBottom}
+          onReact={chat.react}
+          reply={chat.reply}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

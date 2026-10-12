@@ -1,0 +1,289 @@
+/* Реакции на сообщения, как в Telegram: меню по долгому нажатию и плашки под пузырём. */
+
+/* Долгое нажатие пальцем — меню, а не выделение текста и не системная «лупа». На мониторе текст выделяется как обычно. */
+@media (pointer: coarse) {
+  .chat-msg--pressable {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
+/* Двойной тап — реакция, а не увеличение страницы; свайп влево — ответить (браузер забирает себе только листание вверх-вниз). */
+.chat-msg--pressable {
+  touch-action: pan-y;
+}
+
+.chat-msg--pressable.is-pressed {
+  transform: scale(0.98);
+  transition: transform 0.15s var(--ease-out, ease);
+}
+
+.chat-react-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, #000 18%, transparent);
+  cursor: default;
+}
+
+.chat-react-menu {
+  position: fixed;
+  z-index: 61;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 16px);
+  height: 56px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  border: 1px solid var(--border, color-mix(in srgb, var(--text) 12%, transparent));
+  border-radius: 999px;
+  background: var(--bg-elevated, var(--bg-card));
+  box-shadow: 0 10px 30px color-mix(in srgb, #000 35%, transparent);
+  scrollbar-width: none;
+  animation: chat-react-pop 0.16s var(--ease-out, ease) both;
+}
+
+.chat-react-menu__emoji,
+.chat-react-menu__copy {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-out, ease), background 0.12s;
+}
+
+.chat-react-menu__emoji .chat-emoji-glyph:not(.chat-emoji-glyph--text) {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.chat-react-menu__emoji:hover,
+.chat-react-menu__emoji:focus-visible {
+  transform: scale(1.18);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  outline: none;
+}
+
+.chat-react-menu__emoji.is-mine {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.chat-react-menu__more {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chat-react-menu__more:hover,
+.chat-react-menu__more:focus-visible {
+  color: var(--text);
+  outline: none;
+}
+
+/* Стрелка «ещё»: полоска раскрывается в весь набор, как в Telegram. */
+.chat-react-menu.is-expanded {
+  display: block;
+  width: min(360px, calc(100vw - 16px));
+  height: 320px;
+  padding: 4px 6px;
+  overflow-y: auto;
+  border-radius: 20px;
+}
+
+.chat-react-menu__section {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  margin: 0;
+  padding: 8px 6px 4px;
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.chat-react-menu__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+}
+
+.chat-react-menu__copy {
+  margin-left: 4px;
+  border-left: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: 0 50% 50% 0;
+}
+
+/* «Ответить» и «Копировать» рядом — одна черта перед ними, между ними нет. */
+.chat-react-menu__copy + .chat-react-menu__copy {
+  margin-left: 0;
+  border-left: 0;
+  border-radius: 50%;
+}
+
+.chat-react-menu__copy:hover,
+.chat-react-menu__copy:focus-visible {
+  color: var(--text);
+  outline: none;
+}
+
+@keyframes chat-react-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+/* Плашки под текстом пузыря; у крупных смайликов и стикеров — под ними. */
+.chat-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  clear: both;
+  margin-top: 4px;
+}
+
+.chat-msg--mine .chat-reactions,
+.chat-msg--mine.chat-msg--big .chat-reactions {
+  justify-content: flex-end;
+}
+
+.chat-reactions__chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 28px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  animation: chat-react-pop 0.18s var(--ease-out, ease) both;
+}
+
+button.chat-reactions__chip {
+  cursor: pointer;
+}
+
+.chat-reactions__chip.is-mine {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.chat-reactions__chip .chat-emoji-glyph {
+  margin: 0;
+  font-size: 16px;
+  vertical-align: middle;
+}
+
+.chat-reactions__chip .chat-emoji-glyph:not(.chat-emoji-glyph--text) {
+  width: 18px;
+  height: 18px;
+}
+
+/* «Взрыв»: крупный анимированный смайлик вылетает из плашки и тает. */
+.chat-reactions__burst {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  z-index: 5;
+  pointer-events: none;
+  animation: chat-react-burst 1.2s var(--ease-out, ease) forwards;
+}
+
+@keyframes chat-react-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 50%) scale(0.3);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -18px) scale(0.9);
+  }
+}
+
+/* Кто поставил — по удержанию плашки. */
+.chat-reactions__who {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 6;
+  width: max-content;
+  max-width: 220px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--bg-elevated, var(--bg-card));
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 35%, transparent);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: normal;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Значок в списке диалогов: собеседник отреагировал на ваше сообщение. */
+.chat-row__reaction {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  font-size: 13px;
+}
+
+.chat-row__reaction .chat-emoji-glyph {
+  margin: 0;
+  vertical-align: middle;
+}
+
+.chat-row__reaction .chat-emoji-glyph:not(.chat-emoji-glyph--text) {
+  width: 15px;
+  height: 15px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-react-menu,
+  .chat-reactions__chip {
+    animation: none;
+  }
+
+  .chat-reactions__burst {
+    display: none;
+  }
+}

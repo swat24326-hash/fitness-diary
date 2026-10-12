@@ -109,6 +109,10 @@ export function staffDmThreadForViewer(thread, userId) {
     client_read_at: thread[`${peer}_read_at`] ?? null,
     staff_unread: Number(thread[`${mine}_unread`]) || 0,
     client_unread: Number(thread[`${peer}_unread`]) || 0,
+    last_reaction_at: thread.last_reaction_at ?? null,
+    last_reaction_emoji: thread.last_reaction_emoji ?? null,
+    last_reaction_side: thread.last_reaction_by ? (norm(thread.last_reaction_by) === norm(`u:${userId}`) ? 'staff' : 'client') : null,
+    staff_reaction_seen_at: thread[`${mine}_reaction_seen_at`] ?? null,
   }
 }
 

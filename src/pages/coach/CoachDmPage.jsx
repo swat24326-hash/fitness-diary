@@ -1,9 +1,10 @@
 import { useCallback, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
-import { fetchCoachDmThread, sendCoachDmMessage } from '../../lib/coach/coachApiClient.js'
+import { fetchCoachDmThread, reactCoachDmMessage, sendCoachDmMessage } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
 import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
@@ -14,9 +15,10 @@ import { CoachLoadState } from './CoachStatus.jsx'
 export function CoachDmPage() {
   const { userId = '' } = useParams()
   const { onSessionGone } = useCoachApp()
-  const load = useCallback((before) => fetchCoachDmThread(userId, before), [userId])
+  const load = useCallback((before, opts) => fetchCoachDmThread(userId, before, opts?.seen), [userId])
   const send = useCallback((outgoing) => sendCoachDmMessage(userId, outgoing), [userId])
-  const chat = useChatThread({ key: `dm:${userId}`, side: 'staff', load, send })
+  const react = useCallback((messageId, emoji) => reactCoachDmMessage(userId, messageId, emoji), [userId])
+  const chat = useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react })
   const peer = chat.meta?.peer
 
   useEffect(() => {
@@ -34,9 +36,16 @@ export function CoachDmPage() {
       }
     >
       {!chat.messages ? (
-        <CoachLoadState status={chat.status} error={chat.error} onRetry={chat.reload} />
+        <CoachLoadState
+          status={chat.status}
+          error={chat.error}
+          action={<ChatOpenErrorAction errorStatus={chat.errorStatus} onRetry={chat.reload} backTo="/coach/chats" />}
+        />
       ) : (
         <ChatThreadView
+          onAtBottom={chat.onAtBottom}
+          onReact={chat.react}
+          reply={chat.reply}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

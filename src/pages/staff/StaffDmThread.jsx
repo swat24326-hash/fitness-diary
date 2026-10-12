@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
+import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useStaffDmThread } from '../../hooks/useStaffChat.js'
 import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
@@ -30,14 +31,15 @@ export function StaffDmThread() {
           {chat.status === 'error' ? (
             <>
               <p className="muted">{chat.error}</p>
-              <button type="button" className="btn btn-secondary btn-touch" onClick={chat.reload}>
-                Повторить
-              </button>
+              <ChatOpenErrorAction errorStatus={chat.errorStatus} onRetry={chat.reload} backTo="/messages?tab=chats" />
             </>
           ) : null}
         </div>
       ) : (
         <ChatThreadView
+          onAtBottom={chat.onAtBottom}
+          onReact={chat.react}
+          reply={chat.reply}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

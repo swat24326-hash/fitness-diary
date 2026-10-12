@@ -39,6 +39,18 @@ import {
 import { hiddenLinkedTrainerIds, linkedSupervisorFor } from '../../../src/lib/chat/linkedStaffCore.js'
 import { buildStaffContacts } from '../../../src/lib/chat/staffDmContactsCore.js'
 import { buildChatMessageView, chatPreview } from '../../../src/lib/chat/chatMessageCore.js'
+import {
+  CHAT_REACTION_GONE_RU,
+  chatReactionNotifies,
+  chatReactionsByMessage,
+  chatReactorKey,
+  chatReactorSide,
+  chatUnseenReaction,
+  normalizeChatReaction,
+  summarizeChatReactions,
+} from '../../../src/lib/chat/chatReactionCore.js'
+import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
+import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
 
 function staffCtx(user) {
@@ -55,7 +67,7 @@ function staffCtx(user) {
 
 /** @param {{ users: object[], clients: object[] }} state */
 export function createFakeChat(state) {
-  const chat = { threads: [], messages: [], dm: { threads: [], messages: [], pushes: [] } }
+  const chat = { threads: [], messages: [], reactions: [], dm: { threads: [], messages: [], pushes: [] } }
   const names = () => new Map(state.users.map((u) => [String(u.id), u.name]))
   const threadOf = (clientId, kind) => chat.threads.find((t) => t.client_id === clientId && t.kind === kind)
   /** Как linkedStaffStore: тренерская учётка, связанная с управляющим, → строка управляющего. */
@@ -66,16 +78,62 @@ export function createFakeChat(state) {
   const dmUser = (user) => linkedSup(user) ?? user
   const actorFor = (user, kind) => (kind === 'supervisor' && linkedSup(user)) || user
 
-  function page(thread, side) {
+  function page(thread, side, seen = true, reactor = '') {
     if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null }
-    const marked = isChatUnreadFor(side, thread)
+    const marked = chatSeenFromRequest(seen) && isChatUnreadFor(side, thread)
     if (marked) {
       thread[side === 'client' ? 'client_read_at' : 'staff_read_at'] = new Date().toISOString()
       thread[side === 'client' ? 'client_unread' : 'staff_unread'] = 0
     }
-    const list = chat.messages.filter((m) => m.thread_id === thread.id).map((m) => buildChatMessageView(m, side, names()))
+    if (chatSeenFromRequest(seen) && chatUnseenReaction(side, thread)) thread[`${side}_reaction_seen_at`] = new Date().toISOString()
+    const reactions = chatReactionsByMessage(chat.reactions, reactor, reactorNames())
+    const list = chat.messages
+      .filter((m) => m.thread_id === thread.id)
+      .map((m) => ({ ...chatView(m, side), reactions: reactions.get(m.id) ?? [] }))
     return { messages: list, has_more: false, marked_read: marked, peer_read_at: chatPeerReadAt(side, thread) }
   }
+
+  /** reactor → имя, как chatReactionStore. */
+  const reactorNames = () =>
+    new Map([
+      ...state.users.map((u) => [chatReactorKey('staff', u.id), u.name]),
+      ...state.clients.map((c) => [chatReactorKey('client', c.id), c.name]),
+    ])
+
+  /**
+   * Как chatReactionStore.setMessageReaction: сообщение из этого диалога, одна реакция от человека,
+   * значок в списке у автора сообщения. authorKey(m) — сторона (переписка с клиентом) или 'u:<id>' (сотрудники).
+   */
+  function react(thread, messages, messageId, reactor, raw, authorKey) {
+    const checked = normalizeChatReaction(raw)
+    if (!checked.ok) return { status: 400, json: { error: checked.error } }
+    const message = thread && messages.find((m) => m.id === messageId && m.thread_id === thread.id)
+    if (!message) return { status: 404, json: { error: CHAT_REACTION_GONE_RU } }
+    chat.reactions = chat.reactions.filter((r) => !(r.message_id === messageId && r.reactor === reactor))
+    if (checked.emoji) chat.reactions.push({ message_id: messageId, reactor, emoji: checked.emoji })
+    const dm = String(authorKey(message)).startsWith('u:')
+    if (checked.emoji && chatReactionNotifies(authorKey(message), dm ? reactor : chatReactorSide(reactor))) {
+      Object.assign(thread, { last_reaction_at: new Date().toISOString(), last_reaction_emoji: checked.emoji, last_reaction_by: reactor })
+    } else if (!checked.emoji && thread.last_reaction_by === reactor) {
+      Object.assign(thread, { last_reaction_at: null, last_reaction_emoji: null, last_reaction_by: null })
+    }
+    const mine = chat.reactions.filter((r) => r.message_id === messageId)
+    return { status: 200, json: { message_id: messageId, reactions: summarizeChatReactions(mine, reactor, reactorNames()) } }
+  }
+  /** Как chatReplyStore: ответ только на сообщение этого диалога, иначе без цитаты. */
+  const replyIn = (messages, thread, id) => messages.find((x) => x.id === id && x.thread_id === thread.id)?.id ?? null
+  const byId = (messages) => new Map(messages.map((x) => [x.id, x]))
+  function chatView(m, side) {
+    const toView = (x) => buildChatMessageView(x, side, names())
+    const peerName = side === 'staff' ? find(chat.threads.find((t) => t.id === m.thread_id)?.client_id)?.name ?? '' : ''
+    return { ...toView(m), reply: chatReplyQuoteFor(m, byId(chat.messages), toView, peerName) }
+  }
+  function dmView(m, viewerId, peerName) {
+    const toView = (x) => buildStaffDmMessageView(x, viewerId)
+    return { ...toView(m), reply: chatReplyQuoteFor(m, byId(chat.dm.messages), toView, peerName) }
+  }
+  const chatAuthor = (m) => m.author_side
+  const dmAuthor = (m) => `u:${m.author_user_id}`
 
   function send(client, kind, side, userId, input) {
     const checked = resolveChatOutgoing(input)
@@ -86,7 +144,7 @@ export function createFakeChat(state) {
       chat.threads.push(thread)
     }
     const at = new Date(Date.now() + chat.messages.length).toISOString()
-    const m = { id: `m-${chat.messages.length + 1}`, thread_id: thread.id, author_side: side, author_user_id: userId ?? null, body: checked.body, sticker: checked.sticker, created_at: at }
+    const m = { id: `m-${chat.messages.length + 1}`, thread_id: thread.id, author_side: side, author_user_id: userId ?? null, body: checked.body, sticker: checked.sticker, created_at: at, reply_to: replyIn(chat.messages, thread, input?.reply_to) }
     chat.messages.push(m)
     const peerUnread = side === 'client' ? 'staff_unread' : 'client_unread'
     Object.assign(thread, {
@@ -97,7 +155,7 @@ export function createFakeChat(state) {
       [side === 'client' ? 'client_unread' : 'staff_unread']: 0,
       [peerUnread]: thread[peerUnread] + 1,
     })
-    return { status: 200, json: { message: buildChatMessageView(m, side, names()) } }
+    return { status: 200, json: { message: { ...chatView(m, side), reactions: [] } } }
   }
 
   /** Ветки клиента; null — не чат, пусть ответит основной подменный портал. */
@@ -116,14 +174,19 @@ export function createFakeChat(state) {
           last_author: t?.last_author ?? null,
           unread: isChatUnreadFor('client', t),
           unread_count: chatUnreadCount('client', t),
+          reaction: chatUnseenReaction('client', t),
         }
       })
       return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length } }
     }
     if (body.action === 'chat-thread') {
-      return { status: 200, json: { ...page(threadOf(clientId, kind), 'client'), kind, name: names().get(String(row.trainer_id)) ?? '' } }
+      const name = kind === 'trainer' ? names().get(String(row.trainer_id)) ?? '' : ''
+      return { status: 200, json: { ...page(threadOf(clientId, kind), 'client', body.seen, chatReactorKey('client', clientId)), kind, name } }
     }
     if (body.action === 'chat-send') return send(row, kind, 'client', null, body)
+    if (body.action === 'chat-react') {
+      return react(threadOf(clientId, kind), chat.messages, body.message_id, chatReactorKey('client', clientId), body.emoji, chatAuthor)
+    }
     return null
   }
 
@@ -193,7 +256,7 @@ export function createFakeChat(state) {
   }
 
   /** Как staffDmHandler.sendStaffDmThread. */
-  function dmThread(authUser, peerId) {
+  function dmThread(authUser, peerId, seen) {
     const viewer = dmViewer(dmUser(authUser))
     const peer = dmPeer(peerId)
     if (!peer) return { status: 404, json: { error: 'Сотрудник не найден' } }
@@ -205,12 +268,16 @@ export function createFakeChat(state) {
     }
     if (!thread) return { status: 200, json: { ...meta, messages: [], has_more: false, marked_read: false, peer_read_at: null } }
     const view = staffDmThreadForViewer(thread, viewer.id)
-    const marked = isChatUnreadFor('staff', view)
+    const marked = chatSeenFromRequest(seen) && isChatUnreadFor('staff', view)
     if (marked) {
       const side = staffDmSideOf(thread, viewer.id)
       Object.assign(thread, { [`${side}_read_at`]: new Date().toISOString(), [`${side}_unread`]: 0 })
     }
-    const messages = chat.dm.messages.filter((m) => m.thread_id === thread.id).map((m) => buildStaffDmMessageView(m, viewer.id))
+    if (chatSeenFromRequest(seen) && chatUnseenReaction('staff', view)) thread[`${staffDmSideOf(thread, viewer.id)}_reaction_seen_at`] = new Date().toISOString()
+    const reactions = chatReactionsByMessage(chat.reactions, chatReactorKey('staff', viewer.id), reactorNames())
+    const messages = chat.dm.messages
+      .filter((m) => m.thread_id === thread.id)
+      .map((m) => ({ ...dmView(m, viewer.id, peer.name), reactions: reactions.get(m.id) ?? [] }))
     return { status: 200, json: { ...meta, messages, has_more: false, marked_read: marked, peer_read_at: chatPeerReadAt('staff', view) } }
   }
 
@@ -229,7 +296,7 @@ export function createFakeChat(state) {
       chat.dm.threads.push(thread)
     }
     const at = new Date(Date.now() + chat.dm.messages.length).toISOString()
-    const m = { id: `dmm-${chat.dm.messages.length + 1}`, thread_id: thread.id, author_user_id: viewer.id, body: checked.body, sticker: checked.sticker, created_at: at }
+    const m = { id: `dmm-${chat.dm.messages.length + 1}`, thread_id: thread.id, author_user_id: viewer.id, body: checked.body, sticker: checked.sticker, created_at: at, reply_to: replyIn(chat.dm.messages, thread, input?.reply_to) }
     chat.dm.messages.push(m)
     const side = staffDmSideOf(thread, viewer.id)
     const other = side === 'lo' ? 'hi' : 'lo'
@@ -242,7 +309,7 @@ export function createFakeChat(state) {
       [`${other}_unread`]: (thread[`${other}_unread`] || 0) + 1,
     })
     chat.dm.pushes.push({ to: peer.id, ...buildStaffDmPushPayload({ authorId: viewer.id, authorName: user.name, body: checked.body }) })
-    return { status: 200, json: { message: buildStaffDmMessageView(m, viewer.id) } }
+    return { status: 200, json: { message: { ...dmView(m, viewer.id, peer.name), reactions: [] } } }
   }
 
   const dmAttention = (authUser) => {
@@ -254,11 +321,23 @@ export function createFakeChat(state) {
     if (req.searchParams.get('action') !== 'chat') return null
     const ctx = staffCtx(user)
     if (req.method === 'POST' && req.body?.op === 'dm-send') return dmSend(user, req.body.user_id, req.body)
-    if (req.searchParams.get('view') === 'dm-thread') return dmThread(user, req.searchParams.get('user_id'))
+    if (req.method === 'POST' && req.body?.op === 'dm-react') {
+      const viewer = dmViewer(dmUser(user))
+      const peer = dmPeer(req.body.user_id)
+      const access = staffDmWriteAccess(viewer, peer)
+      if (!access.ok) return { status: access.status, json: { error: access.error } }
+      const thread = dmThreadOf(viewer.id, peer.id)
+      return react(thread, chat.dm.messages, req.body.message_id, chatReactorKey('staff', viewer.id), req.body.emoji, dmAuthor)
+    }
+    if (req.searchParams.get('view') === 'dm-thread') return dmThread(user, req.searchParams.get('user_id'), req.searchParams.get('seen') ?? undefined)
     if (req.method === 'POST') {
       const row = find(req.body?.client_id)
       const actor = actorFor(user, req.body?.kind)
       if (!canStaffWriteChat(staffCtx(actor), req.body?.kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+      if (req.body?.op === 'react') {
+        const reactor = chatReactorKey('staff', actor.id)
+        return react(threadOf(row.id, req.body.kind), chat.messages, req.body.message_id, reactor, req.body.emoji, chatAuthor)
+      }
       return send(row, req.body.kind, 'staff', actor.id, req.body)
     }
     if (req.searchParams.get('view') === 'contacts') return contacts(ctx, user)
@@ -275,6 +354,7 @@ export function createFakeChat(state) {
           last_author: t.last_author,
           unread: isChatUnreadFor('staff', t),
           unread_count: chatUnreadCount('staff', t),
+          reaction: chatUnseenReaction('staff', t),
         }))
       return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length + dmAttention(user) } }
     }
@@ -289,7 +369,7 @@ export function createFakeChat(state) {
         kind,
         label: chatKindLabelRu(kind),
         can_write: canStaffWriteChat(actorCtx, kind, row),
-        ...page(threadOf(row.id, kind), 'staff'),
+        ...page(threadOf(row.id, kind), 'staff', req.searchParams.get('seen') ?? undefined, chatReactorKey('staff', actorFor(user, kind).id)),
       },
     }
   }

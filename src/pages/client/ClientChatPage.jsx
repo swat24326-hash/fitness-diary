@@ -1,5 +1,6 @@
 import { Navigate, useParams } from 'react-router-dom'
 import { RefreshCw, WifiOff } from 'lucide-react'
+import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { isChatKind } from '../../lib/chat/chatAccessCore.js'
 import { chatClientEmptyRu, chatThreadTitleRu } from '../../lib/chat/chatUiCore.js'
@@ -23,15 +24,16 @@ export function ClientChatPage() {
       {!chat.messages ? (
         chat.status === 'error' ? (
           <ClientMeStatus icon={WifiOff} title="Не открылось" hint={chat.error}>
-            <button type="button" className="btn btn-secondary btn-touch" onClick={chat.reload}>
-              Повторить
-            </button>
+            <ChatOpenErrorAction errorStatus={chat.errorStatus} onRetry={chat.reload} backTo="/me/inbox" />
           </ClientMeStatus>
         ) : (
           <ClientMeStatus icon={RefreshCw} spin title="Открываем…" />
         )
       ) : (
         <ChatThreadView
+          onAtBottom={chat.onAtBottom}
+          onReact={chat.react}
+          reply={chat.reply}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

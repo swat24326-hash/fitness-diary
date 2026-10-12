@@ -11,9 +11,11 @@ export const CHAT_LIST_LIMIT = 100
 /** Непрочитанные показываем и старше последних 100 — иначе конверт врёт, а диалог не найти. */
 export const CHAT_UNREAD_LIMIT = 500
 export const CHAT_THREAD_FIELDS =
-  'id, club_id, client_id, kind, last_message_at, last_author, last_preview, client_read_at, staff_read_at, client_unread, staff_unread'
+  'id, club_id, client_id, kind, last_message_at, last_author, last_preview, client_read_at, staff_read_at, client_unread, staff_unread, ' +
+  'last_reaction_at, last_reaction_emoji, last_reaction_by, client_reaction_seen_at, staff_reaction_seen_at'
 const THREAD_FIELDS = CHAT_THREAD_FIELDS
-const MESSAGE_FIELDS = 'id, body, sticker, created_at, author_side, author_user_id'
+export const CHAT_MESSAGE_FIELDS = 'id, body, sticker, created_at, author_side, author_user_id, reply_to'
+const MESSAGE_FIELDS = CHAT_MESSAGE_FIELDS
 
 export function isMissingChatTable(e) {
   const msg = String(e?.message ?? '')
@@ -121,7 +123,7 @@ export async function countRecentChatMessages(db, threadId, { side, userId }, si
  * duplicate — повтор с тем же client_msg_id (гонка двух повторов): сообщение уже было, push не шлём.
  * @returns {Promise<{ message: object, duplicate: boolean }>}
  */
-export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null, clientMsgId = null }) {
+export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null, clientMsgId = null, replyTo = null }) {
   const { data, error } = await db
     .from('chat_messages')
     .insert({
@@ -132,6 +134,7 @@ export async function insertChatMessage(db, thread, client, { side, userId, body
       body,
       sticker,
       ...(clientMsgId ? { client_msg_id: clientMsgId } : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
     })
     .select(MESSAGE_FIELDS)
     .single()

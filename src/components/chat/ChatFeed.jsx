@@ -1,15 +1,33 @@
 import { Check, CheckCheck } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { chatLinkCheck, chatLinkNeedsConfirm } from '../../lib/chat/chatLinkCore.js'
-import { chatTextParts } from '../../lib/chat/chatMessageCore.js'
+import { chatTextParts } from '../../lib/chat/chatTextLinksCore.js'
 import { buildChatFeed } from '../../lib/chat/chatFeedCore.js'
 import { splitEmojiText } from '../../lib/chat/chatEmojiNotoCore.js'
+import { CHAT_QUICK_REACTION, myChatReaction } from '../../lib/chat/chatReactionCore.js'
+import { useChatLongPress } from '../../hooks/useChatLongPress.js'
 import { ChatEmojiAnimated } from './ChatEmojiAnimated.jsx'
 import { ChatEmojiGlyph } from './ChatEmojiGlyph.jsx'
 import { ChatLinkConfirm } from './ChatLinkConfirm.jsx'
+import { ChatReactionMenu } from './ChatReactionMenu.jsx'
+import { ChatReactions } from './ChatReactions.jsx'
+import { ChatReplyQuote } from './ChatReplyQuote.jsx'
 import { ChatSticker } from './stickers/ChatSticker.jsx'
 
+const BURST_MS = 1200
+const FLASH_MS = 1300
 const TIME_FMT = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
+
+/** К исходному сообщению цитаты; его нет в загруженной ленте (старое) — остаёмся на месте. */
+function jumpToMessage(id) {
+  const el = document.querySelector(`[data-msg-id="${CSS.escape(String(id))}"]`)
+  if (!el) return
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  el.classList.remove('is-flash')
+  void el.offsetWidth
+  el.classList.add('is-flash')
+  window.setTimeout(() => el.classList.remove('is-flash'), FLASH_MS)
+}
 
 function TextWithEmoji({ text }) {
   return splitEmojiText(text).map((p, i) =>
@@ -25,8 +43,12 @@ function MessageText({ body, mine, onLink }) {
     onLink(check)
   }
   return chatTextParts(body).map((p, i) =>
-    p.href ? (
+    p.kind === 'url' ? (
       <a key={i} href={p.href} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => click(e, p.href)}>
+        {p.text}
+      </a>
+    ) : p.href ? (
+      <a key={i} href={p.href}>
         {p.text}
       </a>
     ) : (
@@ -63,12 +85,46 @@ function Meta({ m }) {
 
 /**
  * Сообщения как в Telegram: плашки дней, пачки одного автора с «хвостиком» у последнего,
- * время и галочки внутри пузыря, крупные смайлики и стикеры без пузыря.
- * @param {{ messages: object[], peerReadAt?: string|null }} props
+ * время и галочки внутри пузыря, крупные смайлики и стикеры без пузыря, реакции под сообщением.
+ * onReact — может писать в диалог: долгое нажатие открывает реакции, «Ответить» и «Копировать», двойной тап — 👍,
+ * свайп влево — «Ответить» (onReply). Нажали цитату — лента едет к исходному сообщению и подсвечивает его.
+ * @param {{ messages: object[], peerReadAt?: string|null, onReact?: (id: string, emoji: string) => void, onReply?: (message: object) => void }} props
  */
-export function ChatFeed({ messages, peerReadAt }) {
+export function ChatFeed({ messages, peerReadAt, onReact, onReply }) {
   const [link, setLink] = useState(null)
+  const [menu, setMenu] = useState(null)
+  const [burst, setBurst] = useState(null)
   const closeLink = useCallback(() => setLink(null), [])
+  const closeMenu = useCallback(() => setMenu(null), [])
+
+  useEffect(() => {
+    if (!burst) return undefined
+    const t = window.setTimeout(() => setBurst(null), BURST_MS)
+    return () => window.clearTimeout(t)
+  }, [burst])
+
+  /** Новая своя реакция — с «взрывом», снятая — тихо. */
+  const react = useCallback(
+    (id, emoji) => {
+      const item = messages.find((m) => String(m.id) === String(id))
+      if (myChatReaction(item?.reactions) !== emoji) setBurst({ id: String(id), emoji })
+      onReact(id, emoji)
+    },
+    [messages, onReact],
+  )
+  const press = useChatLongPress(
+    (item, el) =>
+      setMenu({
+        id: item.id,
+        rect: el.getBoundingClientRect(),
+        mine: item.mine,
+        text: item.sticker ? '' : String(item.body ?? ''),
+        current: myChatReaction(item.reactions),
+        message: item,
+      }),
+    (item) => react(item.id, CHAT_QUICK_REACTION),
+    onReply,
+  )
   const items = buildChatFeed(messages, { peerReadAt }).map((item) => {
     if (item.type === 'day') {
       return (
@@ -84,15 +140,18 @@ export function ChatFeed({ messages, peerReadAt }) {
       item.groupEnd && 'chat-msg--end',
       item.big && 'chat-msg--big',
       item.sticker && 'chat-msg--sticker',
+      onReact && 'chat-msg--pressable',
+      menu?.id === item.id && 'is-pressed',
     ]
       .filter(Boolean)
       .join(' ')
     return (
-      <div key={item.id} className={cls}>
+      <div key={item.id} className={cls} data-msg-id={item.id} {...(onReact ? press(item) : {})}>
         {!item.mine && item.author_name && item.groupStart && !item.big ? (
           <span className="chat-msg__author">{item.author_name}</span>
         ) : null}
         <div className="chat-msg__body">
+          {item.reply ? <ChatReplyQuote quote={item.reply} onJump={jumpToMessage} /> : null}
           {item.sticker ? (
             <ChatSticker id={item.sticker} />
           ) : item.big ? (
@@ -102,6 +161,12 @@ export function ChatFeed({ messages, peerReadAt }) {
           )}
           <Meta m={item} />
         </div>
+        <ChatReactions
+          messageId={item.id}
+          reactions={item.reactions}
+          onReact={onReact ? react : undefined}
+          burst={burst?.id === String(item.id) ? burst.emoji : null}
+        />
       </div>
     )
   })
@@ -109,6 +174,7 @@ export function ChatFeed({ messages, peerReadAt }) {
     <>
       {items}
       <ChatLinkConfirm link={link} onClose={closeLink} />
+      {onReact ? <ChatReactionMenu key={menu?.id ?? ''} target={menu} onPick={react} onReply={onReply} onClose={closeMenu} /> : null}
     </>
   )
 }

@@ -15,6 +15,19 @@ export function normalizeChatBody(raw) {
   return { ok: true, body }
 }
 
+export const CHAT_COUNTER_FROM = 1800
+export const CHAT_PASTE_CUT_RU = `Вставилось только ${CHAT_BODY_MAX} символов — остальное отправьте вторым сообщением`
+
+/** Счётчик под полем ввода у предела: «1950 / 2000»; раньше — ничего. */
+export function chatLengthCounter(length) {
+  return length >= CHAT_COUNTER_FROM ? `${length} / ${CHAT_BODY_MAX}` : ''
+}
+
+/** Вставка не влезла бы целиком (поле само обрежет по maxLength). */
+export function chatPasteCut(draftLength, selectedLength, pastedLength) {
+  return draftLength - selectedLength + pastedLength > CHAT_BODY_MAX
+}
+
 /** Одна строка для списка диалогов и пуша. */
 export function chatPreview(body, max = CHAT_PREVIEW_MAX) {
   const line = String(body ?? '').replace(/\s+/g, ' ').trim()
@@ -53,27 +66,6 @@ export function mergeChatMessages(current, incoming) {
   const byId = new Map()
   for (const m of [...(current ?? []), ...(incoming ?? [])]) byId.set(String(m.id), m)
   return [...byId.values()].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
-}
-
-const URL_RE = /https?:\/\/[^\s<>"]+/gi
-const TRAILING_PUNCT_RE = /[.,!?;:)»]+$/
-
-/**
- * Текст → куски для экрана: ссылки http(s) кликабельны (клиенты шлют товары с маркетплейсов).
- * @returns {Array<{ text: string, href?: string }>}
- */
-export function chatTextParts(body) {
-  const text = String(body ?? '')
-  const parts = []
-  let last = 0
-  for (const match of text.matchAll(URL_RE)) {
-    const href = match[0].replace(TRAILING_PUNCT_RE, '')
-    if (match.index > last) parts.push({ text: text.slice(last, match.index) })
-    parts.push({ text: href, href })
-    last = match.index + href.length
-  }
-  if (last < text.length) parts.push({ text: text.slice(last) })
-  return parts
 }
 
 /** «14:05» сегодня, «09.10 14:05» в другой день. */

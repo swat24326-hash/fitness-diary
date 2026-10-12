@@ -211,6 +211,7 @@
   bottom: var(--chat-kb, 0px);
   z-index: 2;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(to top, var(--bg) 70%, transparent);
@@ -267,7 +268,8 @@
   padding: 0 16px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--bg-card);
+  /* Полупрозрачный --bg-elevated поверх сплошного --bg: текст пузыря под кнопкой не просвечивает. */
+  background: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--bg);
   color: var(--accent);
   font: inherit;
   font-size: 0.88rem;
@@ -379,6 +381,18 @@
   margin: 0;
   color: var(--danger);
   font-size: 0.88rem;
+}
+
+.chat-compose__counter {
+  margin: 0;
+  justify-self: end;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-compose__counter.is-full {
+  color: var(--warning);
 }
 
 /* Панель смайликов над полем ввода. */

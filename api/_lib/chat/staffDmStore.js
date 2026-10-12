@@ -9,8 +9,10 @@ import { rows } from '../inbox/inboxStore.js'
 import { CHAT_PAGE } from './chatStore.js'
 
 const THREAD_FIELDS =
-  'id, club_id, user_lo, user_hi, last_message_at, last_author, last_preview, lo_read_at, hi_read_at, lo_unread, hi_unread'
-const MESSAGE_FIELDS = 'id, body, sticker, created_at, author_user_id'
+  'id, club_id, user_lo, user_hi, last_message_at, last_author, last_preview, lo_read_at, hi_read_at, lo_unread, hi_unread, ' +
+  'last_reaction_at, last_reaction_emoji, last_reaction_by, lo_reaction_seen_at, hi_reaction_seen_at'
+export const DM_MESSAGE_FIELDS = 'id, body, sticker, created_at, author_user_id, reply_to'
+const MESSAGE_FIELDS = DM_MESSAGE_FIELDS
 const USER_FIELDS = 'id, name, role, club_id, is_active'
 const DM_ROLES = [...USERS_TRAINER_ROLES, ...USERS_SALES_MANAGER_ROLES, ...USERS_SUPERVISOR_ROLES]
 
@@ -98,10 +100,17 @@ export async function countRecentDmMessages(db, threadId, authorId, since, limit
  * duplicate — повтор с тем же client_msg_id (гонка двух повторов): сообщение уже было, push не шлём.
  * @returns {Promise<{ message: object, duplicate: boolean }>}
  */
-export async function insertDmMessage(db, thread, { authorId, body, sticker = null, clientMsgId = null }) {
+export async function insertDmMessage(db, thread, { authorId, body, sticker = null, clientMsgId = null, replyTo = null }) {
   const { data, error } = await db
     .from('staff_dm_messages')
-    .insert({ thread_id: thread.id, author_user_id: authorId, body, sticker, ...(clientMsgId ? { client_msg_id: clientMsgId } : {}) })
+    .insert({
+      thread_id: thread.id,
+      author_user_id: authorId,
+      body,
+      sticker,
+      ...(clientMsgId ? { client_msg_id: clientMsgId } : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+    })
     .select(MESSAGE_FIELDS)
     .single()
   if (error) {

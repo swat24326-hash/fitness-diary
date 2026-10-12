@@ -34,6 +34,7 @@ function ThreadList({ threads }) {
     unread: t.unread,
     unreadCount: t.unread_count,
     at: t.last_message_at,
+    reaction: t.reaction,
   }))
   return <ChatThreadList rows={rows} />
 }
