@@ -192,6 +192,21 @@ ok(hydratedEdit.weight_kg_l === '20' && hydratedEdit.weight_kg_r === '20', 'edit
 const storedAfterEdit = normalizeSetForStorage(hydratedEdit, true)
 ok(storedAfterEdit.reps_r === '10' && storedAfterEdit.weight_kg_r === '20', 'hydrated edit persists other side')
 
+{
+  const shown = (st, side, other) => displayLateralityField(st, side, other, 'hr_after')
+  let st = expandSetToLaterality({ hr_after: '122', reps: '12', weight_kg: '40' })
+  st = patchLateralitySetField(st, 'hr_after_l', '')
+  ok(shown(st, 'hr_after_l', 'hr_after_r') === '' && shown(st, 'hr_after_r', 'hr_after_l') === '122', 'clear left hr — right stays')
+  st = patchLateralitySetField(st, 'hr_after_r', '')
+  ok(shown(st, 'hr_after_l', 'hr_after_r') === '' && shown(st, 'hr_after_r', 'hr_after_l') === '', 'clear both hr — no resurrect from bilateral')
+  st = patchLateralitySetField(st, 'reps_l', '10')
+  ok(st.hr_after_l === '' && st.hr_after_r === '', 'next edit does not re-expand cleared hr')
+  ok(st.reps_r === '12' && st.weight_kg_l === '40', 'other fields keep values')
+  st = patchLateralitySetField(st, 'weight_kg_l', '')
+  st = patchLateralitySetField(st, 'weight_kg_r', '')
+  ok(displayLateralityField(st, 'weight_kg_l', 'weight_kg_r', 'weight_kg') === '', 'clear both weights — no resurrect')
+}
+
 const hrExpanded = expandSetToLaterality({ hr_after: '140' })
 ok(hrExpanded.hr_after_l === '140' && hrExpanded.hr_after_r === '140', 'expand copies hr to both sides')
 
