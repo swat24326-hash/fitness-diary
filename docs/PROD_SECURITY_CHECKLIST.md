@@ -53,4 +53,4 @@
 
 ## 5. Осознанно отложено
 
-CORS только свой домен — 🔧 12.10 в репо (`PUBLIC_ORIGIN`, `verify-cors-origin`), после деплоя проверить заголовок `curl -sI -X OPTIONS https://app-core.ru/api/me-profile`. MFA админов, белый список колонок абонемента в push (при уходе с 1С). Подробности — STRATEGY §5.7.
+CORS только свой домен — ✅ 12.10 на prod (`1ed24bf`; `PUBLIC_ORIGIN`, `verify-cors-origin`), проверка: `curl -sI -X OPTIONS https://app-core.ru/api/me-profile` → `Access-Control-Allow-Origin: https://app-core.ru`. MFA админов, белый список колонок абонемента в push (при уходе с 1С). Подробности — STRATEGY §5.7.

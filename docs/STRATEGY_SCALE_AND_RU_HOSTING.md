@@ -362,7 +362,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Защита кластера от удаления — ✅ 07.10 (GrokBot `2026-10-07-02`).
 - [x] Копия вне аккаунта Yandex — **временно ноутбук владельца** (12.10, до своего сервера через ~2 мес.): `scripts/pg-backup-pull-laptop.ps1` → `C:\fd-backups` (вне OneDrive), файл зашифрован паролем копий бакета, сверка SHA-256, 8 последних; задача Планировщика `FitnessDiary-DB-Backup` — пн 10:00, журнал `C:\fd-backups\pull.log`. После покупки сервера — перенести туда.
 - [ ] ~21.10, если ничего не понадобилось: Supabase → Delete project (копия уже на ВМ). Vercel: redirect держим, пока не уйдут старые ярлыки планшетов, затем Delete project.
-- [x] CORS `/api/*` только свой домен — 🔧 12.10 в репо (`corsOriginCore.js` из `PUBLIC_ORIGIN`, `verify-cors-origin`). Не ждали удаления Vercel: старые ярлыки и так не ходят в API — предзапрос CORS через redirect 307 браузер не пропускает.
+- [x] CORS `/api/*` только свой домен — ✅ 12.10 на prod (`1ed24bf`) (`corsOriginCore.js` из `PUBLIC_ORIGIN`, `verify-cors-origin`). Не ждали удаления Vercel: старые ярлыки и так не ходят в API — предзапрос CORS через redirect 307 браузер не пропускает.
 - [ ] После удаления Supabase: убрать `authPortSupabase` / ветки «не pg», `supabase/functions/`.
 - [x] [DEPLOY.md](./DEPLOY.md), [RUNBOOK.md](./RUNBOOK.md) §3–4c/§8, [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — хостер = РФ (12.10); GROWTH_PLAYBOOK уже с пометкой «история».
 - [ ] Vercel/Supabase — отменить или оставить только CI-preview по решению команды.
