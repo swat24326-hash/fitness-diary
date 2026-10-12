@@ -2,12 +2,19 @@ import { useCallback, useRef, useState } from 'react'
 import { CalendarCheck, Check, MoreVertical } from 'lucide-react'
 import { usePopoverDismiss } from '../../hooks/usePopoverDismiss.js'
 import { SCHEDULE_VIEW_OPTIONS } from './TrainerScheduleViewSwitcher.jsx'
+import { TrainerScheduleZoomRow } from './TrainerScheduleZoomRow.jsx'
 
 /**
- * Режим календаря одной кнопкой «⋮» справа в шапке (телефон); сверху — «Сегодня».
- * @param {{ view: string, onChange: (view: string) => void, views?: string[], onToday?: () => void }} props
+ * Режим календаря одной кнопкой «⋮» справа в шапке (телефон); сверху — «Сегодня», снизу — масштаб сетки.
+ * @param {{
+ *   view: string,
+ *   onChange: (view: string) => void,
+ *   views?: string[],
+ *   onToday?: () => void,
+ *   zoom?: ReturnType<typeof import('../../hooks/useScheduleZoom.js').useScheduleZoom>,
+ * }} props
  */
-export function TrainerScheduleViewMenu({ view, onChange, views, onToday }) {
+export function TrainerScheduleViewMenu({ view, onChange, views, onToday, zoom }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const options = views
@@ -73,6 +80,12 @@ export function TrainerScheduleViewMenu({ view, onChange, views, onToday }) {
               </button>
             )
           })}
+          {zoom ? (
+            <>
+              <div className="trainer-schedule-view-menu__divider" role="separator" />
+              <TrainerScheduleZoomRow zoom={zoom} />
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>

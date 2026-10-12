@@ -5,6 +5,7 @@ import { membershipTrainingsCards } from '../../lib/client/clientMembershipVisit
 import { trainingViewTitle } from '../../lib/client/clientTrainingsUiCore.js'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
+import { clientAttention } from './ClientTabs.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientMe } from './useClientMe.js'
 import { useClientTraining } from './useClientTraining.js'
@@ -49,8 +50,8 @@ export function ClientTrainingsPage() {
   const cards = data ? membershipTrainingsCards(data.memberships) : null
 
   return (
-    <ClientMeShell actions={<ClientPageActions />} club={data?.club ?? null}>
-      <ClientPageTitle title="Тренировки по абонементу" />
+    <ClientMeShell actions={<ClientPageActions />} club={data?.club ?? null} tabs attention={data ? clientAttention(data) : undefined}>
+      <ClientPageTitle title="Тренировки по абонементу" back={false} />
       {status === 'offline' ? (
         <p className="client-me-offline" role="status">
           Нет связи — показаны сохранённые данные

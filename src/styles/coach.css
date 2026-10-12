@@ -235,8 +235,3 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
-
-/* Диалог на телефоне: лента занимает экран, поле ввода у нижнего края. */
-.coach-app .chat-thread__feed {
-  min-height: calc(100dvh - 190px);
-}

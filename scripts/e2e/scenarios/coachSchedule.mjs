@@ -71,6 +71,21 @@ async function scrollBoardTo(page, minutes) {
   )
 }
 
+/** Колонки текущего экрана целиком в видимой полосе ленты, прокрутки вбок нет (соседние экраны — за краем). */
+function currentDaysFit(page) {
+  return page.evaluate(() => {
+    const d = globalThis.document
+    const board = d.querySelector('.trainer-schedule-day__board')
+    const viewport = board?.querySelector('.trainer-schedule-day__viewport')?.getBoundingClientRect()
+    const tracks = [...(board?.querySelectorAll('.trainer-schedule-day__page:not([aria-hidden]) .trainer-schedule-day__track') ?? [])]
+    if (!board || !viewport || !tracks.length || board.scrollWidth > board.clientWidth + 1) return false
+    return tracks.every((t) => {
+      const r = t.getBoundingClientRect()
+      return r.left >= viewport.left - 1 && r.right <= viewport.right + 1 && r.width >= 20
+    })
+  })
+}
+
 /** Страница не листается: часы листаются внутри сетки, меню режимов «⋮» всегда на экране. */
 function fitsScreen(page) {
   return page.evaluate(() => {
@@ -171,12 +186,11 @@ export async function run(browser) {
     await pickView(page, 'Неделя')
     await page.locator('.trainer-schedule-day--week').waitFor({ timeout: 10_000 })
     c.ok(await fitsScreen(page), 'неделя: всё в одном экране')
-    const weekFits = await page.evaluate(() => {
-      const el = globalThis.document.querySelector('.trainer-schedule-day__scroll')
-      return el && el.scrollWidth <= el.clientWidth + 1
-    })
-    c.ok(weekFits, 'неделя: все 7 дней влезают по ширине, без прокрутки вбок')
-    c.ok((await page.locator('.trainer-schedule-day__col-head').count()) === 7, 'неделя: 7 колонок пн–вс')
+    c.ok(await currentDaysFit(page), 'неделя: все 7 дней влезают по ширине, без прокрутки вбок')
+    c.ok(
+      (await page.locator('.trainer-schedule-day__col-heads .trainer-schedule-day__page:not([aria-hidden]) .trainer-schedule-day__col-head').count()) === 7,
+      'неделя: 7 колонок пн–вс',
+    )
     await screenshot(page, 'coach-calendar-week')
     const weekTitle = await titleText(page, '.trainer-schedule-day__title')
     await touchSwipe(cdp, page, '.trainer-schedule-day__board', -160)
@@ -185,11 +199,7 @@ export async function run(browser) {
     await pickView(page, '3 дня')
     await page.locator('.trainer-schedule-day--multi').waitFor({ timeout: 10_000 })
     c.ok(await fitsScreen(page), '3 дня: всё в одном экране')
-    const noSideScroll = await page.evaluate(() => {
-      const el = globalThis.document.querySelector('.trainer-schedule-day__scroll')
-      return el && el.scrollWidth <= el.clientWidth + 1
-    })
-    c.ok(noSideScroll, '3 дня: все три дня влезают по ширине, без прокрутки вбок')
+    c.ok(await currentDaysFit(page), '3 дня: все три дня влезают по ширине, без прокрутки вбок')
     await screenshot(page, 'coach-calendar-3days')
     await pickView(page, 'День')
     await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 10_000 })

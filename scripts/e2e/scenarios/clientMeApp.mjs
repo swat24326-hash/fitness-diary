@@ -18,7 +18,7 @@ const IPHONE = {
   isMobile: true,
 }
 const INVITE = 'e2e-invite-token'
-const INSTALL_BANNER = 'Установите приложение клуба'
+const INSTALL_BANNER = 'Значок на экран «Домой»'
 
 function visible(page, text) {
   return page
@@ -86,15 +86,22 @@ export async function run(browser) {
       'главная открыта на имя клиента',
     )
     const banner = page.getByRole('region', { name: INSTALL_BANNER })
-    c.ok(await reaches(banner, 'visible'), 'после входа по ссылке — баннер «Установите приложение клуба»')
+    c.ok(await reaches(banner, 'visible'), 'после входа по ссылке — строка «Значок на экран „Домой“»')
     await screenshot(page, 'client-me-home')
+    await banner.getByRole('button', { name: 'Как?' }).click()
+    c.ok(await visible(page, 'Выберите «На экран „Домой“»'), '«Как?» раскрывает шаги установки')
+    await screenshot(page, 'client-install-hint')
 
-    await banner.getByRole('button', { name: 'Позже' }).click()
-    c.ok(await reaches(banner, 'hidden'), '«Позже» прячет баннер')
+    await banner.getByRole('button', { name: 'Готово' }).click()
+    c.ok(await reaches(banner, 'hidden'), '«Готово» прячет подсказку')
     await page.reload()
     c.ok(await membershipShows(page, /6\s*из 8/), 'после перезагрузки вход сохранился')
     await page.waitForTimeout(500)
-    c.ok(await banner.isHidden(), 'отложенный баннер не возвращается до следующего захода')
+    c.ok(await banner.isHidden(), 'закрытая подсказка не возвращается')
+    c.ok((await page.locator('.client-me__top').getByRole('button', { name: 'Обновить' }).count()) === 0, 'в шапке нет кнопки «Обновить»')
+    await page.getByRole('button', { name: 'Меню' }).click()
+    await page.getByRole('region', { name: 'Меню' }).getByRole('button', { name: 'Обновить' }).click()
+    c.ok(await membershipShows(page, /6\s*из 8/), '«Обновить» из меню — данные на месте')
 
     backend.cloudDown = true
     await page.reload()
@@ -102,7 +109,9 @@ export async function run(browser) {
     c.ok(await membershipShows(page, /6\s*из 8/), 'без сети абонемент всё ещё виден')
     backend.cloudDown = false
 
-    await page.getByRole('link', { name: 'Тренировки по абонементу' }).click()
+    const tabs = page.getByRole('navigation', { name: 'Разделы' })
+    c.ok((await tabs.getByRole('link').count()) === 3, 'внизу три вкладки: Главная, Тренировки, Сообщения')
+    await tabs.getByRole('link', { name: 'Тренировки' }).click()
     await page.waitForURL(`${ORIGIN}/me/trainings`, { timeout: 10_000 })
     c.ok(await visible(page, 'Списано 2 из 8'), 'тренировки по абонементу: «Списано 2 из 8» — как цифра на главной')
     c.ok((await page.locator('.client-trainings__row').count()) === 2, 'в списке две строки — по одной на списание')

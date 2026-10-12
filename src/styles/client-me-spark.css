@@ -175,6 +175,30 @@
   animation-delay: 0.8s;
 }
 
+/* «Потрясите телефон»: волна (useSparkWave.js) двигает точки и линию покадрово; кнопка-подсказка под графиком. */
+.client-me-spark__shake {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 0 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.client-me-spark__shake svg {
+  color: var(--accent);
+  animation: spark-hint-wiggle 0.9s 1.4s ease-in-out 2;
+}
+
 .client-me-spark__axis {
   display: flex;
   justify-content: space-between;
@@ -184,12 +208,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Запас сверху и снизу −60% (~58 px) — волна после тряски (до 40 px) не обрезается. */
 @keyframes spark-reveal {
   from {
-    clip-path: inset(-20% 100% -20% 0);
+    clip-path: inset(-60% 100% -60% 0);
   }
   to {
-    clip-path: inset(-20% -5% -20% 0);
+    clip-path: inset(-60% -5% -60% 0);
   }
 }
 
@@ -238,6 +263,19 @@
   }
 }
 
+@keyframes spark-hint-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-14deg);
+  }
+  75% {
+    transform: rotate(14deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .client-me-spark svg,
   .client-me-spark__kg,
@@ -246,7 +284,8 @@
   .client-me-spark__dot,
   .client-me-spark__dot--active::after,
   .client-me-spark--rebuilt svg,
-  .client-me-spark--rebuilt .client-me-spark__dot {
+  .client-me-spark--rebuilt .client-me-spark__dot,
+  .client-me-spark__shake svg {
     animation: none;
   }
 

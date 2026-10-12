@@ -50,20 +50,42 @@
   line-height: 1.45;
 }
 
-.client-onb__steps {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding-left: 22px;
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  text-align: left;
+.client-install {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: var(--bg-card);
 }
 
-.client-onb__steps svg {
-  vertical-align: -3px;
+.client-install__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-install__title {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.client-install__title svg,
+.client-install__steps svg {
   color: var(--accent);
+}
+
+.client-install__steps {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+.client-install__steps svg {
+  vertical-align: -3px;
 }
 
 .client-onb__cta {

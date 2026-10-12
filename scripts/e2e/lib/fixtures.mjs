@@ -133,6 +133,22 @@ export function completedTodaySeed() {
   return seed
 }
 
+/** + история веса за два месяца (тренировки вне абонемента) — на главной /me график, а не одна строка «Вес». */
+export function weightHistorySeed() {
+  const seed = completedTodaySeed()
+  const today = seed.trainings.find((t) => t.id === DONE_TODAY_ID)
+  const points = [[-56, 66.4], [-45, 65.8], [-35, 65.1], [-24, 64.2], [-14, 63.5], [-6, 62.9]]
+  points.forEach(([day, kg], i) => {
+    seed.trainings.push({
+      ...today,
+      id: `e2e00000-0000-4000-8000-0000000007${String(i).padStart(2, '0')}`,
+      date: isoDay(day),
+      data: { ...today.data, membership_id: null, pre_weight_kg: String(kg) },
+    })
+  })
+  return seed
+}
+
 export const CLIENT2_ID = 'e2e00000-0000-4000-8000-0000000000b2'
 export const CLIENT2_NAME = 'Проверкин Борис'
 

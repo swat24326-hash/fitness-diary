@@ -1,28 +1,4 @@
-/* /me: конверт в шапке, «Входящие», экран объявления / опроса. */
-.client-inbox-btn {
-  position: relative;
-}
-
-.client-inbox-btn__badge {
-  position: absolute;
-  top: 4px;
-  right: 2px;
-  display: grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: var(--danger);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  box-shadow: 0 0 0 2px var(--bg);
-  animation: client-inbox-pop 0.35s var(--ease-out, ease) backwards;
-}
-
+/* /me: «Сообщения», экран объявления / опроса. */
 .client-inbox__points {
   display: flex;
   align-items: center;
@@ -300,15 +276,8 @@
   }
 }
 
-@keyframes client-inbox-pop {
-  from {
-    transform: scale(0.4);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .client-inbox > li,
-  .client-inbox-btn__badge {
+  .client-inbox > li {
     animation: none;
   }
 }

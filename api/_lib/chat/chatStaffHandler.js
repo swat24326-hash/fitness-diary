@@ -112,7 +112,7 @@ export async function handleStaffChatGet(ctx, req, res) {
       markRead: staffMarksChatRead(scope.role),
     })
     sendJson(res, 200, {
-      client: { id: String(client.id), name: client.name ?? '', archived: Boolean(client.archived_at) },
+      client: { id: String(client.id), name: client.name ?? '', archived: Boolean(client.archived_at), archived_at: client.archived_at ?? null },
       kind,
       label: chatKindLabelRu(kind),
       can_write: canStaffWriteChat(actor, kind, client),

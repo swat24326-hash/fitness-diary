@@ -45,8 +45,9 @@ export function ClientInboxPage() {
         />
       }
       club={club}
+      tabs
     >
-      <ClientPageTitle title="Сообщения" />
+      <ClientPageTitle title="Сообщения" back={false} />
       <ClientChatThreadsSection threads={chats.threads} error={chats.status === 'error' ? chats.error : ''} />
       <h2 className="chat-threads__section-title">Объявления и опросы</h2>
       {items && status === 'error' ? (

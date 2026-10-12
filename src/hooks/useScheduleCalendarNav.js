@@ -37,6 +37,15 @@ export function useScheduleCalendarNav({ initialView = SCHEDULE_VIEW_MONTH } = {
   const [todayTick, setTodayTick] = useState(0)
 
   const agendaDays = useMemo(() => listScheduleViewDays(selectedDay, view), [selectedDay, view])
+  /** Соседние экраны для листания пальцем: въезжают за пальцем уже с записями. */
+  const agendaPrevDays = useMemo(
+    () => listScheduleViewDays(shiftScheduleAnchorIso(selectedDay, view, -1), view),
+    [selectedDay, view],
+  )
+  const agendaNextDays = useMemo(
+    () => listScheduleViewDays(shiftScheduleAnchorIso(selectedDay, view, 1), view),
+    [selectedDay, view],
+  )
 
   const focusDay = (iso) => {
     setSelectedDay(iso)
@@ -72,6 +81,8 @@ export function useScheduleCalendarNav({ initialView = SCHEDULE_VIEW_MONTH } = {
     selectedDay,
     monthCursor,
     agendaDays,
+    agendaPrevDays,
+    agendaNextDays,
     modalDraft,
     modalOpen,
     openCreate,

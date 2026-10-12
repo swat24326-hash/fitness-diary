@@ -1,37 +1,74 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { resolveSwipeAxis, resolveSwipeCommit } from '../lib/trainer/scheduleSwipeCore.js'
 
 const OUT_MS = 160
 const BACK_MS = 220
 
 /**
- * Листание пальцем вбок: areaRef ловит касание, contentRef едет за пальцем.
+ * Листание пальцем вбок: areaRef ловит касание, contentRef (один или несколько) едет за пальцем.
  * isBlocked — идёт перенос записи (долгое нажатие), тогда не листаем.
+ * carousel — слева и справа от экрана уже нарисованы соседние (лента шириной в 3 экрана, ширина экрана —
+ * родитель первой ленты): соседний экран въезжает за пальцем, после смены pageKey лента встаёт на место.
+ * flip('next' | 'prev') — то же листание без пальца (перенос записи через край).
  * @param {{
  *   areaRef: { current: HTMLElement | null },
- *   contentRef: { current: HTMLElement | null },
+ *   contentRef: { current: HTMLElement | null } | { current: HTMLElement | null }[],
  *   enabled: boolean,
  *   isBlocked?: () => boolean,
  *   onPrev: () => void,
  *   onNext: () => void,
+ *   carousel?: boolean,
+ *   pageKey?: string,
  * }} opts
  */
-export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPrev, onNext }) {
-  const optsRef = useRef({ isBlocked, onPrev, onNext })
-  optsRef.current = { isBlocked, onPrev, onNext }
+export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPrev, onNext, carousel = false, pageKey = '' }) {
+  const optsRef = useRef({ isBlocked, onPrev, onNext, carousel, contentRef })
+  optsRef.current = { isBlocked, onPrev, onNext, carousel, contentRef }
+  const timerRef = useRef(0)
+
+  const setShift = useCallback((px, ms) => {
+    const refs = optsRef.current.contentRef
+    for (const ref of Array.isArray(refs) ? refs : [refs]) {
+      const el = ref.current
+      if (!el) continue
+      el.style.transition = ms ? `transform ${ms}ms ease-out` : 'none'
+      el.style.transform = px ? `translateX(${px}px)` : ''
+    }
+  }, [])
+
+  const pageWidth = useCallback(() => {
+    const refs = optsRef.current.contentRef
+    const first = (Array.isArray(refs) ? refs[0] : refs)?.current
+    if (optsRef.current.carousel) return first?.parentElement?.clientWidth || 1
+    return areaRef.current?.clientWidth || 1
+  }, [areaRef])
+
+  const go = useCallback(
+    (commit) => {
+      const width = pageWidth()
+      const dir = commit === 'next' ? -1 : 1
+      setShift(dir * width, OUT_MS)
+      window.clearTimeout(timerRef.current)
+      timerRef.current = window.setTimeout(() => {
+        if (commit === 'next') optsRef.current.onNext()
+        else optsRef.current.onPrev()
+        if (optsRef.current.carousel) return
+        setShift(-dir * width * 0.3, 0)
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => setShift(0, BACK_MS)))
+      }, OUT_MS)
+    },
+    [pageWidth, setShift],
+  )
+
+  useLayoutEffect(() => {
+    if (carousel) setShift(0, 0)
+  }, [carousel, pageKey, setShift])
 
   useEffect(() => {
     const area = areaRef.current
     if (!enabled || !area) return undefined
     let g = null
-    let timer = 0
 
-    const setShift = (px, ms) => {
-      const el = contentRef.current
-      if (!el) return
-      el.style.transition = ms ? `transform ${ms}ms ease-out` : 'none'
-      el.style.transform = px ? `translateX(${px}px)` : ''
-    }
     const swallowNextClick = () => {
       const stop = (e) => {
         e.stopPropagation()
@@ -43,6 +80,7 @@ export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPr
 
     const onStart = (e) => {
       if (e.touches.length !== 1 || optsRef.current.isBlocked?.()) {
+        if (g?.axis === 'x') setShift(0, BACK_MS)
         g = null
         return
       }
@@ -51,7 +89,7 @@ export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPr
     }
     const onMove = (e) => {
       if (!g) return
-      if (optsRef.current.isBlocked?.()) {
+      if (e.touches.length !== 1 || optsRef.current.isBlocked?.()) {
         if (g.axis === 'x') setShift(0, BACK_MS)
         g = null
         return
@@ -73,23 +111,14 @@ export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPr
         g = null
         return
       }
-      const width = area.clientWidth || 1
-      const commit = resolveSwipeCommit({ dx: g.dx, width, ms: performance.now() - g.at })
+      const commit = resolveSwipeCommit({ dx: g.dx, width: pageWidth(), ms: performance.now() - g.at })
       g = null
       swallowNextClick()
       if (!commit) {
         setShift(0, BACK_MS)
         return
       }
-      const dir = commit === 'next' ? -1 : 1
-      setShift(dir * width, OUT_MS)
-      window.clearTimeout(timer)
-      timer = window.setTimeout(() => {
-        if (commit === 'next') optsRef.current.onNext()
-        else optsRef.current.onPrev()
-        setShift(-dir * width * 0.3, 0)
-        window.requestAnimationFrame(() => window.requestAnimationFrame(() => setShift(0, BACK_MS)))
-      }, OUT_MS)
+      go(commit)
     }
 
     const onCancel = () => {
@@ -102,12 +131,23 @@ export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPr
     area.addEventListener('touchend', onEnd)
     area.addEventListener('touchcancel', onCancel)
     return () => {
-      window.clearTimeout(timer)
+      window.clearTimeout(timerRef.current)
       area.removeEventListener('touchstart', onStart)
       area.removeEventListener('touchmove', onMove)
       area.removeEventListener('touchend', onEnd)
       area.removeEventListener('touchcancel', onCancel)
       setShift(0, 0)
     }
-  }, [areaRef, contentRef, enabled])
+  }, [areaRef, enabled, go, pageWidth, setShift])
+
+  const flip = useCallback(
+    (commit) => {
+      if (enabled) go(commit)
+      else if (commit === 'next') optsRef.current.onNext()
+      else optsRef.current.onPrev()
+    },
+    [enabled, go],
+  )
+
+  return { flip }
 }

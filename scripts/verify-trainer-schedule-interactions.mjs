@@ -25,6 +25,7 @@ import {
   resolveScheduleDragDayIndex,
   resolveScheduleDragPolicy,
   resolveScheduleDragStartMinutes,
+  resolveScheduleEdgeFlip,
   snapScheduleMinutes,
 } from '../src/lib/trainer/trainerScheduleDragCore.js'
 import {
@@ -135,6 +136,24 @@ ok(
 ok(resolveScheduleAutoScrollDelta(110, 100, 600) < 0, 'autoscroll up near top')
 ok(resolveScheduleAutoScrollDelta(590, 100, 600) > 0, 'autoscroll down near bottom')
 ok(resolveScheduleAutoScrollDelta(350, 100, 600) === 0, 'autoscroll none in middle')
+
+/* --- Перенос через край экрана --- */
+const edge = { left: 100, right: 800, colWidth: 100, policy: SCHEDULE_DRAG_FREE }
+ok(resolveScheduleEdgeFlip({ ...edge, startX: 500, clientX: 795 }) === 1, 'edge: у правого края → следующий экран')
+ok(resolveScheduleEdgeFlip({ ...edge, startX: 500, clientX: 105 }) === -1, 'edge: у левого края → предыдущий экран')
+ok(resolveScheduleEdgeFlip({ ...edge, startX: 500, clientX: 40 }) === -1, 'edge: палец над колонкой часов — тоже назад')
+ok(resolveScheduleEdgeFlip({ ...edge, startX: 500, clientX: 450 }) === 0, 'edge: середина — не листаем')
+ok(resolveScheduleEdgeFlip({ ...edge, startX: 790, clientX: 795 }) === 0, 'edge: запись подняли у края и не сдвинули — не улетает')
+ok(resolveScheduleEdgeFlip({ ...edge, startX: 500, clientX: 795, policy: SCHEDULE_DRAG_SAME_DAY }) === 0, 'edge: черновик через край не уходит')
+ok(resolveScheduleEdgeFlip({ ...edge, startX: 500, clientX: 795, policy: SCHEDULE_DRAG_LOCKED }) === 0, 'edge: завершённая — не листаем')
+ok(
+  resolveScheduleEdgeFlip({ left: 0, right: 210, colWidth: 30, policy: SCHEDULE_DRAG_FREE, startX: 100, clientX: 190 }) === 0,
+  'edge: неделя на телефоне — зона не шире половины узкой колонки',
+)
+ok(
+  resolveScheduleEdgeFlip({ left: 0, right: 210, colWidth: 30, policy: SCHEDULE_DRAG_FREE, startX: 100, clientX: 200 }) === 1,
+  'edge: неделя на телефоне — у самого края листает',
+)
 ok(isScheduleMoveNoop({ day_date: '2026-10-12', start_minutes: 600 }, '2026-10-12', 600), 'noop: same place')
 ok(!isScheduleMoveNoop({ day_date: '2026-10-12', start_minutes: 600 }, '2026-10-13', 600), 'not noop: other day')
 

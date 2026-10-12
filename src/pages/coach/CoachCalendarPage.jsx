@@ -12,6 +12,7 @@ import { resolveCoachScheduleWindow } from '../../lib/trainer/coachScheduleEditC
 import { createCoachScheduleActions } from '../../lib/coach/coachScheduleActions.js'
 import { useScheduleCalendarNav } from '../../hooks/useScheduleCalendarNav.js'
 import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
+import { useScheduleZoom } from '../../hooks/useScheduleZoom.js'
 import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
 import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
 import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerScheduleViewMenu.jsx'
@@ -28,15 +29,19 @@ import '../../styles/trainer-schedule-kinds.css'
 
 /** Как в Google Календаре на телефоне: неделя пн–вс, листание пальцем вместо стрелок. */
 const PHONE_VIEWS = [SCHEDULE_VIEW_DAY, SCHEDULE_VIEW_DAYS3, SCHEDULE_VIEW_WEEK, SCHEDULE_VIEW_MONTH]
-/** Час = 60px (на планшете 84): на экране телефона виден больший кусок дня. */
-const PHONE_PX_PER_MIN = 1
 
 /** Главный экран телефона — Ежедневник: тот же календарь, что на планшете, правки сразу на сервер (без очереди). */
 export function CoachCalendarPage() {
   const { onSessionGone } = useCoachApp()
   const nav = useScheduleCalendarNav({ initialView: SCHEDULE_VIEW_DAY })
   const { view, selectedDay, monthCursor, agendaDays } = nav
-  const range = resolveCoachScheduleWindow(monthCursor.year, monthCursor.month, view === SCHEDULE_VIEW_MONTH ? [] : agendaDays)
+  /** По умолчанию час = 60px (на планшете 84): на экране телефона виден больший кусок дня. */
+  const zoom = useScheduleZoom('phone')
+  const range = resolveCoachScheduleWindow(
+    monthCursor.year,
+    monthCursor.month,
+    view === SCHEDULE_VIEW_MONTH ? [] : [...nav.agendaPrevDays, ...agendaDays, ...nav.agendaNextDays],
+  )
   const data = useCoachScheduleData(range.from, range.to)
   const { entries, clients, clientNameById, trainingById, reload } = data
 
@@ -52,7 +57,13 @@ export function CoachCalendarPage() {
   )
   const firstLoad = data.status !== 'ready' && !entries.length && !clients.length
   const viewMenu = (
-    <TrainerScheduleViewMenu view={view} onChange={nav.onChangeView} views={PHONE_VIEWS} onToday={nav.goToday} />
+    <TrainerScheduleViewMenu
+      view={view}
+      onChange={nav.onChangeView}
+      views={PHONE_VIEWS}
+      onToday={nav.goToday}
+      zoom={view === SCHEDULE_VIEW_MONTH ? undefined : zoom}
+    />
   )
 
   return (
@@ -77,12 +88,15 @@ export function CoachCalendarPage() {
         ) : (
           <TrainerScheduleMultiDayAgenda
             dayIsos={agendaDays}
+            prevDayIsos={nav.agendaPrevDays}
+            nextDayIsos={nav.agendaNextDays}
             anchorDayIso={selectedDay}
             entries={entries}
             clientNameById={clientNameById}
             trainingById={trainingById}
             canStartTraining={false}
-            pxPerMin={PHONE_PX_PER_MIN}
+            pxPerMin={zoom.zoom}
+            onZoom={zoom.setZoom}
             swipeNav
             onPrev={() => nav.shiftAnchor(-1)}
             onNext={() => nav.shiftAnchor(1)}

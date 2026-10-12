@@ -7,6 +7,7 @@ import { resolveScheduleMonthWindow } from '../../lib/admin/trainerScheduleAdmin
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient.js'
 import { useClubTrainerScheduleData } from '../../hooks/useClubTrainerScheduleData.js'
 import { useScheduleCalendarNav } from '../../hooks/useScheduleCalendarNav.js'
+import { useScheduleZoom } from '../../hooks/useScheduleZoom.js'
 import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
 import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
 import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerScheduleViewMenu.jsx'
@@ -40,6 +41,7 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
 
   const nav = useScheduleCalendarNav({ initialView: SCHEDULE_VIEW_MONTH })
   const { view, selectedDay, monthCursor, agendaDays } = nav
+  const zoom = useScheduleZoom('admin')
   const [trainerFilter, setTrainerFilter] = useState(() => String(searchParams.get('trainer') ?? '').trim())
   const [trainers, setTrainers] = useState([])
   const [trainersLoading, setTrainersLoading] = useState(false)
@@ -101,7 +103,14 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
     [entries, monthCursor.year, monthCursor.month],
   )
 
-  const viewMenu = <TrainerScheduleViewMenu view={view} onChange={nav.onChangeView} onToday={nav.goToday} />
+  const viewMenu = (
+    <TrainerScheduleViewMenu
+      view={view}
+      onChange={nav.onChangeView}
+      onToday={nav.goToday}
+      zoom={view === SCHEDULE_VIEW_MONTH ? undefined : zoom}
+    />
+  )
 
   return (
     <div className="trainer-schedule-page admin-trainer-schedule-page">
@@ -176,6 +185,8 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               trainingById={trainingById}
               readOnly
               showTrainerName={!trainerFilter}
+              pxPerMin={zoom.zoom}
+              onZoom={zoom.setZoom}
               onPrev={() => nav.shiftAnchor(-1)}
               onNext={() => nav.shiftAnchor(1)}
               onOpenDay={nav.onSelectDay}

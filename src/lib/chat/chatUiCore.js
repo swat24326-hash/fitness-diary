@@ -1,5 +1,7 @@
 /** Подписи списка диалогов и экрана переписки. Без React. */
+import { formatDateRu } from '../dateRu.js'
 import { chatKindLabelRu } from './chatAccessCore.js'
+import { chatDeleteOnIso } from './chatRetentionCore.js'
 
 /** «Тренер · Анна», «Менеджер по продажам». */
 export function chatThreadTitleRu(kind, name) {
@@ -49,6 +51,11 @@ export function chatUnreadBadge(n) {
 export const STAFF_DM_READ_ONLY_RU = 'Написать нельзя — сотрудник заблокирован или работает в другом клубе. История сохранена.'
 
 export function chatStaffReadOnlyRu(thread) {
-  if (thread?.client?.archived) return 'Клиент в архиве — написать ему нельзя, история сохранена.'
+  if (thread?.client?.archived) {
+    const on = chatDeleteOnIso(thread.client)
+    return on
+      ? `Клиент в архиве — написать ему нельзя. Переписка будет удалена ${formatDateRu(on)}, если он не вернётся.`
+      : 'Клиент в архиве — написать ему нельзя.'
+  }
   return 'Эту переписку вы можете только читать.'
 }

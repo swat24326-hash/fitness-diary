@@ -9,6 +9,11 @@ export const SCHEDULE_DRAG_MOVE_TOLERANCE_PX = 8
 export const SCHEDULE_DRAG_SNAP_MIN = 15
 export const SCHEDULE_DRAG_AUTOSCROLL_EDGE_PX = 48
 export const SCHEDULE_DRAG_AUTOSCROLL_STEP_PX = 14
+/** Поднятая запись у левого / правого края: держим столько — листаем на экран назад / вперёд. */
+export const SCHEDULE_DRAG_EDGE_HOLD_MS = 600
+export const SCHEDULE_DRAG_EDGE_PX = 32
+/** Край включается, только когда палец ушёл от точки подъёма: запись в крайней колонке не улетает сама. */
+export const SCHEDULE_DRAG_EDGE_ARM_PX = 16
 
 export const SCHEDULE_DRAG_FREE = 'free'
 export const SCHEDULE_DRAG_SAME_DAY = 'same_day'
@@ -76,6 +81,22 @@ export function resolveScheduleAutoScrollDelta(pointerY, boardTop, boardBottom) 
   if (!Number.isFinite(y)) return 0
   if (y < Number(boardTop) + SCHEDULE_DRAG_AUTOSCROLL_EDGE_PX) return -SCHEDULE_DRAG_AUTOSCROLL_STEP_PX
   if (y > Number(boardBottom) - SCHEDULE_DRAG_AUTOSCROLL_EDGE_PX) return SCHEDULE_DRAG_AUTOSCROLL_STEP_PX
+  return 0
+}
+
+/**
+ * Палец с поднятой записью у края колонок дней: −1 — листать назад, 1 — вперёд, 0 — нет.
+ * Зона края — не шире половины колонки (неделя на телефоне: колонки по ~30px).
+ * Черновик и завершённая тренировка через край не уходят (день менять нельзя).
+ * @param {{ clientX: number, startX: number, left: number, right: number, colWidth: number, policy: string }} p
+ */
+export function resolveScheduleEdgeFlip({ clientX, startX, left, right, colWidth, policy }) {
+  if (policy !== SCHEDULE_DRAG_FREE) return 0
+  const x = Number(clientX)
+  if (!Number.isFinite(x) || Math.abs(x - Number(startX)) < SCHEDULE_DRAG_EDGE_ARM_PX) return 0
+  const zone = Math.min(SCHEDULE_DRAG_EDGE_PX, Math.max(8, (Number(colWidth) || 0) / 2))
+  if (x <= Number(left) + zone) return -1
+  if (x >= Number(right) - zone) return 1
   return 0
 }
 

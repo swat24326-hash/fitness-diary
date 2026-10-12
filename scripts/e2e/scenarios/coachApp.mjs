@@ -7,7 +7,7 @@ import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
-import { ORIGIN, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { ORIGIN, chatComposeAtBottom, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 
 export const name = 'телефон тренера: вход, план дня, ответ клиенту'
@@ -85,6 +85,7 @@ export async function run(browser) {
     await page.getByRole('link', { name: new RegExp(CLIENT_NAME) }).click()
     await page.waitForURL(`${ORIGIN}/coach/chat/${CLIENT_ID}`)
     c.ok(await reaches(page.locator('.chat-msg', { hasText: QUESTION })), 'тренер видит вопрос клиента')
+    c.ok(await chatComposeAtBottom(page), 'поле ввода у нижнего края экрана')
     await page.getByTestId('chat-input').fill(REPLY)
     await page.getByTestId('chat-send').click()
     c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: REPLY })), 'ответ в ленте')

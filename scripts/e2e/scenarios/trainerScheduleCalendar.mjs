@@ -78,8 +78,61 @@ function addIsFabAboveLegend(page) {
   })
 }
 
+/** @param {string} iso @param {number} days */
+function addIso(iso, days) {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Частый опрос страницы: нужно поймать момент между двумя перелистываниями у края. */
+async function pollPage(fn, timeoutMs, stepMs = 40) {
+  const until = Date.now() + timeoutMs
+  while (Date.now() < until) {
+    if (await fn()) return true
+    await new Promise((r) => setTimeout(r, stepMs))
+  }
+  return fn()
+}
+
+/** Только текущий экран ленты: соседние недели нарисованы за краем и тоже содержат записи. */
 function entryAt(page, hhmm) {
-  return page.locator(`.trainer-schedule-day__entry[aria-label^="${hhmm}"]`).first()
+  return page
+    .locator(`.trainer-schedule-day__page:not([aria-hidden]) .trainer-schedule-day__entry[aria-label^="${hhmm}"]`)
+    .first()
+}
+
+function boardState(page) {
+  return page.evaluate(() => {
+    const d = globalThis.document
+    const board = d.querySelector('.trainer-schedule-day__board')
+    const viewport = board?.querySelector('.trainer-schedule-day__viewport')?.getBoundingClientRect()
+    const days = [...d.querySelectorAll('.trainer-schedule-day__board .trainer-schedule-day__page:not([aria-hidden]) [data-schedule-day]')].map(
+      (t) => t.getAttribute('data-schedule-day'),
+    )
+    const nextPage = board?.querySelectorAll('.trainer-schedule-day__page')[2]?.getBoundingClientRect()
+    return {
+      scrollTop: board?.scrollTop ?? -1,
+      days,
+      viewport: viewport ? { left: viewport.left, right: viewport.right, top: viewport.top, bottom: viewport.bottom } : null,
+      nextPageLeft: nextPage?.left ?? Infinity,
+    }
+  })
+}
+
+/** Взмах пальцем вбок по сетке; mid — проверка, пока палец ещё на экране. */
+async function swipeBoard(cdp, page, dx, mid) {
+  const b = await page.locator('.trainer-schedule-day__board').boundingBox()
+  const y = b.y + b.height / 2
+  const x0 = b.x + b.width / 2 - dx / 2
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y }] })
+  for (let i = 1; i <= 10; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (dx * i) / 10, y }] })
+    await page.waitForTimeout(16)
+  }
+  if (mid) await mid()
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await page.waitForTimeout(450)
 }
 
 async function center(locator) {
@@ -210,6 +263,94 @@ export async function run(browser) {
     c.ok((await page.locator('.trainer-schedule-day__now').count()) === 1, 'неделя: линия «сейчас» только в одной колонке')
     await scrollBoardTo(page, 9 * 60)
     await screenshot(page, 'schedule-week')
+
+    /* Листание недели пальцем: стрелок нет, соседняя неделя въезжает за пальцем, вертикаль не прыгает. */
+    c.ok((await page.getByRole('button', { name: 'Вперёд' }).count()) === 0, 'планшет: стрелок нет — листаем пальцем')
+    const week0 = await boardState(page)
+    let nextVisibleMid = false
+    await swipeBoard(cdp, page, -260, async () => {
+      const s = await boardState(page)
+      nextVisibleMid = s.nextPageLeft < s.viewport.right - 100
+      await screenshot(page, 'schedule-swipe-mid')
+    })
+    const week1 = await boardState(page)
+    c.ok(nextVisibleMid, 'во время взмаха следующая неделя уже видна у края, а не пустота')
+    c.ok(week1.days[0] === isoDay(7 - week0.days.indexOf(today)), `взмах влево — следующая неделя (${week1.days[0]})`)
+    c.ok(Math.abs(week1.scrollTop - week0.scrollTop) <= 1, `вертикаль не сбросилась при листании (${week0.scrollTop} → ${week1.scrollTop})`)
+    await swipeBoard(cdp, page, 260)
+    c.ok((await boardState(page)).days[0] === week0.days[0], 'взмах вправо — обратно на текущую неделю')
+
+    /* Перенос через край: держим запись у правого края — листается неделя за неделей, уносим на 2 недели. */
+    await scrollBoardTo(page, 9 * 60)
+    const weekStart = (await boardState(page)).days[0]
+    const moving = (state.trainer_schedule_entries ?? []).find((r) => r.day_date === today && r.start_minutes === 600)
+    const grab = await center(entryAt(page, '10:00'))
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: grab.x, y: grab.y }] })
+    await page.waitForTimeout(650)
+    const vp = (await boardState(page)).viewport
+    const edgeX = vp.right - 6
+    for (let i = 1; i <= 8; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: grab.x + ((edgeX - grab.x) * i) / 8, y: grab.y }] })
+      await page.waitForTimeout(16)
+    }
+    const flippedTwice = await pollPage(async () => (await boardState(page)).days[0] === addIso(weekStart, 14), 5000)
+    const colW = (vp.right - vp.left) / 7
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: vp.right - colW * 1.5, y: grab.y }] })
+    await page.waitForTimeout(700)
+    const landed = await boardState(page)
+    const ghostDay = await page.evaluate(
+      () => globalThis.document.querySelector('.trainer-schedule-day__entry-wrap--ghost')?.closest('[data-schedule-day]')?.getAttribute('data-schedule-day') ?? '',
+    )
+    await screenshot(page, 'schedule-drag-edge')
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    c.ok(flippedTwice && landed.days[0] === addIso(weekStart, 14), `у края неделя пролисталась дважды (${landed.days[0]})`)
+    c.ok(ghostDay === landed.days[5], `«призрак» записи в субботе через 2 недели (${ghostDay})`)
+    const edgeMoved = await waitFor(
+      () => (state.trainer_schedule_entries ?? []).some((r) => r.id === moving?.id && r.day_date === landed.days[5] && r.start_minutes === 600),
+      10_000,
+    )
+    c.ok(edgeMoved, `сервер: запись перенесена на ${landed.days[5]} 10:00`)
+    c.ok(!(await page.getByRole('dialog').isVisible()), 'после переноса через край форма не открылась')
+
+    /* Масштаб: «+» в «⋮», щипок двумя пальцами, запоминается после перезагрузки, тап по % — сброс. */
+    const hourPx = () =>
+      page.evaluate(() => globalThis.document.querySelector('.trainer-schedule-day__hour-label')?.getBoundingClientRect().height ?? 0)
+    c.ok(Math.round(await hourPx()) === 84, `масштаб по умолчанию: час 84px (${await hourPx()})`)
+    await page.getByRole('button', { name: /^Режим календаря/ }).click()
+    await page.getByRole('button', { name: /^Крупнее/ }).click()
+    c.ok(Math.round(await hourPx()) === 120, `«Крупнее» в «⋮»: час 120px (${await hourPx()})`)
+    c.ok(await page.getByRole('button', { name: /^Масштаб 143%/ }).isVisible(), 'меню не закрылось, видно «143%»')
+    await screenshot(page, 'schedule-zoom-menu')
+    await page.getByRole('button', { name: /^Масштаб 143%/ }).click()
+    c.ok(Math.round(await hourPx()) === 84, `тап по % — обычный масштаб (${await hourPx()})`)
+    await page.keyboard.press('Escape')
+
+    const boardBox = await page.locator('.trainer-schedule-day__board').boundingBox()
+    const cx = boardBox.x + boardBox.width / 2
+    const cy = boardBox.y + boardBox.height / 2
+    const pinchAt = (half) => [
+      { x: cx, y: cy - half, id: 1 },
+      { x: cx, y: cy + half, id: 2 },
+    ]
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pinchAt(100) })
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pinchAt(100 - i * 5) })
+      await page.waitForTimeout(16)
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await page.waitForTimeout(100)
+    const pinched = await hourPx()
+    c.ok(Math.round(pinched) === 42, `щипок (пальцы свели вдвое): час 42px — больше часов на экране (${pinched})`)
+    const pageScale = await page.evaluate(() => globalThis.visualViewport?.scale ?? 1)
+    c.ok(pageScale === 1, `щипок по сетке не зумит всю страницу (scale ${pageScale})`)
+    await screenshot(page, 'schedule-zoom-pinch')
+
+    await page.waitForTimeout(500)
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.locator('.trainer-schedule-month').waitFor({ timeout: 15_000 })
+    await pickView(page, 'День')
+    await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 15_000 })
+    c.ok(Math.round(await hourPx()) === 42, `масштаб запомнился после перезагрузки (${await hourPx()})`)
 
     c.ok(pageErrors.length === 0, `без ошибок JS на странице${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {

@@ -1,13 +1,13 @@
 /**
  * Переписка клиента с тренером: клиент на iPhone пишет тренеру ссылку Wildberries →
  * у тренера на планшете конверт «1 новых» → «Диалоги» → ссылка кликабельна → ответ →
- * конверт гаснет → клиент видит ответ с именем тренера и точку на конверте /me.
+ * конверт гаснет → клиент видит ответ с именем тренера и число на вкладке «Сообщения» /me.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeClientPortal } from '../lib/fakeClientPortal.mjs'
-import { ORIGIN, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { ORIGIN, chatComposeAtBottom, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLIENT_ID, CLIENT_NAME, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, completedTodaySeed, isoDay } from '../lib/fixtures.mjs'
 
 export const name = 'переписка: клиент пишет, тренер отвечает'
@@ -102,6 +102,7 @@ async function clientWrites(c, browser, backend, chat) {
     await page.getByTestId('chat-send').click()
     c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: 'Посмотрите резинку' })), 'сообщение клиента в ленте справа')
     c.ok(chat.state.messages[0]?.body === QUESTION && chat.state.messages[0]?.author_side === 'client', 'на сервер ушло сообщение клиента')
+    c.ok(await chatComposeAtBottom(page), 'поле ввода у нижнего края экрана')
     c.ok((await page.getByTestId('chat-input').inputValue()) === '', 'поле ввода очищено после отправки')
     c.ok((await tones(page)) > 0, 'клиент: звук отправки (у клиента звуки включены по умолчанию)')
     await page.getByTestId('chat-emoji-toggle').click()
@@ -148,6 +149,20 @@ async function trainerReplies(c, browser, backend, chat) {
     const link = page.locator('.chat-msg a', { hasText: 'wildberries.ru' })
     c.ok(await reaches(link), 'тренер видит сообщение клиента')
     c.ok((await link.getAttribute('href')) === WB && (await link.getAttribute('target')) === '_blank', 'ссылка Wildberries кликабельна и открывается отдельно')
+    let popups = 0
+    context.on('page', () => (popups += 1))
+    await link.click()
+    const ask = page.getByRole('dialog', { name: 'Открыть ссылку?' })
+    c.ok(await reaches(ask), 'ссылка клиента: сначала «Открыть ссылку?»')
+    c.ok(await reaches(ask.getByText('www.wildberries.ru', { exact: true })), 'в окне крупно настоящий сайт')
+    await screenshot(page, 'staff-chat-link-confirm')
+    await ask.getByRole('button', { name: 'Отмена' }).click()
+    c.ok((await reaches(ask, 'hidden')) && popups === 0, '«Отмена» — окно закрылось, сайт не открылся')
+    await link.click()
+    const popup = context.waitForEvent('page', { timeout: 10_000 })
+    await ask.getByRole('button', { name: 'Открыть' }).click()
+    c.ok(Boolean(await popup.catch(() => null)) && (await reaches(ask, 'hidden')), '«Открыть» — сайт в новой вкладке')
+    for (const p of context.pages()) if (p !== page) await p.close()
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения клуба', exact: true })), 'открыл диалог — конверт без числа')
     await page.getByTestId('chat-input').fill(REPLY)
     await page.getByTestId('chat-send').click()
@@ -178,7 +193,7 @@ async function clientReads(c, browser, backend) {
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
     await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
-    c.ok(await reaches(page.getByRole('button', { name: 'Сообщения: новых 1' })), 'клиент: на конверте /me — 1 новое')
+    c.ok(await reaches(page.getByRole('link', { name: 'Сообщения: новых 1' })), 'клиент: на вкладке «Сообщения» /me — 1 новое')
     await page.goto(`${ORIGIN}/me/chat/trainer`)
     const reply = page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: REPLY })
     c.ok(await reaches(reply), 'клиент видит ответ тренера')

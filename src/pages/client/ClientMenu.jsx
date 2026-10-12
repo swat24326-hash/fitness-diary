@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, Settings, Smartphone, User } from 'lucide-react'
+import { LogOut, Menu, RefreshCw, Settings, Smartphone, User } from 'lucide-react'
 import { useClientApp } from './ClientAppContext.jsx'
 
 function navClass({ isActive }) {
@@ -10,9 +10,10 @@ function navClass({ isActive }) {
 /**
  * Бургер /me — выпадающее меню как у тренера (app-header__dropdown / __menu-item из index.css),
  * все строки одного вида: кто вошёл → разделы → действия → «Выйти». Новый раздел — ещё один NavLink.
- * @param {{ clientName?: string, onLogout: () => void }} props
+ * onRefresh — «Обновить» данные открытого экрана (как у тренера — в меню, не в шапке).
+ * @param {{ clientName?: string, onLogout: () => void, onRefresh?: (() => void) | null, refreshing?: boolean }} props
  */
-export function ClientMenu({ clientName = '', onLogout }) {
+export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refreshing = false }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef(null)
   const navigate = useNavigate()
@@ -73,6 +74,20 @@ export function ClientMenu({ clientName = '', onLogout }) {
             >
               <Smartphone size={18} aria-hidden />
               Установить на телефон
+            </button>
+          ) : null}
+          {onRefresh ? (
+            <button
+              type="button"
+              className="app-header__menu-item"
+              disabled={refreshing}
+              onClick={() => {
+                close()
+                onRefresh()
+              }}
+            >
+              <RefreshCw size={18} aria-hidden className={refreshing ? 'client-me-spin' : undefined} />
+              Обновить
             </button>
           ) : null}
           <button

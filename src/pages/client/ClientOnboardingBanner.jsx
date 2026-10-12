@@ -1,5 +1,6 @@
-import { Bell, Download, Share, Smartphone } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { useClientApp } from './ClientAppContext.jsx'
+import { ClientInstallHint } from './ClientInstallHint.jsx'
 
 function Frame({ icon: Icon, title, index, total, children, onLater }) {
   return (
@@ -30,38 +31,7 @@ export function ClientOnboardingBanner({ clubName }) {
   const later = () => onboarding.later(step)
 
   if (step === 'install') {
-    return (
-      <Frame icon={Smartphone} title="Установите приложение клуба" index={index} total={total} onLater={later}>
-        {installer.mode === 'prompt' ? (
-          <>
-            <p className="client-onb__text">Значок «{name}» на главном экране — абонемент и тренировки в одно касание.</p>
-            <button
-              type="button"
-              className="btn btn-primary btn-touch client-onb__cta"
-              onClick={async () => {
-                if (await installer.install()) onboarding.done('install')
-              }}
-            >
-              <Download size={20} aria-hidden />
-              Установить
-            </button>
-          </>
-        ) : (
-          <>
-            <ol className="client-onb__steps">
-              <li>
-                Нажмите <Share size={18} aria-label="Поделиться" /> внизу экрана
-              </li>
-              <li>Выберите «На экран „Домой“»</li>
-              <li>Откройте значок «{name}»</li>
-            </ol>
-            <button type="button" className="btn btn-primary btn-touch client-onb__cta" onClick={() => onboarding.done('install')}>
-              Готово
-            </button>
-          </>
-        )}
-      </Frame>
-    )
+    return <ClientInstallHint name={name} installer={installer} onDone={() => onboarding.done('install')} />
   }
 
   return (

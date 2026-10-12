@@ -1,4 +1,5 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
+import { Vibrate } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import {
   nearestDotIndex,
@@ -6,6 +7,8 @@ import {
   weightSparkGeometry,
   weightSparkPath,
 } from '../../lib/client/clientMeHighlightsCore.js'
+import { useSparkShake } from './useSparkShake.js'
+import { useSparkWave } from './useSparkWave.js'
 
 const W = 300
 /** Совпадает с высотой .client-me-spark__plot в px — --drop точек считается в тех же единицах. */
@@ -16,7 +19,10 @@ const kgRu = (kg) => String(kg).replace('.', ',')
 export function ClientWeightSpark({ weights, settling = false, rebuilt = false }) {
   const gradId = useId()
   const [picked, setPicked] = useState(null)
+  const rootRef = useRef(null)
   const g = weightSparkGeometry(weights, W, H, PAD)
+  const motion = useSparkShake(rootRef, g?.dots.length ?? 0, settling)
+  const lifts = useSparkWave(motion.shake)
   if (!g) {
     const last = weights?.at(-1)
     return last ? (
@@ -28,8 +34,9 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
   const lastIndex = g.dots.length - 1
   const active = picked ?? lastIndex
   const cap = weightSparkCaption(g.dots, active)
-  const line = weightSparkPath(g.dots)
-  const area = `${line} L${g.dots[lastIndex].x},${H} L${g.dots[0].x},${H} Z`
+  const dots = lifts ? g.dots.map((d, i) => ({ ...d, y: d.y + (lifts[i] ?? 0) })) : g.dots
+  const line = weightSparkPath(dots)
+  const area = `${line} L${dots[lastIndex].x},${H} L${dots[0].x},${H} Z`
   const pct = (d) => ({ left: `${(d.x / W) * 100}%`, top: `${(d.y / H) * 100}%` })
 
   const pick = (e) => {
@@ -46,7 +53,8 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
 
   return (
     <figure
-      className={`client-me-spark${rebuilt ? ' client-me-spark--rebuilt' : ''}${settling ? ' client-me-spark--settling' : ''}`}
+      ref={rootRef}
+      className={`client-me-spark${rebuilt ? ' client-me-spark--rebuilt' : ''}${settling ? ' client-me-spark--settling' : ''}${lifts ? ' client-me-spark--wave' : ''}`}
     >
       <div className="client-me-spark__head" aria-live="polite">
         <strong key={`kg-${active}`} className="client-me-spark__kg">
@@ -66,7 +74,10 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
         aria-valuemax={lastIndex}
         aria-valuenow={active}
         aria-valuetext={`${cap.date}: ${cap.kg} кг`}
-        onPointerDown={pick}
+        onPointerDown={(e) => {
+          pick(e)
+          motion.onPlotTouch()
+        }}
         onPointerMove={pick}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setPicked(null)}
         onKeyDown={onKey}
@@ -98,7 +109,7 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
           <span
             key={`${d.date}-${i}`}
             className={`client-me-spark__dot${i === active ? ' client-me-spark__dot--active' : ''}`}
-            style={{ ...pct(d), '--at': `${(d.x / W) * 0.9}s`, '--drop': `${H - d.y}px` }}
+            style={{ ...pct(dots[i]), '--at': `${(d.x / W) * 0.9}s`, '--drop': `${H - d.y}px` }}
             aria-hidden
           />
         ))}
@@ -107,6 +118,12 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
         <span>{formatDateRu(g.dots[0].date)}</span>
         <span>{formatDateRu(g.dots[lastIndex].date)}</span>
       </figcaption>
+      {motion.hint ? (
+        <button type="button" className="client-me-spark__shake" onClick={() => void motion.onHint()}>
+          <Vibrate size={16} aria-hidden />
+          Потрясите телефон
+        </button>
+      ) : null}
     </figure>
   )
 }

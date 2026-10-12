@@ -1,9 +1,12 @@
 import { Check, CheckCheck } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { chatLinkCheck, chatLinkNeedsConfirm } from '../../lib/chat/chatLinkCore.js'
 import { chatTextParts } from '../../lib/chat/chatMessageCore.js'
 import { buildChatFeed } from '../../lib/chat/chatFeedCore.js'
 import { splitEmojiText } from '../../lib/chat/chatEmojiNotoCore.js'
 import { ChatEmojiAnimated } from './ChatEmojiAnimated.jsx'
 import { ChatEmojiGlyph } from './ChatEmojiGlyph.jsx'
+import { ChatLinkConfirm } from './ChatLinkConfirm.jsx'
 import { ChatSticker } from './stickers/ChatSticker.jsx'
 
 const TIME_FMT = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -14,10 +17,16 @@ function TextWithEmoji({ text }) {
   )
 }
 
-function MessageText({ body }) {
+function MessageText({ body, mine, onLink }) {
+  const click = (e, href) => {
+    const check = chatLinkCheck(href, window.location.origin)
+    if (!chatLinkNeedsConfirm(check, mine)) return
+    e.preventDefault()
+    onLink(check)
+  }
   return chatTextParts(body).map((p, i) =>
     p.href ? (
-      <a key={i} href={p.href} target="_blank" rel="noopener noreferrer nofollow">
+      <a key={i} href={p.href} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => click(e, p.href)}>
         {p.text}
       </a>
     ) : (
@@ -58,7 +67,9 @@ function Meta({ m }) {
  * @param {{ messages: object[], peerReadAt?: string|null }} props
  */
 export function ChatFeed({ messages, peerReadAt }) {
-  return buildChatFeed(messages, { peerReadAt }).map((item) => {
+  const [link, setLink] = useState(null)
+  const closeLink = useCallback(() => setLink(null), [])
+  const items = buildChatFeed(messages, { peerReadAt }).map((item) => {
     if (item.type === 'day') {
       return (
         <div key={item.key} className="chat-day" role="separator">
@@ -87,11 +98,17 @@ export function ChatFeed({ messages, peerReadAt }) {
           ) : item.big ? (
             <BigEmoji body={item.body} />
           ) : (
-            <MessageText body={item.body} />
+            <MessageText body={item.body} mine={item.mine} onLink={setLink} />
           )}
           <Meta m={item} />
         </div>
       </div>
     )
   })
+  return (
+    <>
+      {items}
+      <ChatLinkConfirm link={link} onClose={closeLink} />
+    </>
+  )
 }

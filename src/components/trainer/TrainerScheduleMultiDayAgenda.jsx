@@ -3,30 +3,24 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   SCHEDULE_DAY_END_HOUR,
   SCHEDULE_DAY_START_HOUR,
-  assignScheduleEntryLanes,
   filterScheduleEntriesForDay,
   formatScheduleMinutes,
   formatScheduleViewRangeLabel,
-  weekdayShortRu,
 } from '../../lib/trainer/trainerScheduleCore.js'
-import {
-  resolveScheduleInitialScrollMinutes,
-  resolveScheduleNowLineMinutes,
-} from '../../lib/trainer/trainerScheduleNowCore.js'
+import { resolveScheduleInitialScrollMinutes } from '../../lib/trainer/trainerScheduleNowCore.js'
 import { resolveScheduleDragPolicy } from '../../lib/trainer/trainerScheduleDragCore.js'
+import { resolveScheduleEntryMinHeight } from '../../lib/trainer/scheduleZoomCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 import { useTrainerScheduleNow } from '../../hooks/useTrainerScheduleNow.js'
 import { useTrainerScheduleDrag } from '../../hooks/useTrainerScheduleDrag.js'
 import { useScheduleSwipe } from '../../hooks/useScheduleSwipe.js'
-import { TrainerScheduleEntryBlock } from './TrainerScheduleEntryBlock.jsx'
+import { useScheduleZoomGesture } from '../../hooks/useScheduleZoomGesture.js'
+import { TrainerScheduleDayTrack } from './TrainerScheduleDayTrack.jsx'
+import { TrainerScheduleColHeads } from './TrainerScheduleColHeads.jsx'
 import { TrainerScheduleKindLegend } from './TrainerScheduleKindPicker.jsx'
 
 const PX_PER_MIN_DEFAULT = 1.4
 const DAY_START_MIN = SCHEDULE_DAY_START_HOUR * 60
-const DAY_END_MIN = SCHEDULE_DAY_END_HOUR * 60
-/** Узкий экран (телефон тренера) переопределяет через CSS `--schedule-col-min` / `--schedule-time-col`. */
-const COL_MIN = 'var(--schedule-col-min, 96px)'
-const TIME_COL = 'var(--schedule-time-col, 52px)'
 
 const ENTRY_MIN_HEIGHT_WITH_TRAINER = 78
 const ENTRY_MIN_HEIGHT = 48
@@ -37,9 +31,16 @@ function scrollTopForMinutes(minutes, pxPerMin) {
   return Math.max(0, (minutes - DAY_START_MIN) * pxPerMin - 8)
 }
 
+/** @param {unknown} list */
+function cleanDays(list) {
+  return (Array.isArray(list) ? list : []).map((d) => String(d).slice(0, 10)).filter(Boolean)
+}
+
 /**
  * @param {{
  *   dayIsos: string[],
+ *   prevDayIsos?: string[],
+ *   nextDayIsos?: string[],
  *   anchorDayIso?: string,
  *   entries: object[],
  *   clientNameById?: Record<string, string>,
@@ -49,6 +50,7 @@ function scrollTopForMinutes(minutes, pxPerMin) {
  *   canStartTraining?: boolean,
  *   showTrainerName?: boolean,
  *   pxPerMin?: number,
+ *   onZoom?: (pxPerMin: number) => void,
  *   swipeNav?: boolean,
  *   onPrev: () => void,
  *   onNext: () => void,
@@ -63,11 +65,17 @@ function scrollTopForMinutes(minutes, pxPerMin) {
  *   todayTick?: number,
  * }} props
  * todayTick — «Сегодня» из меню вне сетки: на каждое изменение сетка докручивает к текущему часу.
- * headEnd — кнопка справа в шапке (телефон: меню режима «⋮»); слева — пустышка той же ширины, дата по центру.
+ * headEnd — кнопка справа в шапке (меню режима «⋮»); слева — пустышка той же ширины, дата по центру.
  * addFab — «+» плавающей кнопкой в правом нижнем углу сетки, как в Google Календаре на телефоне.
+ * onZoom — щипок / Ctrl+колёсико меняют pxPerMin (масштаб хранит страница, см. useScheduleZoom).
+ * swipeNav + prevDayIsos / nextDayIsos — лента из трёх экранов: соседний въезжает за пальцем,
+ * поднятую запись у края сетки уносит на следующий экран (и дальше, если держать).
+ * Вертикальная прокрутка при листании не сбрасывается — только при открытии и по «Сегодня».
  */
 export function TrainerScheduleMultiDayAgenda({
   dayIsos,
+  prevDayIsos,
+  nextDayIsos,
   anchorDayIso = '',
   entries,
   clientNameById = {},
@@ -77,6 +85,7 @@ export function TrainerScheduleMultiDayAgenda({
   canStartTraining = true,
   showTrainerName = false,
   pxPerMin = PX_PER_MIN_DEFAULT,
+  onZoom,
   swipeNav = false,
   onPrev,
   onNext,
@@ -91,7 +100,11 @@ export function TrainerScheduleMultiDayAgenda({
   todayTick = 0,
 }) {
   const boardRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const days = (dayIsos ?? []).map((d) => String(d).slice(0, 10)).filter(Boolean)
+  const days = cleanDays(dayIsos)
+  const prevDays = cleanDays(prevDayIsos)
+  const nextDays = cleanDays(nextDayIsos)
+  const carousel = swipeNav && prevDays.length > 0 && nextDays.length > 0
+  const pages = carousel ? [prevDays, days, nextDays] : [days]
   const compact = days.length > 1
   const now = useTrainerScheduleNow()
   const { todayIso: today, nowMinutes } = now
@@ -101,15 +114,16 @@ export function TrainerScheduleMultiDayAgenda({
     (days.includes(today) && today) ||
     days[0] ||
     ''
-  const trackHeight = (DAY_END_MIN - DAY_START_MIN) * pxPerMin
   const hours = []
   for (let h = SCHEDULE_DAY_START_HOUR; h < SCHEDULE_DAY_END_HOUR; h++) hours.push(h)
   const title = formatScheduleViewRangeLabel(days, formatDateRu)
   const rangeKey = days.join('|')
-  const multiGrid = {
-    gridTemplateColumns: `${TIME_COL} repeat(${days.length}, minmax(${COL_MIN}, 1fr))`,
-    minWidth: `calc(${TIME_COL} + ${days.length} * (${COL_MIN} + 8px))`,
-  }
+  const pageGrid = { gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }
+
+  const swipeAreaRef = useRef(/** @type {HTMLElement | null} */ (null))
+  const headsStripRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const tracksStripRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const flipRef = useRef(/** @type {(commit: 'next' | 'prev') => void} */ (() => {}))
 
   const drag = useTrainerScheduleDrag({
     boardRef,
@@ -121,27 +135,34 @@ export function TrainerScheduleMultiDayAgenda({
       resolveScheduleDragPolicy(entry, entry.linked_training_id ? trainingById[entry.linked_training_id] : null),
     onDrop: (entry, dayIso, startMinutes) => onMoveEntry?.(entry, dayIso, startMinutes),
     onLocked: (entry) => onMoveLocked?.(entry),
+    onEdgeFlip: carousel ? (dir) => flipRef.current(dir > 0 ? 'next' : 'prev') : undefined,
   })
   const preview = drag.preview
-  const draggedEntry = preview ? entries.find((e) => String(e.id) === preview.entryId) : null
   const previewRef = useRef(preview)
   previewRef.current = preview
-  const swipeAreaRef = useRef(/** @type {HTMLElement | null} */ (null))
-  const swipeContentRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  useScheduleSwipe({
+  const swipe = useScheduleSwipe({
     areaRef: swipeAreaRef,
-    contentRef: swipeContentRef,
+    contentRef: [headsStripRef, tracksStripRef],
     enabled: swipeNav,
     isBlocked: () => previewRef.current != null,
     onPrev,
     onNext,
+    carousel,
+    pageKey: rangeKey,
+  })
+  flipRef.current = swipe.flip
+  useScheduleZoomGesture({
+    boardRef,
+    zoom: pxPerMin,
+    onZoom,
+    isBlocked: () => previewRef.current != null,
   })
 
   useEffect(() => {
     const el = boardRef.current
     if (!el) return
     el.scrollTop = scrollTopForMinutes(resolveScheduleInitialScrollMinutes(days, today, nowMinutes), pxPerMin)
-  }, [rangeKey, todayTick])
+  }, [todayTick])
 
   const goToday = () => {
     onToday?.()
@@ -164,114 +185,18 @@ export function TrainerScheduleMultiDayAgenda({
       </button>
     ) : null
 
-  const minHeight = compact
-    ? ENTRY_MIN_HEIGHT_COMPACT
-    : showTrainerName
-      ? ENTRY_MIN_HEIGHT_WITH_TRAINER
-      : ENTRY_MIN_HEIGHT
-
-  const entryStyle = (entry, startMinutes, laneIndex, laneCount) => {
-    const widthPct = 100 / laneCount
-    return {
-      top: (startMinutes - DAY_START_MIN) * pxPerMin,
-      height: Math.max(minHeight, (Number(entry.duration_minutes) || 60) * pxPerMin - 4),
-      left: `${laneIndex * widthPct}%`,
-      width: `calc(${widthPct}% - ${compact ? 2 : 4}px)`,
-      right: 'auto',
-    }
-  }
-
-  const renderDayTrack = (dayIso) => {
-    const dayEntries = filterScheduleEntriesForDay(entries, dayIso)
-    const entryLanes = assignScheduleEntryLanes(dayEntries)
-    const nowLine = resolveScheduleNowLineMinutes(dayIso, today, nowMinutes)
-    return (
-      <div
-        key={dayIso}
-        className="trainer-schedule-day__track"
-        style={{ height: trackHeight }}
-        data-schedule-day={dayIso}
-      >
-        {hours.map((h) =>
-          readOnly ? (
-            <div
-              key={`slot-${dayIso}-${h}`}
-              className="trainer-schedule-day__hour-slot trainer-schedule-day__hour-slot--readonly"
-              style={{ top: (h * 60 - DAY_START_MIN) * pxPerMin, height: 60 * pxPerMin }}
-            />
-          ) : (
-            <button
-              key={`slot-${dayIso}-${h}`}
-              type="button"
-              className="trainer-schedule-day__hour-slot"
-              style={{ top: (h * 60 - DAY_START_MIN) * pxPerMin, height: 60 * pxPerMin }}
-              onClick={() => onAddAt(dayIso, h * 60)}
-              aria-label={`Добавить запись ${formatDateRu(dayIso)} в ${formatScheduleMinutes(h * 60)}`}
-            />
-          ),
-        )}
-        {nowLine != null ? (
-          <div
-            className="trainer-schedule-day__now"
-            style={{ top: (nowLine - DAY_START_MIN) * pxPerMin }}
-            title={`Сейчас ${formatScheduleMinutes(nowLine)}`}
-            aria-hidden
-          />
-        ) : null}
-        {dayEntries.map((entry) => {
-          const lane = entryLanes.get(String(entry.id)) ?? { lane: 0, laneCount: 1 }
-          const laneCount = Math.max(1, Number(lane.laneCount) || 1)
-          const laneIndex = Math.min(Math.max(0, Number(lane.lane) || 0), laneCount - 1)
-          const trainerName =
-            showTrainerName && entry.trainer_id ? trainerNameById[String(entry.trainer_id)] ?? 'Тренер' : ''
-          return (
-            <TrainerScheduleEntryBlock
-              key={entry.id}
-              entry={entry}
-              style={entryStyle(entry, Number(entry.start_minutes), laneIndex, laneCount)}
-              compact={compact}
-              laneCount={laneCount}
-              trainerName={trainerName}
-              clientNameById={clientNameById}
-              trainingById={trainingById}
-              now={now}
-              readOnly={readOnly}
-              canStartTraining={canStartTraining}
-              variant={preview?.entryId === String(entry.id) ? 'drag-source' : 'normal'}
-              dragHandlers={drag.getEntryHandlers(entry)}
-              onOpen={() => {
-                if (drag.consumeSuppressedClick()) return
-                onOpenEntry(entry)
-              }}
-            />
-          )
-        })}
-        {draggedEntry && preview.dayIso === dayIso ? (
-          <TrainerScheduleEntryBlock
-            entry={{ ...draggedEntry, day_date: dayIso, start_minutes: preview.startMinutes }}
-            style={entryStyle(draggedEntry, preview.startMinutes, 0, 1)}
-            compact={compact}
-            laneCount={1}
-            clientNameById={clientNameById}
-            trainingById={trainingById}
-            now={now}
-            readOnly
-            variant="ghost"
-          />
-        ) : null}
-      </div>
-    )
-  }
-
-  const hoursCol = (
-    <div className="trainer-schedule-day__hours" aria-hidden>
-      {hours.map((h) => (
-        <div key={h} className="trainer-schedule-day__hour-label" style={{ height: 60 * pxPerMin }}>
-          {formatScheduleMinutes(h * 60)}
-        </div>
-      ))}
-    </div>
+  const minHeight = resolveScheduleEntryMinHeight(
+    compact ? ENTRY_MIN_HEIGHT_COMPACT : showTrainerName ? ENTRY_MIN_HEIGHT_WITH_TRAINER : ENTRY_MIN_HEIGHT,
+    pxPerMin,
   )
+  const stripClass = ['trainer-schedule-day__strip', carousel ? 'trainer-schedule-day__strip--carousel' : '']
+    .filter(Boolean)
+    .join(' ')
+  /** Экран ленты: соседние видны, пока въезжают, но скрыты от скринридера и не нажимаются. */
+  const pageProps = (pageDays) => {
+    const current = pageDays === days
+    return { className: 'trainer-schedule-day__page', style: pageGrid, 'aria-hidden': current ? undefined : true }
+  }
 
   return (
     <section
@@ -280,6 +205,7 @@ export function TrainerScheduleMultiDayAgenda({
         compact ? 'trainer-schedule-day--multi' : '',
         days.length >= 7 ? 'trainer-schedule-day--week' : '',
         preview ? 'trainer-schedule-day--dragging' : '',
+        preview?.edge ? `trainer-schedule-day--edge-${preview.edge > 0 ? 'next' : 'prev'}` : '',
         swipeNav ? 'trainer-schedule-day--swipe' : '',
       ]
         .filter(Boolean)
@@ -321,60 +247,65 @@ export function TrainerScheduleMultiDayAgenda({
       </div>
 
       <div className="trainer-schedule-day__body">
-      {compact ? (
-        <div className="trainer-schedule-day__scroll" ref={swipeContentRef}>
-          <div className="trainer-schedule-day__col-heads" style={multiGrid}>
+        {compact ? (
+          <div className="trainer-schedule-day__col-heads">
             <span className="trainer-schedule-day__col-heads-spacer" aria-hidden />
-            {days.map((dayIso) => {
-              const isToday = dayIso === today
-              const headLabel = (
-                <>
-                  <span className="trainer-schedule-day__col-wd">{weekdayShortRu(dayIso)}</span>{' '}
-                  <span className="trainer-schedule-day__col-date">{formatDateRu(dayIso).slice(0, 5)}</span>
-                </>
-              )
-              const className = [
-                'trainer-schedule-day__col-head',
-                !onOpenDay ? 'trainer-schedule-day__col-head--static' : '',
-                isToday ? 'trainer-schedule-day__col-head--today' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')
-              return onOpenDay ? (
-                <button
-                  key={dayIso}
-                  type="button"
-                  className={className}
-                  onClick={() => onOpenDay(dayIso)}
-                  aria-label={`Открыть день ${formatDateRu(dayIso)}`}
-                >
-                  {headLabel}
-                </button>
-              ) : (
-                <span key={dayIso} className={className}>
-                  {headLabel}
-                </span>
-              )
-            })}
+            <div className="trainer-schedule-day__viewport">
+              <div className={stripClass} ref={headsStripRef}>
+                {pages.map((pageDays) => (
+                  <div key={pageDays[0]} {...pageProps(pageDays)}>
+                    <TrainerScheduleColHeads
+                      dayIsos={pageDays}
+                      todayIso={today}
+                      interactive={pageDays === days}
+                      onOpenDay={onOpenDay}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="trainer-schedule-day__board trainer-schedule-day__board--multi" ref={boardRef} style={multiGrid}>
-            {hoursCol}
-            {days.map((dayIso) => renderDayTrack(dayIso))}
+        ) : null}
+        <div className="trainer-schedule-day__board" ref={boardRef}>
+          <div className="trainer-schedule-day__hours" aria-hidden>
+            {hours.map((h) => (
+              <div key={h} className="trainer-schedule-day__hour-label" style={{ height: 60 * pxPerMin }}>
+                {formatScheduleMinutes(h * 60)}
+              </div>
+            ))}
+          </div>
+          <div className="trainer-schedule-day__viewport">
+            <div className={stripClass} ref={tracksStripRef}>
+              {pages.map((pageDays) => (
+                <div key={pageDays[0]} {...pageProps(pageDays)}>
+                  {pageDays.map((dayIso) => (
+                    <TrainerScheduleDayTrack
+                      key={dayIso}
+                      dayIso={dayIso}
+                      entries={entries}
+                      pxPerMin={pxPerMin}
+                      minHeight={minHeight}
+                      compact={compact}
+                      interactive={pageDays === days}
+                      readOnly={readOnly}
+                      canStartTraining={canStartTraining}
+                      showTrainerName={showTrainerName}
+                      clientNameById={clientNameById}
+                      trainerNameById={trainerNameById}
+                      trainingById={trainingById}
+                      now={now}
+                      preview={preview}
+                      drag={drag}
+                      onAddAt={onAddAt}
+                      onOpenEntry={onOpenEntry}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      ) : (
-        <div
-          className="trainer-schedule-day__board"
-          ref={(el) => {
-            boardRef.current = el
-            swipeContentRef.current = el
-          }}
-        >
-          {hoursCol}
-          {days.map((dayIso) => renderDayTrack(dayIso))}
-        </div>
-      )}
-      {addFab ? addButton : null}
+        {addFab ? addButton : null}
       </div>
 
       {days.every((d) => filterScheduleEntriesForDay(entries, d).length === 0) ? (

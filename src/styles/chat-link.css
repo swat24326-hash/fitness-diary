@@ -1,0 +1,67 @@
+/* «Открыть ссылку?» — ChatLinkConfirm.jsx */
+.chat-link-confirm {
+  max-width: 420px;
+}
+
+.chat-link-confirm__title {
+  margin: 0;
+}
+
+.chat-link-confirm__host {
+  margin: 14px 0 2px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.chat-link-confirm__url {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.chat-link-confirm__warn {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  list-style: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.chat-link-confirm__warn li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.chat-link-confirm__warn svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.chat-link-confirm__note {
+  margin: 14px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.chat-link-confirm__actions {
+  margin-top: 18px;
+}
+
+.chat-link-confirm__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

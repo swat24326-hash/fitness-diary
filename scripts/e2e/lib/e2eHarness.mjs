@@ -143,6 +143,13 @@ export async function screenshot(page, name) {
   return path
 }
 
+/** Поле ввода диалога прижато к нижнему краю экрана (не висит посередине при паре сообщений). */
+export async function chatComposeAtBottom(page) {
+  const box = await page.locator('.chat-compose').boundingBox()
+  const height = page.viewportSize()?.height ?? 0
+  return Boolean(box) && Math.abs(box.y + box.height - height) <= 2
+}
+
 export async function loginUi(page, login, password) {
   await page.goto(`${ORIGIN}/login`, { waitUntil: 'domcontentloaded' })
   await page.locator('#login').fill(login)

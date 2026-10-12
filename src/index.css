@@ -44,6 +44,7 @@
 @import './styles/chat.css';
 @import './styles/chat-stickers.css';
 @import './styles/chat-contacts.css';
+@import './styles/chat-link.css';
 @import './styles/coach.css';
 @import './styles/coach-schedule.css';
 @import './styles/coach-clients.css';

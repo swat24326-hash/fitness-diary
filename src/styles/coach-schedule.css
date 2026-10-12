@@ -31,9 +31,8 @@
   flex: none;
 }
 
-/* «3 дня» влезают в 360px без прокрутки вбок; часы уже, чем на планшете (там 52px и колонка дня от 96px). */
+/* Часы уже, чем на планшете (там 52px): дням достаётся больше ширины. */
 .coach-schedule {
-  --schedule-col-min: 72px;
   --schedule-time-col: 36px;
   display: flex;
   flex-direction: column;
@@ -84,8 +83,7 @@
   bottom: 4px;
 }
 
-.coach-schedule .trainer-schedule-day > .trainer-schedule-day__body,
-.coach-schedule .trainer-schedule-day__body > .trainer-schedule-day__scroll {
+.coach-schedule .trainer-schedule-day > .trainer-schedule-day__body {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -93,8 +91,13 @@
 }
 
 .coach-schedule .trainer-schedule-day__board,
-.coach-schedule .trainer-schedule-day__col-heads {
+.coach-schedule .trainer-schedule-day__col-heads,
+.coach-schedule .trainer-schedule-day__page {
   column-gap: 4px;
+}
+
+.coach-schedule .trainer-schedule-day__strip--carousel > .trainer-schedule-day__page {
+  padding-right: 4px;
 }
 
 /* Записи: шрифт мельче и легче; в «3 днях» имя переносится на вторую строку, а не обрезается после 6 букв. */
@@ -137,13 +140,12 @@
 }
 
 /* Неделя на 360px: 7 узких колонок, шапка «Пн» над «12.10», в записи только имя мелко. */
-.coach-schedule .trainer-schedule-day--week {
-  --schedule-col-min: 28px;
+.coach-schedule .trainer-schedule-day--week .trainer-schedule-day__page {
+  column-gap: 2px;
 }
 
-.coach-schedule .trainer-schedule-day--week .trainer-schedule-day__board,
-.coach-schedule .trainer-schedule-day--week .trainer-schedule-day__col-heads {
-  column-gap: 2px;
+.coach-schedule .trainer-schedule-day--week .trainer-schedule-day__strip--carousel > .trainer-schedule-day__page {
+  padding-right: 2px;
 }
 
 .coach-schedule .trainer-schedule-day--week .trainer-schedule-day__col-head {
@@ -179,8 +181,7 @@
 }
 
 /* overscroll-behavior — докрутив часы до края, палец не утаскивает страницу. */
-.coach-schedule .trainer-schedule-day__body > .trainer-schedule-day__board,
-.coach-schedule .trainer-schedule-day__scroll > .trainer-schedule-day__board {
+.coach-schedule .trainer-schedule-day__body > .trainer-schedule-day__board {
   flex: 1 1 auto;
   min-height: 180px;
   max-height: none;

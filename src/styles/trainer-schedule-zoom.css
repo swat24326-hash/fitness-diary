@@ -1,0 +1,44 @@
+/* Масштаб сетки ежедневника — строка в меню «⋮». */
+.trainer-schedule-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trainer-schedule-zoom__btn,
+.trainer-schedule-zoom__value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.trainer-schedule-zoom__btn {
+  width: 44px;
+  flex: none;
+}
+
+.trainer-schedule-zoom__value {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.trainer-schedule-zoom__btn:active,
+.trainer-schedule-zoom__value:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.trainer-schedule-zoom__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

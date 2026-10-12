@@ -1,47 +1,4 @@
-/* /me: кнопка «Мои тренировки» и список за 30 дней. */
-.client-me-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
-  color: var(--text);
-  font-size: 0.92rem;
-  font-weight: 600;
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    background 0.18s ease,
-    transform 0.12s ease;
-}
-
-.client-me-link svg {
-  flex: none;
-  color: var(--accent);
-}
-
-.client-me-link span {
-  flex: 1;
-}
-
-.client-me-link:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-
-.client-me-link:active {
-  transform: scale(0.98);
-}
-
-.client-me-link__chevron {
-  transition: transform 0.18s ease;
-}
-
-.client-me-link:hover .client-me-link__chevron {
-  transform: translateX(2px);
-}
+/* /me/trainings: тренировки по абонементу. */
 .client-trainings {
   display: grid;
   gap: 8px;

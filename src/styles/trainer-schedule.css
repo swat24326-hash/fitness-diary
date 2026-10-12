@@ -408,17 +408,41 @@
   margin-left: auto;
 }
 
-.trainer-schedule-day__scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-}
-
 .trainer-schedule-day__col-heads {
   display: grid;
+  grid-template-columns: var(--schedule-time-col, 52px) minmax(0, 1fr);
   gap: 8px;
   margin-bottom: 6px;
   align-items: stretch;
+}
+
+/* Лента листания: экраны дней в ряд; с соседями (--carousel) видна средняя треть, крайние въезжают за пальцем. */
+.trainer-schedule-day__viewport {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.trainer-schedule-day__strip {
+  position: relative;
+  display: flex;
+  will-change: transform;
+}
+
+.trainer-schedule-day__strip--carousel {
+  left: -100%;
+}
+
+.trainer-schedule-day__page {
+  flex: 0 0 100%;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Колонки шапки и часов — гэп между экранами как между днями, чтобы край экрана не слипался. */
+.trainer-schedule-day__strip--carousel > .trainer-schedule-day__page {
+  padding-right: 8px;
 }
 
 .trainer-schedule-day__col-heads-spacer {
@@ -451,15 +475,46 @@
 
 .trainer-schedule-day__board {
   display: grid;
-  grid-template-columns: var(--schedule-time-col, 52px) 1fr;
+  grid-template-columns: var(--schedule-time-col, 52px) minmax(0, 1fr);
   gap: 8px;
-  overflow: auto;
-  max-height: min(68vh, 720px);
-}
-
-.trainer-schedule-day__board--multi {
   overflow-x: hidden;
   overflow-y: auto;
+  max-height: min(68vh, 720px);
+  /* Щипок двумя пальцами — масштаб сетки (useScheduleZoomGesture), а не зум всей страницы. */
+  touch-action: pan-x pan-y;
+}
+
+/* Листание пальцем вбок (как в Google Календаре): вертикаль отдаём браузеру, вбок ведёт JS. */
+.trainer-schedule-day--swipe {
+  touch-action: pan-y;
+}
+
+.trainer-schedule-month--swipe {
+  touch-action: pan-y;
+  overflow: hidden;
+}
+
+/* Поднятую запись держат у края — подсветка края: сейчас перелистнётся. */
+.trainer-schedule-day--edge-prev .trainer-schedule-day__body::before,
+.trainer-schedule-day--edge-next .trainer-schedule-day__body::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: var(--radius-md);
+}
+
+.trainer-schedule-day--edge-prev .trainer-schedule-day__body::before {
+  left: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, transparent), transparent);
+}
+
+.trainer-schedule-day--edge-next .trainer-schedule-day__body::after {
+  right: 0;
+  background: linear-gradient(270deg, color-mix(in srgb, var(--accent) 45%, transparent), transparent);
 }
 
 .trainer-schedule-day--week .trainer-schedule-day__board {

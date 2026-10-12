@@ -60,15 +60,16 @@
 | Повтор записи | `src/lib/trainer/trainerScheduleRecurrenceCore.js`, UI `TrainerScheduleRepeatFields.jsx` |
 | Категории и состояние | `src/lib/trainer/trainerScheduleKindCore.js`, UI `TrainerScheduleKindPicker.jsx` (плашки + легенда), стили `trainer-schedule-kinds.css`, цвета — токены `--schedule-kind-*` в `tokens.css` |
 | Перенос пальцем | `src/lib/trainer/trainerScheduleDragCore.js`, хуки `useTrainerScheduleDrag.js` (жест), `useTrainerScheduleMove.js` (сохранение + «Отменить») |
+| Масштаб сетки | `src/lib/trainer/scheduleZoomCore.js`, хуки `useScheduleZoom.js` (значение + хранение), `useScheduleZoomGesture.js` (щипок, Ctrl+колёсико, якорь прокрутки), UI `TrainerScheduleZoomRow.jsx` в «⋮», стили `trainer-schedule-zoom.css` |
 | IDB + sync | `src/lib/trainer/trainerScheduleService.js` |
 | Связь с `trainings` | `src/lib/trainer/trainerScheduleTrainingCore.js`, `trainerScheduleTrainingService.js` |
 | Push payload | `src/lib/trainer/trainerSchedulePushPayload.js` |
 | Экран | `src/pages/trainer/TrainerCalendarPage.jsx` |
 | Админ / управляющий | `src/pages/admin/ClubTrainerSchedulePage.jsx` |
 | Admin API | `api/_lib/adminData/trainerScheduleHandler.js`, `src/lib/admin/trainerScheduleAdminCore.js` |
-| UI-блоки | `src/components/trainer/TrainerSchedule*.jsx` (`ViewSwitcher`, `MultiDayAgenda`, `EntryBlock`, `EntryReadonly`, `Notice`, месяц) |
+| UI-блоки | `src/components/trainer/TrainerSchedule*.jsx` (`ViewSwitcher`, `MultiDayAgenda` — лента экранов, `DayTrack` — колонка дня, `ColHeads` — шапки дней, `EntryBlock`, `EntryReadonly`, `Notice`, месяц) |
 | Стили | `src/styles/trainer-schedule.css`, `src/styles/trainer-schedule-interactions.css` (сейчас, перенос, плашка, повтор), `src/styles/trainer-schedule-kinds.css` (категории) |
-| Verify | `verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core.mjs`, `verify-trainer-schedule-interactions.mjs`; экран — сценарий `trainerScheduleCalendar` в `qa:screens` |
+| Verify | `verify-trainer-schedule-core.mjs`, `verify-trainer-schedule-training-core.mjs`, `verify-trainer-schedule-interactions.mjs`, `verify-schedule-zoom.mjs` (масштаб); экран — сценарий `trainerScheduleCalendar` в `qa:screens` |
 
 ## Безопасность
 
@@ -103,6 +104,9 @@
 | «Сегодня» | Пункт в меню «⋮» шапки (с 12.10; раньше — кнопка): якорь на сегодня + скролл к текущему времени. Тренер и админ |
 | Повтор | В форме тренера «Повторять каждую неделю»: дни недели (по умолчанию день записи) и 2/4/8/12/16 недель. Исходная запись — первая неделя; копии — **обычные отдельные записи** (новые `id`, без `linked_training_id`), каждая через `saveLocalWithSync`. Дни раньше сегодня и дубли (тот же день + время + клиенты/текст) пропускаются. **Серии в БД нет**: «изменить / удалить все следующие» — нет, только по одной |
 | Перенос | Тренер, режимы День / 3 дня / Неделя (не Месяц). Удержание ~0,4 с → запись «поднята» (вибро), ведём по часам и колонкам дней, шаг 15 мин, автоскролл у краёв. Сдвиг пальца до подъёма — это скролл. Отпустили — `moveTrainerScheduleEntry` (только `day_date` + `start_minutes`, через очередь), плашка «Перенесено на … · Отменить» (6 с). Тап после жеста форму не открывает |
+| Листание вбок | С 12.10. Тренер на планшете и телефоне, режимы День / 3 дня / Неделя и Месяц: смахнул пальцем — следующий / предыдущий экран, стрелок нет (у админа на мониторе стрелки остаются). Сетка — лента из трёх экранов (`prevDayIsos` / `nextDayIsos` из `useScheduleCalendarNav`): соседний въезжает за пальцем уже с записями (телефон грузит окно с соседями). Вертикальная прокрутка при листании не сбрасывается — только при открытии и по «Сегодня» |
+| Перенос через край | Поднятую запись держат у левого / правого края колонок ~0,6 с (край подсвечивается) — экран перелистывается на целый экран (неделя / 3 дня / день), запись остаётся в пальце; держат дальше — листается ещё. Край включается, только когда палец ушёл от точки подъёма на 16px. Черновик и завершённая тренировка через край не уходят. Логика — `resolveScheduleEdgeFlip`; запись хранится в жесте (`preview.entry`), касание дослушивается на самой записи, если она ушла с экрана |
+| Масштаб сетки | С 12.10. Щипок двумя пальцами по сетке меняет высоту часа (`pxPerMin` 0,5–3; умолчание: планшет и админ 1,4, телефон 1), время под пальцами остаётся на месте. В «⋮» строка «Масштаб» «− / % / +» (тап по % — сброс), на мониторе Ctrl+колёсико. Хранится в `localStorage` устройства, раздельно для планшета / телефона / админки. Режимы День / 3 дня / Неделя. Щипок не листает дни и не включается при поднятой записи |
 | Запрет переноса | `resolveScheduleDragPolicy`: завершённая связанная тренировка — запись не двигается (плашка); черновик (или тренировка ещё не в кэше) — только время в тот же день, иначе дата слота и черновика разъедутся |
 
 ## Фаза 2d — категории записей (✅ в проде с 11.10.2026, миграция применена)

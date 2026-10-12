@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { CalendarClock, ChevronRight, Flame, Gift, IdCard, ListChecks, TrendingUp } from 'lucide-react'
+import { BarChart3, CalendarClock, Flame, Gift, IdCard, TrendingUp } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import {
   formatSignedRu,
@@ -74,15 +73,39 @@ export function ClientMembershipNote({ memberships }) {
   ) : null
 }
 
+/** «Мой прогресс» — график веса и замеры. Ни веса, ни замеров — карточки нет. */
 export function ClientProgressCard({ progress, sparkBuild = 0, sparkSettling = false }) {
   const p = progress ?? {}
-  const last = lastVisitWidget(p.last_visit)
   const weights = p.weights ?? []
-  const weightDelta = weightDeltaWidget(weights)
   const deltas = measurementDeltas(p.measurements)
-  const streak = weeksStreakLabel(p.weeks_streak)
+  if (!weights.length && !deltas.length) return null
   return (
     <Card icon={TrendingUp} title="Мой прогресс">
+      <ClientWeightSpark key={sparkBuild} weights={weights} settling={sparkSettling} rebuilt={sparkBuild > 0} />
+      {deltas.length ? (
+        <ul className="client-me-deltas">
+          {deltas.map((d) => (
+            <li key={d.id}>
+              <span>{d.label}</span>
+              <span>
+                {String(d.to).replace('.', ',')} см <em className="client-me-muted">{formatSignedRu(d.diff, 'см')}</em>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Card>
+  )
+}
+
+/** Цифры под «Моим прогрессом»: тренировки всего / за 30 дней, последняя, изменение веса, недели подряд. */
+export function ClientStatsCard({ progress }) {
+  const p = progress ?? {}
+  const last = lastVisitWidget(p.last_visit)
+  const weightDelta = weightDeltaWidget(p.weights ?? [])
+  const streak = weeksStreakLabel(p.weeks_streak)
+  return (
+    <Card icon={BarChart3} title="Мои тренировки">
       <div className="client-me-stats">
         <div>
           <strong>{p.visits_total ?? 0}</strong>
@@ -112,24 +135,6 @@ export function ClientProgressCard({ progress, sparkBuild = 0, sparkSettling = f
           <Flame size={16} aria-hidden />
           {streak}
         </p>
-      ) : null}
-      <Link to="/me/trainings" className="client-me-link">
-        <ListChecks size={18} aria-hidden />
-        <span>Тренировки по абонементу</span>
-        <ChevronRight size={18} aria-hidden className="client-me-link__chevron" />
-      </Link>
-      <ClientWeightSpark key={sparkBuild} weights={weights} settling={sparkSettling} rebuilt={sparkBuild > 0} />
-      {deltas.length ? (
-        <ul className="client-me-deltas">
-          {deltas.map((d) => (
-            <li key={d.id}>
-              <span>{d.label}</span>
-              <span>
-                {String(d.to).replace('.', ',')} см <em className="client-me-muted">{formatSignedRu(d.diff, 'см')}</em>
-              </span>
-            </li>
-          ))}
-        </ul>
       ) : null}
     </Card>
   )

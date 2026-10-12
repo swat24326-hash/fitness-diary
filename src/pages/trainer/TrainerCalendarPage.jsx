@@ -4,6 +4,7 @@ import { pluralRu } from '../../lib/client/clientMeUiCore.js'
 import { SCHEDULE_VIEW_MONTH, countScheduleEntriesByDay } from '../../lib/trainer/trainerScheduleCore.js'
 import { useTrainerScheduleData } from '../../hooks/useTrainerScheduleData.js'
 import { useScheduleCalendarNav } from '../../hooks/useScheduleCalendarNav.js'
+import { useScheduleZoom } from '../../hooks/useScheduleZoom.js'
 import { TrainerScheduleMonthGrid } from '../../components/trainer/TrainerScheduleMonthGrid.jsx'
 import { TrainerScheduleMultiDayAgenda } from '../../components/trainer/TrainerScheduleMultiDayAgenda.jsx'
 import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerScheduleViewMenu.jsx'
@@ -18,6 +19,7 @@ export function TrainerCalendarPage() {
   const { user } = useAuth()
   const nav = useScheduleCalendarNav()
   const { view, selectedDay, monthCursor, agendaDays } = nav
+  const zoom = useScheduleZoom('tablet')
 
   const { entries, clients, clientNameById, trainingById, loading, reload } = useTrainerScheduleData(
     user?.id,
@@ -32,15 +34,23 @@ export function TrainerCalendarPage() {
   )
 
   const wide = view !== SCHEDULE_VIEW_MONTH && agendaDays.length > 1
-  const viewMenu = <TrainerScheduleViewMenu view={view} onChange={nav.onChangeView} onToday={nav.goToday} />
+  const viewMenu = (
+    <TrainerScheduleViewMenu
+      view={view}
+      onChange={nav.onChangeView}
+      onToday={nav.goToday}
+      zoom={view === SCHEDULE_VIEW_MONTH ? undefined : zoom}
+    />
+  )
 
   return (
     <div className={['trainer-schedule-page', wide ? 'trainer-schedule-page--wide' : ''].filter(Boolean).join(' ')}>
       <header className="trainer-schedule-page__hero">
         <h1 className="trainer-schedule-page__title">Ежедневник</h1>
         <p className="trainer-schedule-page__subtitle muted">
-          План дня: заметки и клиенты. Сохраняется на планшете и уходит в облако при Sync. Удерживайте
-          запись, чтобы перенести её.
+          План дня: заметки и клиенты. Сохраняется на планшете и уходит в облако при Sync. Листайте
+          пальцем вбок; удерживайте запись, чтобы перенести её (у края — на следующую неделю); два пальца —
+          масштаб.
         </p>
       </header>
 
@@ -60,15 +70,21 @@ export function TrainerCalendarPage() {
           onPrevMonth={nav.prevMonth}
           onNextMonth={nav.nextMonth}
           onPickMonth={nav.pickMonth}
+          swipeNav
           headEnd={viewMenu}
         />
       ) : (
         <TrainerScheduleMultiDayAgenda
           dayIsos={agendaDays}
+          prevDayIsos={nav.agendaPrevDays}
+          nextDayIsos={nav.agendaNextDays}
+          swipeNav
           anchorDayIso={selectedDay}
           entries={entries}
           clientNameById={clientNameById}
           trainingById={trainingById}
+          pxPerMin={zoom.zoom}
+          onZoom={zoom.setZoom}
           onPrev={() => nav.shiftAnchor(-1)}
           onNext={() => nav.shiftAnchor(1)}
           headEnd={viewMenu}
