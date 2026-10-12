@@ -110,9 +110,9 @@ async function handlePost(ctx, res, body, store) {
   if (COACH_SCHEDULE_WRITE_OPS.includes(op)) return handleCoachScheduleWrite(ctx, res, op, body)
   if (op === 'chat-send') {
     const kind = coachChatKind(body.kind)
-    return handleStaffChatPost(ctx, res, { op: 'send', kind, client_id: body.client_id, body: body.body, sticker: body.sticker })
+    return handleStaffChatPost(ctx, res, { op: 'send', kind, client_id: body.client_id, body: body.body, sticker: body.sticker, client_msg_id: body.client_msg_id })
   }
-  if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body.user_id, { body: body.body, sticker: body.sticker })
+  if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body.user_id, { body: body.body, sticker: body.sticker, client_msg_id: body.client_msg_id })
   if (op === 'client-invite') {
     const out = await issueClientInvite(ctx, { client_id: body.client_id })
     return sendJson(res, out.status, out.body)

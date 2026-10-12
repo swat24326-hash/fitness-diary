@@ -3,16 +3,16 @@
  * POST { action: 'chat-list' } | { action: 'chat-thread', kind, before? } (отмечает прочитанным) | { action: 'chat-send', kind, body }
  */
 import { sendJson } from '../adminSupabase.js'
-import { chatKindLabelRu, chatUnreadCount, clientChatKinds, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
+import { chatKindLabelRu, chatUnreadCount, clientChatAttention, clientChatKinds, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
 import { openChatThread, sendChatMessage } from './chatConversation.js'
 import { isMissingChatTable, loadClientThreads, loadStaffNames } from './chatStore.js'
 
 const UNAVAILABLE_RU = 'Сообщения пока недоступны — попробуйте позже'
 
-/** Число непрочитанных диалогов для конверта (GET /api/client-me). До миграции — 0. */
-export async function loadClientChatAttention(db, clientId) {
+/** Число непрочитанных диалогов для конверта (GET /api/client-me) — только те, что видны в списке. До миграции — 0. */
+export async function loadClientChatAttention(db, client) {
   try {
-    return (await loadClientThreads(db, clientId)).filter((t) => isChatUnreadFor('client', t)).length
+    return clientChatAttention(client, await loadClientThreads(db, client.id))
   } catch (e) {
     if (isMissingChatTable(e)) return 0
     throw e
@@ -60,7 +60,7 @@ export async function handleClientChatPost(db, ctx, body, res) {
       return
     }
     if (body.action === 'chat-send') {
-      const out = await sendChatMessage(db, { client, kind, side: 'client', body: body.body, sticker: body.sticker })
+      const out = await sendChatMessage(db, { client, kind, side: 'client', body: body.body, sticker: body.sticker, clientMsgId: body.client_msg_id })
       sendJson(res, out.status, out.body)
       return
     }

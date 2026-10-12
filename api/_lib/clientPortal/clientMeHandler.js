@@ -75,7 +75,7 @@ export async function clientMeHandler(req, res) {
   const [me, inbox_attention, chat_attention] = await Promise.all([
     loadClientMe(db, ctx.client),
     loadClientInboxAttention(db, ctx.clientId),
-    loadClientChatAttention(db, ctx.clientId),
+    loadClientChatAttention(db, ctx.client),
   ])
   sendJson(res, 200, { ...me, inbox_attention, chat_attention })
 }

@@ -1,7 +1,8 @@
 /**
  * Запросы переписки сотрудников (service role). Права — src/lib/chat/staffDmAccessCore.js, здесь только чтение и запись.
  */
-import { chatPreview, chronological } from '../../../src/lib/chat/chatMessageCore.js'
+import { chatReadCutoff, isUniqueViolation } from '../../../src/lib/chat/chatDeliveryCore.js'
+import { chronological } from '../../../src/lib/chat/chatMessageCore.js'
 import { USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../../../src/lib/userRoleConstants.js'
 import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
@@ -75,30 +76,55 @@ export async function ensureDmThread(db, pair, clubId) {
   throw error
 }
 
-/** side — сторона автора ('lo' | 'hi'). */
-export async function insertDmMessage(db, thread, side, { authorId, body, sticker = null }) {
+export async function loadDmMessageByClientMsgId(db, threadId, clientMsgId) {
+  if (!clientMsgId) return null
   const { data, error } = await db
     .from('staff_dm_messages')
-    .insert({ thread_id: thread.id, author_user_id: authorId, body, sticker })
     .select(MESSAGE_FIELDS)
-    .single()
+    .eq('thread_id', threadId)
+    .eq('client_msg_id', clientMsgId)
+    .maybeSingle()
   if (error) throw error
-  const peer = side === 'lo' ? 'hi' : 'lo'
-  const patch = {
-    last_message_at: data.created_at,
-    last_author: authorId,
-    last_preview: chatPreview(body),
-    [`${side}_read_at`]: data.created_at,
-    [`${side}_unread`]: 0,
-    [`${peer}_unread`]: (Number(thread[`${peer}_unread`]) || 0) + 1,
-  }
-  await rows(db.from('staff_dm_threads').update(patch).eq('id', thread.id).select('id'))
-  return data
+  return data ?? null
 }
 
-export async function markDmRead(db, thread, side) {
-  const at = new Date().toISOString()
-  await rows(db.from('staff_dm_threads').update({ [`${side}_read_at`]: at, [`${side}_unread`]: 0 }).eq('id', thread.id).select('id'))
+export async function countRecentDmMessages(db, threadId, authorId, since, limit) {
+  const q = db.from('staff_dm_messages').select('id').eq('thread_id', threadId).eq('author_user_id', authorId).gte('created_at', since)
+  return (await rows(q.limit(limit))).length
+}
+
+/**
+ * Счётчики и «последнее сообщение» обновляет триггер базы (миграция 20261016120000).
+ * duplicate — повтор с тем же client_msg_id (гонка двух повторов): сообщение уже было, push не шлём.
+ * @returns {Promise<{ message: object, duplicate: boolean }>}
+ */
+export async function insertDmMessage(db, thread, { authorId, body, sticker = null, clientMsgId = null }) {
+  const { data, error } = await db
+    .from('staff_dm_messages')
+    .insert({ thread_id: thread.id, author_user_id: authorId, body, sticker, ...(clientMsgId ? { client_msg_id: clientMsgId } : {}) })
+    .select(MESSAGE_FIELDS)
+    .single()
+  if (error) {
+    const existing = isUniqueViolation(error) ? await loadDmMessageByClientMsgId(db, thread.id, clientMsgId) : null
+    if (existing) return { message: existing, duplicate: true }
+    throw error
+  }
+  return { message: data, duplicate: false }
+}
+
+/** «Прочитано» до последнего показанного сообщения; пришло новее — не помечаем (как markChatRead). */
+export async function markDmRead(db, thread, side, lastShownAt) {
+  const cutoff = chatReadCutoff(lastShownAt)
+  if (!cutoff) return false
+  const updated = await rows(
+    db
+      .from('staff_dm_threads')
+      .update({ [`${side}_read_at`]: new Date().toISOString(), [`${side}_unread`]: 0 })
+      .eq('id', thread.id)
+      .lt('last_message_at', cutoff)
+      .select('id'),
+  )
+  return updated.length > 0
 }
 
 export async function loadDmMessages(db, threadId, before) {

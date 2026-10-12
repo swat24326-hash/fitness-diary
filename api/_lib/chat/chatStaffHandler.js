@@ -17,8 +17,9 @@ import {
   chatKindsForStaff,
   chatStaffRole,
   chatUnreadCount,
-  isChatUnreadFor,
+  isStaffChatUnread,
 } from '../../../src/lib/chat/chatAccessCore.js'
+import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { openChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
@@ -47,9 +48,12 @@ async function listThreads(ctx, scope) {
   const threads = [...(await loadStaffThreads(db, scope)), ...(await linkedComplaintThreads(ctx))]
   const clients = new Map((await loadClientsByIds(db, threads.map((t) => t.client_id))).map((c) => [String(c.id), c]))
   const out = []
+  const seen = new Set()
   for (const t of threads) {
     const client = clients.get(String(t.client_id))
-    if (!canStaffReadChat(t.actor ?? ctx, t.kind, client)) continue
+    if (seen.has(t.id) || !canStaffReadChat(t.actor ?? ctx, t.kind, client)) continue
+    seen.add(t.id)
+    const unread = isStaffChatUnread(t, client)
     out.push({
       client_id: String(t.client_id),
       client_name: client.name ?? '',
@@ -58,11 +62,11 @@ async function listThreads(ctx, scope) {
       last_preview: t.last_preview ?? '',
       last_message_at: t.last_message_at,
       last_author: t.last_author,
-      unread: isChatUnreadFor('staff', t),
-      unread_count: chatUnreadCount('staff', t),
+      unread,
+      unread_count: unread ? chatUnreadCount('staff', t) : 0,
     })
   }
-  out.sort((a, b) => Number(b.unread) - Number(a.unread))
+  out.sort((a, b) => Number(b.unread) - Number(a.unread) || String(b.last_message_at ?? '').localeCompare(String(a.last_message_at ?? '')))
   return { threads: out, attention: out.filter((t) => t.unread).length }
 }
 
@@ -100,7 +104,13 @@ export async function handleStaffChatGet(ctx, req, res) {
     const found = await resolveClient(ctx, res, req.query?.client_id, kind, false)
     if (!found) return
     const { client, actor } = found
-    const page = await openChatThread(ctx.supabaseAdmin, { client, kind, side: 'staff', before: req.query?.before })
+    const page = await openChatThread(ctx.supabaseAdmin, {
+      client,
+      kind,
+      side: 'staff',
+      before: req.query?.before,
+      markRead: staffMarksChatRead(scope.role),
+    })
     sendJson(res, 200, {
       client: { id: String(client.id), name: client.name ?? '', archived: Boolean(client.archived_at) },
       kind,
@@ -129,7 +139,15 @@ export async function handleStaffChatPost(ctx, res, body) {
     if (!found) return
     const { client, actor } = found
     const userId = String(actor.user?.id ?? scope.userId)
-    const out = await sendChatMessage(ctx.supabaseAdmin, { client, kind, side: 'staff', userId, body: body?.body, sticker: body?.sticker })
+    const out = await sendChatMessage(ctx.supabaseAdmin, {
+      client,
+      kind,
+      side: 'staff',
+      userId,
+      body: body?.body,
+      sticker: body?.sticker,
+      clientMsgId: body?.client_msg_id,
+    })
     sendJson(res, out.status, out.body)
   } catch (e) {
     if (!isMissingChatTable(e)) throw e

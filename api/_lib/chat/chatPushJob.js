@@ -3,6 +3,7 @@
  * Круглосуточно, как в мессенджере: человек написал сам. Тихие часы — только у рассылок и напоминаний.
  */
 import { chatKindLabelRu, chatPushAudience } from '../../../src/lib/chat/chatAccessCore.js'
+import { activeChatRecipientIds } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { CHAT_PUSH_PREVIEW_MAX, chatPreview } from '../../../src/lib/chat/chatMessageCore.js'
 import { pickInboxStaffRecipients, inboxStaffRoleValues } from '../../../src/lib/inbox/inboxAudienceCore.js'
 import { isWebPushConfigured, sendWebPushToRow } from '../webPushCore.js'
@@ -50,7 +51,12 @@ export function buildChatPushPayload(p) {
 }
 
 async function staffRecipients(db, audience, excludeUserId) {
-  if (audience.to === 'users') return audience.userIds.filter((id) => id !== excludeUserId).map((user_id) => ({ user_id }))
+  if (audience.to === 'users') {
+    const ids = audience.userIds.map(String).filter(Boolean)
+    if (!ids.length) return []
+    const users = await rows(db.from('users').select('id, is_active').in('id', ids))
+    return activeChatRecipientIds(ids, users, excludeUserId).map((user_id) => ({ user_id }))
+  }
   const users = await rows(
     db.from('users').select('id, club_id, role, is_active').eq('club_id', audience.clubId).in('role', inboxStaffRoleValues(audience.roles)),
   )

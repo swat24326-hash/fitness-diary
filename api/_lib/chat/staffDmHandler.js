@@ -7,9 +7,17 @@
  */
 import { sendJson } from '../adminSupabase.js'
 import { chatPeerReadAt, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
+import {
+  CHAT_SEND_LIMIT_RU,
+  CHAT_SEND_PER_MINUTE,
+  chatSendWindowStart,
+  isChatSendLimited,
+  normalizeClientMsgId,
+} from '../../../src/lib/chat/chatDeliveryCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
 import {
   STAFF_DM_NO_ACCESS_RU,
+  STAFF_DM_SELF_RU,
   buildStaffDmMessageView,
   canReadStaffDm,
   pickStaffDmPeers,
@@ -22,13 +30,15 @@ import {
 } from '../../../src/lib/chat/staffDmAccessCore.js'
 import { buildStaffContacts } from '../../../src/lib/chat/staffDmContactsCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
-import { loadHiddenLinkedTrainers, staffDmCtx } from './linkedStaffStore.js'
+import { isLinkedPairIds, loadHiddenLinkedTrainers, staffDmCtx } from './linkedStaffStore.js'
 import { sendStaffDmPush } from './staffDmPushJob.js'
 import {
+  countRecentDmMessages,
   ensureDmThread,
   insertDmMessage,
   isMissingDmTable,
   loadClubStaff,
+  loadDmMessageByClientMsgId,
   loadDmMessages,
   loadDmThread,
   loadDmThreadsFor,
@@ -47,6 +57,13 @@ async function loadPeer(ctx, res, peerId) {
   const peer = isInboxUuid(peerId) ? await loadDmUser(ctx.supabaseAdmin, String(peerId).trim()) : null
   if (!peer) sendJson(res, 404, { error: 'Сотрудник не найден' })
   return peer
+}
+
+/** Связанные учётки тренер + управляющий — один человек: писать «себе» нельзя, как и с одной учётки. */
+async function dmWriteAccess(db, viewer, peer) {
+  const access = staffDmWriteAccess(viewer, peer)
+  if (access.ok && (await isLinkedPairIds(db, viewer.id, peer.id))) return { ok: false, status: 400, error: STAFF_DM_SELF_RU }
+  return access
 }
 
 async function withDmTable(res, fn) {
@@ -72,7 +89,7 @@ export function sendStaffDmThread(authCtx, res, peerId, before) {
     }
     const meta = {
       peer: { id: String(peer.id), name: String(peer.name ?? '').trim(), label: staffRoleLabelRu(peer.role) },
-      can_write: staffDmWriteAccess(viewer, peer).ok,
+      can_write: (await dmWriteAccess(db, viewer, peer)).ok,
     }
     if (!thread) {
       sendJson(res, 200, { ...meta, messages: [], has_more: false, marked_read: false, peer_read_at: null })
@@ -80,8 +97,10 @@ export function sendStaffDmThread(authCtx, res, peerId, before) {
     }
     const page = await loadDmMessages(db, thread.id, isIsoCursor(before) ? before : null)
     const view = staffDmThreadForViewer(thread, viewer.id)
-    const marked = !before && isChatUnreadFor('staff', view)
-    if (marked) await markDmRead(db, thread, staffDmSideOf(thread, viewer.id))
+    const marked =
+      !before &&
+      isChatUnreadFor('staff', view) &&
+      (await markDmRead(db, thread, staffDmSideOf(thread, viewer.id), page.messages.at(-1)?.created_at))
     sendJson(res, 200, {
       ...meta,
       messages: page.messages.map((m) => buildStaffDmMessageView(m, viewer.id)),
@@ -99,7 +118,7 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
     const viewer = viewerOf(ctx)
     const peer = await loadPeer(ctx, res, peerId)
     if (!peer) return
-    const access = staffDmWriteAccess(viewer, peer)
+    const access = await dmWriteAccess(db, viewer, peer)
     if (!access.ok) {
       sendJson(res, access.status, { error: access.error })
       return
@@ -110,11 +129,22 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
       return
     }
     const thread = await ensureDmThread(db, staffDmPair(viewer.id, peer.id), viewer.club_id)
-    const message = await insertDmMessage(db, thread, staffDmSideOf(thread, viewer.id), {
-      authorId: viewer.id,
-      body: checked.body,
-      sticker: checked.sticker,
-    })
+    const clientMsgId = normalizeClientMsgId(input?.client_msg_id)
+    const earlier = await loadDmMessageByClientMsgId(db, thread.id, clientMsgId)
+    if (!earlier) {
+      const recent = await countRecentDmMessages(db, thread.id, viewer.id, chatSendWindowStart(), CHAT_SEND_PER_MINUTE)
+      if (isChatSendLimited(recent)) {
+        sendJson(res, 429, { error: CHAT_SEND_LIMIT_RU })
+        return
+      }
+    }
+    const { message, duplicate } = earlier
+      ? { message: earlier, duplicate: true }
+      : await insertDmMessage(db, thread, { authorId: viewer.id, body: checked.body, sticker: checked.sticker, clientMsgId })
+    if (duplicate) {
+      sendJson(res, 200, { message: buildStaffDmMessageView(message, viewer.id) })
+      return
+    }
     const authorName = String(ctx.profile?.name ?? '').trim()
     sendStaffDmPush(db, { recipientId: peer.id, authorId: viewer.id, authorName, body: checked.body }).catch((e) =>
       console.warn('[staff-dm-push]', e?.message || e),

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { nextChatOutgoingId } from '../lib/chat/chatDeliveryCore.js'
 import { mergeChatMessages } from '../lib/chat/chatMessageCore.js'
 import { countNewPeerMessages } from '../lib/chat/chatSoundCore.js'
 import { armChatSound, playChatSound } from '../lib/chat/chatSoundPlayer.js'
@@ -20,15 +21,20 @@ export function useChatThread({ key, side, load, send }) {
   const loadRef = useRef(load)
   const sendRef = useRef(send)
   const messagesRef = useRef(null)
+  const keyRef = useRef(key)
+  const pendingRef = useRef(null)
   loadRef.current = load
   sendRef.current = send
   messagesRef.current = state.messages
+  keyRef.current = key
 
   const refresh = useCallback((quiet) => {
     if (!quiet) setState((s) => ({ ...s, status: 'loading', error: '' }))
+    const forKey = keyRef.current
     return loadRef
       .current()
       .then(({ messages, has_more, ...meta }) => {
+        if (keyRef.current !== forKey) return
         if (quiet && countNewPeerMessages(messagesRef.current, messages) > 0) playChatSound('incoming', side)
         setState((s) => ({
           messages: mergeChatMessages(s.messages, messages),
@@ -39,7 +45,7 @@ export function useChatThread({ key, side, load, send }) {
         }))
       })
       .catch((e) => {
-        if (!quiet) setState((s) => ({ ...s, status: 'error', error: e?.message || 'Не загрузилось' }))
+        if (!quiet && keyRef.current === forKey) setState((s) => ({ ...s, status: 'error', error: e?.message || 'Не загрузилось' }))
       })
   }, [side])
 
@@ -63,11 +69,13 @@ export function useChatThread({ key, side, load, send }) {
   const loadOlder = useCallback(async () => {
     const first = state.messages?.[0]
     if (!first) return
+    const forKey = keyRef.current
     try {
       const { messages, has_more } = await loadRef.current(first.created_at)
+      if (keyRef.current !== forKey) return
       setState((s) => ({ ...s, messages: mergeChatMessages(s.messages, messages), hasMore: has_more }))
     } catch (e) {
-      setState((s) => ({ ...s, error: e?.message || 'Не загрузилось' }))
+      if (keyRef.current === forKey) setState((s) => ({ ...s, error: e?.message || 'Не загрузилось' }))
     }
   }, [state.messages])
 
@@ -82,9 +90,13 @@ export function useChatThread({ key, side, load, send }) {
     }
     setSending(true)
     setSendError('')
+    const forKey = keyRef.current
+    const outgoing = typeof input === 'string' ? { body: input } : input
+    pendingRef.current = nextChatOutgoingId(pendingRef.current, forKey, outgoing)
     try {
-      const { message } = await sendRef.current(typeof input === 'string' ? { body: input } : input)
-      setState((s) => ({ ...s, messages: mergeChatMessages(s.messages, [message]) }))
+      const { message } = await sendRef.current({ ...outgoing, client_msg_id: pendingRef.current.id })
+      pendingRef.current = null
+      if (keyRef.current === forKey) setState((s) => ({ ...s, messages: mergeChatMessages(s.messages, [message]) }))
       playChatSound('send', side)
       return true
     } catch (e) {

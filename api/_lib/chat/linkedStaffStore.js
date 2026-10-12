@@ -4,6 +4,7 @@
  */
 import {
   hiddenLinkedTrainerIds,
+  isLinkedPair,
   linkedSupervisorFor,
   linkedTrainerRecipientIds,
 } from '../../../src/lib/chat/linkedStaffCore.js'
@@ -30,6 +31,13 @@ function loadUsers(db, ids) {
   const unique = [...new Set(ids.filter(Boolean).map(String))]
   if (!unique.length) return Promise.resolve([])
   return orEmpty(() => loadInChunks(unique, (part) => rows(db.from('users').select(LINK_FIELDS).in('id', part))))
+}
+
+/** Две учётки одного человека (тренер + управляющий): переписка между ними — разговор с самим собой. */
+export async function isLinkedPairIds(db, aId, bId) {
+  const users = await loadUsers(db, [aId, bId])
+  const byId = new Map(users.map((u) => [String(u.id), u]))
+  return isLinkedPair(byId.get(String(aId)), byId.get(String(bId)))
 }
 
 /** Контекст сотрудника как у requireAuthUser, но за управляющего. Только для переписки. */

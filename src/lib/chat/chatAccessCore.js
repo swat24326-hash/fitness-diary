@@ -109,6 +109,17 @@ export function chatPeerReadAt(side, thread) {
   return (side === 'client' ? thread?.staff_read_at : thread?.client_read_at) ?? null
 }
 
+/** Конверт клиента = число непрочитанных строк его списка: диалог с тренером без тренера не считаем. */
+export function clientChatAttention(client, threads) {
+  const kinds = new Set(clientChatKinds(client))
+  return (threads ?? []).filter((t) => kinds.has(t.kind) && isChatUnreadFor('client', t)).length
+}
+
+/** Для сотрудника клиент в архиве не «ждёт ответа»: написать ему уже нельзя. */
+export function isStaffChatUnread(thread, client) {
+  return !client?.archived_at && isChatUnreadFor('staff', thread)
+}
+
 /** Новое для стороны: последнее сообщение от другой стороны и позже её отметки «прочитано». */
 export function isChatUnreadFor(side, thread) {
   if (!thread?.last_message_at || !thread.last_author || thread.last_author === side) return false

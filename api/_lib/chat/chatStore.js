@@ -1,12 +1,15 @@
 /**
  * Запросы переписки (service role). Правила доступа — в src/lib/chat/chatAccessCore.js, здесь только чтение и запись.
  */
-import { chatPreview, chronological } from '../../../src/lib/chat/chatMessageCore.js'
+import { chatReadCutoff, isUniqueViolation, mergeChatThreads } from '../../../src/lib/chat/chatDeliveryCore.js'
+import { chronological } from '../../../src/lib/chat/chatMessageCore.js'
 import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
 
 export const CHAT_PAGE = 60
 export const CHAT_LIST_LIMIT = 100
+/** Непрочитанные показываем и старше последних 100 — иначе конверт врёт, а диалог не найти. */
+export const CHAT_UNREAD_LIMIT = 500
 export const CHAT_THREAD_FIELDS =
   'id, club_id, client_id, kind, last_message_at, last_author, last_preview, client_read_at, staff_read_at, client_unread, staff_unread'
 const THREAD_FIELDS = CHAT_THREAD_FIELDS
@@ -42,17 +45,20 @@ export function loadClientThreads(db, clientId) {
  * @param {{ role: string, userId: string, clubId: string, kinds: string[] }} scope
  */
 export async function loadStaffThreads(db, scope) {
-  const recent = (q) => q.not('last_message_at', 'is', null).order('last_message_at', { ascending: false }).limit(CHAT_LIST_LIMIT)
-  if (scope.role === 'admin') return rows(recent(db.from('chat_threads').select(THREAD_FIELDS)))
-  if (scope.role === 'trainer') {
-    const own = await rows(db.from('clients').select('id').eq('trainer_id', scope.userId))
-    const threads = await loadInChunks(
-      own.map((c) => String(c.id)),
-      (part) => rows(recent(db.from('chat_threads').select(THREAD_FIELDS).eq('kind', 'trainer').in('client_id', part))),
-    )
-    return threads.sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at))).slice(0, CHAT_LIST_LIMIT)
-  }
-  return rows(recent(db.from('chat_threads').select(THREAD_FIELDS).eq('club_id', scope.clubId).in('kind', scope.kinds)))
+  const latest = (q, limit) => q.order('last_message_at', { ascending: false }).limit(limit)
+  const recent = (q) => latest(q.not('last_message_at', 'is', null), CHAT_LIST_LIMIT)
+  const unread = (q) => latest(q.gt('staff_unread', 0), CHAT_UNREAD_LIMIT)
+  let load
+  if (scope.role === 'admin') load = (shape) => rows(shape(db.from('chat_threads').select(THREAD_FIELDS)))
+  else if (scope.role === 'trainer') {
+    const own = (await rows(db.from('clients').select('id').eq('trainer_id', scope.userId))).map((c) => String(c.id))
+    load = async (shape, limit) =>
+      (await loadInChunks(own, (part) => rows(shape(db.from('chat_threads').select(THREAD_FIELDS).eq('kind', 'trainer').in('client_id', part)))))
+        .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
+        .slice(0, limit)
+  } else load = (shape) => rows(shape(db.from('chat_threads').select(THREAD_FIELDS).eq('club_id', scope.clubId).in('kind', scope.kinds)))
+  const [fresh, waiting] = await Promise.all([load(recent, CHAT_LIST_LIMIT), load(unread, CHAT_UNREAD_LIMIT)])
+  return mergeChatThreads(fresh, waiting)
 }
 
 export async function loadClientsByIds(db, ids) {
@@ -91,7 +97,31 @@ export async function ensureChatThread(db, client, kind) {
   throw error
 }
 
-export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null }) {
+export async function loadChatMessageByClientMsgId(db, threadId, clientMsgId) {
+  if (!clientMsgId) return null
+  const { data, error } = await db
+    .from('chat_messages')
+    .select(MESSAGE_FIELDS)
+    .eq('thread_id', threadId)
+    .eq('client_msg_id', clientMsgId)
+    .maybeSingle()
+  if (error) throw error
+  return data ?? null
+}
+
+/** Сколько сообщений автор отправил в диалог с since (не больше limit — дальше считать незачем). */
+export async function countRecentChatMessages(db, threadId, { side, userId }, since, limit) {
+  let q = db.from('chat_messages').select('id').eq('thread_id', threadId).eq('author_side', side).gte('created_at', since)
+  if (side === 'staff') q = q.eq('author_user_id', userId)
+  return (await rows(q.limit(limit))).length
+}
+
+/**
+ * Счётчики, «последнее сообщение» и превью диалога обновляет триггер базы (миграция 20261016120000).
+ * duplicate — повтор с тем же client_msg_id (гонка двух повторов): сообщение уже было, push не шлём.
+ * @returns {Promise<{ message: object, duplicate: boolean }>}
+ */
+export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null, clientMsgId = null }) {
   const { data, error } = await db
     .from('chat_messages')
     .insert({
@@ -101,29 +131,40 @@ export async function insertChatMessage(db, thread, client, { side, userId, body
       author_user_id: side === 'staff' ? userId : null,
       body,
       sticker,
+      ...(clientMsgId ? { client_msg_id: clientMsgId } : {}),
     })
     .select(MESSAGE_FIELDS)
     .single()
-  if (error) throw error
-  const peerUnread = side === 'client' ? 'staff_unread' : 'client_unread'
-  const patch = {
-    last_message_at: data.created_at,
-    last_author: side,
-    last_preview: chatPreview(body),
-    club_id: client.club_id || thread.club_id || null,
-    [side === 'client' ? 'client_read_at' : 'staff_read_at']: data.created_at,
-    [side === 'client' ? 'client_unread' : 'staff_unread']: 0,
-    [peerUnread]: (Number(thread[peerUnread]) || 0) + 1,
+  if (error) {
+    const existing = isUniqueViolation(error) ? await loadChatMessageByClientMsgId(db, thread.id, clientMsgId) : null
+    if (existing) return { message: existing, duplicate: true }
+    throw error
   }
-  await rows(db.from('chat_threads').update(patch).eq('id', thread.id).select('id'))
-  return { message: data, thread: { ...thread, ...patch } }
+  const clubId = client.club_id || null
+  if (clubId && clubId !== thread.club_id) {
+    await rows(db.from('chat_threads').update({ club_id: clubId }).eq('id', thread.id).select('id'))
+  }
+  return { message: data, duplicate: false }
 }
 
-/** @param {'client'|'staff'} side */
-export async function markChatRead(db, thread, side) {
+/**
+ * «Прочитано» до последнего показанного сообщения. Пришло новее, пока открывали, — не помечаем:
+ * следующее обновление ленты покажет его и пометит.
+ * @param {'client'|'staff'} side
+ * @returns {Promise<boolean>} true — пометили
+ */
+export async function markChatRead(db, thread, side, lastShownAt) {
+  const cutoff = chatReadCutoff(lastShownAt)
+  if (!cutoff) return false
   const column = side === 'client' ? 'client_read_at' : 'staff_read_at'
   const counter = side === 'client' ? 'client_unread' : 'staff_unread'
-  const at = new Date().toISOString()
-  await rows(db.from('chat_threads').update({ [column]: at, [counter]: 0 }).eq('id', thread.id).select('id'))
-  return { ...thread, [column]: at, [counter]: 0 }
+  const updated = await rows(
+    db
+      .from('chat_threads')
+      .update({ [column]: new Date().toISOString(), [counter]: 0 })
+      .eq('id', thread.id)
+      .lt('last_message_at', cutoff)
+      .select('id'),
+  )
+  return updated.length > 0
 }
