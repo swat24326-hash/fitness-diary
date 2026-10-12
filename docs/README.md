@@ -41,6 +41,7 @@
 | [R3_NIGHT.md](./R3_NIGHT.md) | **Ночь переезда 30.09→01.10:** порядок, команды на ВМ, перенос данных, откат |
 | [FRIEND_CLUB_NOTE.md](./FRIEND_CLUB_NOTE.md) | Черновик в мессенджер: бесплатный доступ другу-клубу (ПДн простым языком) |
 | [FRIEND_CLUB_AGREEMENT.md](./FRIEND_CLUB_AGREEMENT.md) | Черновик простого договора с клубом-другом (не замена юристу) |
+| [PD_152FZ.md](./PD_152FZ.md) | Персональные данные: кто оператор, документы ваши и клуба, порядок при утечке, шаблон согласия, план |
 | [INCIDENTS.md](./INCIDENTS.md) | **Журнал кейсов:** контуры (зал / админ / продажи / связь / инфра) + коды A–Q; ведёт агент по чату |
 | [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md) | Безопасность прода на РФ-контуре: verify, проверки снаружи и на ВМ |
 | [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Старый контур Supabase (до R4): Auth, RLS, `users.id` |
