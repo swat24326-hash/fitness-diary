@@ -52,6 +52,18 @@ const noClub = assertTrainerSchedulePushOwnership(uid, '', 'insert', {
 }, null)
 ok(!noClub.ok, 'empty profile club rejected')
 
+const clientIds = (n) => Array.from({ length: n }, (_, i) => `44444444-4444-4444-8444-${String(i).padStart(12, '0')}`)
+ok(
+  assertTrainerSchedulePushOwnership(uid, club, 'insert', { trainer_id: uid, club_id: club, client_ids: clientIds(15) }, null).ok,
+  '15 clients in slot ok',
+)
+const tooMany = assertTrainerSchedulePushOwnership(uid, club, 'update', {
+  trainer_id: uid,
+  club_id: club,
+  client_ids: clientIds(16),
+}, { trainer_id: uid, club_id: club })
+ok(!tooMany.ok && /не больше 15/.test(tooMany.error), '16 clients rejected with clear error (not silently cut)')
+
 const updateOther = assertTrainerSchedulePushOwnership(uid, club, 'update', {
   trainer_id: uid,
   club_id: club,

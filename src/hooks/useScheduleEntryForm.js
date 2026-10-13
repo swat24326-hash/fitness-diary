@@ -3,7 +3,10 @@ import {
   SCHEDULE_DEFAULT_DURATION_MIN,
   SCHEDULE_MAX_DURATION_MIN,
   SCHEDULE_MIN_DURATION_MIN,
+  SCHEDULE_MAX_CLIENTS,
+  SCHEDULE_TOO_MANY_CLIENTS_RU,
   buildScheduleEntryLabel,
+  isScheduleClientLimitExceeded,
   formatScheduleEndTime,
   formatScheduleMinutes,
   normalizeScheduleClientIds,
@@ -82,7 +85,10 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
   }
 
   const toggleClient = (id) => {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id)
+      return prev.length >= SCHEDULE_MAX_CLIENTS ? prev : [...prev, id]
+    })
   }
 
   const previewLabel = useMemo(() => {
@@ -101,6 +107,7 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
     const note = mode === 'note' ? title.trim() : ''
     if (scheduleKindRequiresClients(kind) && !client_ids.length) return { ok: false, error: 'Для тренировки выберите клиента' }
     if (!client_ids.length && !note) return { ok: false, error: 'Напишите заметку или выберите клиента' }
+    if (isScheduleClientLimitExceeded(client_ids)) return { ok: false, error: SCHEDULE_TOO_MANY_CLIENTS_RU }
     return {
       ok: true,
       fields: { day_date: dayIso, start_minutes: startMinutes, duration_minutes: durationMinutes, title: note, client_ids, kind },

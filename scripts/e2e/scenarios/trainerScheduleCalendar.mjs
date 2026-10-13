@@ -190,11 +190,18 @@ export async function run(browser) {
       'плашка «Добавлено ещё 3 записи»',
     )
 
-    /* Короткий тап по записи — форма открывается, жест переноса его не съедает. */
+    /* Короткий тап по записи — просмотр, как в Google Календаре (жест переноса его не съедает); карандаш — форма. */
     await scrollBoardTo(page, 9 * 60)
     await entryAt(page, '10:00').click()
-    c.ok(await page.getByRole('dialog').isVisible(), 'тап по записи открывает форму')
-    await page.getByRole('dialog').getByRole('button', { name: 'Отмена' }).click()
+    const view = page.getByRole('dialog')
+    c.ok(await view.isVisible(), 'тап по записи открывает окно')
+    c.ok((await view.getByRole('button', { name: 'Сохранить' }).count()) === 0, 'тап по записи — просмотр, не форма правки')
+    c.ok(await view.getByText(CLIENT_NAME).isVisible(), 'просмотр: видно, кто записан')
+    c.ok(await view.getByRole('button', { name: /Начать тренировку|Продолжить/ }).isVisible(), 'просмотр: «Начать тренировку» прямо отсюда')
+    await screenshot(page, 'schedule-entry-view')
+    await view.getByRole('button', { name: 'Изменить' }).click()
+    c.ok(await view.getByRole('button', { name: 'Сохранить' }).isVisible(), 'карандаш «Изменить» открывает форму правки')
+    await view.getByRole('button', { name: 'Отмена' }).click()
 
     /* Перенос пальцем: 10:00 → 12:00 сегодня. */
     const cdp = await context.newCDPSession(page)

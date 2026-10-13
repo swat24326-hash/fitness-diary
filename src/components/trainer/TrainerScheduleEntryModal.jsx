@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Play, Trash2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Trash2, X } from 'lucide-react'
 import { trainerScheduleLocalActions } from '../../lib/trainer/trainerScheduleLocalActions.js'
 import {
-  buildScheduleWorkoutNewPath,
   resolveScheduleTrainingStart,
   scheduleEntryTrainingStatusLabel,
 } from '../../lib/trainer/trainerScheduleTrainingCore.js'
+import { TrainerScheduleTrainingStart } from './TrainerScheduleTrainingStart.jsx'
 import { useScheduleEntryForm } from '../../hooks/useScheduleEntryForm.js'
 import { TrainerScheduleEntryReadonly } from './TrainerScheduleEntryReadonly.jsx'
 import { TrainerScheduleRepeatFields } from './TrainerScheduleRepeatFields.jsx'
@@ -52,13 +52,15 @@ export function TrainerScheduleEntryModal({
   onClose,
   onSaved,
 }) {
-  const nav = useNavigate()
   const form = useScheduleEntryForm({ open, draft, dayIso, entries, clientNameById })
   const { mode, selectedIds, repeat } = form
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const editing = !draft?.id || editingId === draft.id
   useEffect(() => {
-    if (open) setError('')
+    setError('')
+    if (!open) setEditingId(null)
   }, [open, draft])
 
   const trainingStart = useMemo(() => {
@@ -66,11 +68,11 @@ export function TrainerScheduleEntryModal({
     const base = {
       id: draft?.id,
       day_date: dayIso,
-      client_ids: mode === 'clients' ? selectedIds : [],
+      client_ids: !editing ? draft?.client_ids ?? [] : mode === 'clients' ? selectedIds : [],
       linked_training_id: draft?.linked_training_id ?? null,
     }
     return resolveScheduleTrainingStart(base, { trainingById, workoutsBase: '/trainer/workouts' })
-  }, [canStartTraining, draft, dayIso, mode, selectedIds, trainingById, open])
+  }, [canStartTraining, draft, dayIso, mode, selectedIds, trainingById, open, editing])
 
   const linkedTraining = draft?.linked_training_id ? trainingById[draft.linked_training_id] : null
   const trainingChip = scheduleEntryTrainingStatusLabel(
@@ -79,19 +81,6 @@ export function TrainerScheduleEntryModal({
   )
 
   if (!open) return null
-
-  if (readOnly && draft) {
-    return (
-      <TrainerScheduleEntryReadonly
-        draft={draft}
-        trainerName={trainerNameById[String(draft?.trainer_id ?? trainerId ?? '')] ?? ''}
-        clientNameById={clientNameById}
-        clientsBase={clientsBase}
-        trainingChip={trainingChip}
-        onClose={onClose}
-      />
-    )
-  }
 
   const singleClientId = canStartTraining && selectedIds.length === 1 ? selectedIds[0] : null
 
@@ -155,6 +144,25 @@ export function TrainerScheduleEntryModal({
     } finally {
       setBusy(false)
     }
+  }
+
+  if (draft?.id && (readOnly || !editing)) {
+    return (
+      <TrainerScheduleEntryReadonly
+        draft={draft}
+        trainerName={readOnly ? trainerNameById[String(draft?.trainer_id ?? trainerId ?? '')] ?? '' : ''}
+        clientNameById={clientNameById}
+        clientsBase={readOnly || canStartTraining ? clientsBase : ''}
+        trainingChip={trainingChip}
+        busy={busy}
+        error={error}
+        onEdit={readOnly ? undefined : () => setEditingId(draft.id)}
+        onDelete={readOnly ? undefined : () => void onDelete()}
+        onClose={onClose}
+      >
+        {readOnly ? null : <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />}
+      </TrainerScheduleEntryReadonly>
+    )
   }
 
   return (
@@ -259,44 +267,7 @@ export function TrainerScheduleEntryModal({
             {trainingChip ? <> · <span className="trainer-schedule-modal__chip">{trainingChip}</span></> : null}
           </p>
 
-          {trainingStart.kind === 'open' || trainingStart.kind === 'new' ? (
-            <button
-              type="button"
-              className="btn btn-primary trainer-schedule-modal__start"
-              onClick={() => nav(trainingStart.path)}
-            >
-              <Play size={16} aria-hidden />
-              {trainingStart.label}
-            </button>
-          ) : null}
-
-          {trainingStart.kind === 'pick_client' ? (
-            <div className="trainer-schedule-modal__pick-clients">
-              <p className="trainer-schedule-modal__hint muted">С кого начать тренировку?</p>
-              <ul className="trainer-schedule-modal__pick-list">
-                {trainingStart.clientIds.map((cid) => (
-                  <li key={cid}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() =>
-                        nav(
-                          buildScheduleWorkoutNewPath(
-                            cid,
-                            trainingStart.dayDate,
-                            trainingStart.scheduleEntryId,
-                            trainingStart.workoutsBase,
-                          ),
-                        )
-                      }
-                    >
-                      {clientNameById[cid] ?? 'Клиент'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />
 
           {singleClientId ? (
             <p className="trainer-schedule-modal__link-row">

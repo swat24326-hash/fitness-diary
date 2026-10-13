@@ -1,7 +1,11 @@
 /**
  * Push auth для trainer_schedule_entries — чистые правила (verify + mutationAuth).
  */
-import { normalizeScheduleClientIds } from './trainerScheduleCore.js'
+import {
+  SCHEDULE_TOO_MANY_CLIENTS_RU,
+  isScheduleClientLimitExceeded,
+  normalizeScheduleClientIds,
+} from './trainerScheduleCore.js'
 
 /**
  * Ежедневник пишет только тренер (планшет). Админ/управляющий/менеджер — read-only API.
@@ -43,6 +47,9 @@ export function assertTrainerSchedulePushOwnership(userId, profileClub, op, payl
     }
     if (String(payload?.club_id ?? '') !== club) {
       return { ok: false, error: 'Расписание другого клуба' }
+    }
+    if (isScheduleClientLimitExceeded(payload?.client_ids)) {
+      return { ok: false, error: SCHEDULE_TOO_MANY_CLIENTS_RU }
     }
   }
 

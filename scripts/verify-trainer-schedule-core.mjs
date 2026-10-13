@@ -6,11 +6,14 @@ import {
   SCHEDULE_DAY_END_HOUR,
   SCHEDULE_DAY_FOCUS_HOUR,
   SCHEDULE_DAY_START_HOUR,
+  SCHEDULE_MAX_CLIENTS,
   SCHEDULE_VIEW_DAY,
   SCHEDULE_VIEW_DAYS3,
   SCHEDULE_VIEW_WEEK,
+  buildScheduleEntryGridLines,
   buildScheduleEntryLabel,
   buildScheduleMonthGrid,
+  shortScheduleClientName,
   buildTrainerScheduleClientPickerList,
   clientMatchesTrainerScheduleSearch,
   countScheduleEntriesByDay,
@@ -19,6 +22,7 @@ import {
   formatScheduleEndTime,
   formatScheduleMinutes,
   formatScheduleViewRangeLabel,
+  isScheduleClientLimitExceeded,
   listScheduleViewDays,
   normalizeScheduleClientIds,
   normalizeTrainerScheduleEntry,
@@ -89,6 +93,14 @@ ok(
 )
 ok(formatScheduleViewRangeLabel(['2026-10-11'], (d) => d) === 'Вс, 2026-10-11', 'day label with weekday')
 ok(normalizeScheduleClientIds(['a', 'a', 'b']).join(',') === 'a,b', 'dedupe client ids')
+const ids15 = Array.from({ length: 15 }, (_, i) => `c${i}`)
+const ids16 = [...ids15, 'c15']
+ok(SCHEDULE_MAX_CLIENTS === 15, 'max 15 clients per slot')
+ok(!isScheduleClientLimitExceeded(ids15), '15 clients fit')
+ok(isScheduleClientLimitExceeded(ids16), '16 clients rejected')
+ok(normalizeScheduleClientIds(ids16).length === 16, 'normalize does not silently cut extra clients')
+ok(!isScheduleClientLimitExceeded([...ids15, 'c0']), 'duplicates do not count to the limit')
+ok(buildScheduleEntryLabel({ client_ids: ids15 }) === 'Клиентов: 15', 'label many clients without names')
 
 const row = normalizeTrainerScheduleEntry({
   id: '11111111-1111-4111-8111-111111111111',
@@ -144,6 +156,15 @@ ok(
   'label single client',
 )
 ok(buildScheduleEntryLabel({ client_ids: [], title: 'Созвон' }) === 'Созвон', 'label note')
+
+ok(shortScheduleClientName('Ефрюшин Вячеслав Александрович') === 'Ефрюшин В.', 'short name: surname + initial')
+ok(shortScheduleClientName('Мишина') === 'Мишина', 'short name: single word as is')
+const pair = { client_ids: ['c1', 'c2'] }
+const pairNames = { c1: 'Ефрюшин Вячеслав', c2: 'Ковалёва Анна' }
+ok(buildScheduleEntryGridLines(pair, pairNames).join('|') === 'Ефрюшин Вячеслав|Ковалёва Анна', 'grid lines: each client own line')
+ok(buildScheduleEntryGridLines(pair, pairNames, { short: true }).join('|') === 'Ефрюшин В.|Ковалёва А.', 'grid lines: short in narrow columns')
+ok(buildScheduleEntryGridLines({ client_ids: [], title: 'Обед' }).join('|') === 'Обед', 'grid lines: note title')
+ok(buildScheduleEntryGridLines(pair, {}).join('|') === 'Клиентов: 2', 'grid lines: names not loaded yet')
 
 const win = resolveTrainerSchedulePullWindow('2026-08-27')
 ok(win.dayFrom === '2026-07-28' && win.dayTo === '2026-12-25', 'pull window 30/120')

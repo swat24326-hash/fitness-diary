@@ -26,6 +26,7 @@ import { useCoachScheduleData } from './useCoachScheduleData.js'
 import '../../styles/trainer-schedule.css'
 import '../../styles/trainer-schedule-interactions.css'
 import '../../styles/trainer-schedule-kinds.css'
+import '../../styles/trainer-schedule-view.css'
 
 /** Как в Google Календаре на телефоне: неделя пн–вс, листание пальцем вместо стрелок. */
 const PHONE_VIEWS = [SCHEDULE_VIEW_DAY, SCHEDULE_VIEW_DAYS3, SCHEDULE_VIEW_WEEK, SCHEDULE_VIEW_MONTH]

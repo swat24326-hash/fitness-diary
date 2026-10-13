@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
-import { buildTrainerScheduleClientPickerList } from '../../lib/trainer/trainerScheduleCore.js'
+import { SCHEDULE_MAX_CLIENTS, buildTrainerScheduleClientPickerList } from '../../lib/trainer/trainerScheduleCore.js'
 
 /**
  * Выбор клиентов слота: поиск + список с галочками.
@@ -12,10 +12,15 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle }) 
     () => buildTrainerScheduleClientPickerList(clients, query, selectedIds),
     [clients, query, selectedIds],
   )
+  const full = selectedIds.length >= SCHEDULE_MAX_CLIENTS
 
   return (
     <div className="trainer-schedule-modal__clients-wrap">
-      <p className="trainer-schedule-modal__hint muted">Можно выбрать несколько клиентов на один слот.</p>
+      <p className="trainer-schedule-modal__hint muted" data-testid="schedule-clients-count">
+        {selectedIds.length
+          ? `Выбрано ${selectedIds.length} из ${SCHEDULE_MAX_CLIENTS}${full ? ' — больше нельзя' : ''}`
+          : `Можно выбрать до ${SCHEDULE_MAX_CLIENTS} клиентов на один слот.`}
+      </p>
       <div className="trainer-schedule-modal__search admin-clients-search-cell" role="search">
         <Search size={18} aria-hidden className="muted u-shrink-0" />
         <input
@@ -32,10 +37,11 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle }) 
         <ul className="trainer-schedule-modal__client-list">
           {picker.map((c) => {
             const id = String(c.id)
+            const checked = selectedIds.includes(id)
             return (
               <li key={id}>
                 <label className="trainer-schedule-modal__client-item">
-                  <input type="checkbox" checked={selectedIds.includes(id)} onChange={() => onToggle(id)} />
+                  <input type="checkbox" checked={checked} disabled={full && !checked} onChange={() => onToggle(id)} />
                   <span>{c.name}</span>
                 </label>
               </li>

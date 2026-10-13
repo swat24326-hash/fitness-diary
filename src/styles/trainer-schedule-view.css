@@ -1,0 +1,135 @@
+/**
+ * Ежедневник как Google Календарь: в плитке каждый клиент своей строкой мелким шрифтом,
+ * тап по записи — просмотр (карандаш → правка).
+ */
+
+/* --- Плитка: строки клиентов. Специфичность выше правил телефона (coach-schedule.css) и одной строки. --- */
+.trainer-schedule-day__track .trainer-schedule-day__entry-wrap .trainer-schedule-day__entry .trainer-schedule-day__entry-label.trainer-schedule-day__entry-lines {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-line-clamp: unset;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.trainer-schedule-day__entry-line {
+  display: block;
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.trainer-schedule-day__entry--note .trainer-schedule-day__entry-line {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.trainer-schedule-day--multi .trainer-schedule-day__track .trainer-schedule-day__entry-wrap .trainer-schedule-day__entry .trainer-schedule-day__entry-label.trainer-schedule-day__entry-lines {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.trainer-schedule-day--week .trainer-schedule-day__track .trainer-schedule-day__entry-wrap .trainer-schedule-day__entry .trainer-schedule-day__entry-label.trainer-schedule-day__entry-lines {
+  font-size: 10px;
+  letter-spacing: -0.01em;
+}
+
+/* --- Просмотр записи --- */
+.trainer-schedule-modal__panel.trainer-schedule-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 10px;
+}
+
+.trainer-schedule-view__tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.trainer-schedule-view__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.trainer-schedule-view__swatch {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 6px;
+  border-radius: 4px;
+  background: var(--kind);
+}
+
+.trainer-schedule-view__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 650;
+}
+
+.trainer-schedule-view__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.trainer-schedule-view__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding-left: 26px;
+  position: relative;
+}
+
+.trainer-schedule-view__row > svg {
+  position: absolute;
+  left: 0;
+}
+
+.trainer-schedule-view__row--top {
+  align-items: flex-start;
+}
+
+.trainer-schedule-view__row--top > svg {
+  top: 2px;
+}
+
+.trainer-schedule-view__clients {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.trainer-schedule-view__count {
+  font-size: 0.82rem;
+}
+
+.trainer-schedule-view__client-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.trainer-schedule-view__note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

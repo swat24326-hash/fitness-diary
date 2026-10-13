@@ -21,9 +21,14 @@ const PHONE = {
 }
 const PX_PER_MIN = 1
 const DONE_TRAINING = 'e2e-training-done'
+const GROUP = Array.from({ length: 15 }, (_, i) => `Группа Участник ${String(i + 1).padStart(2, '0')}`)
 
 function setup() {
-  const backend = createFakeBackend(trainerClubSeed())
+  const seed = trainerClubSeed()
+  for (const name of GROUP) {
+    seed.clients.push({ ...seed.clients[0], id: `e2e-group-${name.slice(-2)}`, name, phone: null })
+  }
+  const backend = createFakeBackend(seed)
   const chat = createFakeChat(backend.state)
   const slot = (id, start, extra = {}) => ({
     id, club_id: CLUB_ID, trainer_id: TRAINER_ID, day_date: isoDay(0), start_minutes: start, duration_minutes: 60, title: '', client_ids: [CLIENT_ID], ...extra,
@@ -240,6 +245,7 @@ export async function run(browser) {
     await scrollBoardTo(page, 14 * 60)
     await entryAt(page, '15:00').click()
     const edit = page.getByRole('dialog')
+    await edit.getByRole('button', { name: 'Изменить' }).click()
     const row = at(900)[0]
     row.duration_minutes = 90
     row.updated_at = new Date(Date.now() + 1000).toISOString()
@@ -270,6 +276,46 @@ export async function run(browser) {
     await touchDrag(cdp, page, lockedFrom, { x: lockedFrom.x, y: lockedFrom.y + 60 * PX_PER_MIN })
     c.ok(await page.getByText(/Тренировка по записи завершена/).isVisible(), 'завершённая тренировка — плашка, перенос не начат')
     c.ok(at(18 * 60).length === 1, 'сервер: завершённый слот остался на 18:00')
+
+    /* Ночная группа: 15 клиентов на один час сохраняются все, 16-го отметить нельзя (раньше молча оставались 10). */
+    await scrollBoardTo(page, 22 * 60)
+    await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 23:00"]').click()
+    const group = page.getByRole('dialog')
+    for (const name of GROUP) await group.getByLabel(name).check()
+    c.ok((await group.getByTestId('schedule-clients-count').innerText()).includes('Выбрано 15 из 15'), 'группа: «Выбрано 15 из 15»')
+    c.ok(await group.getByLabel(CLIENT_NAME).isDisabled(), 'группа: 16-го клиента отметить нельзя')
+    await screenshot(page, 'coach-calendar-group-15')
+    await group.getByRole('button', { name: 'Сохранить' }).click()
+    await group.waitFor({ state: 'hidden', timeout: 10_000 })
+    c.ok(await waitFor(() => at(23 * 60)[0]?.client_ids?.length === 15, 10_000), 'сервер: ночная запись 23:00 с 15 клиентами сохранена целиком')
+
+    /* Как в Google Календаре: в плитке клиенты строками — второй виден, а не спрятан за «…». */
+    await pickView(page, '3 дня')
+    await page.locator('.trainer-schedule-day--multi').waitFor({ timeout: 10_000 })
+    await scrollBoardTo(page, 22 * 60)
+    const tile = entryAt(page, '23:00')
+    await tile.waitFor({ timeout: 10_000 })
+    const visibleLines = await tile.evaluate((el) => {
+      const box = el.getBoundingClientRect()
+      return [...el.querySelectorAll('.trainer-schedule-day__entry-line')]
+        .filter((l) => {
+          const r = l.getBoundingClientRect()
+          return r.bottom <= box.bottom + 1 && r.height >= 10
+        })
+        .map((l) => l.textContent)
+    })
+    c.ok(visibleLines.length >= 2 && visibleLines[1] === 'Группа У.', `3 дня: в плитке видно несколько клиентов коротко (${visibleLines.slice(0, 3).join(' | ')})`)
+    await screenshot(page, 'coach-calendar-group-tile')
+    await tile.click()
+    const groupView = page.getByRole('dialog')
+    c.ok((await groupView.getByRole('button', { name: 'Сохранить' }).count()) === 0, 'тап по записи — просмотр, не форма')
+    c.ok(await groupView.getByText('Клиентов: 15').isVisible(), 'просмотр: «Клиентов: 15»')
+    c.ok((await groupView.locator('.trainer-schedule-view__client-list li').count()) === 15, 'просмотр: все 15 клиентов списком')
+    c.ok((await groupView.getByRole('link').count()) === 0, 'телефон: имена без ссылок на карточку (её нет на телефоне)')
+    await screenshot(page, 'coach-calendar-group-view')
+    await groupView.getByRole('button', { name: 'Закрыть' }).click()
+    await pickView(page, 'День')
+    await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 10_000 })
 
     await pickView(page, 'Месяц')
     await page.locator('.trainer-schedule-month').first().waitFor({ timeout: 10_000 })

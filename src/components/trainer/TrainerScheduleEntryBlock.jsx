@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Check, Play } from 'lucide-react'
 import {
+  buildScheduleEntryGridLines,
   buildScheduleEntryLabel,
   formatScheduleMinutes,
   formatScheduleTimeRange,
@@ -53,6 +54,16 @@ export function TrainerScheduleEntryBlock({
   const nav = useNavigate()
   const ghost = variant === 'ghost'
   const label = buildScheduleEntryLabel(entry, clientNameById)
+  const lines = buildScheduleEntryGridLines(entry, clientNameById, { short: compact })
+  const linesEl = (
+    <span className="trainer-schedule-day__entry-label trainer-schedule-day__entry-lines">
+      {lines.map((line, i) => (
+        <span key={i} className="trainer-schedule-day__entry-line">
+          {line}
+        </span>
+      ))}
+    </span>
+  )
   const hasClients = (entry.client_ids ?? []).length > 0
   const linkedTraining = entry.linked_training_id ? trainingById[entry.linked_training_id] : null
   const trainingChip = scheduleEntryTrainingStatusLabel(entry, linkedTraining)
@@ -75,7 +86,7 @@ export function TrainerScheduleEntryBlock({
   const body = oneLine ? (
     <>
       {doneMark}
-      <span className="trainer-schedule-day__entry-label">{label}</span>
+      <span className="trainer-schedule-day__entry-label">{lines.join(', ')}</span>
       {trainerName && !compact ? <span className="trainer-schedule-day__entry-time">{trainerName}</span> : null}
     </>
   ) : compact ? (
@@ -84,7 +95,7 @@ export function TrainerScheduleEntryBlock({
         {doneMark}
         {formatScheduleMinutes(Number(entry.start_minutes) || 0)}
       </span>
-      <span className="trainer-schedule-day__entry-label">{label}</span>
+      {linesEl}
     </>
   ) : (
     <>
@@ -102,7 +113,7 @@ export function TrainerScheduleEntryBlock({
           {formatScheduleTimeRange(entry)}
         </span>
       )}
-      <span className="trainer-schedule-day__entry-label">{label}</span>
+      {linesEl}
       {trainingChip ? <span className="trainer-schedule-day__entry-chip">{trainingChip}</span> : null}
     </>
   )

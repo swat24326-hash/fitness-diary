@@ -16,6 +16,7 @@ import { ClubTrainerFilter } from './ClubTrainerFilter.jsx'
 import '../../styles/trainer-schedule.css'
 import '../../styles/trainer-schedule-interactions.css'
 import '../../styles/trainer-schedule-kinds.css'
+import '../../styles/trainer-schedule-view.css'
 import '../../styles/admin-trainer-schedule.css'
 
 /**

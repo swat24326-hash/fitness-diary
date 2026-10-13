@@ -14,6 +14,7 @@ import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
 import '../../styles/trainer-schedule.css'
 import '../../styles/trainer-schedule-interactions.css'
 import '../../styles/trainer-schedule-kinds.css'
+import '../../styles/trainer-schedule-view.css'
 
 export function TrainerCalendarPage() {
   const { user } = useAuth()

@@ -12,7 +12,8 @@ export const SCHEDULE_DEFAULT_DURATION_MIN = 60
 /** Как CHECK в таблице trainer_schedule_entries. */
 export const SCHEDULE_MIN_DURATION_MIN = 15
 export const SCHEDULE_MAX_DURATION_MIN = 480
-export const SCHEDULE_MAX_CLIENTS = 10
+export const SCHEDULE_MAX_CLIENTS = 15
+export const SCHEDULE_TOO_MANY_CLIENTS_RU = `В одной записи — не больше ${SCHEDULE_MAX_CLIENTS} клиентов`
 export const SCHEDULE_PULL_DAYS_BACK = 30
 export const SCHEDULE_PULL_DAYS_FORWARD = 120
 
@@ -49,9 +50,13 @@ export function normalizeScheduleClientIds(raw) {
     if (!id || seen.has(id)) continue
     seen.add(id)
     out.push(id)
-    if (out.length >= SCHEDULE_MAX_CLIENTS) break
   }
   return out
+}
+
+/** Лишних не отрезаем молча: запись с ними отклоняется с понятной ошибкой. @param {unknown} raw */
+export function isScheduleClientLimitExceeded(raw) {
+  return normalizeScheduleClientIds(raw).length > SCHEDULE_MAX_CLIENTS
 }
 
 /** @param {unknown} raw */
@@ -151,10 +156,29 @@ export function buildScheduleEntryLabel(entry, clientNameById = {}) {
     if (names.length === 1) return names[0]
     if (names.length > 1) return names.join(', ')
     if (ids.length === 1) return 'Клиент'
-    return `${ids.length} клиента`
+    return `Клиентов: ${ids.length}`
   }
   const title = String(entry?.title ?? '').trim()
   return title || 'Заметка'
+}
+
+/** «Ефрюшин Вячеслав Александрович» → «Ефрюшин В.» — для узких колонок сетки. @param {unknown} name */
+export function shortScheduleClientName(name) {
+  const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length < 2) return parts[0] ?? ''
+  return `${parts[0]} ${parts[1].charAt(0).toUpperCase()}.`
+}
+
+/**
+ * Строки плитки на сетке, как в Google Календаре: каждый клиент своей строкой, чтобы второй не прятался за многоточием.
+ * @param {object} entry @param {Record<string, string>} [clientNameById] @param {{ short?: boolean }} [opts]
+ */
+export function buildScheduleEntryGridLines(entry, clientNameById = {}, { short = false } = {}) {
+  const names = normalizeScheduleClientIds(entry?.client_ids)
+    .map((id) => String(clientNameById[id] ?? '').trim())
+    .filter(Boolean)
+  if (!names.length) return [buildScheduleEntryLabel(entry, clientNameById)]
+  return short ? names.map(shortScheduleClientName) : names
 }
 
 /**
