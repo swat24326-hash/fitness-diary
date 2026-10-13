@@ -1,6 +1,6 @@
 /**
  * Переписка клиента с тренером: клиент на iPhone пишет тренеру ссылку Wildberries →
- * у тренера на планшете конверт «1 новых» → «Диалоги» → ссылка кликабельна → ответ →
+ * у тренера на планшете конверт «1 новых» → мессенджер, папка «Клиенты» → ссылка кликабельна → ответ →
  * конверт гаснет → клиент видит ответ с именем тренера и число на вкладке «Сообщения» /me.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
@@ -170,13 +170,19 @@ async function trainerReplies(c, browser, backend, chat) {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения клуба: 1 новых' })), 'шапка тренера: конверт «1 новых» — сообщение клиента')
     await page.getByRole('link', { name: /^Сообщения клуба/ }).click()
-    await page.getByRole('link', { name: 'Диалоги', exact: true }).click()
+    const clientsTab = page.getByTestId('chat-folders').getByRole('button', { name: /^Клиенты/ })
+    c.ok(await reaches(clientsTab), 'конверт открыл мессенджер, без вкладки «Диалоги»')
+    c.ok((await clientsTab.getAttribute('aria-pressed')) === 'true', 'новое от клиента — открыта папка «Клиенты»')
     const row = page.getByTestId('chat-contacts').getByRole('link', { name: new RegExp(CLIENT_NAME) })
-    c.ok(await reaches(row.locator('.chat-row__badge', { hasText: '2' })), '«Диалоги»: у клиента кружок «2 новых»')
+    c.ok(await reaches(row.locator('.chat-row__badge', { hasText: '2' })), '«Клиенты»: у клиента кружок «2 новых»')
     await screenshot(page, 'staff-chat-list')
     await row.click()
     const link = page.locator('.chat-msg a', { hasText: 'wildberries.ru' })
     c.ok(await reaches(link), 'тренер видит сообщение клиента')
+    c.ok(
+      (await row.getAttribute('aria-current')) === 'true' && (await page.getByTestId('chat-folders').isVisible()),
+      'планшет: диалог справа, слева список с подсвеченным клиентом — как Telegram',
+    )
     c.ok((await link.getAttribute('href')) === WB && (await link.getAttribute('target')) === '_blank', 'ссылка Wildberries кликабельна и открывается отдельно')
     let popups = 0
     context.on('page', () => (popups += 1))

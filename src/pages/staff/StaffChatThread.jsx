@@ -1,64 +1,31 @@
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
-import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
-import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
+import { Link, Navigate, useParams } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
+import { StaffChatPane } from '../../components/chat/StaffChatPane.jsx'
 import { useAuth } from '../../context/AuthContext'
-import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
-import { chatStaffReadOnlyRu } from '../../lib/chat/chatUiCore.js'
-import { useStaffChatThread } from '../../hooks/useStaffChat.js'
 
-/** /messages/chat/:clientId/:kind — переписка сотрудника с клиентом. Админ попадает сюда из карточки клиента. */
+/**
+ * /messages/chat/:clientId/:kind — админ попадает сюда из карточки клиента.
+ * У остальных (и ссылки из уведомлений) — панель справа в «Сообщениях клуба».
+ */
 export function StaffChatThread() {
   const { clientId = '', kind = '' } = useParams()
   const { isAdmin } = useAuth()
-  const chat = useStaffChatThread(clientId, kind)
-  const meta = chat.meta
-  const back = isAdmin ? `/admin/clients/${clientId}` : '/messages?tab=chats'
-
+  if (!isAdmin) return <Navigate to={`/messages?chat=${encodeURIComponent(`${clientId}:${kind}`)}`} replace />
+  const back = `/admin/clients/${clientId}`
   return (
     <div className="staff-inbox">
-      <Link to={back} className="btn btn-ghost btn-sm staff-inbox__back">
-        <ArrowLeft size={18} aria-hidden />
-        {isAdmin ? 'Карточка клиента' : 'Все диалоги'}
-      </Link>
-      <header className="chat-head">
-        <h1 className="staff-inbox__title">
-          <MessageCircle size={22} aria-hidden />
-          {meta?.client?.name || 'Клиент'}
-        </h1>
-        <small className="muted">{chatKindLabelRu(kind)}</small>
-      </header>
-      {!chat.messages ? (
-        <div className="card staff-inbox__status" role="status">
-          {chat.status === 'error' ? <WifiOff size={28} aria-hidden /> : <RefreshCw size={28} aria-hidden className="icon-spin" />}
-          <strong>{chat.status === 'error' ? 'Не открылось' : 'Открываем…'}</strong>
-          {chat.status === 'error' ? (
-            <>
-              <p className="muted">{chat.error}</p>
-              <ChatOpenErrorAction errorStatus={chat.errorStatus} onRetry={chat.reload} backTo={back} />
-            </>
-          ) : null}
-        </div>
-      ) : (
-        <ChatThreadView
-          onAtBottom={chat.onAtBottom}
-          onReact={chat.react}
-          reply={chat.reply}
-          search={chat.search}
-          dictate={chat.dictate}
-          messages={chat.messages}
-          hasMore={chat.hasMore}
-          onLoadOlder={() => void chat.loadOlder()}
-          peerReadAt={meta?.peer_read_at}
-          onSubmit={chat.submit}
-          sending={chat.sending}
-          sendError={chat.sendError}
-          canWrite={Boolean(meta?.can_write)}
-          readOnlyHint={chatStaffReadOnlyRu(meta)}
-          emptyHint="Сообщений пока нет. Клиент увидит ваше сообщение в приложении клуба."
-          placeholder="Ответ клиенту"
-        />
-      )}
+      <StaffChatPane
+        key={`${clientId}:${kind}`}
+        clientId={clientId}
+        kind={kind}
+        backTo={back}
+        back={
+          <Link to={back} className="btn btn-ghost btn-sm staff-inbox__back">
+            <ArrowLeft size={18} aria-hidden />
+            Карточка клиента
+          </Link>
+        }
+      />
     </div>
   )
 }

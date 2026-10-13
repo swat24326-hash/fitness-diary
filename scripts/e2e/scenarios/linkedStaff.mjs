@@ -68,7 +68,7 @@ export async function run(browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
-    await page.goto(`${ORIGIN}/messages?tab=chats`)
+    await page.goto(`${ORIGIN}/messages`)
     const folders = page.getByTestId('chat-folders')
     const complaints = folders.getByRole('button', { name: /^Жалобы и предложения/ })
     c.ok(await reaches(complaints), 'планшет тренера: папка «Жалобы и предложения»')
@@ -81,7 +81,7 @@ export async function run(browser) {
     c.ok(await reaches(row), 'в папке — клиентка чужого тренера')
     await screenshot(page, 'linked-staff-complaints')
     await row.click()
-    await page.waitForURL(`${ORIGIN}/messages/chat/${GUEST_ID}/supervisor`)
+    await page.waitForURL(new RegExp(`/messages\\?.*chat=${GUEST_ID}%3Asupervisor`))
     c.ok(await reaches(page.locator('.chat-msg', { hasText: COMPLAINT })), 'жалоба в ленте')
     await page.getByTestId('chat-input').fill(REPLY)
     await page.getByTestId('chat-send').click()

@@ -117,10 +117,19 @@ async function supervisorAnswers(c, browser, backend, chat) {
   const page = await context.newPage()
   try {
     await loginUi(page, SUP_LOGIN, SUP_PASSWORD)
-    await page.goto(`${ORIGIN}/messages?tab=chats`)
+    await page.goto(`${ORIGIN}/messages`)
     const folders = page.getByTestId('chat-folders')
     const trainers = folders.getByRole('button', { name: /^Тренеры/ })
     c.ok(await reaches(trainers), 'планшет управляющего: папка «Тренеры»')
+    c.ok(
+      await trainers.evaluate((el) => el.getAttribute('aria-pressed') === 'true').catch(() => false),
+      'ждёт ответа тренер — мессенджер сразу открыт на «Тренерах»',
+    )
+    const cut = await folders.evaluate((nav) => {
+      const box = nav.getBoundingClientRect()
+      return [...nav.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().right > box.right + 1).map((b) => b.textContent)
+    })
+    c.ok(cut.length === 0, `все папки управляющего видны целиком, без прокрутки вбок${cut.length ? ` (обрезаны: ${cut.join(', ')})` : ''}`)
     c.ok(await reaches(trainers.getByLabel('Ждут ответа: 1')), '«Тренеры»: 1 ждёт ответа')
     c.ok(await reaches(folders.getByRole('button', { name: /^Клиенты/ })), 'и «Клиенты» — прежний список диалогов')
     await trainers.click()
@@ -128,7 +137,7 @@ async function supervisorAnswers(c, browser, backend, chat) {
     c.ok(await reaches(row.locator('.chat-row__badge', { hasText: '1' })), 'у тренера кружок «1»')
     await screenshot(page, 'staff-dm-supervisor-list')
     await row.click()
-    await page.waitForURL(`${ORIGIN}/messages/dm/${TRAINER_ID}`)
+    await page.waitForURL(new RegExp(`/messages\\?.*dm=${TRAINER_ID}`))
     c.ok(await reaches(page.locator('.chat-msg', { hasText: ASK })), 'управляющая видит сообщение тренера')
     await page.getByTestId('chat-input').fill(ANSWER)
     await page.getByTestId('chat-send').click()

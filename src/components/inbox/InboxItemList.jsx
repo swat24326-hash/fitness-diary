@@ -5,16 +5,22 @@ import { inboxItemMetaRu } from '../../lib/client/clientInboxUiCore.js'
 
 /**
  * Строки «Входящих»: новые с точкой, опрос — планшет, объявление — рупор.
- * @param {{ items: object[], basePath: string }} props
+ * hrefFor — свой адрес строки (мессенджер сотрудника), иначе basePath/id; selectedId — открыто справа.
+ * @param {{ items: object[], basePath?: string, hrefFor?: (it: object) => string, selectedId?: string }} props
  */
-export function InboxItemList({ items, basePath }) {
+export function InboxItemList({ items, basePath = '', hrefFor, selectedId = '' }) {
   return (
     <ol className="client-inbox">
       {items.map((it, i) => {
         const Icon = it.kind === 'survey' ? ClipboardList : Megaphone
+        const selected = Boolean(selectedId) && it.id === selectedId
         return (
           <li key={it.id} style={{ '--i': i }}>
-            <Link to={`${basePath}/${it.id}`} className={`client-inbox__row${it.attention ? ' client-inbox__row--new' : ''}`}>
+            <Link
+              to={hrefFor ? hrefFor(it) : `${basePath}/${it.id}`}
+              className={`client-inbox__row${it.attention ? ' client-inbox__row--new' : ''}${selected ? ' client-inbox__row--selected' : ''}`}
+              aria-current={selected ? 'true' : undefined}
+            >
               <span className="client-inbox__icon" aria-hidden>
                 <Icon size={20} />
               </span>

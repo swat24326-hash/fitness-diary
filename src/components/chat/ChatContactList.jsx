@@ -17,9 +17,10 @@ function previewOf(c) {
  * Тусклый без переписки: нажатие — приглашение. С перепиской — открыть историю, рядом «Пригласить».
  * Без onInvite (коллеги) тусклому всё равно можно написать — увидит на планшете.
  * kind — аватарка по умолчанию; у сотрудника своя по роли (c.role).
- * @param {{ contacts: object[], kind: string, hrefFor: (c: object) => string, onInvite?: (c: object) => void }} props
+ * selectedId — открыт справа (планшет), строка подсвечена.
+ * @param {{ contacts: object[], kind: string, hrefFor: (c: object) => string, onInvite?: (c: object) => void, selectedId?: string }} props
  */
-export function ChatContactList({ contacts, kind, hrefFor, onInvite }) {
+export function ChatContactList({ contacts, kind, hrefFor, onInvite, selectedId = '' }) {
   const [query, setQuery] = useState('')
   const shown = filterChatContacts(contacts, query)
   return (
@@ -52,7 +53,7 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite }) {
               tail={dim && !c.has_thread && onInvite ? <span className="chat-contacts__invite-tag">Пригласить</span> : null}
             />
           )
-          const cls = `chat-row${c.unread ? ' chat-row--new' : ''}${dim ? ' chat-row--dim' : ''}`
+          const cls = `chat-row${c.unread ? ' chat-row--new' : ''}${dim ? ' chat-row--dim' : ''}${selectedId && c.id === selectedId ? ' chat-row--selected' : ''}`
           return (
             <li key={c.id} style={{ '--i': Math.min(i, 10) }} className="chat-contacts__item" data-has-app={dim ? '0' : '1'}>
               {dim && !c.has_thread && onInvite ? (
@@ -60,7 +61,7 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite }) {
                   {body}
                 </button>
               ) : (
-                <Link to={hrefFor(c)} className={cls}>
+                <Link to={hrefFor(c)} className={cls} aria-current={selectedId && c.id === selectedId ? 'true' : undefined}>
                   {body}
                 </Link>
               )}

@@ -146,7 +146,6 @@ async function trainer(c, browser, backend, chat) {
   try {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     await page.getByRole('link', { name: /^Сообщения клуба/ }).click()
-    await page.getByRole('link', { name: 'Диалоги', exact: true }).click()
     await page.getByTestId('chat-contacts').getByRole('link', { name: new RegExp(CLIENT_NAME) }).click()
     c.ok(await reaches(page.locator('.chat-msg', { hasText: SPOKEN })), 'тренер: видит надиктованное клиентом')
     await dictateFlow(c, page, chat, 'тренер')

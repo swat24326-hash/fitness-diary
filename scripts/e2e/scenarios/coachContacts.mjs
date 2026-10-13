@@ -122,7 +122,7 @@ async function tablet(c, browser) {
   const page = await context.newPage()
   try {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
-    await page.goto(`${ORIGIN}/messages?tab=chats`)
+    await page.goto(`${ORIGIN}/messages`)
     await checkList(c, page, 'планшет')
     await screenshot(page, 'staff-contacts')
   } catch (e) {

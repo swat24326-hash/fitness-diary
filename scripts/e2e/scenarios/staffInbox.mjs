@@ -81,7 +81,13 @@ async function trainerFlow(c, browser, backend) {
     const badge = await envelope.locator('.app-header__inbox-badge').evaluate((el) => el.ownerDocument.defaultView.getComputedStyle(el).position)
     c.ok(icon?.width >= 16 && badge === 'absolute', 'конверт: значок виден, число в углу (стили шапки без панели ИСКРЫ)')
     await envelope.click()
-    await page.waitForURL(`${ORIGIN}/messages`)
+    await page.waitForURL(/\/messages\?folder=inbox/)
+    const folders = await page.getByTestId('chat-folders').getByRole('button').allInnerTexts()
+    c.ok(folders.length > 1 && /^Рассылки/.test(folders.at(-1)), `конверт — мессенджер: сначала переписка, «Рассылки» последней (${folders.join(' · ')})`)
+    c.ok(
+      (await page.getByTestId('chat-folders').getByRole('button', { name: /^Рассылки/ }).getAttribute('aria-pressed')) === 'true',
+      'новое только в рассылках — конверт сразу открыл «Рассылки»',
+    )
     c.ok(await reaches(page.getByText('Планёрка в пятницу в 9:00')), 'список: объявление на месте')
     await page.waitForTimeout(600)
     await screenshot(page, 'staff-inbox-list')
@@ -90,7 +96,7 @@ async function trainerFlow(c, browser, backend) {
     c.ok(await reaches(page.getByText('Собираемся в зале ТЗ.')), 'объявление открыто целиком')
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения клуба: 1 новых' })), 'прочитал объявление — в конверте 1')
 
-    await page.getByRole('link', { name: 'Все сообщения' }).click()
+    c.ok(await page.getByText('Как вам новое расписание смен?').isVisible(), 'планшет: справа объявление, слева список не пропал — как Telegram')
     await page.getByText('Как вам новое расписание смен?').click()
     await page.getByRole('button', { name: 'Отправить ответы' }).click()
     c.ok(await reaches(page.getByText('Ответьте на этот вопрос')), 'пропущенный вопрос подсвечен, ничего не ушло')
