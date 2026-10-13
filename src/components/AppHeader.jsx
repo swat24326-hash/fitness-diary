@@ -23,6 +23,7 @@ import { HeaderHeartRate } from './HeaderHeartRate'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
 import { useIskraPanel } from '../context/IskraPanelContext.jsx'
 import { useHeaderSync } from './useHeaderSync'
+import { useStaffPushSelfHeal } from '../hooks/useStaffPushSelfHeal.js'
 import { SyncMottoStrip } from './SyncMottoStrip'
 import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
 import { StaffInboxButton } from './inbox/StaffInboxButton.jsx'
@@ -71,6 +72,7 @@ export function AppHeader() {
   const [recoverBusy, setRecoverBusy] = useState(false)
   const [settingsModal, setSettingsModal] = useState(null)
   const isTrainerRole = !isAdmin && !isSalesManager && !isSupervisor
+  useStaffPushSelfHeal(String(user?.club_id ?? '').trim(), Boolean(user && supabaseReady))
 
   const {
     showHeaderSync,

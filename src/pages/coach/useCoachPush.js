@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { usePushSelfHeal } from '../../hooks/usePushSelfHeal.js'
+import { healEndpointPush, setPushWantOn } from '../../lib/push/pushSelfHeal.js'
 import { fetchCoachPushStatus, subscribeCoachPush, unsubscribeCoachPush } from '../../lib/coach/coachApiClient.js'
 import { isCoachStandalone } from '../../lib/coach/coachInstall.js'
 import { CoachSessionGoneError } from '../../lib/coach/coachSession.js'
@@ -12,11 +14,11 @@ function permissionNow() {
   return typeof Notification === 'undefined' ? 'default' : Notification.permission
 }
 
-async function currentEndpoint() {
-  if (!isTrainerPushSupported()) return ''
-  const reg = await navigator.serviceWorker.getRegistration('/')
-  const sub = reg ? await reg.pushManager.getSubscription() : null
-  return sub?.endpoint ?? ''
+export const COACH_PUSH_API = { fetchStatus: fetchCoachPushStatus, subscribe: subscribeCoachPush }
+
+/** Телефон тренера: при открытии и возврате молча чиним подписку на уведомления. */
+export function useCoachPushSelfHeal(enabled) {
+  usePushSelfHeal('coach', () => healEndpointPush('coach', COACH_PUSH_API), enabled)
 }
 
 /**
@@ -41,8 +43,7 @@ export function useCoachPush() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const endpoint = await currentEndpoint().catch(() => '')
-      const st = await fetchCoachPushStatus(endpoint)
+      const { status: st, endpoint } = await healEndpointPush('coach', COACH_PUSH_API)
       if (cancelled) return
       setServer({ ready: true, configured: !!st.configured, publicKey: st.public_key || '', subscribed: !!st.subscribed, endpoint })
       setPermission(permissionNow())
@@ -65,6 +66,7 @@ export function useCoachPush() {
       const ser = serializePushSubscription(await subscribePushManager(server.publicKey))
       if (!ser.ok) throw new Error(ser.error)
       await subscribeCoachPush(ser.payload)
+      setPushWantOn('coach', true)
       setServer((s) => ({ ...s, subscribed: true, endpoint: ser.payload.endpoint }))
     } catch (e) {
       fail(e)
@@ -78,6 +80,7 @@ export function useCoachPush() {
     setError('')
     try {
       await unsubscribeCoachPush(server.endpoint)
+      setPushWantOn('coach', false)
       setServer((s) => ({ ...s, subscribed: false }))
     } catch (e) {
       fail(e)

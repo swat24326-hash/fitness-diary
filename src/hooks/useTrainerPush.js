@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getAccessTokenForAdminApi } from '../lib/admin/adminApiClient.js'
+import { setPushWantOn } from '../lib/push/pushSelfHeal.js'
 import {
   isTrainerPushSupported,
   serializePushSubscription,
@@ -9,31 +9,13 @@ import {
   subscribePushManager,
 } from '../lib/push/trainerPushSubscribe.js'
 import {
+  fetchVapidPublicKey,
   removeTrainerPushSubscription,
   saveTrainerPushSubscription,
   sendTrainerPushTest,
 } from '../lib/push/trainerPushService.js'
 
 const DEFAULT_PROMPT_DISMISS_KEY = 'trainer_push_prompt_dismissed_v1'
-
-async function fetchVapidPublicKey() {
-  const fromEnv = String(import.meta.env.VITE_VAPID_PUBLIC_KEY ?? '').trim()
-  if (fromEnv) return fromEnv
-
-  const token = await getAccessTokenForAdminApi()
-  if (!token) return ''
-  const res = await fetch(`${window.location.origin}/api/admin-data?action=push-subscription`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: 'same-origin',
-    cache: 'no-store',
-  })
-  if (res.status === 403) {
-    throw new Error('Нет доступа к настройке уведомлений для этой роли')
-  }
-  if (!res.ok) return ''
-  const data = await res.json().catch(() => ({}))
-  return String(data?.public_key ?? '').trim()
-}
 
 /**
  * Сохранить текущую браузерную подписку в облако (если есть).
@@ -129,6 +111,7 @@ export function useTrainerPush(opts = {}) {
         })
 
         setSubscribed(true)
+        setPushWantOn('staff', true)
         localStorage.setItem(promptDismissKey, '1')
         return true
       } catch (e) {
@@ -157,6 +140,7 @@ export function useTrainerPush(opts = {}) {
           /* offline */
         }
       }
+      setPushWantOn('staff', false)
       setSubscribed(false)
       return true
     } catch (e) {

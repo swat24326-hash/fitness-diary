@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { usePushSelfHeal } from '../../hooks/usePushSelfHeal.js'
 import { isIosUserAgent } from '../../lib/client/clientInstallCore.js'
+import { healEndpointPush, setPushWantOn } from '../../lib/push/pushSelfHeal.js'
 import { clientPushMode } from '../../lib/client/clientPushModeCore.js'
 import { postClientMe } from '../../lib/client/clientSession.js'
 import { isTrainerPushSupported, serializePushSubscription } from '../../lib/push/trainerPushCore.js'
@@ -7,13 +9,6 @@ import { formatPushSubscribeError, subscribePushManager } from '../../lib/push/t
 
 function permissionNow() {
   return typeof Notification === 'undefined' ? 'default' : Notification.permission
-}
-
-async function currentEndpoint() {
-  if (!isTrainerPushSupported()) return ''
-  const reg = await navigator.serviceWorker.getRegistration('/')
-  const sub = reg ? await reg.pushManager.getSubscription() : null
-  return sub?.endpoint ?? ''
 }
 
 /**
@@ -27,22 +22,32 @@ export function useClientPush({ active, standalone }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
+  const load = useCallback(async () => {
+    const { status: st, endpoint } = await healEndpointPush('client', {
+      fetchStatus: (e) => postClientMe({ action: 'push-status', endpoint: e }),
+      subscribe: (p) => postClientMe({ action: 'push-subscribe', ...p }),
+    })
+    return { ready: true, configured: !!st.configured, publicKey: st.public_key || '', subscribed: !!st.subscribed, endpoint }
+  }, [])
+
   useEffect(() => {
     if (!active) return undefined
     let cancelled = false
-    ;(async () => {
-      const endpoint = await currentEndpoint().catch(() => '')
-      const st = await postClientMe({ action: 'push-status', endpoint })
-      if (cancelled) return
-      setServer({ ready: true, configured: !!st.configured, publicKey: st.public_key || '', subscribed: !!st.subscribed, endpoint })
-      setPermission(permissionNow())
-    })().catch(() => {
-      /* нет связи — карточку просто не показываем */
-    })
+    load()
+      .then((next) => {
+        if (cancelled) return
+        setServer(next)
+        setPermission(permissionNow())
+      })
+      .catch(() => {
+        /* нет связи — карточку просто не показываем */
+      })
     return () => {
       cancelled = true
     }
-  }, [active])
+  }, [active, load])
+
+  usePushSelfHeal('client', () => load().then(setServer), active, { onOpen: false })
 
   const enable = useCallback(async () => {
     setBusy(true)
@@ -55,6 +60,7 @@ export function useClientPush({ active, standalone }) {
       const ser = serializePushSubscription(await subscribePushManager(server.publicKey))
       if (!ser.ok) throw new Error(ser.error)
       await postClientMe({ action: 'push-subscribe', ...ser.payload })
+      setPushWantOn('client', true)
       setServer((s) => ({ ...s, subscribed: true, endpoint: ser.payload.endpoint }))
       return true
     } catch (e) {
@@ -70,6 +76,7 @@ export function useClientPush({ active, standalone }) {
     setError('')
     try {
       await postClientMe({ action: 'push-unsubscribe', endpoint: server.endpoint })
+      setPushWantOn('client', false)
       setServer((s) => ({ ...s, subscribed: false }))
     } catch (e) {
       setError(e?.message || 'Не получилось — попробуйте ещё раз')

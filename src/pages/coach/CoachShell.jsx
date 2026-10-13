@@ -5,6 +5,7 @@ import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
 import { useClientBranding } from '../client/useClientBranding.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { useCoachAttention } from './useCoachAttention.js'
+import { useCoachPushSelfHeal } from './useCoachPush.js'
 
 export const COACH_APP_TITLE = APP_BRAND_COACH_TITLE
 const COACH_MANIFEST = '/manifest-coach.json'
@@ -46,7 +47,8 @@ function CoachTabs() {
  * fill — экран ровно в высоту телефона, листается только содержимое (Ежедневник: сетка часов).
  */
 export function CoachShell({ children, title = '', actions = null, tabs = true, fill = false }) {
-  const { club } = useCoachApp()
+  const { club, signedIn } = useCoachApp()
+  useCoachPushSelfHeal(signedIn)
   const clubTitle = club?.name || COACH_APP_TITLE
   useClientBranding(clubTitle, club?.manifest_url || COACH_MANIFEST)
   return (

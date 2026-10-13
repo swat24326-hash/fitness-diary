@@ -12,6 +12,26 @@ async function parseJson(res) {
   }
 }
 
+/** Публичный ключ уведомлений: из сборки или с сервера (приложение зала). */
+export async function fetchVapidPublicKey() {
+  const fromEnv = String(import.meta.env.VITE_VAPID_PUBLIC_KEY ?? '').trim()
+  if (fromEnv) return fromEnv
+
+  const token = await getAccessTokenForAdminApi()
+  if (!token) return ''
+  const res = await fetch(`${apiOrigin()}/api/admin-data?action=push-subscription`, {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (res.status === 403) {
+    throw new Error('Нет доступа к настройке уведомлений для этой роли')
+  }
+  if (!res.ok) return ''
+  const data = await res.json().catch(() => ({}))
+  return String(data?.public_key ?? '').trim()
+}
+
 /**
  * @param {{ clubId?: string, endpoint: string, p256dh: string, auth: string, userAgent?: string }} opts
  */
