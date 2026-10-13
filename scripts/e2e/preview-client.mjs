@@ -82,10 +82,6 @@ const context = await newE2eContext(browser, backend, {
   hasTouch: true,
   isMobile: true,
 })
-/* Датчика на компьютере нет: «Потрясите телефон» сразу показывает, как прыгают точки. */
-await context.addInitScript(() => {
-  if (globalThis.DeviceMotionEvent) globalThis.DeviceMotionEvent.requestPermission = async () => 'granted'
-})
 const page = await context.newPage()
 await page.goto(`${ORIGIN}/me/join#t=${INVITE}`, { waitUntil: 'domcontentloaded', timeout: 90_000 })
 await page.waitForURL(`${ORIGIN}/me`, { timeout: 60_000 })

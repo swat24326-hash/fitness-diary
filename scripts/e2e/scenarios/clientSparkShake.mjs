@@ -1,7 +1,7 @@
 /**
  * /me на телефоне: потряс — по графику веса бежит волна (линия гнётся вместе с точками) и затихает.
  * Подсказка «Потрясите телефон» пропадает после первой тряски; толчок — не тряска; при «уменьшении движения» датчик не слушаем.
- * Датчик — синтетические devicemotion: данные пришли — путь Android, без нажатия кнопки.
+ * Датчик — синтетические devicemotion: данные пришли — путь Android, без нажатия кнопки. На iPhone тряски нет.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
@@ -63,24 +63,24 @@ async function openHome(page) {
   return spark
 }
 
-/** iPhone: датчик молчит до разрешения; кнопка спрашивает его. answer — что ответил человек. */
-async function iphone(c, browser, answer) {
-  const context = await newE2eContext(browser, wireBackend(), PHONE)
-  await context.addInitScript((a) => {
-    globalThis.DeviceMotionEvent.requestPermission = async () => a
-  }, answer)
+/**
+ * iPhone (датчик просит разрешение): тряски нет — iOS на тряску сама показывает «Отменить ввод текста»
+ * («Встряхивание для отмены»), сайт это окно отключить не может (клиентка 13.10).
+ */
+async function iphone(c, browser) {
+  const context = await newE2eContext(browser, wireBackend(), {
+    ...PHONE,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+  })
   const page = await context.newPage()
   try {
     await openHome(page)
-    const hint = page.getByRole('button', { name: 'Потрясите телефон' })
-    await hint.click()
-    await page.waitForTimeout(150)
-    if (answer === 'granted') c.ok((await waves(page)) === 1, 'iPhone: разрешил — по графику сразу пошла волна')
-    else c.ok((await waves(page)) === 0, 'iPhone: отказал — график спокоен')
-    c.ok(await hint.isHidden(), `iPhone: ${answer === 'granted' ? 'разрешил' : 'отказал'} — подсказка больше не показывается`)
+    await motion(page, SHAKE)
+    c.ok(await page.getByRole('button', { name: 'Потрясите телефон' }).isHidden(), 'iPhone: кнопки «Потрясите телефон» нет')
+    c.ok((await waves(page)) === 0, 'iPhone: тряска не трогает график — повода трясти и ловить окно iOS нет')
   } catch (e) {
-    await screenshot(page, `client-spark-shake-ios-${answer}-FAIL`).catch(() => null)
-    c.ok(false, `iPhone (${answer}): сценарий прерван: ${e.message.split('\n')[0]}`)
+    await screenshot(page, 'client-spark-shake-ios-FAIL').catch(() => null)
+    c.ok(false, `iPhone: сценарий прерван: ${e.message.split('\n')[0]}`)
   } finally {
     await context.close()
   }
@@ -88,8 +88,7 @@ async function iphone(c, browser, answer) {
 
 export async function run(browser) {
   const c = createChecks('client-spark-shake')
-  await iphone(c, browser, 'granted')
-  await iphone(c, browser, 'denied')
+  await iphone(c, browser)
   const context = await newE2eContext(browser, wireBackend(), PHONE)
   const page = await context.newPage()
   const pageErrors = []
@@ -97,12 +96,12 @@ export async function run(browser) {
   try {
     const spark = await openHome(page)
     const hint = page.getByRole('button', { name: 'Потрясите телефон' })
-    c.ok(await hint.isVisible(), 'под графиком подсказка «Потрясите телефон»')
     const rest = await page.locator(LINE).getAttribute('d')
 
     await motion(page, BUMP)
     await page.waitForTimeout(200)
     c.ok((await waves(page)) === 0, 'один толчок — график спокоен')
+    c.ok(await hint.isVisible(), 'датчик ответил — под графиком подсказка «Потрясите телефон»')
 
     await motion(page, SHAKE)
     c.ok((await waves(page)) === 1, 'потряс — по графику пошла волна')

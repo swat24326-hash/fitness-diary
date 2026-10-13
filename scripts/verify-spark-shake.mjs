@@ -8,7 +8,9 @@ import {
   SPARK_WAVE_POINT_MS,
   SPARK_WAVE_STAGGER_MS,
   createShakeDetector,
+  isAppleTouchDevice,
   shakeHintMode,
+  shakeMotionAllowed,
   sparkWaveAmps,
   sparkWaveDuration,
   sparkWaveLift,
@@ -83,10 +85,24 @@ ok(sparkWaveDuration(7) < SHAKE_COOLDOWN_MS, 'волна успевает зат
 // --- Подсказка ---
 ok(shakeHintMode({ support: 'none' }) === null, 'компьютер / «уменьшение движения» — подсказки нет')
 ok(shakeHintMode({ support: 'open', views: 1 }) === 'try', 'Android — «Потрясите телефон» показывает анимацию')
-ok(shakeHintMode({ support: 'ask', views: 1 }) === 'ask', 'iPhone — кнопка спрашивает разрешение')
-ok(shakeHintMode({ support: 'open', done: true, views: 1 }) === null, 'уже тряс / нажал / отказал — подсказки нет')
-ok(shakeHintMode({ support: 'ask', views: SHAKE_HINT_MAX_VIEWS }) === 'ask', `${SHAKE_HINT_MAX_VIEWS}-й заход — ещё показываем`)
-ok(shakeHintMode({ support: 'ask', views: SHAKE_HINT_MAX_VIEWS + 1 }) === null, 'дальше не надоедаем')
+ok(shakeHintMode({ support: 'open', done: true, views: 1 }) === null, 'уже тряс / нажал — подсказки нет')
+ok(shakeHintMode({ support: 'open', views: SHAKE_HINT_MAX_VIEWS }) === 'try', `${SHAKE_HINT_MAX_VIEWS}-й заход — ещё показываем`)
+ok(shakeHintMode({ support: 'open', views: SHAKE_HINT_MAX_VIEWS + 1 }) === null, 'дальше не надоедаем')
+
+// --- Где тряска есть ---
+const phone = { hasMotion: true, coarse: true, reducedMotion: false, apple: false }
+ok(shakeMotionAllowed(phone), 'Android-телефон с датчиком — тряска есть')
+ok(!shakeMotionAllowed({ ...phone, apple: true }), 'iPhone — тряски нет: iOS на тряску показывает «Отменить ввод текста» (клиентка 13.10)')
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+const IPAD_DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
+const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36'
+ok(isAppleTouchDevice({ userAgent: IPHONE_UA, maxTouchPoints: 5 }), 'iPhone узнаём')
+ok(isAppleTouchDevice({ userAgent: IPAD_DESKTOP_UA, maxTouchPoints: 5 }), 'iPad «как компьютер» (Mac + сенсор) узнаём')
+ok(!isAppleTouchDevice({ userAgent: IPAD_DESKTOP_UA, maxTouchPoints: 0 }), 'настоящий Mac — не iPhone')
+ok(!isAppleTouchDevice({ userAgent: ANDROID_UA, maxTouchPoints: 5 }), 'Android — не iPhone (хотя в Chrome тоже есть requestPermission)')
+ok(!shakeMotionAllowed({ ...phone, coarse: false }), 'компьютер с мышью — тряски нет')
+ok(!shakeMotionAllowed({ ...phone, reducedMotion: true }), '«уменьшение движения» — тряски нет')
+ok(!shakeMotionAllowed({ ...phone, hasMotion: false }), 'нет датчика — тряски нет')
 
 if (failed) {
   console.error(`\nverify-spark-shake: ${failed} FAIL`)

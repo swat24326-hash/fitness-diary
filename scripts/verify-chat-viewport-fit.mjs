@@ -3,7 +3,7 @@
  * лишний сдвиг страницы вверх — вернуть.
  * node scripts/verify-chat-viewport-fit.mjs
  */
-import { CHAT_FIT_MIN_PX, chatFitHeightPx, chatFitShouldUnpan } from '../src/lib/chat/chatViewportFit.js'
+import { CHAT_FIT_MIN_PX, chatFitHeightPx, chatFitShiftPx, chatFitShouldUnpan } from '../src/lib/chat/chatViewportFit.js'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -24,12 +24,18 @@ ok(fit(300, 200) === CHAT_FIT_MIN_PX, 'очень низкий экран — н
 ok(fit(null, 64) === CHAT_FIT_MIN_PX && fit('x', 64) === CHAT_FIT_MIN_PX && fit(0, 0) === CHAT_FIT_MIN_PX, 'битые размеры — минимум')
 ok(fit(844, undefined, undefined) === 844, 'нет верха / отступа — весь экран')
 
-const unpan = (docHeight, viewHeight, scrollY, offsetTop) => chatFitShouldUnpan({ docHeight, viewHeight, scrollY, offsetTop })
-ok(unpan(508, 508, 0, 336), 'iPhone сдвинул видимую часть под клавиатуру, диалог уже влез — вернуть наверх')
-ok(unpan(508, 508, 120, 0), 'страница прокручена, хотя всё влезло — вернуть наверх')
-ok(!unpan(508, 508, 0, 0), 'ничего не сдвинуто — не трогать')
-ok(!unpan(1400, 844, 300, 0), 'страница длиннее экрана (над диалогом много всего) — прокрутку человека не трогать')
-ok(unpan(508.6, 508, 0, 10), 'дробный шум < 1px — диалог влез')
-ok(!unpan(null, 508, 0, 336) && !unpan(508, 'x', 0, 336), 'битые размеры — не трогать')
+const unpan = (docHeight, viewHeight, scrollY) => chatFitShouldUnpan({ docHeight, viewHeight, scrollY })
+ok(unpan(508, 508, 120), 'страница прокручена, хотя всё влезло — вернуть наверх')
+ok(!unpan(508, 508, 0), 'ничего не прокручено — не трогать')
+ok(!unpan(1400, 844, 300), 'страница длиннее экрана (над диалогом много всего) — прокрутку человека не трогать')
+ok(unpan(508.6, 508, 10), 'дробный шум < 1px — диалог влез')
+ok(!unpan(null, 508, 30) && !unpan(508, 'x', 30), 'битые размеры — не трогать')
+
+const shiftBy = (offsetTop, scale) => chatFitShiftPx({ offsetTop, scale })
+ok(shiftBy(336) === 336, 'iPhone сдвинул видимую часть к полю ввода — страница едет за ней, поле над клавиатурой (клиентка 13.10)')
+ok(shiftBy(0) === 0 && shiftBy(undefined) === 0, 'сдвига нет — страница на месте')
+ok(shiftBy(-30) === 0, 'оттяжка вверх (отрицательный сдвиг) — не двигаем')
+ok(shiftBy(120.6) === 121, 'дробные пиксели округляются')
+ok(shiftBy(336, 2) === 0, 'страницу увеличили пальцами — это не клавиатура, не двигаем')
 
 console.log('verify-chat-viewport-fit: all passed')

@@ -4,7 +4,7 @@ import {
   normalizePushUnsubscribePayload,
   normalizeVapidPublicKey,
 } from '../../src/lib/push/trainerPushCore.js'
-import { PUSH_APP_STAFF } from '../../src/lib/push/pushTargetUrlCore.js'
+import { PUSH_APP_STAFF, staffPushTestUrl } from '../../src/lib/push/pushTargetUrlCore.js'
 import { handlePushPrefsPost } from './pushPrefsHandler.js'
 import { isWebPushConfigured, sendPushToUser } from './webPushCore.js'
 
@@ -60,15 +60,10 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
       return
     }
     try {
-      const testUrl = ctx.isSalesManager
-        ? '/sales/club-tasks?inbox=1'
-        : ctx.isAdmin
-          ? '/admin/club-tasks?inbox=1'
-          : '/trainer?inbox=1'
       const result = await sendPushToUser(ctx.supabaseAdmin, userId, {
         title: 'Проверка уведомлений',
-        body: 'Если видите это — push для Планёрки работает.',
-        url: testUrl,
+        body: 'Если видите это — уведомления на этом устройстве работают.',
+        url: staffPushTestUrl(ctx),
         tag: 'push-test',
       })
       const sent = Number(result.sent ?? 0)

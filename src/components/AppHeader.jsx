@@ -743,7 +743,7 @@ export function AppHeader() {
                 </button>
               ) : null}
               <HeaderStaffSettingsItems
-                showPush={supabaseReady && !isAdmin && !isSupervisor}
+                showPush={supabaseReady}
                 showChatSound={supabaseReady && (isDispatchInboxUser || isAdmin)}
                 showPhoneQr={supabaseReady && isTrainerRole}
                 showScheduleReminders={isTrainerRole}

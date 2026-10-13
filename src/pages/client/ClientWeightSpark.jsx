@@ -74,10 +74,7 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
         aria-valuemax={lastIndex}
         aria-valuenow={active}
         aria-valuetext={`${cap.date}: ${cap.kg} кг`}
-        onPointerDown={(e) => {
-          pick(e)
-          motion.onPlotTouch()
-        }}
+        onPointerDown={pick}
         onPointerMove={pick}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setPicked(null)}
         onKeyDown={onKey}
@@ -119,7 +116,7 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
         <span>{formatDateRu(g.dots[lastIndex].date)}</span>
       </figcaption>
       {motion.hint ? (
-        <button type="button" className="client-me-spark__shake" onClick={() => void motion.onHint()}>
+        <button type="button" className="client-me-spark__shake" onClick={motion.onHint}>
           <Vibrate size={16} aria-hidden />
           Потрясите телефон
         </button>

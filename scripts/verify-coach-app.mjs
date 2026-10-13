@@ -6,7 +6,7 @@
 import { buildCoachMe, buildCoachSchedule, coachScheduleDays } from '../api/_lib/coach/coachViewCore.js'
 import { handlePushSubscriptionPost } from '../api/_lib/pushSubscriptionHandler.js'
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
-import { PUSH_APP_COACH, coachPushUrl, pushUrlForApp } from '../src/lib/push/pushTargetUrlCore.js'
+import { PUSH_APP_COACH, coachPushUrl, pushUrlForApp, staffPushTestUrl } from '../src/lib/push/pushTargetUrlCore.js'
 import { buildCoachJoinUrl, coachQrTokenFromHash } from '../src/lib/coach/coachJoinLink.js'
 import { buildCoachClub, buildCoachManifest, coachManifestUrl } from '../api/_lib/coach/coachManifestCore.js'
 import { createCoachHandler } from '../api/_lib/coach/coachHandler.js'
@@ -37,6 +37,10 @@ ok(coachPushUrl('') === '/coach' && coachPushUrl(null) === '/coach', 'пусто
 ok(coachPushUrl(`/messages/dm/${CLIENT}`) === `/coach/dm/${CLIENT}`, 'личное сообщение сотрудника → диалог на телефоне')
 ok(coachPushUrl(`/messages/dm/${CLIENT}/../../admin`) === `/coach/dm/${CLIENT}`, 'личное: хвост адреса не протаскивается')
 ok(coachPushUrl('/messages/dm/not-a-uuid') === '/coach', 'личное: кривой id → /coach')
+ok(staffPushTestUrl({ isAdmin: true }) === '/messages', '«Проверить» у админа → «Сообщения» (пуши ему — о переписке)')
+ok(staffPushTestUrl({ isSupervisor: true }) === '/messages', '«Проверить» у управляющего → «Сообщения», не экран тренера')
+ok(staffPushTestUrl({ isSalesManager: true }) === '/sales/club-tasks?inbox=1', '«Проверить» у продаж → входящие Планёрки')
+ok(staffPushTestUrl({}) === '/trainer?inbox=1' && staffPushTestUrl() === '/trainer?inbox=1', '«Проверить» у тренера → входящие Планёрки')
 
 // --- Расписание: сегодня и завтра, только имя, время и подпись ---
 ok(coachScheduleDays('2026-12-31').join() === '2026-12-31,2027-01-01', 'завтра через границу года')

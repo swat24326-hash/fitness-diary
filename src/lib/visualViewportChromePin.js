@@ -1,5 +1,7 @@
 /** Sticky-шапка в visible visual viewport, когда клавиатура планшета панорамирует страницу. */
 
+import { CHAT_FIT_ROOT_ATTR } from './chat/chatViewportFit.js'
+
 export const VISUAL_VIEWPORT_PIN_EPS = 0.5
 export const FOCUSED_FIELD_GAP_PX = 10
 export const FOCUSED_FIELD_MIN_OVERLAP_PX = 12
@@ -81,7 +83,7 @@ export function attachVisualViewportChromePin(el) {
 
   const sync = (opts = {}) => {
     const { revealFocus = false } = opts
-    const top = chromeStickyTopForVisualOffset(vv.offsetTop)
+    const top = root.hasAttribute(CHAT_FIT_ROOT_ATTR) ? '' : chromeStickyTopForVisualOffset(vv.offsetTop)
     const pinned = Boolean(top)
     if (el.style.top !== top) el.style.top = top
     if (el.style.transform) el.style.transform = ''

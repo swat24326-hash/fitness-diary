@@ -137,10 +137,10 @@ export function TrainerPushSettings({ clubId = '' }) {
     return (
       <section className="card trainer-push-settings">
         <h2 className="section-title" style={{ marginBottom: 6 }}>
-          Уведомления Планёрки
+          Уведомления
         </h2>
         <p className="muted" style={{ margin: 0 }}>
-          Этот браузер не поддерживает push. Задания по-прежнему в шапке → Планёрка.
+          Этот браузер не поддерживает push. Новые сообщения и задания — по-прежнему в шапке.
         </p>
       </section>
     )
@@ -149,14 +149,14 @@ export function TrainerPushSettings({ clubId = '' }) {
   return (
     <section className="card trainer-push-settings">
       <h2 className="section-title" style={{ marginBottom: 6 }}>
-        Уведомления Планёрки
+        Уведомления
       </h2>
       <p className="section-sub" style={{ margin: '0 0 12px' }}>
         {push.subscribed
-          ? 'Включены на этом планшете — новые задания приходят, когда планшет онлайн.'
+          ? 'Включены на этом устройстве — новые сообщения и задания приходят, когда оно онлайн.'
           : push.permission === 'denied'
-            ? 'Сейчас выкл (браузер блокирует). Разрешите уведомления для сайта или смотрите задания в шапке → Планёрка.'
-            : 'Сейчас выкл — новое задание видно в шапке. Можно включить push на планшет.'}
+            ? 'Сейчас выкл (браузер блокирует). Разрешите уведомления для сайта — или смотрите новое в шапке.'
+            : 'Сейчас выкл — новое видно в шапке. Можно включить push на это устройство.'}
       </p>
       {push.error ? (
         <p className="trainer-push-settings__error" role="alert">
@@ -198,7 +198,7 @@ export function TrainerPushSettings({ clubId = '' }) {
       </div>
       {!push.configured ? (
         <p className="muted" style={{ margin: '10px 0 0', fontSize: 13 }}>
-          Сервер push ещё не настроен — задания видны в Планёрке без задержки при открытии приложения.
+          Сервер push ещё не настроен — новое видно в шапке при открытии приложения.
         </p>
       ) : null}
     </section>

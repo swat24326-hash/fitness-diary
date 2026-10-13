@@ -19,6 +19,16 @@ export function coachPushUrl(url) {
   return dm ? `/coach/dm/${dm[1].toLowerCase()}` : '/coach'
 }
 
+/**
+ * «Проверить» уведомления — куда ведёт тестовый push. Админу и управляющему пуши приходят о сообщениях —
+ * открываем «Сообщения», тренеру и продажам — входящие Планёрки.
+ * @param {{ isAdmin?: boolean, isSupervisor?: boolean, isSalesManager?: boolean }} role
+ */
+export function staffPushTestUrl({ isAdmin = false, isSupervisor = false, isSalesManager = false } = {}) {
+  if (isAdmin || isSupervisor) return '/messages'
+  return isSalesManager ? '/sales/club-tasks?inbox=1' : '/trainer?inbox=1'
+}
+
 export function pushUrlForApp(url, app) {
   return app === PUSH_APP_COACH ? coachPushUrl(url) : url
 }

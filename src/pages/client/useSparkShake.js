@@ -1,24 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createShakeDetector, shakeHintMode, sparkWaveAmps } from '../../lib/client/sparkShakeCore.js'
+import { createShakeDetector, isAppleTouchDevice, shakeHintMode, shakeMotionAllowed, sparkWaveAmps } from '../../lib/client/sparkShakeCore.js'
 
 const STORE_KEY = 'fd_client_spark_shake'
 const DEMO_STRENGTH = 0.6
 
-/** Компьютер и «уменьшение движения» в телефоне — тряски нет совсем. */
 function motionAllowed() {
-  if (typeof window === 'undefined' || !('DeviceMotionEvent' in window)) return false
-  if (!window.matchMedia?.('(pointer: coarse)').matches) return false
-  return !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (typeof window === 'undefined') return false
+  return shakeMotionAllowed({
+    hasMotion: 'DeviceMotionEvent' in window,
+    coarse: Boolean(window.matchMedia?.('(pointer: coarse)').matches),
+    reducedMotion: Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches),
+    apple: isAppleTouchDevice({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints }),
+  })
 }
-
-const canAsk = () => typeof window.DeviceMotionEvent?.requestPermission === 'function'
 
 function readStore() {
   try {
     const s = JSON.parse(window.localStorage.getItem(STORE_KEY) || '{}')
-    return { done: Boolean(s.done), granted: Boolean(s.granted), views: Number(s.views) || 0 }
+    return { done: Boolean(s.done), views: Number(s.views) || 0 }
   } catch {
-    return { done: false, granted: false, views: 0 }
+    return { done: false, views: 0 }
   }
 }
 
@@ -32,9 +33,9 @@ function writeStore(s) {
 
 /**
  * Потряс телефон — по графику бежит волна (useSparkWave.js). Датчик слушаем, только пока график на экране.
- * Пришли данные датчика — работает сразу (Android). Данных нет, но можно спросить разрешение — кнопка (iPhone).
+ * Подсказка — когда пришли данные датчика (Android). На iPhone тряски нет (shakeMotionAllowed).
  * paused — идёт «Обновить» (график оседает), тряску не показываем.
- * @returns {{ shake: { n: number, amps: number[] } | null, hint: 'ask'|'try'|null, onHint: () => void, onPlotTouch: () => void }}
+ * @returns {{ shake: { n: number, amps: number[] } | null, hint: 'try'|null, onHint: () => void }}
  */
 export function useSparkShake(rootRef, count, paused) {
   const [allowed] = useState(motionAllowed)
@@ -43,7 +44,6 @@ export function useSparkShake(rootRef, count, paused) {
     return { ...s, views: s.views + 1 }
   })
   const [live, setLive] = useState(false)
-  const [grants, setGrants] = useState(0)
   const [shake, setShake] = useState(null)
   const pausedRef = useRef(paused)
   const liveRef = useRef(false)
@@ -56,14 +56,12 @@ export function useSparkShake(rootRef, count, paused) {
     if (allowed) writeStore(store)
   }, [allowed, store])
 
-  const markDone = useCallback((patch = {}) => setStore((s) => (s.done && !patch.granted ? s : { ...s, ...patch, done: true })), [])
-
   const play = useCallback(
     (strength) => {
       setShake((s) => ({ n: (s?.n ?? 0) + 1, amps: sparkWaveAmps(count, strength) }))
-      markDone()
+      setStore((s) => (s.done ? s : { ...s, done: true }))
     },
-    [count, markDone],
+    [count],
   )
 
   useEffect(() => {
@@ -94,43 +92,13 @@ export function useSparkShake(rootRef, count, paused) {
       io.disconnect()
       window.removeEventListener('devicemotion', onMotion)
     }
-  }, [rootRef, allowed, count, play, grants])
+  }, [rootRef, allowed, count, play])
 
-  const askPermission = useCallback(async () => {
-    try {
-      return (await window.DeviceMotionEvent.requestPermission()) === 'granted'
-    } catch {
-      return false
-    }
-  }, [])
-
-  const support = !allowed ? 'none' : live ? 'open' : canAsk() ? 'ask' : 'none'
-
-  const onHint = useCallback(async () => {
-    if (support !== 'ask') {
-      play(DEMO_STRENGTH)
-      return
-    }
-    const ok = await askPermission()
-    if (ok) {
-      setGrants((n) => n + 1)
-      markDone({ granted: true })
-      play(DEMO_STRENGTH)
-    } else {
-      markDone({ granted: false })
-    }
-  }, [support, askPermission, markDone, play])
-
-  /* iPhone помнит разрешение не дольше сессии Safari: раньше разрешал — тихо включаем по первому касанию графика. */
-  const onPlotTouch = useCallback(() => {
-    if (support !== 'ask' || !store.granted) return
-    void askPermission().then((ok) => ok && setGrants((n) => n + 1))
-  }, [support, store.granted, askPermission])
+  const onHint = useCallback(() => play(DEMO_STRENGTH), [play])
 
   return {
     shake: paused ? null : shake,
-    hint: shakeHintMode({ support, done: store.done, views: store.views }),
+    hint: shakeHintMode({ support: allowed && live ? 'open' : 'none', done: store.done, views: store.views }),
     onHint,
-    onPlotTouch,
   }
 }

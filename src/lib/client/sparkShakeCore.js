@@ -79,12 +79,31 @@ export function sparkWaveLift(amp, index, t) {
 export const SHAKE_HINT_MAX_VIEWS = 5
 
 /**
- * @param {{ support: 'none'|'open'|'ask', done?: boolean, views?: number }} p
- *   support: 'open' — датчик доступен сразу (Android), 'ask' — нужно разрешение по нажатию (iPhone)
- * @returns {'ask'|'try'|null} ask — кнопка спросит разрешение, try — кнопка покажет анимацию
+ * iPhone / iPad (iPad «как компьютер» представляется Mac'ом — отличаем по сенсору). Не по
+ * DeviceMotionEvent.requestPermission: он есть и в Chrome на Android.
+ * @param {{ userAgent?: string, maxTouchPoints?: number }} p
+ */
+export function isAppleTouchDevice({ userAgent = '', maxTouchPoints = 0 }) {
+  const ua = String(userAgent)
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && Number(maxTouchPoints) > 1)
+}
+
+/**
+ * Тряска — только телефон с датчиком, без «уменьшения движения» и не iPhone: там на тряску iOS сама
+ * показывает «Отменить ввод текста» («Встряхивание для отмены»), сайт это окно отключить не может.
+ * @param {{ hasMotion: boolean, coarse: boolean, reducedMotion: boolean, apple: boolean }} p
+ */
+export function shakeMotionAllowed({ hasMotion, coarse, reducedMotion, apple }) {
+  return Boolean(hasMotion && coarse && !reducedMotion && !apple)
+}
+
+/**
+ * @param {{ support: 'none'|'open', done?: boolean, views?: number }} p
+ *   support: 'open' — данные датчика пришли (Android)
+ * @returns {'try'|null} try — кнопка покажет анимацию
  */
 export function shakeHintMode({ support, done = false, views = 0 }) {
-  if (support !== 'open' && support !== 'ask') return null
+  if (support !== 'open') return null
   if (done || views > SHAKE_HINT_MAX_VIEWS) return null
-  return support === 'ask' ? 'ask' : 'try'
+  return 'try'
 }

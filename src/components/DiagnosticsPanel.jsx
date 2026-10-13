@@ -91,8 +91,7 @@ export function DiagnosticsPanel({
   const [recoverBusy, setRecoverBusy] = useState(false)
   const { refreshUserProfile, refreshSessionOnWake, user } = useAuth()
   const pushClubId = String(context?.clubId && context.clubId !== '—' ? context.clubId : user?.club_id ?? '').trim()
-  const showPlanerkaPush =
-    simpleMode && (context?.role === 'trainer' || context?.role === 'sales_manager')
+  const showPlanerkaPush = Boolean(context?.role)
   const [showAllQueue, setShowAllQueue] = useState(false)
   const [showDetails, setShowDetails] = useState(!simpleMode)
   const [lastSyncReport, setLastSyncReportState] = useState(() => getLastSyncReport())

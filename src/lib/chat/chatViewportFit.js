@@ -6,6 +6,8 @@
 
 export const CHAT_FIT_VAR = '--chat-fit-h'
 export const CHAT_FIT_MIN_PX = 240
+/** На <html>, пока открыт диалог: страницу за видимой частью двигает диалог, шапку отдельно не прибивать. */
+export const CHAT_FIT_ROOT_ATTR = 'data-chat-fit'
 
 /**
  * @param {{ viewHeight: unknown, top: unknown, gap: unknown, min?: number }} p
@@ -20,16 +22,38 @@ export function chatFitHeightPx({ viewHeight, top, gap, min = CHAT_FIT_MIN_PX })
 }
 
 /**
- * iPhone, открывая клавиатуру, сдвигает страницу вверх, чтобы показать поле ввода. Когда диалог уже влез
- * в видимую часть, сдвиг лишний — шапка уехала под часы, снизу пустота: возвращаем страницу наверх.
- * @param {{ docHeight: unknown, viewHeight: unknown, scrollY: unknown, offsetTop: unknown }} p
+ * Страница прокручена, хотя диалог уже влез в видимую часть (браузер докрутил к полю ввода до укорачивания) —
+ * шапка уехала: возвращаем страницу наверх. Сдвиг самой видимой части (iPhone) — chatFitShiftPx.
+ * @param {{ docHeight: unknown, viewHeight: unknown, scrollY: unknown }} p
  */
-export function chatFitShouldUnpan({ docHeight, viewHeight, scrollY, offsetTop }) {
+export function chatFitShouldUnpan({ docHeight, viewHeight, scrollY }) {
   const doc = Number(docHeight)
   const view = Number(viewHeight)
   if (!(doc > 0) || !(view > 0)) return false
-  const shifted = (Number(scrollY) || 0) > 0 || (Number(offsetTop) || 0) > 0
-  return shifted && doc <= view + 1
+  return (Number(scrollY) || 0) > 0 && doc <= view + 1
+}
+
+/**
+ * На сколько опустить страницу вслед за видимой частью. iPhone, открывая клавиатуру, сдвигает видимую часть
+ * вниз (offsetTop) — к полю ввода, каким оно было до укорачивания диалога; сайт этот сдвиг сбросить не может.
+ * Без поправки поле оказывается у верхнего края, ниже — пустота до клавиатуры. Пальцами увеличили — не трогаем.
+ * @param {{ offsetTop: unknown, scale?: unknown }} p
+ * @returns {number} px
+ */
+export function chatFitShiftPx({ offsetTop, scale = 1 }) {
+  const s = Number(scale)
+  if (Number.isFinite(s) && s > 1.01) return 0
+  const top = Math.round(Number(offsetTop) || 0)
+  return top > 0 ? top : 0
+}
+
+/** Оболочка страницы с диалогом — непосредственный потомок #root / body; её и сдвигаем. */
+function shellOf(el) {
+  let node = el
+  while (node.parentElement && node.parentElement !== document.body && node.parentElement.id !== 'root') {
+    node = node.parentElement
+  }
+  return node
 }
 
 /** Отступы снизу у самого диалога и у оболочек над ним (padding, border, margin) — то, что окажется под полем ввода. */
@@ -51,16 +75,23 @@ export function attachChatViewportFit(el) {
   if (!el || typeof window === 'undefined') return () => {}
   const vv = window.visualViewport
   const root = document.documentElement
+  const shell = shellOf(el)
+  let shift = 0
   let raf = 0
 
   const sync = () => {
     raf = 0
     const viewHeight = vv ? vv.height : window.innerHeight
     if (vv && vv.scale > 1.01) return
-    const top = el.getBoundingClientRect().top + window.scrollY
+    const top = el.getBoundingClientRect().top + window.scrollY - shift
     const next = `${chatFitHeightPx({ viewHeight, top, gap: bottomGapPx(el) })}px`
     if (el.style.getPropertyValue(CHAT_FIT_VAR) !== next) el.style.setProperty(CHAT_FIT_VAR, next)
-    if (chatFitShouldUnpan({ docHeight: root.scrollHeight, viewHeight, scrollY: window.scrollY, offsetTop: vv?.offsetTop })) {
+    const nextShift = chatFitShiftPx({ offsetTop: vv?.offsetTop, scale: vv?.scale })
+    if (nextShift !== shift) {
+      shift = nextShift
+      shell.style.transform = shift ? `translateY(${shift}px)` : ''
+    }
+    if (chatFitShouldUnpan({ docHeight: root.scrollHeight - shift, viewHeight, scrollY: window.scrollY })) {
       window.scrollTo(0, 0)
     }
   }
@@ -76,9 +107,11 @@ export function attachChatViewportFit(el) {
   /* Фокус в поле ввода меняет отступы оболочки снизу (chat.css, pointer: coarse). */
   el.addEventListener('focusin', schedule)
   el.addEventListener('focusout', schedule)
+  root.setAttribute(CHAT_FIT_ROOT_ATTR, '')
   sync()
   return () => {
     if (raf) window.cancelAnimationFrame(raf)
+    root.removeAttribute(CHAT_FIT_ROOT_ATTR)
     ro?.disconnect()
     vv?.removeEventListener('resize', schedule)
     vv?.removeEventListener('scroll', schedule)
@@ -86,5 +119,6 @@ export function attachChatViewportFit(el) {
     el.removeEventListener('focusin', schedule)
     el.removeEventListener('focusout', schedule)
     el.style.removeProperty(CHAT_FIT_VAR)
+    if (shift) shell.style.transform = ''
   }
 }

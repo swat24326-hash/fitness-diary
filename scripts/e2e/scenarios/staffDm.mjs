@@ -273,6 +273,26 @@ async function iphoneKeyboardAfterSend(c, browser, backend) {
     await page.waitForTimeout(300)
     const nudged = await at()
     c.ok(nudged.pageY === 0, `страницу нечем сдвинуть — всё влезло в видимую часть (сдвиг ${nudged.pageY}px)`)
+
+    const panTo = (top) =>
+      page.evaluate((t) => {
+        globalThis.__fakeVv.offsetTop = t
+        globalThis.__fakeVv.dispatchEvent(new Event('scroll'))
+      }, top)
+    await panTo(KB)
+    await page.waitForTimeout(300)
+    const panned = await at()
+    c.ok(
+      panned.composeBottom <= KB + panned.view + 1 && panned.composeBottom >= KB + panned.view - 40 && panned.headTop >= KB - 1,
+      `iPhone сдвинул видимую часть к полю ввода — диалог едет за ней, поле над клавиатурой, не «за горизонтом» (низ поля ${Math.round(panned.composeBottom - KB)} от верха видимой части, клавиатура с ${Math.round(panned.view)})`,
+    )
+    const chromeTop = await page.evaluate(() => globalThis.document.querySelector('.app-chrome-top')?.getBoundingClientRect().top)
+    c.ok(Math.abs(chromeTop - KB) < 2, `шапка у верха видимой части, не сдвинута дважды (${Math.round(chromeTop - KB)}px)`)
+    await screenshot(page, 'staff-dm-iphone-panned')
+    await panTo(0)
+    await page.waitForTimeout(300)
+    const back = await at()
+    c.ok(Math.abs(back.composeBottom - open.composeBottom) < 1, 'видимая часть вернулась — диалог на прежнем месте')
   } catch (e) {
     await screenshot(page, 'staff-dm-iphone-kb-FAIL').catch(() => null)
     c.ok(false, `iPhone клавиатура: сценарий прерван: ${e.message.split('\n')[0]}`)
@@ -357,6 +377,10 @@ async function adminWrites(c, browser, backend, chat) {
     c.ok(await reaches(recent.getByText('Тренер Тестов · E2E клуб')), '«Все клубы»: кому написал — сверху в «Переписках», с клубом')
     c.ok(!(await sectionNames(page, 'E2E клуб')).includes('Тренер Тестов'), 'в разделе клуба его больше нет — без дублей')
     await screenshot(page, 'staff-dm-admin-thread')
+    await page.getByRole('button', { name: 'Меню аккаунта' }).click()
+    await page.getByRole('button', { name: /Настройки/ }).click()
+    c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'админ: в «Настройках» переключатель «Уведомления», как у всех')
+    await page.keyboard.press('Escape')
     await page.setViewportSize({ width: 820, height: 900 })
     const back = page.getByRole('link', { name: 'К списку' })
     c.ok((await reaches(back)) && !(await rail.isVisible()), 'узкий экран: открыт диалог — только он и «К списку»')
