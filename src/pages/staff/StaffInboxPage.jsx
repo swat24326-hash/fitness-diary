@@ -3,6 +3,7 @@ import { Mail, RefreshCw, WifiOff } from 'lucide-react'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useStaffChats } from '../../hooks/useStaffChat.js'
+import { AdminMessenger } from './AdminMessenger.jsx'
 import { StaffChatList } from './StaffChatList.jsx'
 import { useStaffInbox } from './useStaffInbox.js'
 
@@ -32,7 +33,7 @@ function Tabs({ chats }) {
 
 /**
  * /messages — объявления и опросы руководства; вкладка «Диалоги» — переписка с клиентами, коллегами и администрацией.
- * Главному админу рассылки не приходят — у него только диалоги с сотрудниками сети.
+ * Главному админу рассылки не приходят — у него мессенджер сотрудников сети (AdminMessenger).
  */
 export function StaffInboxPage() {
   const [params] = useSearchParams()
@@ -41,6 +42,7 @@ export function StaffInboxPage() {
   const { items, status, error, reload } = useStaffInbox(!isAdmin)
   const chatList = useStaffChats(chats)
   const loading = chats ? chatList.status === 'loading' : status === 'loading'
+  if (isAdmin) return <AdminMessenger chatList={chatList} />
   let content
   if (chats) {
     content = <StaffChatList {...chatList} />
@@ -58,11 +60,11 @@ export function StaffInboxPage() {
   }
 
   return (
-    <div className={`staff-inbox${isAdmin ? ' staff-inbox--wide' : ''}`}>
+    <div className="staff-inbox">
       <div className="staff-inbox__head">
         <h1 className="staff-inbox__title">
           <Mail size={22} aria-hidden />
-          {isAdmin ? 'Сообщения сотрудников' : 'Сообщения клуба'}
+          Сообщения клуба
         </h1>
         <button
           type="button"
@@ -75,7 +77,7 @@ export function StaffInboxPage() {
           <RefreshCw size={18} aria-hidden className={loading ? 'icon-spin' : undefined} />
         </button>
       </div>
-      {isAdmin ? null : <Tabs chats={chats} />}
+      <Tabs chats={chats} />
       {!chats && items && status === 'error' ? (
         <p className="staff-inbox__error" role="alert">
           {error}

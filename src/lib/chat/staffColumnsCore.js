@@ -64,6 +64,41 @@ export function buildStaffColumns(contacts, query = '') {
   return out.sort(byColumn)
 }
 
+export const STAFF_VIEW_ALL = 'all'
+export const STAFF_VIEW_UNREAD = 'unread'
+
+/**
+ * Список клубов слева (как папки Telegram): «Все», «Ждут ответа», затем клубы.
+ * @returns {Array<{ key: string, title: string, unread: number, total: number }>}
+ */
+export function staffClubRail(columns) {
+  const total = columns.reduce((n, c) => n + c.people.length, 0)
+  const unread = columns.reduce((n, c) => n + c.unread, 0)
+  return [
+    { key: STAFF_VIEW_ALL, title: 'Все клубы', unread, total },
+    { key: STAFF_VIEW_UNREAD, title: 'Ждут ответа', unread, total: unread },
+    ...columns.map((c) => ({ key: `club:${c.key}`, title: c.title, unread: c.unread, total: c.people.length })),
+  ]
+}
+
+/**
+ * Что показать в списке людей: всё / только ждущих ответа / один клуб. При поиске — всегда все совпадения по клубам.
+ * Выбранного клуба больше нет (сняли фильтр, клуб пуст) — все.
+ */
+export function pickStaffSections(columns, view, searching = false) {
+  if (searching || view === STAFF_VIEW_ALL) return columns
+  if (view === STAFF_VIEW_UNREAD) {
+    return columns
+      .map((c) => {
+        const people = c.people.filter((p) => p.unread)
+        return { ...c, people, reachable: people, idle: [] }
+      })
+      .filter((c) => c.people.length)
+  }
+  const one = columns.filter((c) => `club:${c.key}` === view)
+  return one.length ? one : columns
+}
+
 /** Подпись под поиском: «Нашли 3 в 2 клубах». */
 export function staffColumnsFoundRu(columns) {
   const people = columns.reduce((n, c) => n + c.people.length, 0)

@@ -2,7 +2,15 @@
  * Главный админ: сотрудники сети столбцами по клубам, поиск по клубу и по человеку.
  * node scripts/verify-staff-columns.mjs
  */
-import { NETWORK_COLUMN_RU, buildStaffColumns, staffColumnsFoundRu } from '../src/lib/chat/staffColumnsCore.js'
+import {
+  NETWORK_COLUMN_RU,
+  STAFF_VIEW_ALL,
+  STAFF_VIEW_UNREAD,
+  buildStaffColumns,
+  pickStaffSections,
+  staffClubRail,
+  staffColumnsFoundRu,
+} from '../src/lib/chat/staffColumnsCore.js'
 import { buildStaffContacts } from '../src/lib/chat/staffDmContactsCore.js'
 
 function ok(cond, msg) {
@@ -47,6 +55,17 @@ const talked = buildStaffColumns([person('x', 'Без телефона', 'traine
 ok(talked[0].reachable.length === 1, 'без приложения, но переписка уже есть — не прячем')
 ok(staffColumnsFoundRu(buildStaffColumns(people, 'x•fit')) === 'Нашли 4 · 2 клуба', 'счётчик поиска: люди и клубы')
 ok(staffColumnsFoundRu([]) === 'Никого не нашли', 'счётчик поиска: пусто')
+
+const rail = staffClubRail(cols)
+ok(rail.map((r) => r.title).join('|') === `Все клубы|Ждут ответа|${NETWORK_COLUMN_RU}|X•fit Питер|X•fit Москва`, 'слева: «Все», «Ждут ответа», затем клубы')
+ok(rail[0].total === 5 && rail[0].unread === 1 && rail[1].total === 1, 'у «Всех» — сколько людей и сколько ждут ответа')
+ok(rail[3].key === 'club:spb' && rail[3].unread === 1, 'у клуба — ключ и число новых')
+ok(pickStaffSections(cols, STAFF_VIEW_ALL).length === 3, '«Все клубы» — все разделы')
+const waiting = pickStaffSections(cols, STAFF_VIEW_UNREAD)
+ok(waiting.length === 1 && waiting[0].people.map((p) => p.id).join() === 'm2' && waiting[0].idle.length === 0, '«Ждут ответа» — только непрочитанные, по клубам')
+ok(pickStaffSections(cols, 'club:msk').map((c) => c.key).join() === 'msk', 'выбран клуб — только он')
+ok(pickStaffSections(cols, 'club:нет-такого').length === 3, 'клуба больше нет — показываем все')
+ok(pickStaffSections(buildStaffColumns(people, 'кукарек'), 'club:spb', true)[0].key === 'msk', 'поиск — по всем клубам, даже если выбран другой')
 
 const byClub = buildStaffColumns(people, 'питер')
 ok(byClub.length === 1 && byClub[0].people.length === 2, 'поиск по клубу — весь клуб')

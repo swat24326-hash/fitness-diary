@@ -209,12 +209,13 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
   }
 }
 
-const columnNames = (page, club) =>
-  page.getByTestId('staff-columns').getByRole('region', { name: club }).locator('.chat-row__title').allInnerTexts()
+const sectionNames = (page, club) =>
+  page.getByTestId('staff-people').getByRole('region', { name: club }).locator('.chat-row__title').allInnerTexts()
+const peopleNames = (page) => page.getByTestId('staff-people').locator('.chat-row__title').allInnerTexts()
 
 /**
- * Главный админ на мониторе: конверт «Сообщения сотрудников» → клубы столбцами, поиск по клубу и по человеку;
- * управляющий, совмещённый с тренером, — под ФИО из тренерской (INC-2026-10-13-03) → пишет тренеру.
+ * Главный админ на мониторе, как Telegram на компьютере: слева клубы, в середине люди, справа диалог.
+ * Поиск — по клубу и по человеку; управляющий, совмещённый с тренером, — под ФИО из тренерской (INC-2026-10-13-03).
  */
 async function adminWrites(c, browser, backend, chat) {
   const context = await newE2eContext(browser, backend, MONITOR)
@@ -224,46 +225,58 @@ async function adminWrites(c, browser, backend, chat) {
     const envelope = page.getByRole('link', { name: /^Сообщения сотрудников/ })
     c.ok(await reaches(envelope), 'админ: в шапке конверт «Сообщения сотрудников»')
     await envelope.click()
-    const track = page.getByTestId('staff-columns')
-    c.ok(await reaches(track), 'админ: сотрудники столбцами по клубам')
-    c.ok((await page.getByTestId('chat-folders').count()) === 0, 'админ: без папок — «Клиентов» нет, клиентов читает из карточки')
+    const rail = page.getByRole('navigation', { name: 'Клубы' })
+    c.ok(await reaches(rail), 'админ: слева клубы, как папки Telegram')
+    c.ok(await reaches(page.getByText('Выберите, кому написать')), 'справа — «Выберите, кому написать»')
+    c.ok((await page.getByTestId('chat-folders').count()) === 0, 'админ: без папок «Клиенты» — клиентов читает из карточки')
     c.ok((await page.getByRole('link', { name: 'Рассылки' }).count()) === 0, 'админ: вкладки «Рассылки» нет')
-    const homeCol = track.getByRole('region', { name: 'E2E клуб' })
-    const reachable = await columnNames(page, 'E2E клуб')
-    c.ok(JSON.stringify(reachable) === '["Управляющая Ольга","Коллега Игорь"]', `админ: в столбце сверху — с приложением, управляющая первой (${reachable.join(', ')})`)
-    c.ok(await reaches(homeCol.getByText('в приложении 2 из 4')), 'шапка столбца: «в приложении 2 из 4»')
-    await homeCol.getByRole('button', { name: /Без приложения · 2/ }).click()
-    const home = await columnNames(page, 'E2E клуб')
+    const railTitles = await rail.locator('.admin-msgr__club-title').allInnerTexts()
+    c.ok(JSON.stringify(railTitles.slice(0, 2)) === '["Все клубы","Ждут ответа"]' && railTitles.includes('E2E клуб') && railTitles.includes('Москва клуб'), `слева: «Все клубы», «Ждут ответа», клубы (${railTitles.join(', ')})`)
+
+    await rail.getByRole('button', { name: /E2E клуб/ }).click()
+    await page.getByTestId('staff-people').getByRole('region', { name: 'Москва клуб' }).waitFor({ state: 'detached' })
+    c.ok(new URL(page.url()).searchParams.get('view')?.startsWith('club:'), 'выбранный клуб — в адресе (назад браузера вернёт)')
+    const reachable = await peopleNames(page)
+    c.ok(JSON.stringify(reachable) === '["Управляющая Ольга","Коллега Игорь"]', `клуб: сверху — с приложением, управляющая первой (${reachable.join(', ')})`)
+    await page.getByRole('button', { name: /Без приложения · 2/ }).click()
+    const home = await peopleNames(page)
     c.ok(home.includes('Тренер Тестов') && home.includes('Менеджер Пётр') && !home.some((n) => n.startsWith('Уволенный')), `«Без приложения» раскрывается, уволенных нет (${home.join(', ')})`)
-    const moscow = await columnNames(page, 'Москва клуб')
-    c.ok(moscow.includes(LINKED_NAME) && moscow.includes('Чужой Тренер'), `админ: чужой клуб тоже виден (${moscow.join(', ')})`)
-    c.ok(!moscow.includes('Москва Управляющий') && moscow.filter((n) => n === LINKED_NAME).length === 1, 'админ: совмещённый управляющий — один раз и под ФИО')
-    const box = await track.boundingBox()
-    c.ok(box && box.width > 1000, `админ: страница во всю ширину монитора (${Math.round(box?.width ?? 0)}px)`)
+
+    await rail.getByRole('button', { name: /Все клубы/ }).click()
+    await page.getByTestId('staff-people').getByRole('region', { name: 'Москва клуб' }).waitFor()
+    const moscow = await sectionNames(page, 'Москва клуб')
+    c.ok(moscow.includes(LINKED_NAME) && moscow.includes('Чужой Тренер'), `«Все клубы»: разделы по клубам, чужой клуб виден (${moscow.join(', ')})`)
+    c.ok(!moscow.includes('Москва Управляющий') && moscow.filter((n) => n === LINKED_NAME).length === 1, 'совмещённый управляющий — один раз и под ФИО')
     await screenshot(page, 'staff-dm-admin-columns')
+
     const search = page.getByRole('searchbox', { name: 'Найти клуб или сотрудника' })
     await search.fill('москва')
-    c.ok((await track.getByRole('region').count()) === 1 && (await columnNames(page, 'Москва клуб')).length === 2, 'поиск по клубу — весь клуб')
+    c.ok((await page.getByTestId('staff-people').getByRole('region').count()) === 1 && (await sectionNames(page, 'Москва клуб')).length === 2, 'поиск по клубу — весь клуб')
     c.ok(await reaches(page.getByRole('status').filter({ hasText: 'Нашли 2 · 1 клуб' })), 'под поиском: «Нашли 2 · 1 клуб»')
     await search.fill('кукарек')
-    c.ok(JSON.stringify(await columnNames(page, 'Москва клуб')) === JSON.stringify([LINKED_NAME]), 'поиск по человеку — только он')
+    c.ok(JSON.stringify(await peopleNames(page)) === JSON.stringify([LINKED_NAME]), 'поиск по человеку — только он')
     await screenshot(page, 'staff-dm-admin-search')
+
     await page.getByRole('link', { name: new RegExp(LINKED_NAME) }).click()
-    await page.waitForURL(`${ORIGIN}/messages/dm/e2e-kuk-s`)
-    c.ok(await reaches(page.getByText('Управляющий · тренер').first()), 'шапка диалога: ФИО и «Управляющий · тренер»')
-    await page.goto(`${ORIGIN}/messages`)
-    await page.getByRole('searchbox', { name: 'Найти клуб или сотрудника' }).fill('тестов')
-    await page.getByTestId('staff-columns').getByRole('link', { name: /Тренер Тестов/ }).click()
-    await page.waitForURL(`${ORIGIN}/messages/dm/${TRAINER_ID}`)
+    c.ok(await reaches(page.getByText('Управляющий · тренер').first()), 'диалог справа: ФИО и «Управляющий · тренер»')
+    c.ok(await reaches(rail), 'список не пропал — диалог открыт рядом')
+    await search.fill('тестов')
+    await page.getByTestId('staff-people').getByRole('link', { name: /Тренер Тестов/ }).click()
+    c.ok(new URL(page.url()).searchParams.get('dm') === TRAINER_ID, 'открытый диалог — в адресе')
     await page.getByTestId('chat-input').waitFor()
-    const thread = await page.locator('.staff-inbox--thread-wide').boundingBox()
-    c.ok(thread && thread.width > 1000 && thread.width <= 1250, `админ: диалог шире планшетного, но строки читаемые (${Math.round(thread?.width ?? 0)}px)`)
+    c.ok(await reaches(page.locator('.chat-row--selected', { hasText: 'Тренер Тестов' })), 'выбранный человек подсвечен в списке')
+    c.ok(!(await page.getByRole('link', { name: 'К списку' }).isVisible()), 'монитор: «К списку» не нужен — список рядом')
     await page.getByTestId('chat-input').fill(FROM_ADMIN)
     await page.getByTestId('chat-send').click()
     c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: FROM_ADMIN })), 'админ: сообщение тренеру в ленте')
     const push = chat.state.dm.pushes.at(-1)
     c.ok(push?.to === TRAINER_ID && coachPushUrl(push.url) === `/coach/dm/${ADMIN_ID}`, 'push тренеру откроет диалог с админом на телефоне')
     await screenshot(page, 'staff-dm-admin-thread')
+    await page.setViewportSize({ width: 820, height: 900 })
+    const back = page.getByRole('link', { name: 'К списку' })
+    c.ok((await reaches(back)) && !(await rail.isVisible()), 'узкий экран: открыт диалог — только он и «К списку»')
+    await back.click()
+    c.ok((await reaches(rail)) && !(await page.getByTestId('chat-input').isVisible()), 'узкий экран: «К списку» — снова клубы и люди')
   } catch (e) {
     await screenshot(page, 'staff-dm-admin-FAIL').catch(() => null)
     c.ok(false, `админ: сценарий прерван: ${e.message.split('\n')[0]}`)

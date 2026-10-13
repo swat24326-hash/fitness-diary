@@ -7,16 +7,6 @@
   max-width: 760px;
   margin: 0 auto;
 }
-
-/* Главный админ работает за монитором: список — клубы столбцами во всю ширину, диалог — шире планшетного. */
-.staff-inbox.staff-inbox--wide {
-  max-width: none;
-}
-
-.staff-inbox.staff-inbox--thread-wide {
-  max-width: 1200px;
-}
-
 .staff-inbox__head {
   display: flex;
   align-items: center;
