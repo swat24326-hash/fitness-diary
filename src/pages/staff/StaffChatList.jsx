@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
+import { AdminStaffColumns } from '../../components/chat/AdminStaffColumns.jsx'
 import { ChatContactList } from '../../components/chat/ChatContactList.jsx'
 import { ChatFoldersView } from '../../components/chat/ChatFoldersView.jsx'
 import { ChatThreadList } from '../../components/chat/ChatThreadList.jsx'
@@ -44,7 +45,7 @@ function ThreadList({ threads }) {
  * (+ «Жалобы и предложения» у тренера, связанного с управляющим).
  * У тренера «Клиенты» — все свои, с приложением сверху, тусклого можно пригласить;
  * у менеджера и управляющего «Клиенты» — список диалогов, непрочитанные сверху;
- * у главного админа «Клиентов» нет (читает из карточки клиента) — только сотрудники всей сети.
+ * у главного админа «Клиентов» нет (читает из карточки клиента) — сотрудники всей сети столбцами по клубам.
  * @param {ReturnType<typeof import('../../hooks/useStaffChat.js').useStaffChats>} props
  */
 export function StaffChatList({ threads, folders, role, status, error }) {
@@ -57,6 +58,7 @@ export function StaffChatList({ threads, folders, role, status, error }) {
     )
   }
   if (!folders.length) return <ThreadList threads={threads ?? []} />
+  if (role === 'admin') return <AdminStaffColumns contacts={folders.flatMap((f) => f.contacts)} />
   const views = folders.map((f) => ({
     ...f,
     node:

@@ -36,7 +36,12 @@ import {
   staffDmWriteAccess,
   staffRoleLabelRu,
 } from '../../../src/lib/chat/staffDmAccessCore.js'
-import { hiddenLinkedTrainerIds, linkedSupervisorFor } from '../../../src/lib/chat/linkedStaffCore.js'
+import {
+  LINKED_ROLE_LABEL_RU,
+  hiddenLinkedTrainerIds,
+  linkedPersonNames,
+  linkedSupervisorFor,
+} from '../../../src/lib/chat/linkedStaffCore.js'
 import { buildStaffContacts } from '../../../src/lib/chat/staffDmContactsCore.js'
 import { buildChatMessageView, chatPreview } from '../../../src/lib/chat/chatMessageCore.js'
 import {
@@ -267,11 +272,15 @@ export function createFakeChat(state) {
     })
     const clubName = (u) => state.clubs?.find((c) => c.id === u.club_id)?.name ?? ''
     const candidates = dmRole === 'admin' ? state.users.map((u) => ({ ...u, club_name: clubName(u) })) : state.users
+    const names = linkedPersonNames(state.users)
+    const asPerson = (p) => (names.has(String(p.id)) ? { ...p, name: names.get(String(p.id)), linked_trainer: true } : p)
     const staff =
       dmRole && (dmRole === 'admin' || viewer.club_id)
         ? buildStaffContacts({
             viewerId: viewer.id,
-            peers: pickStaffDmPeers(viewer, candidates, threadPeerIds.filter(Boolean)).filter((p) => !hidden.has(String(p.id))),
+            peers: pickStaffDmPeers(viewer, candidates, threadPeerIds.filter(Boolean))
+              .filter((p) => !hidden.has(String(p.id)))
+              .map(asPerson),
             liveUserIds: state.live_user_ids ?? [],
             threads: chat.dm.threads,
           })
@@ -301,8 +310,9 @@ export function createFakeChat(state) {
     if (!peer) return { status: 404, json: { error: 'Сотрудник не найден' } }
     const thread = dmThreadOf(viewer.id, peer.id)
     if (!canReadStaffDm(viewer, peer, Boolean(thread))) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+    const person = linkedPersonNames(state.users).get(String(peer.id))
     const meta = {
-      peer: { id: peer.id, name: peer.name, label: staffRoleLabelRu(peer.role) },
+      peer: { id: peer.id, name: person ?? peer.name, label: person ? LINKED_ROLE_LABEL_RU : staffRoleLabelRu(peer.role) },
       can_write: staffDmWriteAccess(viewer, peer).ok,
     }
     if (!thread) return { status: 200, json: { ...meta, messages: [], has_more: false, marked_read: false, peer_read_at: null } }
@@ -347,7 +357,7 @@ export function createFakeChat(state) {
       [`${side}_unread`]: 0,
       [`${other}_unread`]: (thread[`${other}_unread`] || 0) + 1,
     })
-    chat.dm.pushes.push({ to: peer.id, ...buildStaffDmPushPayload({ authorId: viewer.id, authorName: user.name, body: checked.body }) })
+    chat.dm.pushes.push({ to: peer.id, ...buildStaffDmPushPayload({ authorId: viewer.id, authorName: linkedPersonNames(state.users).get(String(user.id)) ?? user.name, body: checked.body }) })
     return { status: 200, json: { message: { ...dmView(m, viewer.id, peer.name), reactions: [] } } }
   }
 

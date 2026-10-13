@@ -23,9 +23,12 @@ const ROLE_VALUES = Object.freeze({
 
 const ROLE_LABEL_RU = Object.freeze({ trainer: 'Тренер', sales: 'Менеджер по продажам', supervisor: 'Управляющий', admin: 'Главный админ' })
 
-/** Подпись собеседника-сотрудника. Не chatKindLabelRu: диалог клиента «supervisor» — «Жалобы и предложения». */
+/**
+ * Подпись собеседника-сотрудника — по роли из users или уже приведённой (staffDmRoleOf: 'sales').
+ * Не chatKindLabelRu: диалог клиента «supervisor» — «Жалобы и предложения».
+ */
 export function staffRoleLabelRu(roleRaw) {
-  return ROLE_LABEL_RU[staffDmRoleOf(roleRaw)] ?? 'Сотрудник'
+  return ROLE_LABEL_RU[roleRaw] ?? ROLE_LABEL_RU[staffDmRoleOf(roleRaw)] ?? 'Сотрудник'
 }
 
 /** Роль строки users для переписки; пустая или другая (куратор) — null. */

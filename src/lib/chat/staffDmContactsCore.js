@@ -1,7 +1,8 @@
 /**
  * Папки «Коллеги» и «Администрация»: сотрудники клуба + признак приложения + сводка личного диалога.
  * Ярко — подключён телефон тренера или есть подписка на уведомления (сообщение до него дойдёт), либо ждёт ответа.
- * club_name — у главного админа (люди всей сети), чтобы различать клубы.
+ * club_name / club_id — у главного админа (люди всей сети), чтобы различать клубы.
+ * linked_trainer — учётка управляющего, который ещё и тренер: имя уже подставлено из тренерской.
  */
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_COLLEAGUES, threadSummary } from './chatContactsCore.js'
 import { staffDmFolderOf, staffDmRoleOf, staffDmSideOf, staffDmThreadForViewer } from './staffDmAccessCore.js'
@@ -27,7 +28,9 @@ export function buildStaffContacts({ viewerId, peers, liveUserIds, threads }) {
       id,
       name: String(p.name ?? '').trim(),
       ...(p.club_name ? { club_name: String(p.club_name) } : {}),
+      ...(p.club_name && p.club_id ? { club_id: String(p.club_id) } : {}),
       role: staffDmRoleOf(p.role),
+      ...(p.linked_trainer ? { linked_trainer: true } : {}),
       has_app: live.has(id) || summary.unread,
       has_thread: byPeer.has(id),
       ...summary,

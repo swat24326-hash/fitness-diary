@@ -34,9 +34,10 @@ import {
   staffDmWriteAccess,
   staffRoleLabelRu,
 } from '../../../src/lib/chat/staffDmAccessCore.js'
+import { LINKED_ROLE_LABEL_RU } from '../../../src/lib/chat/linkedStaffCore.js'
 import { buildStaffContacts } from '../../../src/lib/chat/staffDmContactsCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
-import { isLinkedPairIds, loadHiddenLinkedTrainers, staffDmCtx } from './linkedStaffStore.js'
+import { isLinkedPairIds, linkedPersonName, loadLinkedStaffView, staffDmCtx } from './linkedStaffStore.js'
 import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
@@ -86,6 +87,11 @@ async function withDmTable(res, fn) {
   }
 }
 
+/** Имя сотрудника в переписке: у управляющего, связанного с тренерской учёткой, — ФИО из неё. */
+async function displayNameOf(db, user) {
+  return (await linkedPersonName(db, user.id)) ?? String(user.name ?? '').trim()
+}
+
 export function sendStaffDmThread(authCtx, res, peerId, before, seen) {
   return withDmTable(res, async () => {
     const ctx = await staffDmCtx(authCtx)
@@ -98,8 +104,13 @@ export function sendStaffDmThread(authCtx, res, peerId, before, seen) {
       sendJson(res, 403, { error: STAFF_DM_NO_ACCESS_RU })
       return
     }
+    const person = await linkedPersonName(db, peer.id)
     const meta = {
-      peer: { id: String(peer.id), name: String(peer.name ?? '').trim(), label: staffRoleLabelRu(peer.role) },
+      peer: {
+        id: String(peer.id),
+        name: person ?? String(peer.name ?? '').trim(),
+        label: person ? LINKED_ROLE_LABEL_RU : staffRoleLabelRu(peer.role),
+      },
       can_write: (await dmWriteAccess(db, viewer, peer)).ok,
     }
     if (!thread) {
@@ -175,12 +186,13 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
         })
     const quoted = await loadReplyTargets(db, 'dm', thread.id, [message])
     const toView = (m) => buildStaffDmMessageView(m, viewer.id)
-    const view = { ...toView(message), reply: chatReplyQuoteFor(message, quoted, toView, String(peer.name ?? '').trim()), reactions: [] }
+    const peerName = await displayNameOf(db, peer)
+    const view = { ...toView(message), reply: chatReplyQuoteFor(message, quoted, toView, peerName), reactions: [] }
     if (duplicate) {
       sendJson(res, 200, { message: view })
       return
     }
-    const authorName = String(ctx.profile?.name ?? '').trim()
+    const authorName = await displayNameOf(db, { id: viewer.id, name: ctx.profile?.name })
     sendStaffDmPush(db, { recipientId: peer.id, authorId: viewer.id, authorName, body: checked.body }).catch((e) =>
       console.warn('[staff-dm-push]', e?.message || e),
     )
@@ -207,7 +219,7 @@ export function sendStaffDmSearch(authCtx, res, peerId, q) {
       return
     }
     const found = thread ? await searchThreadMessages(db, 'dm', thread.id, checked.q) : []
-    const peerName = String(peer.name ?? '').trim()
+    const peerName = await displayNameOf(db, peer)
     sendJson(res, 200, { results: found.map((m) => buildChatSearchHit(buildStaffDmMessageView(m, viewer.id), checked.q, peerName)) })
   })
 }
@@ -243,14 +255,24 @@ async function loadDmCandidates(db, viewer, threads) {
   const role = staffDmRoleOf(viewer.role)
   const clubId = String(viewer.club_id ?? '').trim()
   if (role === 'admin') {
-    const [staff, hidden] = await Promise.all([loadNetworkStaff(db), loadHiddenLinkedTrainers(db, null)])
-    return { staff, hidden }
+    const [staff, linked] = await Promise.all([loadNetworkStaff(db), loadLinkedStaffView(db, null)])
+    return { staff, ...linked }
   }
   const peerIds = threads.map((t) => String(staffDmSideOf(t, viewer.id) === 'lo' ? t.user_hi : t.user_lo))
-  const [staff, hidden] = await Promise.all([loadClubStaff(db, clubId), loadHiddenLinkedTrainers(db, clubId)])
+  const [staff, linked] = await Promise.all([loadClubStaff(db, clubId), loadLinkedStaffView(db, clubId)])
   const known = new Set(staff.map((u) => String(u.id)))
   const outside = await loadDmUsersByIds(db, peerIds.filter((id) => !known.has(id)))
-  return { staff: [...staff, ...outside.filter((u) => staffDmRoleOf(u.role) === 'admin')], hidden, peerIds }
+  return { staff: [...staff, ...outside.filter((u) => staffDmRoleOf(u.role) === 'admin')], ...linked, peerIds }
+}
+
+/** Связанный управляющий: ФИО из тренерской, «есть приложение» — если оно есть у любой из двух учёток. */
+function withLinkedPerson(peers, trainerOf, live) {
+  return peers.map((p) => {
+    const t = trainerOf.get(String(p.id))
+    if (!t) return p
+    if (live.has(String(t.id))) live.add(String(p.id))
+    return { ...p, name: String(t.name ?? '').trim() || p.name, linked_trainer: true }
+  })
 }
 
 /**
@@ -265,10 +287,12 @@ export async function loadStaffDmContacts(authCtx) {
   const db = ctx.supabaseAdmin
   try {
     const threads = await loadDmThreadsFor(db, viewer.id)
-    const { staff, hidden, peerIds } = await loadDmCandidates(db, viewer, threads)
-    const peers = pickStaffDmPeers(viewer, staff, peerIds).filter((p) => !hidden.has(String(p.id)))
-    const liveUserIds = await loadLiveStaffIds(db, peers.map((p) => p.id))
-    return buildStaffContacts({ viewerId: viewer.id, peers, liveUserIds, threads })
+    const { staff, hidden, trainerOf, peerIds } = await loadDmCandidates(db, viewer, threads)
+    const picked = pickStaffDmPeers(viewer, staff, peerIds).filter((p) => !hidden.has(String(p.id)))
+    const linkedIds = picked.map((p) => trainerOf.get(String(p.id))?.id).filter(Boolean)
+    const live = await loadLiveStaffIds(db, [...picked.map((p) => p.id), ...linkedIds])
+    const peers = withLinkedPerson(picked, trainerOf, live)
+    return buildStaffContacts({ viewerId: viewer.id, peers, liveUserIds: live, threads })
   } catch (e) {
     if (isMissingDmTable(e)) return null
     throw e

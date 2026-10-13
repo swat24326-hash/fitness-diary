@@ -5,7 +5,9 @@
 import {
   hiddenLinkedTrainerIds,
   isLinkedPair,
+  linkedPersonNames,
   linkedSupervisorFor,
+  linkedTrainerBySupervisor,
   linkedTrainerRecipientIds,
 } from '../../../src/lib/chat/linkedStaffCore.js'
 import { loadInChunks } from '../batchCore.js'
@@ -92,13 +94,25 @@ export async function linkedComplaintThreads(ctx) {
   return (await loadStaffThreads(ctx.supabaseAdmin, scope)).map((t) => ({ ...t, actor: sup }))
 }
 
-/** Тренерские учётки связанных пар клуба (clubId null — всей сети) — не показываем коллегам вторым человеком. */
-export async function loadHiddenLinkedTrainers(db, clubId) {
+/**
+ * Связанные пары клуба (clubId null — всей сети): тренерские учётки не показываем коллегам вторым человеком,
+ * а у учётки управляющего — ФИО из тренерской.
+ * @returns {Promise<{ hidden: Set<string>, trainerOf: Map<string, object> }>} trainerOf: id управляющего → тренерская учётка
+ */
+export async function loadLinkedStaffView(db, clubId) {
   const linked = await orEmpty(() => {
     const q = db.from('users').select(LINK_FIELDS).not('linked_user_id', 'is', null)
     return rows(clubId ? q.eq('club_id', clubId) : q)
   })
-  return hiddenLinkedTrainerIds(linked)
+  return { hidden: hiddenLinkedTrainerIds(linked), trainerOf: linkedTrainerBySupervisor(linked) }
+}
+
+/** ФИО человека, если userId — учётка управляющего, связанная с тренерской; иначе null. */
+export async function linkedPersonName(db, userId) {
+  const [me] = await loadUsers(db, [userId])
+  if (!me?.linked_user_id) return null
+  const [other] = await loadUsers(db, [me.linked_user_id])
+  return linkedPersonNames([me, other].filter(Boolean)).get(String(me.id)) ?? null
 }
 
 /** Получатели push + тренерские учётки получателей-управляющих. */

@@ -6,7 +6,10 @@
 import {
   hiddenLinkedTrainerIds,
   isLinkedPair,
+  LINKED_ROLE_LABEL_RU,
+  linkedPersonNames,
   linkedSupervisorFor,
+  linkedTrainerBySupervisor,
   linkedTrainerRecipientIds,
   staffLinkCheck,
   staffLinksOf,
@@ -52,6 +55,14 @@ ok(linkedSupervisorFor(MATE, S) === null, 'чужой тренер за упра
 
 ok(JSON.stringify([...hiddenLinkedTrainerIds([T, S, MATE])]) === '["t-kuk"]', 'коллегам скрыта только тренерская учётка связанной пары')
 ok(hiddenLinkedTrainerIds([T, { ...S, is_active: false }, MATE]).size === 0, 'связь не действует — тренер снова виден коллегам')
+
+const GENERIC_S = { ...S, name: 'X•fit studio Управляющий' }
+const TK = { ...T, name: 'Александр Кукарек' }
+ok(linkedPersonNames([TK, GENERIC_S, MATE]).get('s-kuk') === 'Александр Кукарек', 'учётка управляющего «по должности» — коллеги видят ФИО из тренерской')
+ok(linkedTrainerBySupervisor([TK, GENERIC_S]).get('s-kuk') === TK, 'управляющий → его тренерская учётка')
+ok(linkedPersonNames([TK, { ...GENERIC_S, is_active: false }]).size === 0, 'связь не действует — имя управляющего не подменяем')
+ok(linkedPersonNames([{ ...TK, name: '  ' }, GENERIC_S]).size === 0, 'у тренерской нет имени — остаётся имя управляющего')
+ok(LINKED_ROLE_LABEL_RU === 'Управляющий · тренер', 'подпись совмещённой роли')
 
 ok(JSON.stringify(linkedTrainerRecipientIds([S, MATE], [T])) === '["t-kuk"]', 'push управляющему → ещё и тренерской учётке')
 ok(linkedTrainerRecipientIds([T], [S]).length === 0, 'push тренеру управляющему не дублируется')

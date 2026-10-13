@@ -43,6 +43,32 @@ export function hiddenLinkedTrainerIds(users) {
   return out
 }
 
+/** @returns {Map<string, object>} id учётки управляющего → связанная тренерская учётка */
+export function linkedTrainerBySupervisor(users) {
+  const byId = new Map((users ?? []).map((u) => [norm(u.id), u]))
+  const out = new Map()
+  for (const u of users ?? []) {
+    if (staffDmRoleOf(u.role) !== 'supervisor') continue
+    const t = byId.get(norm(u.linked_user_id))
+    if (isLinkedPair(u, t)) out.set(norm(u.id), t)
+  }
+  return out
+}
+
+/**
+ * Имя человека у связанной пары: учётку управляющего часто называют должностью («X•fit studio Управляющий»),
+ * а настоящее ФИО — в тренерской. Для коллег и админа показываем ФИО.
+ * @returns {Map<string, string>} id учётки управляющего → имя из тренерской
+ */
+export function linkedPersonNames(users) {
+  const out = new Map()
+  for (const [supId, t] of linkedTrainerBySupervisor(users)) if (norm(t.name)) out.set(supId, norm(t.name))
+  return out
+}
+
+/** Подпись роли для управляющего, который ещё и тренер. */
+export const LINKED_ROLE_LABEL_RU = 'Управляющий · тренер'
+
 /**
  * Кому ещё слать push: тренерские учётки получателей-управляющих (Кукарек ходит с планшетом тренера).
  * @param {object[]} recipients строки users получателей

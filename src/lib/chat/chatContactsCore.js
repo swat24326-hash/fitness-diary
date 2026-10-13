@@ -96,7 +96,7 @@ export function sortChatContacts(contacts) {
   return [...bright, ...dim]
 }
 
-function normalizeQuery(s) {
+export function normalizeQuery(s) {
   return String(s ?? '')
     .toLowerCase()
     .replace(/ё/g, 'е')

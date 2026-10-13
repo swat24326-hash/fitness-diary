@@ -24,6 +24,9 @@ const PHONE = {
   isMobile: true,
 }
 const TABLET = { viewport: { width: 1180, height: 820 }, hasTouch: true }
+const MONITOR = { viewport: { width: 1600, height: 900 } }
+const OTHER_CLUB = 'e2e-other-club'
+const LINKED_NAME = 'Александр Кукарек'
 const SUP_ID = 'e2e00000-0000-4000-8000-0000000000a2'
 const SALES_ID = 'e2e00000-0000-4000-8000-0000000000a3'
 const MATE_ID = 'e2e00000-0000-4000-8000-0000000000a4'
@@ -52,9 +55,12 @@ function setup() {
     staff(SALES_ID, 'Менеджер Пётр', 'sales_manager'),
     staff(MATE_ID, 'Коллега Игорь', 'trainer'),
     staff(ADMIN_ID, 'Главный Админ', 'admin', { club_id: null, login: ADMIN_LOGIN, email: `${ADMIN_LOGIN}@trainer.local`, password: ADMIN_PASSWORD }),
-    staff('e2e-alien', 'Чужой Тренер', 'trainer', { club_id: 'e2e-other-club' }),
+    staff('e2e-alien', 'Чужой Тренер', 'trainer', { club_id: OTHER_CLUB }),
     staff('e2e-blocked', 'Уволенный Тренер', 'trainer', { is_active: false }),
+    staff('e2e-kuk-t', LINKED_NAME, 'trainer', { club_id: OTHER_CLUB, linked_user_id: 'e2e-kuk-s' }),
+    staff('e2e-kuk-s', 'Москва Управляющий', 'supervisor', { club_id: OTHER_CLUB, linked_user_id: 'e2e-kuk-t' }),
   )
+  backend.state.clubs.push({ id: OTHER_CLUB, name: 'Москва клуб', is_active: true })
   backend.state.live_user_ids = [SUP_ID, MATE_ID]
   const chat = createFakeChat(backend.state)
   const coach = createFakeCoach(backend.state, chat, { trainerId: TRAINER_ID, today: isoDay(0), schedule: [] })
@@ -203,30 +209,44 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
   }
 }
 
-/** Главный админ: конверт «Сообщения сотрудников» → вся сеть (и чужой клуб), без «Клиентов» и «Рассылок» → пишет тренеру. */
+const columnNames = (page, club) =>
+  page.getByTestId('staff-columns').getByRole('region', { name: club }).locator('.chat-row__title').allInnerTexts()
+
+/**
+ * Главный админ на мониторе: конверт «Сообщения сотрудников» → клубы столбцами, поиск по клубу и по человеку;
+ * управляющий, совмещённый с тренером, — под ФИО из тренерской (INC-2026-10-13-03) → пишет тренеру.
+ */
 async function adminWrites(c, browser, backend, chat) {
-  const context = await newE2eContext(browser, backend, TABLET)
+  const context = await newE2eContext(browser, backend, MONITOR)
   const page = await context.newPage()
   try {
     await loginUi(page, ADMIN_LOGIN, ADMIN_PASSWORD)
     const envelope = page.getByRole('link', { name: /^Сообщения сотрудников/ })
     c.ok(await reaches(envelope), 'админ: в шапке конверт «Сообщения сотрудников»')
     await envelope.click()
-    const folders = page.getByTestId('chat-folders')
-    const trainers = folders.getByRole('button', { name: /^Тренеры/ })
-    c.ok(await reaches(trainers), 'админ: папки «Тренеры» и «Администрация»')
-    c.ok((await folders.getByRole('button', { name: /^Клиенты/ }).count()) === 0, 'админ: «Клиентов» нет — клиентов читает из карточки')
+    const track = page.getByTestId('staff-columns')
+    c.ok(await reaches(track), 'админ: сотрудники столбцами по клубам')
+    c.ok((await page.getByTestId('chat-folders').count()) === 0, 'админ: без папок — «Клиентов» нет, клиентов читает из карточки')
     c.ok((await page.getByRole('link', { name: 'Рассылки' }).count()) === 0, 'админ: вкладки «Рассылки» нет')
-    await trainers.click()
-    const names = await titles(page)
-    c.ok(names.includes('Тренер Тестов · E2E клуб') && names.includes('Чужой Тренер'), `админ: тренеры всей сети, с клубом (${names.join(', ')})`)
-    c.ok(!names.some((n) => n.startsWith('Уволенный')), 'админ: заблокированных нет')
-    await folders.getByRole('button', { name: /^Администрация/ }).click()
-    const office = await titles(page)
-    c.ok(office.some((n) => n.startsWith('Управляющая Ольга')) && !office.some((n) => n.startsWith('Главный Админ')), 'админ: управляющая в «Администрации», себя нет')
-    await screenshot(page, 'staff-dm-admin-list')
-    await folders.getByRole('button', { name: /^Тренеры/ }).click()
-    await page.getByRole('link', { name: /Тренер Тестов/ }).click()
+    const home = await columnNames(page, 'E2E клуб')
+    c.ok(home[0] === 'Управляющая Ольга' && home.includes('Тренер Тестов') && !home.some((n) => n.startsWith('Уволенный')), `админ: свой клуб — управляющая сверху, без уволенных (${home.join(', ')})`)
+    const moscow = await columnNames(page, 'Москва клуб')
+    c.ok(moscow.includes(LINKED_NAME) && moscow.includes('Чужой Тренер'), `админ: чужой клуб тоже виден (${moscow.join(', ')})`)
+    c.ok(!moscow.includes('Москва Управляющий') && moscow.filter((n) => n === LINKED_NAME).length === 1, 'админ: совмещённый управляющий — один раз и под ФИО')
+    const box = await track.boundingBox()
+    c.ok(box && box.width > 1000, `админ: страница во всю ширину монитора (${Math.round(box?.width ?? 0)}px)`)
+    await screenshot(page, 'staff-dm-admin-columns')
+    const search = page.getByRole('searchbox', { name: 'Найти клуб или сотрудника' })
+    await search.fill('москва')
+    c.ok((await track.getByRole('region').count()) === 1 && (await columnNames(page, 'Москва клуб')).length === 2, 'поиск по клубу — весь клуб')
+    await search.fill('кукарек')
+    c.ok(JSON.stringify(await columnNames(page, 'Москва клуб')) === JSON.stringify([LINKED_NAME]), 'поиск по человеку — только он')
+    await screenshot(page, 'staff-dm-admin-search')
+    await page.getByRole('link', { name: new RegExp(LINKED_NAME) }).click()
+    await page.waitForURL(`${ORIGIN}/messages/dm/e2e-kuk-s`)
+    c.ok(await reaches(page.getByText('Управляющий · тренер').first()), 'шапка диалога: ФИО и «Управляющий · тренер»')
+    await page.goto(`${ORIGIN}/messages`)
+    await page.getByTestId('staff-columns').getByRole('link', { name: /Тренер Тестов/ }).click()
     await page.waitForURL(`${ORIGIN}/messages/dm/${TRAINER_ID}`)
     await page.getByTestId('chat-input').fill(FROM_ADMIN)
     await page.getByTestId('chat-send').click()

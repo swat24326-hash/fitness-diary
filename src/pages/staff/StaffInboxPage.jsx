@@ -58,7 +58,7 @@ export function StaffInboxPage() {
   }
 
   return (
-    <div className="staff-inbox">
+    <div className={`staff-inbox${isAdmin ? ' staff-inbox--wide' : ''}`}>
       <div className="staff-inbox__head">
         <h1 className="staff-inbox__title">
           <Mail size={22} aria-hidden />
