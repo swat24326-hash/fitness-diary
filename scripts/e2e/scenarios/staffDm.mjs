@@ -161,7 +161,6 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
       opened.lastBottom <= opened.composeTop + 1,
       `открыл диалог — последнее сообщение над полем ввода, не под ним (низ ${Math.round(opened.lastBottom)}, поле с ${Math.round(opened.composeTop)})`,
     )
-    await page.evaluate(() => globalThis.scrollTo(0, 0))
     const m = await page.evaluate(() => {
       const root = globalThis.document.documentElement
       return {
@@ -175,8 +174,6 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
     await screenshot(page, 'staff-dm-trainer-narrow')
 
     /* Клавиатура Android сжимает страницу: был внизу — последнее сообщение остаётся над полем ввода. */
-    await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.documentElement.scrollHeight))
-    await page.waitForTimeout(200)
     await page.setViewportSize({ width: 360, height: 420 })
     await page.waitForTimeout(400)
     const kb = await page.evaluate(() => {
@@ -191,7 +188,8 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
     await screenshot(page, 'staff-dm-trainer-keyboard')
 
     /* Читает историю выше, а собеседник ответил — лента не прыгает вниз, появляется «↓ Новые». */
-    await page.evaluate(() => globalThis.scrollTo(0, 0))
+    const feedTop = () => page.getByTestId('chat-feed').evaluate((f) => f.scrollTop)
+    await page.getByTestId('chat-feed').evaluate((f) => f.scrollTo(0, 0))
     await page.waitForTimeout(200)
     const sup = backend.state.users.find((u) => u.id === SUP_ID)
     chat.staff({ method: 'POST', searchParams: new URLSearchParams({ action: 'chat' }), body: { op: 'dm-send', user_id: TRAINER_ID, body: 'Пока ты листал' } }, sup)
@@ -202,7 +200,7 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
     )
     const newBelow = page.getByTestId('chat-new-below')
     c.ok(await reaches(newBelow), 'читает историю, пришёл ответ — кнопка «↓ Новые»')
-    c.ok((await page.evaluate(() => globalThis.scrollY)) < 50, 'лента не дёрнулась вниз, пока читает историю')
+    c.ok((await feedTop()) < 50, 'лента не дёрнулась вниз, пока читает историю')
     c.ok(trainerUnread() === 1, 'новое ещё не на экране — «прочитано» не поставлено, у управляющей без ✓✓')
     await screenshot(page, 'staff-dm-new-below')
     await newBelow.click()
@@ -215,6 +213,69 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
   } catch (e) {
     await screenshot(page, 'staff-dm-trainer-narrow-FAIL').catch(() => null)
     c.ok(false, `узкий телефон тренера: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
+}
+
+/**
+ * iPhone: клавиатура уменьшает только видимую часть (visualViewport), страницу не сжимает
+ * (INC-2026-10-13-05, Кукарек: «окно для набора улетает вверх», «ездит за чатом»). Как Telegram: поле ввода
+ * ровно над клавиатурой, шапка на месте, листается лента — поле и страница стоят.
+ */
+async function iphoneKeyboardAfterSend(c, browser, backend) {
+  const KB = 340
+  const context = await newE2eContext(browser, backend, PHONE)
+  await context.addInitScript((kb) => {
+    const vv = new EventTarget()
+    const h = () => globalThis.innerHeight
+    Object.assign(vv, { offsetTop: 0, offsetLeft: 0, scale: 1, width: 390, pageTop: 0, pageLeft: 0 })
+    Object.defineProperty(vv, 'height', { get: () => (globalThis.__kbOpen ? h() - kb : h()) })
+    Object.defineProperty(globalThis, 'visualViewport', { value: vv, configurable: true })
+    globalThis.__fakeVv = vv
+  }, KB)
+  const page = await context.newPage()
+  try {
+    await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.goto(`${ORIGIN}/messages/dm/${SUP_ID}`)
+    await page.getByTestId('chat-input').waitFor()
+    await page.evaluate(() => {
+      globalThis.__kbOpen = true
+      globalThis.__fakeVv.dispatchEvent(new Event('resize'))
+    })
+    await page.waitForTimeout(300)
+    const at = () =>
+      page.evaluate(() => ({
+        composeBottom: globalThis.document.querySelector('.chat-compose').getBoundingClientRect().bottom,
+        headTop: globalThis.document.querySelector('.chat-thread').getBoundingClientRect().top,
+        view: globalThis.visualViewport.height,
+        pageY: globalThis.scrollY,
+        lastBottom: [...globalThis.document.querySelectorAll('.chat-msg')].at(-1).getBoundingClientRect().bottom,
+        composeTop: globalThis.document.querySelector('.chat-compose').getBoundingClientRect().top,
+      }))
+    const open = await at()
+    c.ok(
+      open.composeBottom <= open.view + 1 && open.composeBottom >= open.view - 40,
+      `iPhone, клавиатура открыта — поле ввода над ней, не выше и не под ней (низ поля ${Math.round(open.composeBottom)}, клавиатура с ${Math.round(open.view)})`,
+    )
+    c.ok(open.lastBottom <= open.composeTop + 1, 'последнее сообщение над полем ввода')
+    await screenshot(page, 'staff-dm-iphone-keyboard')
+
+    await page.getByTestId('chat-feed').evaluate((f) => f.scrollTo(0, 0))
+    await page.mouse.wheel(0, -400)
+    await page.waitForTimeout(300)
+    const scrolled = await at()
+    c.ok(
+      scrolled.pageY === 0 && Math.abs(scrolled.composeBottom - open.composeBottom) < 1 && Math.abs(scrolled.headTop - open.headTop) < 1,
+      `листает ленту — поле ввода и шапка стоят, страница не ездит (сдвиг поля ${Math.round(scrolled.composeBottom - open.composeBottom)}px, страницы ${scrolled.pageY}px)`,
+    )
+    await page.evaluate(() => globalThis.scrollTo(0, 400))
+    await page.waitForTimeout(300)
+    const nudged = await at()
+    c.ok(nudged.pageY === 0, `страницу нечем сдвинуть — всё влезло в видимую часть (сдвиг ${nudged.pageY}px)`)
+  } catch (e) {
+    await screenshot(page, 'staff-dm-iphone-kb-FAIL').catch(() => null)
+    c.ok(false, `iPhone клавиатура: сценарий прерван: ${e.message.split('\n')[0]}`)
   } finally {
     await context.close()
   }
@@ -353,6 +414,7 @@ export async function run(browser) {
       chat.state.dm.messages.splice(i - 1, 0, { ...first, id: `dmm-old-${i}`, body: `История ${i}`, created_at: new Date(Date.parse(first.created_at) - (21 - i) * 60_000).toISOString() })
     }
     await trainerNarrowPhoneThread(c, browser, backend, chat)
+    await iphoneKeyboardAfterSend(c, browser, backend)
     /* Приложение уже открыто, нажали на push — открывается сам диалог (INC-2026-10-12-04). */
     await page.goto(`${ORIGIN}/coach`)
     await page.waitForLoadState('networkidle')

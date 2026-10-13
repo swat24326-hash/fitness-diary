@@ -1,5 +1,5 @@
 /* Главный админ: мессенджер сотрудников как Telegram на компьютере — клубы · люди · диалог.
-   Ленту листает страница (как во всех диалогах), левые панели прилипают под шапкой и листаются сами. */
+   Каждая панель листается сама: клубы, люди, лента диалога (chatViewportFit.js) — страница стоит. */
 
 /* Мессенджер — во всю ширину монитора, без полей по бокам, как Telegram. */
 .app-main:has(.admin-msgr) {
@@ -191,17 +191,7 @@
   min-height: var(--msgr-h);
 }
 
-/* Лента забирает свободную высоту, поле ввода — у нижнего края (как в приложении тренера). */
-.admin-msgr__thread > .chat-thread {
-  flex: 1 0 auto;
-  grid-template-rows: 1fr;
-}
-
-/* Имя собеседника всегда видно, как в Telegram: лента листается под ним. */
 .admin-msgr__thread > .chat-head {
-  position: sticky;
-  top: calc(var(--msgr-top) - 8px);
-  z-index: 3;
   padding: 8px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, MessageCircle, Search } from 'lucide-react'
 import { ChatComposer } from './ChatComposer.jsx'
 import { ChatFeed } from './ChatFeed.jsx'
@@ -6,6 +6,7 @@ import { ChatSearchBar } from './ChatSearchBar.jsx'
 import { useChatJump } from '../../hooks/useChatJump.js'
 import { useChatSearch } from '../../hooks/useChatSearch.js'
 import { attachChatStickToBottom, chatNewMessageAction, scrollChatToEnd } from '../../lib/chat/chatStickToBottom.js'
+import { attachChatViewportFit } from '../../lib/chat/chatViewportFit.js'
 import '../../styles/chat-search.css'
 
 /**
@@ -40,7 +41,8 @@ export function ChatThreadView({
   search,
   dictate,
 }) {
-  const endRef = useRef(null)
+  const threadRef = useRef(null)
+  const feedRef = useRef(null)
   const atBottomRef = useRef(true)
   const onAtBottomRef = useRef(onAtBottom)
   const shownLastIdRef = useRef(undefined)
@@ -53,9 +55,11 @@ export function ChatThreadView({
   onAtBottomRef.current = onAtBottom
   clearBackRef.current = jumper.clearBack
 
+  useLayoutEffect(() => attachChatViewportFit(threadRef.current), [])
+
   useEffect(
     () =>
-      attachChatStickToBottom({
+      attachChatStickToBottom(feedRef.current, {
         onChange: (atBottom) => {
           atBottomRef.current = atBottom
           if (atBottom) {
@@ -73,7 +77,7 @@ export function ChatThreadView({
     const firstLoad = shownLastIdRef.current === undefined
     shownLastIdRef.current = lastId
     if (chatNewMessageAction({ firstLoad, mine: Boolean(last?.mine), atBottom: atBottomRef.current }) === 'scroll') {
-      scrollChatToEnd(endRef.current)
+      scrollChatToEnd(feedRef.current)
     } else {
       setNewBelow(true)
     }
@@ -84,7 +88,7 @@ export function ChatThreadView({
       type="button"
       className="chat-thread__new-below"
       data-testid="chat-new-below"
-      onClick={() => scrollChatToEnd(endRef.current, 'smooth')}
+      onClick={() => scrollChatToEnd(feedRef.current, 'smooth')}
     >
       <ChevronDown size={16} aria-hidden />
       Новые
@@ -103,8 +107,8 @@ export function ChatThreadView({
   )
 
   return (
-    <div className="chat-thread">
-      <div className="chat-thread__feed" aria-live="polite" data-testid="chat-feed">
+    <div className="chat-thread" ref={threadRef}>
+      <div className="chat-thread__feed" ref={feedRef} aria-live="polite" data-testid="chat-feed">
         {finder.available && !finder.isOpen ? (
           <button type="button" className="chat-thread__search-toggle" aria-label="Поиск по переписке" title="Поиск по переписке" onClick={finder.open}>
             <Search size={18} aria-hidden />
@@ -132,7 +136,6 @@ export function ChatThreadView({
           finding={jumper.finding}
           highlight={finder.isOpen && finder.results?.length ? finder.query : ''}
         />
-        <div ref={endRef} />
       </div>
 
       {finder.isOpen ? (

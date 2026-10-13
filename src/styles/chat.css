@@ -8,14 +8,19 @@
 
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 8px;
+  /* Ровно видимая часть экрана (chatViewportFit.js): листается лента, страница стоит — поле ввода не ездит. */
+  height: var(--chat-fit-h, auto);
 }
 
 .chat-thread__feed {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 46vh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 10px 10px 6px;
   border-radius: var(--radius-md);
   background:
@@ -210,10 +215,8 @@
 }
 
 /* Поле ввода: капсула со смайликом слева и круглая кнопка «Отправить». */
-/* --chat-kb — клавиатура, перекрывшая низ страницы (chatKeyboardInset.js). */
 .chat-compose {
-  position: sticky;
-  bottom: var(--chat-kb, 0px);
+  position: relative;
   z-index: 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -222,29 +225,12 @@
   background: linear-gradient(to top, var(--bg) 70%, transparent);
 }
 
-/* Диалог на телефоне (клиент /me, тренер /coach): лента растёт на всю свободную высоту, поле ввода — у нижнего
-   края при любом числе сообщений. Листается по-прежнему страница (chatStickToBottom.js, chatKeyboardInset.js). */
+/* Диалог на телефоне (клиент /me, тренер /coach): оболочка не тянется на 100dvh — iPhone не уменьшает dvh
+   под клавиатуру, и страница осталась бы длиннее видимой части (поле ввода уехало бы под клавиатуру). */
 .client-me:has(> .client-me__main > .chat-thread),
 .coach-app:has(> .coach-app__main > .chat-thread) {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
   padding-bottom: 0;
-}
-
-.client-me__main:has(> .chat-thread),
-.coach-app__main:has(> .chat-thread) {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  flex: 1 0 auto;
-  width: 100%;
-}
-
-.client-me__main > .chat-thread,
-.coach-app__main > .chat-thread {
-  flex: 1 0 auto;
-  grid-template-rows: 1fr;
 }
 
 /* Клавиатура открыта: нижние отступы под полоску iPhone и оболочки — щель между полем и клавиатурой. */
@@ -260,7 +246,7 @@
   }
 }
 
-/* «↓ Новые» — пришло сообщение, пока человек читает историю выше. Над полем ввода — едет с ним над клавиатурой. */
+/* «↓ Новые» — пришло сообщение, пока человек читает историю выше. Над полем ввода. */
 .chat-thread__new-below {
   position: sticky;
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));

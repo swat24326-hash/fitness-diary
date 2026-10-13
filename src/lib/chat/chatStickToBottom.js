@@ -1,13 +1,14 @@
 /**
  * Лента переписки прижата к последнему сообщению, как в Telegram: был внизу — после открытия / закрытия
- * клавиатуры (видимая часть меняет высоту) остаёшься внизу. Листал историю выше — позицию не трогаем.
+ * клавиатуры (лента меняет высоту) остаёшься внизу. Листал историю выше — позицию не трогаем.
+ * Листается сама лента (.chat-thread__feed), страница стоит (chatViewportFit.js).
  */
 
 export const CHAT_BOTTOM_SLACK_PX = 80
 
 /**
  * @param {{ scrollHeight: unknown, scrollTop: unknown, visibleBottom: unknown, slack?: number }} p
- * visibleBottom — нижний край видимой части относительно верха окна раскладки (offsetTop + height)
+ * visibleBottom — видимая высота ленты (clientHeight)
  */
 export function isChatNearBottom({ scrollHeight, scrollTop, visibleBottom, slack = CHAT_BOTTOM_SLACK_PX }) {
   const total = Number(scrollHeight)
@@ -27,60 +28,49 @@ export function chatNewMessageAction({ firstLoad, mine, atBottom }) {
 }
 
 /**
- * К последнему сообщению. scrollIntoView метки конца ленты оставляет последнее сообщение под закреплённым
- * полем ввода — поэтому дальше докручиваем страницу до самого низа.
- * @param {Element|null|undefined} endEl
+ * К последнему сообщению.
+ * @param {HTMLElement|null|undefined} feed — .chat-thread__feed
  * @param {'auto'|'smooth'} [behavior]
  */
-export function scrollChatToEnd(endEl, behavior = 'auto') {
-  endEl?.scrollIntoView({ block: 'end', behavior })
-  if (typeof window !== 'undefined') window.scrollTo({ top: document.documentElement.scrollHeight, behavior })
+export function scrollChatToEnd(feed, behavior = 'auto') {
+  feed?.scrollTo({ top: feed.scrollHeight, behavior })
 }
 
 /**
+ * @param {HTMLElement|null} feed
  * @param {{ onChange?: (atBottom: boolean) => void }} [opts] onChange — человек дошёл до низа / ушёл вверх
  * @returns {() => void}
  */
-export function attachChatStickToBottom({ onChange } = {}) {
-  if (typeof window === 'undefined') return () => {}
-  const vv = window.visualViewport
-  const root = document.documentElement
-  const visibleHeight = () => (vv ? vv.height : window.innerHeight)
-  const visibleBottom = () => (vv ? vv.offsetTop + vv.height : window.innerHeight)
+export function attachChatStickToBottom(feed, { onChange } = {}) {
+  if (!feed || typeof window === 'undefined') return () => {}
   const nearBottom = () =>
-    isChatNearBottom({ scrollHeight: root.scrollHeight, scrollTop: window.scrollY, visibleBottom: visibleBottom() })
+    isChatNearBottom({ scrollHeight: feed.scrollHeight, scrollTop: feed.scrollTop, visibleBottom: feed.clientHeight })
 
-  let atBottom = nearBottom()
-  let height = visibleHeight()
-  let raf = 0
+  /* Диалог открывается на последнем сообщении (ChatThreadView докручивает при первой загрузке). */
+  let atBottom = true
+  let height = feed.clientHeight
   onChange?.(atBottom)
 
-  /* Прокрутку во время смены высоты (браузер сам двигает страницу) не считаем решением человека. */
+  /* Прокрутку во время смены высоты (клавиатура, поле ввода выросло) не считаем решением человека. */
   const onScroll = () => {
-    if (Math.abs(visibleHeight() - height) >= 1) return
+    if (Math.abs(feed.clientHeight - height) >= 1) return
     const next = nearBottom()
     if (next === atBottom) return
     atBottom = next
     onChange?.(atBottom)
   }
   const onResize = () => {
-    if (raf) return
-    raf = window.requestAnimationFrame(() => {
-      raf = 0
-      const next = visibleHeight()
-      if (Math.abs(next - height) < 1) return
-      height = next
-      if (atBottom) window.scrollTo(0, root.scrollHeight)
-    })
+    const next = feed.clientHeight
+    if (Math.abs(next - height) < 1) return
+    height = next
+    if (atBottom) feed.scrollTop = feed.scrollHeight
   }
 
-  window.addEventListener('scroll', onScroll, { passive: true })
-  window.addEventListener('resize', onResize)
-  vv?.addEventListener('resize', onResize)
+  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null
+  ro?.observe(feed)
+  feed.addEventListener('scroll', onScroll, { passive: true })
   return () => {
-    if (raf) window.cancelAnimationFrame(raf)
-    window.removeEventListener('scroll', onScroll)
-    window.removeEventListener('resize', onResize)
-    vv?.removeEventListener('resize', onResize)
+    ro?.disconnect()
+    feed.removeEventListener('scroll', onScroll)
   }
 }

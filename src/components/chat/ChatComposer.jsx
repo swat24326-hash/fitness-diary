@@ -5,7 +5,6 @@ import { CHAT_BODY_MAX, CHAT_PASTE_CUT_RU, chatLengthCounter, chatPasteCut } fro
 import { insertDictation } from '../../lib/chat/chatDictationCore.js'
 import { insertEmoji } from '../../lib/chat/chatEmojiCore.js'
 import { rememberSentEmoji } from '../../lib/chat/chatEmojiUsageStore.js'
-import { attachChatKeyboardInset } from '../../lib/chat/chatKeyboardInset.js'
 import { ChatDictationBar } from './ChatDictationBar.jsx'
 import { ChatEmojiPicker } from './ChatEmojiPicker.jsx'
 import { ChatReplyQuote } from './ChatReplyQuote.jsx'
@@ -28,7 +27,6 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
   const [pasteCut, setPasteCut] = useState(false)
   const inputRef = useRef(null)
   const caretRef = useRef(null)
-  const formRef = useRef(null)
   const draftRef = useRef(draft)
   const selRef = useRef(null)
   draftRef.current = draft
@@ -43,8 +41,6 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
     },
   })
   const listening = dictation.phase !== 'idle'
-
-  useEffect(() => attachChatKeyboardInset(formRef.current), [])
 
   const { phase, stop: stopDictation, cancel: cancelDictation } = dictation
   useEffect(() => {
@@ -115,7 +111,7 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
   const counter = chatLengthCounter(draft.length)
 
   return (
-    <form ref={formRef} className="chat-compose" onSubmit={(e) => void submit(e)}>
+    <form className="chat-compose" onSubmit={(e) => void submit(e)}>
       {above}
       {sendError ? (
         <p className="chat-compose__error" role="alert">

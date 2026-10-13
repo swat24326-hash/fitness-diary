@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { CHAT_SEARCH_EMPTY_RU } from '../../lib/chat/chatSearchCore.js'
-import { attachChatKeyboardInset } from '../../lib/chat/chatKeyboardInset.js'
 import '../../styles/chat-search.css'
 
 function statusText({ status, results, index, error }) {
@@ -18,16 +17,13 @@ function statusText({ status, results, index, error }) {
  * @param {{ finder: ReturnType<typeof import('../../hooks/useChatSearch.js').useChatSearch>, above?: import('react').ReactNode }} props
  */
 export function ChatSearchBar({ finder, above = null }) {
-  const formRef = useRef(null)
   const inputRef = useRef(null)
-  useEffect(() => attachChatKeyboardInset(formRef.current), [])
   useEffect(() => inputRef.current?.focus(), [])
 
   const total = finder.results?.length ?? 0
   const text = statusText(finder)
   return (
     <form
-      ref={formRef}
       className="chat-compose chat-search"
       role="search"
       data-testid="chat-search"
