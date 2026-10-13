@@ -4,6 +4,12 @@ import { inboxApiCall } from './inboxAdminApiClient.js'
 /** Шапка перечитывает счётчик, когда сотрудник открыл или прошёл сообщение. */
 export const STAFF_INBOX_CHANGED = 'fd-staff-inbox-changed'
 
+/**
+ * Число на конверте изменилось (push, опрос раз в 2 минуты, возврат в окно) — мессенджер перечитывает список,
+ * чтобы конверт и список не расходились, даже если push до этого компьютера не дошёл.
+ */
+export const STAFF_ATTENTION_CHANGED = 'fd-staff-attention-changed'
+
 function changed() {
   window.dispatchEvent(new Event(STAFF_INBOX_CHANGED))
 }

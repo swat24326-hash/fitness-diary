@@ -44,7 +44,7 @@ import {
   resolveChatOutgoing,
 } from '../src/lib/chat/chatStickerCore.js'
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
-import { countNewPeerMessages, didInboxCountRise, isChatSoundEnabled } from '../src/lib/chat/chatSoundCore.js'
+import { countNewPeerMessages, didInboxCountChange, didInboxCountRise, isChatSoundEnabled } from '../src/lib/chat/chatSoundCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -243,6 +243,10 @@ ok(countNewPeerMessages(null, [{ id: 'a', mine: false }]) === 0, 'звук: пе
 ok(countNewPeerMessages(was, [...was, { id: 'b', mine: true }]) === 0, 'звук: своё сообщение из опроса — тишина')
 ok(countNewPeerMessages(was, [...was, { id: 'c', mine: false }]) === 1, 'звук: новое от собеседника — звучит')
 ok(!didInboxCountRise(null, 3) && didInboxCountRise(2, 3) && !didInboxCountRise(3, 2), 'конверт: звук только при росте после первой загрузки')
+ok(
+  !didInboxCountChange(null, 3) && didInboxCountChange(0, 1) && didInboxCountChange(2, 1) && !didInboxCountChange(1, 1),
+  'конверт: число изменилось (выросло или упало) — мессенджер перечитывает список; первая загрузка и то же число — нет',
+)
 
 if (failed) {
   console.error(`\nverify-chat: ${failed} FAIL`)

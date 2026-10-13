@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  STAFF_ATTENTION_CHANGED,
   STAFF_INBOX_CHANGED,
   answerStaffInboxSurvey,
   fetchStaffInbox,
   openStaffInboxItem,
 } from '../../lib/inbox/staffInboxApiClient.js'
 import { fetchStaffChats } from '../../lib/chat/staffChatApiClient.js'
-import { didInboxCountRise } from '../../lib/chat/chatSoundCore.js'
+import { didInboxCountChange, didInboxCountRise } from '../../lib/chat/chatSoundCore.js'
 import { armChatSound, playChatSound } from '../../lib/chat/chatSoundPlayer.js'
 import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
 
@@ -78,6 +79,7 @@ export function useStaffInboxCount(enabled, { chatsOnly = false } = {}) {
         if (!alive || res.every((r) => r.status === 'rejected')) return
         const next = res.reduce((sum, r) => sum + (r.status === 'fulfilled' ? Number(r.value?.attention) || 0 : 0), 0)
         if (didInboxCountRise(lastRef.current, next)) playChatSound('inbox', 'staff')
+        if (didInboxCountChange(lastRef.current, next)) window.dispatchEvent(new Event(STAFF_ATTENTION_CHANGED))
         lastRef.current = next
         setCount(next)
       })

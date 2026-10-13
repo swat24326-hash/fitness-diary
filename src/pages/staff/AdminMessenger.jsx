@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Building2, Inbox, Mail, RefreshCw, Search, Users, WifiOff } from 'lucide-react'
 import { AdminStaffList } from '../../components/chat/AdminStaffList.jsx'
@@ -13,8 +13,7 @@ import {
   staffClubRail,
   staffColumnsFoundRu,
 } from '../../lib/chat/staffColumnsCore.js'
-import { STAFF_INBOX_CHANGED } from '../../lib/inbox/staffInboxApiClient.js'
-import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
+import { useStaffMessengerRefresh } from '../../hooks/useStaffMessengerRefresh.js'
 import '../../styles/admin-messenger.css'
 
 const EMPTY_RU = { [STAFF_VIEW_UNREAD]: 'Все ответили — новых нет' }
@@ -34,11 +33,7 @@ export function AdminMessenger({ chatList }) {
   const searching = Boolean(query.trim())
   const { folders, status, error, reload } = chatList
 
-  useEffect(() => onPushReceived(reload), [reload])
-  useEffect(() => {
-    window.addEventListener(STAFF_INBOX_CHANGED, reload)
-    return () => window.removeEventListener(STAFF_INBOX_CHANGED, reload)
-  }, [reload])
+  useStaffMessengerRefresh(reload)
 
   const contacts = (folders ?? []).flatMap((f) => f.contacts)
   const columns = buildStaffColumns(contacts, query)

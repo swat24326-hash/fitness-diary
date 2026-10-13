@@ -34,3 +34,8 @@ export function countNewPeerMessages(prev, next) {
 export function didInboxCountRise(prev, next) {
   return prev != null && Number(next) > Number(prev)
 }
+
+/** Число на конверте изменилось с прошлой проверки (первая проверка — не изменение: список и так только что загружен). */
+export function didInboxCountChange(prev, next) {
+  return prev != null && Number(next) !== Number(prev)
+}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Briefcase, Mail, Megaphone, MessageSquareWarning, UserRound, Users } from 'lucide-react'
 import { ChatFolders } from '../../components/chat/ChatFolders.jsx'
@@ -6,8 +6,7 @@ import { MessengerBack, MessengerHead, MessengerLayout, MessengerPick } from '..
 import { StaffChatPane } from '../../components/chat/StaffChatPane.jsx'
 import { StaffDmPane } from '../../components/chat/StaffDmPane.jsx'
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
-import { STAFF_INBOX_CHANGED } from '../../lib/inbox/staffInboxApiClient.js'
-import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
+import { useStaffMessengerRefresh } from '../../hooks/useStaffMessengerRefresh.js'
 import {
   STAFF_FOLDER_INBOX,
   pickStaffFolder,
@@ -52,18 +51,11 @@ export function StaffMessenger({ chats, inbox }) {
     setParams((p) => staffMessengerParams(p, { folder: folderId }), { replace: true })
   }, [loaded, folderId, params, setParams])
 
-  useEffect(() => {
-    const reload = () => {
-      reloadChats()
-      reloadInbox()
-    }
-    const offPush = onPushReceived(reload)
-    window.addEventListener(STAFF_INBOX_CHANGED, reload)
-    return () => {
-      offPush()
-      window.removeEventListener(STAFF_INBOX_CHANGED, reload)
-    }
+  const reloadAll = useCallback(() => {
+    reloadChats()
+    reloadInbox()
   }, [reloadChats, reloadInbox])
+  useStaffMessengerRefresh(reloadAll)
 
   const closeHref = href({ close: true })
   const back = <MessengerBack to={closeHref} />
@@ -78,10 +70,7 @@ export function StaffMessenger({ chats, inbox }) {
           title="Сообщения клуба"
           short="Сообщения"
           loading={chats.status === 'loading' || inbox.status === 'loading'}
-          onReload={() => {
-            reloadChats()
-            reloadInbox()
-          }}
+          onReload={reloadAll}
         />
       }
       folders={
