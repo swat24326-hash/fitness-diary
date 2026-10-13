@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Mail, MessageCircle, RefreshCw, Search, WifiOff } from 'lucide-react'
 import { AdminClubRail } from '../../components/chat/AdminClubRail.jsx'
@@ -12,6 +12,8 @@ import {
   staffClubRail,
   staffColumnsFoundRu,
 } from '../../lib/chat/staffColumnsCore.js'
+import { STAFF_INBOX_CHANGED } from '../../lib/inbox/staffInboxApiClient.js'
+import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
 import '../../styles/admin-messenger.css'
 
 const EMPTY_RU = { [STAFF_VIEW_UNREAD]: 'Все ответили — новых нет' }
@@ -30,11 +32,11 @@ export function AdminMessenger({ chatList }) {
   const searching = Boolean(query.trim())
   const { folders, status, error, reload } = chatList
 
-  const lastDm = useRef(dm)
+  useEffect(() => onPushReceived(reload), [reload])
   useEffect(() => {
-    if (lastDm.current && lastDm.current !== dm) reload()
-    lastDm.current = dm
-  }, [dm, reload])
+    window.addEventListener(STAFF_INBOX_CHANGED, reload)
+    return () => window.removeEventListener(STAFF_INBOX_CHANGED, reload)
+  }, [reload])
 
   const contacts = (folders ?? []).flatMap((f) => f.contacts)
   const columns = buildStaffColumns(contacts, query)
@@ -108,6 +110,7 @@ export function AdminMessenger({ chatList }) {
           <StaffDmPane
             key={dm}
             userId={dm}
+            onSent={reload}
             backTo={hrefWith({ dm: '' })}
             back={
               <Link to={hrefWith({ dm: '' })} className="btn btn-ghost btn-sm admin-msgr__back">

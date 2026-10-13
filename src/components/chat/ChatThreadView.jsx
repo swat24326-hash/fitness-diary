@@ -110,6 +110,7 @@ export function ChatThreadView({
             <Search size={18} aria-hidden />
           </button>
         ) : null}
+        {messages?.length ? <div className="chat-thread__spacer" aria-hidden /> : null}
         {hasMore ? (
           <button type="button" className="chat-thread__older" onClick={onLoadOlder}>
             <ChevronUp size={16} aria-hidden />

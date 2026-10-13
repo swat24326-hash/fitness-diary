@@ -24,6 +24,11 @@
     var(--bg-subtle, var(--bg));
 }
 
+/* Сообщения прижаты к полю ввода, как в Telegram: открылась клавиатура iPhone — над ней последние, а не пустота. */
+.chat-thread__spacer {
+  flex: 1 0 0;
+}
+
 .chat-thread__older {
   align-self: center;
   display: inline-flex;

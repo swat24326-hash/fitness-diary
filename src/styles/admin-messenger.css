@@ -1,18 +1,25 @@
 /* Главный админ: мессенджер сотрудников как Telegram на компьютере — клубы · люди · диалог.
    Ленту листает страница (как во всех диалогах), левые панели прилипают под шапкой и листаются сами. */
 
+/* Мессенджер — во всю ширину монитора, без полей по бокам, как Telegram. */
+.app-main:has(.admin-msgr) {
+  max-width: none;
+  padding: 12px clamp(12px, 1.5vw, 24px);
+}
+
 .admin-msgr {
   --msgr-top: calc(var(--header-h) + env(safe-area-inset-top, 0px) + 8px);
 
+  --msgr-h: calc(100dvh - var(--msgr-top) - 12px);
+
   display: grid;
-  grid-template-columns: 236px 360px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(200px, 15%) minmax(320px, 27%) minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
   width: 100%;
-  max-width: 1680px;
-  margin: 0 auto;
 }
 
+/* Все три панели — во всю высоту экрана под шапкой, без пустот снизу. */
 .admin-msgr__side,
 .admin-msgr__list {
   position: sticky;
@@ -20,7 +27,11 @@
   display: grid;
   align-content: start;
   gap: 10px;
-  max-height: calc(100dvh - var(--msgr-top) - 12px);
+  height: var(--msgr-h);
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -100,13 +111,6 @@
 
 /* --- Люди */
 
-.admin-msgr__list {
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-}
-
 .admin-msgr__list-meta {
   margin: 0 4px;
   font-size: 0.85rem;
@@ -180,11 +184,17 @@
 /* --- Диалог */
 
 .admin-msgr__thread {
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  min-height: calc(100dvh - var(--msgr-top) - 12px);
-  align-content: start;
+  min-height: var(--msgr-h);
+}
+
+/* Лента забирает свободную высоту, поле ввода — у нижнего края (как в приложении тренера). */
+.admin-msgr__thread > .chat-thread {
+  flex: 1 0 auto;
+  grid-template-rows: 1fr;
 }
 
 /* Имя собеседника всегда видно, как в Telegram: лента листается под ним. */
@@ -192,16 +202,18 @@
   position: sticky;
   top: calc(var(--msgr-top) - 8px);
   z-index: 3;
-  padding: 6px 0 8px;
-  background: var(--bg);
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
 }
 
 .admin-msgr__pick {
   display: grid;
   place-items: center;
   align-content: center;
+  flex: 1;
   gap: 8px;
-  min-height: calc(100dvh - var(--msgr-top) - 40px);
   border: 1px dashed var(--border);
   border-radius: var(--radius-md);
   color: var(--text-muted);
@@ -217,12 +229,6 @@
   justify-self: start;
 }
 
-@media (max-width: 1360px) {
-  .admin-msgr {
-    grid-template-columns: 200px 320px minmax(0, 1fr);
-  }
-}
-
 /* Узкий экран — по одной панели: клубы чипами сверху, список; открыт диалог — только он, со стрелкой назад. */
 @media (max-width: 1080px) {
   .admin-msgr {
@@ -232,7 +238,7 @@
   .admin-msgr__side,
   .admin-msgr__list {
     position: static;
-    max-height: none;
+    height: auto;
     overflow: visible;
   }
 

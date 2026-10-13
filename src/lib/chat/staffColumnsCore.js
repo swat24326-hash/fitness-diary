@@ -81,22 +81,42 @@ export function staffClubRail(columns) {
   ]
 }
 
+export const STAFF_RECENT_KEY = 'recent'
+
+function byRecent(a, b) {
+  return Number(b.unread) - Number(a.unread) || String(b.last_message_at ?? '').localeCompare(String(a.last_message_at ?? ''))
+}
+
+/** Одна лента переписок, как список чатов Telegram: непрочитанные, затем свежие; у каждого — клуб. */
+function recentSection(columns, pick, title) {
+  const people = columns
+    .flatMap((c) => c.people.filter(pick).map((p) => ({ ...p, club_title: c.title })))
+    .sort(byRecent)
+  return { key: STAFF_RECENT_KEY, title, people, reachable: people, idle: [], unread: people.filter((p) => p.unread).length }
+}
+
 /**
- * Что показать в списке людей: всё / только ждущих ответа / один клуб. При поиске — всегда все совпадения по клубам.
- * Выбранного клуба больше нет (сняли фильтр, клуб пуст) — все.
+ * Что показать в списке людей. «Все клубы» — сверху «Переписки» одной лентой (все, с кем уже есть диалог),
+ * ниже клубы без них; «Ждут ответа» — одна лента непрочитанных; клуб — только он. При поиске — совпадения по клубам.
+ * Выбранного клуба больше нет (сняли фильтр, клуб пуст) — как «Все клубы».
  */
 export function pickStaffSections(columns, view, searching = false) {
-  if (searching || view === STAFF_VIEW_ALL) return columns
+  if (searching) return columns
   if (view === STAFF_VIEW_UNREAD) {
-    return columns
-      .map((c) => {
-        const people = c.people.filter((p) => p.unread)
-        return { ...c, people, reachable: people, idle: [] }
-      })
-      .filter((c) => c.people.length)
+    const waiting = recentSection(columns, (p) => p.unread, 'Ждут ответа')
+    return waiting.people.length ? [waiting] : []
   }
   const one = columns.filter((c) => `club:${c.key}` === view)
-  return one.length ? one : columns
+  if (one.length) return one
+  const recent = recentSection(columns, (p) => p.has_thread, 'Переписки')
+  if (!recent.people.length) return columns
+  const rest = columns
+    .map((c) => {
+      const people = c.people.filter((p) => !p.has_thread)
+      return { ...c, people, reachable: c.reachable.filter((p) => !p.has_thread), idle: c.idle.filter((p) => !p.has_thread) }
+    })
+    .filter((c) => c.people.length)
+  return [recent, ...rest]
 }
 
 /** Подпись под поиском: «Нашли 3 в 2 клубах». */

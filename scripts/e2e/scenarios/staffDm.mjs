@@ -93,8 +93,19 @@ async function trainerWrites(c, page, chat, coach) {
   await page.waitForURL(`${ORIGIN}/coach/dm/${SUP_ID}`)
   c.ok(await reaches(page.getByText('Управляющий увидит ваше сообщение', { exact: false })), 'пустой диалог: подсказка, кто увидит')
   await page.getByTestId('chat-input').fill(ASK)
-  await page.getByTestId('chat-send').click()
+  await page.getByTestId('chat-input').focus()
+  await page.getByTestId('chat-send').tap()
   c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: ASK })), 'тренер: сообщение в ленте')
+  c.ok(
+    await page.evaluate(() => globalThis.document.activeElement?.dataset?.testid === 'chat-input'),
+    'палец на самолётике при открытой клавиатуре: ушло с первого раза, клавиатура не прячется (Кукарек, INC-2026-10-13-05)',
+  )
+  const gap = await page.evaluate(() => {
+    const last = [...globalThis.document.querySelectorAll('.chat-msg')].at(-1).getBoundingClientRect()
+    return globalThis.document.querySelector('.chat-compose').getBoundingClientRect().top - last.bottom
+  })
+  c.ok(gap >= 0 && gap < 60, `короткий диалог: сообщение у поля ввода, как в Telegram, — без пустоты (зазор ${Math.round(gap)}px)`)
+  await screenshot(page, 'staff-dm-coach-short')
   const saved = chat.state.dm.messages.at(-1)
   c.ok(saved?.author_user_id === TRAINER_ID && saved?.body === ASK, 'на сервер ушло сообщение от тренера')
   const push = chat.state.dm.pushes.at(-1)
@@ -249,6 +260,14 @@ async function adminWrites(c, browser, backend, chat) {
     c.ok(!moscow.includes('Москва Управляющий') && moscow.filter((n) => n === LINKED_NAME).length === 1, 'совмещённый управляющий — один раз и под ФИО')
     await screenshot(page, 'staff-dm-admin-columns')
 
+    const kuk = backend.state.users.find((u) => u.id === 'e2e-kuk-s')
+    chat.staff({ method: 'POST', searchParams: new URLSearchParams({ action: 'chat' }), body: { op: 'dm-send', user_id: ADMIN_ID, body: 'Вопрос по графику' } }, kuk)
+    await page.evaluate(() =>
+      globalThis.navigator.serviceWorker.dispatchEvent(new globalThis.MessageEvent('message', { data: { type: 'push-received' } })),
+    )
+    const waiting = rail.getByLabel(/^Ждут ответа: /)
+    c.ok(await reaches(waiting.first()), 'пришёл push — слева «Ждут ответа» с числом, без перезагрузки')
+
     const search = page.getByRole('searchbox', { name: 'Найти клуб или сотрудника' })
     await search.fill('москва')
     c.ok((await page.getByTestId('staff-people').getByRole('region').count()) === 1 && (await sectionNames(page, 'Москва клуб')).length === 2, 'поиск по клубу — весь клуб')
@@ -260,6 +279,7 @@ async function adminWrites(c, browser, backend, chat) {
     await page.getByRole('link', { name: new RegExp(LINKED_NAME) }).click()
     c.ok(await reaches(page.getByText('Управляющий · тренер').first()), 'диалог справа: ФИО и «Управляющий · тренер»')
     c.ok(await reaches(rail), 'список не пропал — диалог открыт рядом')
+    c.ok(await reaches(waiting.first(), 'hidden'), 'открыл диалог — «прочитано», число у клубов и «Ждут ответа» исчезло сразу')
     await search.fill('тестов')
     await page.getByTestId('staff-people').getByRole('link', { name: /Тренер Тестов/ }).click()
     c.ok(new URL(page.url()).searchParams.get('dm') === TRAINER_ID, 'открытый диалог — в адресе')
@@ -271,6 +291,10 @@ async function adminWrites(c, browser, backend, chat) {
     c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: FROM_ADMIN })), 'админ: сообщение тренеру в ленте')
     const push = chat.state.dm.pushes.at(-1)
     c.ok(push?.to === TRAINER_ID && coachPushUrl(push.url) === `/coach/dm/${ADMIN_ID}`, 'push тренеру откроет диалог с админом на телефоне')
+    await search.fill('')
+    const recent = page.getByTestId('staff-people').getByRole('region', { name: 'Переписки' })
+    c.ok(await reaches(recent.getByText('Тренер Тестов · E2E клуб')), '«Все клубы»: кому написал — сверху в «Переписках», с клубом')
+    c.ok(!(await sectionNames(page, 'E2E клуб')).includes('Тренер Тестов'), 'в разделе клуба его больше нет — без дублей')
     await screenshot(page, 'staff-dm-admin-thread')
     await page.setViewportSize({ width: 820, height: 900 })
     const back = page.getByRole('link', { name: 'К списку' })

@@ -6,10 +6,16 @@ import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
 
 /**
  * Шапка и лента личного диалога сотрудника — отдельной страницей (/messages/dm/:id) и панелью справа у главного админа.
- * @param {{ userId: string, backTo: string, back?: import('react').ReactNode }} props back — ссылка «назад» над шапкой
+ * @param {{ userId: string, backTo: string, back?: import('react').ReactNode, onSent?: () => void }} props
+ *   back — ссылка «назад» над шапкой; onSent — после отправки (обновить список рядом)
  */
-export function StaffDmPane({ userId, backTo, back = null }) {
+export function StaffDmPane({ userId, backTo, back = null, onSent }) {
   const chat = useStaffDmThread(userId)
+  const submit = async (...args) => {
+    const sent = await chat.submit(...args)
+    if (sent) onSent?.()
+    return sent
+  }
   const peer = chat.meta?.peer
   return (
     <>
@@ -43,7 +49,7 @@ export function StaffDmPane({ userId, backTo, back = null }) {
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}
           peerReadAt={chat.meta?.peer_read_at}
-          onSubmit={chat.submit}
+          onSubmit={onSent ? submit : chat.submit}
           sending={chat.sending}
           sendError={chat.sendError}
           canWrite={Boolean(chat.meta?.can_write)}

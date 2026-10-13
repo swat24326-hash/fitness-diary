@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { chatThreadPreviewRu } from '../../lib/chat/chatUiCore.js'
+import { STAFF_RECENT_KEY } from '../../lib/chat/staffColumnsCore.js'
 import { ChatRowBody } from './ChatRowBody.jsx'
 
 function previewOf(p) {
-  if (!p.has_app) return `${p.role_label} · нет приложения`
-  return p.has_thread ? chatThreadPreviewRu(p, 'staff') : p.role_label
+  if (p.has_thread) return chatThreadPreviewRu(p, 'staff')
+  return p.has_app ? p.role_label : `${p.role_label} · нет приложения`
 }
 
 function PersonRows({ people, hrefFor, selectedId }) {
@@ -17,7 +18,7 @@ function PersonRows({ people, hrefFor, selectedId }) {
         <Link to={hrefFor(p.id)} className={cls} aria-current={p.id === selectedId ? 'page' : undefined}>
           <ChatRowBody
             kind={p.role || 'trainer'}
-            title={p.name || 'Без имени'}
+            title={p.club_title ? `${p.name || 'Без имени'} · ${p.club_title}` : p.name || 'Без имени'}
             avatar={p.name}
             preview={previewOf(p)}
             unread={p.unread}
@@ -41,9 +42,13 @@ function ClubSection({ col, withHead, searching, hrefFor, selectedId }) {
       {withHead ? (
         <header className="admin-msgr__section-head">
           <strong>{col.title}</strong>
-          <small>
-            в приложении {withApp} из {col.people.length}
-          </small>
+          {col.key === STAFF_RECENT_KEY ? (
+            <small>{col.unread ? `ждут ответа: ${col.unread}` : `${col.people.length}`}</small>
+          ) : (
+            <small>
+              в приложении {withApp} из {col.people.length}
+            </small>
+          )}
         </header>
       ) : null}
       <ol className="chat-list">

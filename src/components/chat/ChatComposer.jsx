@@ -95,6 +95,11 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
     }
   }
 
+  /* Фокус остаётся в поле: иначе iPhone прячет клавиатуру, поле съезжает из-под пальца и нажатие не отправляет. */
+  function keepKeyboard(e) {
+    if (document.activeElement === inputRef.current) e.preventDefault()
+  }
+
   async function sendSticker(id) {
     if (await onSubmit({ sticker: id })) rememberSentEmoji({ sticker: id })
   }
@@ -213,6 +218,8 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
             title="Отправить"
             aria-label="Отправить"
             data-testid="chat-send"
+            onPointerDown={keepKeyboard}
+            onMouseDown={keepKeyboard}
           >
             <Send size={20} aria-hidden />
           </button>

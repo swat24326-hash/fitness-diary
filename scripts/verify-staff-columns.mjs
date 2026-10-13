@@ -4,6 +4,7 @@
  */
 import {
   NETWORK_COLUMN_RU,
+  STAFF_RECENT_KEY,
   STAFF_VIEW_ALL,
   STAFF_VIEW_UNREAD,
   buildStaffColumns,
@@ -64,6 +65,21 @@ ok(pickStaffSections(cols, STAFF_VIEW_ALL).length === 3, '«Все клубы» 
 const waiting = pickStaffSections(cols, STAFF_VIEW_UNREAD)
 ok(waiting.length === 1 && waiting[0].people.map((p) => p.id).join() === 'm2' && waiting[0].idle.length === 0, '«Ждут ответа» — только непрочитанные, по клубам')
 ok(pickStaffSections(cols, 'club:msk').map((c) => c.key).join() === 'msk', 'выбран клуб — только он')
+
+const chats = buildStaffColumns([
+  person('old', 'Старый Диалог', 'trainer', 'msk', 'X•fit Москва', { has_thread: true, last_message_at: '2026-10-10T10:00:00Z' }),
+  person('new', 'Свежий Диалог', 'trainer', 'spb', 'X•fit Питер', { has_thread: true, last_message_at: '2026-10-13T10:00:00Z' }),
+  person('ask', 'Ждёт Ответа', 'trainer', 'msk', 'X•fit Москва', { has_thread: true, unread: true, last_message_at: '2026-10-09T10:00:00Z' }),
+  person('quiet', 'Без Переписки', 'trainer', 'msk', 'X•fit Москва'),
+])
+const all = pickStaffSections(chats, STAFF_VIEW_ALL)
+ok(all[0].key === STAFF_RECENT_KEY && all[0].title === 'Переписки', '«Все клубы»: сверху «Переписки» одной лентой')
+ok(all[0].people.map((p) => p.id).join() === 'ask,new,old', 'в «Переписках»: непрочитанные, затем свежие — из разных клубов подряд')
+ok(all[0].people[1].club_title === 'X•fit Питер' && all[0].unread === 1, 'у переписки — клуб; в шапке — сколько ждут ответа')
+ok(all.length === 2 && all[1].people.map((p) => p.id).join() === 'quiet', 'ниже клубы — без тех, кто уже в «Переписках» (без дублей)')
+ok(pickStaffSections(chats, 'club:msk')[0].people.length === 3, 'выбран клуб — все его люди, и с перепиской тоже')
+ok(pickStaffSections(chats, STAFF_VIEW_UNREAD).map((c) => c.people.map((p) => p.id).join()).join() === 'ask', '«Ждут ответа» — одна лента')
+ok(pickStaffSections(chats, STAFF_VIEW_ALL, true).every((c) => c.key !== STAFF_RECENT_KEY), 'при поиске — по клубам, без «Переписок»')
 ok(pickStaffSections(cols, 'club:нет-такого').length === 3, 'клуба больше нет — показываем все')
 ok(pickStaffSections(buildStaffColumns(people, 'кукарек'), 'club:spb', true)[0].key === 'msk', 'поиск — по всем клубам, даже если выбран другой')
 
