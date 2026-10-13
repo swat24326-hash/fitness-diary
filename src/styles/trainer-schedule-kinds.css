@@ -7,16 +7,14 @@
 .trainer-schedule-kind--work { --kind: var(--schedule-kind-work); }
 .trainer-schedule-kind--personal { --kind: var(--schedule-kind-personal); }
 
-/* --- Запись в сетке --- */
+/* --- Запись в сетке: цвет категории — заливкой и тонкой рамкой, без толстой полосы слева (узкие колонки) --- */
 .trainer-schedule-day__entry.trainer-schedule-day__entry--kind {
   background: color-mix(in srgb, var(--kind) 32%, rgba(255, 255, 255, 0.04));
   border: 1px solid color-mix(in srgb, var(--kind) 60%, transparent);
-  border-left: 4px solid var(--kind);
 }
 
 .trainer-schedule-day__entry.trainer-schedule-day__entry--draft {
   border-style: dashed;
-  border-left-style: dashed;
 }
 
 .trainer-schedule-day__entry-wrap--past:not(.trainer-schedule-day__entry-wrap--ghost) {
