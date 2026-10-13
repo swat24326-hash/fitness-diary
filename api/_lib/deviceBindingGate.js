@@ -30,13 +30,13 @@ export function deviceLabelFromHeaders(headers) {
 
 async function applyDecision(decision, { userId, deviceId, label, store, notify }) {
   if (decision.register) {
-    const { error } = await store.insert({
+    const { error, duplicate } = await store.insert({
       userId,
       deviceId,
       status: decision.register,
       label,
     })
-    if (error) return { error }
+    if (error) return { error, duplicate: Boolean(duplicate) }
   }
   if (decision.setStatus && decision.deviceRowId) {
     const { error } = await store.setStatus(decision.deviceRowId, decision.setStatus)
@@ -50,6 +50,21 @@ async function applyDecision(decision, { userId, deviceId, label, store, notify 
 }
 
 /**
+ * Два запроса входа с нового устройства в одну миллисекунду: оба видят «устройства нет» и пишут его.
+ * Проигравший перечитывает список и решает заново по записи соседа.
+ * @returns {Promise<{ listError: string } | { decision: object, error: string | null }>}
+ */
+async function decideAndApply(decide, ctx) {
+  for (let attempt = 0; ; attempt += 1) {
+    const { rows, error } = await ctx.store.listForUser(ctx.userId)
+    if (error) return { listError: error }
+    const decision = decide(rows)
+    const applied = await applyDecision(decision, ctx)
+    if (!applied.duplicate || attempt > 0) return { decision, error: applied.error }
+  }
+}
+
+/**
  * Вход по паролю. sessionDeviceId — что записать в auth_sessions (null, пока привязка выключена).
  * @returns {Promise<{ allow: true, sessionDeviceId: string | null } | { allow: false, error: string, code: string, transient?: boolean }>}
  */
@@ -59,10 +74,12 @@ export async function gateSignInDevice(
 ) {
   const window = deviceBindingNow(now)
   if (!window.active || !isDeviceBoundRole(role)) return { allow: true, sessionDeviceId: null }
-  const { rows, error } = await store.listForUser(userId)
-  if (error) return { allow: false, error: BUSY_RU, code: 'busy', transient: true }
-  const decision = decideSignInDevice({ role, deviceId, devices: rows, window })
-  const applied = await applyDecision(decision, { userId, deviceId, label, store, notify })
+  const applied = await decideAndApply(
+    (devices) => decideSignInDevice({ role, deviceId, devices, window }),
+    { userId, deviceId, label, store, notify },
+  )
+  if (applied.listError) return { allow: false, error: BUSY_RU, code: 'busy', transient: true }
+  const { decision } = applied
   if (applied.error) {
     console.warn('[device-binding] sign-in:', applied.error)
     return { allow: false, error: BUSY_RU, code: 'busy', transient: true }
@@ -81,11 +98,16 @@ export async function gateCoachDevice(
   { userId, deviceId, label = deviceLabelFromUserAgent('') },
   { store = userDevicesStore, notify = notifyAdminsPendingDevice } = {},
 ) {
-  const { rows, error } = await store.listForUser(userId)
-  if (error) return { allow: false, error: BUSY_RU, code: 'busy' }
-  const decision = decideCoachDevice({ deviceId, devices: rows })
+  const applied = await decideAndApply((devices) => decideCoachDevice({ deviceId, devices }), {
+    userId,
+    deviceId,
+    label,
+    store,
+    notify,
+  })
+  if (applied.listError) return { allow: false, error: BUSY_RU, code: 'busy' }
+  const { decision } = applied
   if (decision.reason === 'no_device') return { allow: false, error: deviceDenialMessageRu('no_device'), code: 'device_update' }
-  const applied = await applyDecision(decision, { userId, deviceId, label, store, notify })
   if (applied.error) {
     console.warn('[device-binding] coach:', applied.error)
     return { allow: false, error: BUSY_RU, code: 'busy' }
@@ -103,10 +125,12 @@ export async function gateRefreshDevice(
 ) {
   const window = deviceBindingNow(now)
   if (!window.active || !isDeviceBoundRole(role)) return { allow: true, bindDevice: null }
-  const { rows, error } = await store.listForUser(userId)
-  if (error) return { allow: false, error: BUSY_RU, transient: true }
-  const decision = decideRefreshDevice({ role, session, headerDeviceId, devices: rows, window })
-  const applied = await applyDecision(decision, { userId, deviceId: headerDeviceId, label, store, notify })
+  const applied = await decideAndApply(
+    (devices) => decideRefreshDevice({ role, session, headerDeviceId, devices, window }),
+    { userId, deviceId: headerDeviceId, label, store, notify },
+  )
+  if (applied.listError) return { allow: false, error: BUSY_RU, transient: true }
+  const { decision } = applied
   if (applied.error) {
     console.warn('[device-binding] refresh:', applied.error)
     return { allow: false, error: BUSY_RU, transient: true }

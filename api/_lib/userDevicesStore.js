@@ -39,7 +39,7 @@ export const userDevicesStore = {
         last_seen_at: now,
         ...(status === 'approved' ? { decided_at: now } : {}),
       })
-    return { error: error?.message ?? null }
+    return { error: error?.message ?? null, duplicate: String(error?.code ?? '') === '23505' }
   },
 
   async setStatus(id, status, decidedBy = null) {

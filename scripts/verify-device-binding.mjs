@@ -40,9 +40,10 @@ const DEV_B = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb'
 const DEV_C = 'cccccccc-3333-4333-8333-cccccccccccc'
 
 /** user_devices в памяти. */
-function memoryDevices(initial = [], { failList = false, failInsert = false } = {}) {
+function memoryDevices(initial = [], { failList = false, failInsert = false, raceStatus = null } = {}) {
   const rows = initial.map((r) => ({ ...r }))
   let n = rows.length
+  let race = raceStatus
   return {
     rows,
     notified: [],
@@ -52,6 +53,12 @@ function memoryDevices(initial = [], { failList = false, failInsert = false } = 
     },
     async insert({ userId, deviceId, status, label }) {
       if (failInsert) return { error: 'insert failed' }
+      if (race) {
+        n += 1
+        rows.push({ id: `d-${n}`, user_id: userId, device_id: deviceId, status: race, label })
+        race = null
+        return { error: 'duplicate key value violates unique constraint', duplicate: true }
+      }
       n += 1
       rows.push({ id: `d-${n}`, user_id: userId, device_id: deviceId, status, label })
       return { error: null }
@@ -218,6 +225,22 @@ try {
     const busy2 = await gateSignInDevice({ userId: 'u1', role: T, deviceId: DEV_A, now }, deps(memoryDevices([], { failInsert: true })))
     console.warn = prevWarn
     ok(!busy2.allow && busy2.code === 'busy', 'гейт: сбой записи — «повторите»')
+    const racePending = memoryDevices([{ id: 'd0', user_id: 'u1', device_id: DEV_A, status: 'approved' }], { raceStatus: 'pending' })
+    const gRace = await gateSignInDevice({ userId: 'u1', role: T, deviceId: DEV_B, now }, deps(racePending))
+    await new Promise((r) => setTimeout(r, 0))
+    ok(
+      !gRace.allow && gRace.code === 'device_pending' && racePending.rows.length === 2 && racePending.notified.length === 0,
+      'гейт: два входа разом с нового устройства — «ждёт разрешения», не «сервер занят» (INC-2026-10-13-01)',
+    )
+    const raceFirst = memoryDevices([], { raceStatus: 'approved' })
+    const gFirst = await gateSignInDevice({ userId: 'u1', role: T, deviceId: DEV_A, now }, deps(raceFirst))
+    ok(gFirst.allow && raceFirst.rows.length === 1, 'гейт: гонка на первом устройстве — пускаем по записи соседа')
+    const raceRefresh = memoryDevices([], { raceStatus: 'approved' })
+    const rRace = await gateRefreshDevice(
+      { userId: 'u1', role: T, session: { device_id: null, created_at: new Date(SINCE_MS - DAY).toISOString() }, headerDeviceId: DEV_C, now },
+      deps(raceRefresh),
+    )
+    ok(rRace.allow && !rRace.transient, 'гейт: гонка при продлении — без 503')
     const admin = await gateSignInDevice({ userId: 'u9', role: 'admin', deviceId: null, now }, deps(memoryDevices([], { failList: true })))
     ok(admin.allow, 'гейт: админа база устройств не трогает')
     const r1 = await gateRefreshDevice({ userId: 'u1', role: T, session: { device_id: null, created_at: new Date(SINCE_MS - DAY).toISOString() }, headerDeviceId: DEV_C, now }, deps(s))
