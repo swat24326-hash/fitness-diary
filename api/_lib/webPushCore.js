@@ -1,6 +1,7 @@
 import webpush from 'web-push'
 import { buildDispatchPushPayload, isValidVapidPublicKey } from '../../src/lib/push/trainerPushCore.js'
 import { pushUrlForApp } from '../../src/lib/push/pushTargetUrlCore.js'
+import { webPushSendOptions } from '../../src/lib/push/webPushDelivery.js'
 import {
   buildDispatchSenderStatusPushPayload,
   shouldNotifySenderOnDispatchStatus,
@@ -46,6 +47,7 @@ export async function sendWebPushToRow(row, payload) {
         keys: { p256dh: row.p256dh, auth: row.auth },
       },
       JSON.stringify(msg),
+      webPushSendOptions(),
     )
     return { ok: true }
   } catch (e) {

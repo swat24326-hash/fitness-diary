@@ -7,6 +7,7 @@ import { buildCoachMe, buildCoachSchedule, coachScheduleDays } from '../api/_lib
 import { handlePushSubscriptionPost } from '../api/_lib/pushSubscriptionHandler.js'
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
 import { PUSH_APP_COACH, coachPushUrl, pushUrlForApp, staffPushTestUrl } from '../src/lib/push/pushTargetUrlCore.js'
+import { webPushSendOptions } from '../src/lib/push/webPushDelivery.js'
 import { buildCoachJoinUrl, coachQrTokenFromHash } from '../src/lib/coach/coachJoinLink.js'
 import { buildCoachClub, buildCoachManifest, coachManifestUrl } from '../api/_lib/coach/coachManifestCore.js'
 import { createCoachHandler } from '../api/_lib/coach/coachHandler.js'
@@ -41,6 +42,9 @@ ok(staffPushTestUrl({ isAdmin: true }) === '/messages', '«Проверить» 
 ok(staffPushTestUrl({ isSupervisor: true }) === '/messages', '«Проверить» у управляющего → «Сообщения», не экран тренера')
 ok(staffPushTestUrl({ isSalesManager: true }) === '/sales/club-tasks?inbox=1', '«Проверить» у продаж → входящие Планёрки')
 ok(staffPushTestUrl({}) === '/trainer?inbox=1' && staffPushTestUrl() === '/trainer?inbox=1', '«Проверить» у тренера → входящие Планёрки')
+const sendOpts = webPushSendOptions()
+ok(sendOpts.urgency === 'high', 'push срочный — Android в режиме сна отдаёт сразу, не пачкой через час')
+ok(sendOpts.TTL === 3 * 24 * 60 * 60, 'телефон дольше 3 суток без сети — старое уведомление не догоняет')
 
 // --- Расписание: сегодня и завтра, только имя, время и подпись ---
 ok(coachScheduleDays('2026-12-31').join() === '2026-12-31,2027-01-01', 'завтра через границу года')
