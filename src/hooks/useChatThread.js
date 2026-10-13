@@ -17,10 +17,10 @@ export const CHAT_OFFLINE_RU = 'Нет сети — сообщение не от
  * Пока экран открыт и виден — свежие сообщения раз в 10 с и сразу при приходе push.
  * Читает историю выше — опрос без отметки «прочитано» (seen=false); дошёл до низа — перечитываем с отметкой.
  * react(messageId, emoji|null) — реакция на сообщение; на экране сразу, ответ сервера уточняет.
- * search(q) — поиск по диалогу на сервере ({ results }); отдаём как есть в ChatThreadView.
+ * search(q) — поиск по диалогу на сервере ({ results }); dictate(audio) — голос в текст ({ text }); отдаём как есть в ChatThreadView.
  * @param {{ key: string, side: 'client' | 'staff', load: (before?: string, opts?: { seen: boolean }) => Promise<{ messages: object[], has_more: boolean }>, send: (outgoing: { body: string } | { sticker: string }) => Promise<{ message: object }>, react?: (messageId: string, emoji: string|null) => Promise<{ reactions: object[] }> }} p
  */
-export function useChatThread({ key, side, load, send, react, search }) {
+export function useChatThread({ key, side, load, send, react, search, dictate }) {
   const [state, setState] = useState({ messages: null, meta: null, hasMore: false, status: 'loading', error: '', errorStatus: null })
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
@@ -200,6 +200,7 @@ export function useChatThread({ key, side, load, send, react, search }) {
     react: react ? reactTo : undefined,
     reply: { to: replyTo, start: startReply, cancel: cancelReply, find: findMessage },
     search,
+    dictate,
     sending,
     sendError,
     onAtBottom,

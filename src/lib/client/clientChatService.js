@@ -23,6 +23,11 @@ export function searchClientChat(kind, q) {
   return postClientMe({ action: 'chat-search', kind, q })
 }
 
+/** Голос в текст для поля ввода. @returns {Promise<{ text: string }>} */
+export function dictateClientChat(audio) {
+  return postClientMe({ action: 'chat-dictate', audio })
+}
+
 export function reactClientChatMessage(kind, messageId, emoji) {
   return postClientMe({ action: 'chat-react', kind, message_id: messageId, emoji })
 }

@@ -1,0 +1,164 @@
+/* Голосовой ввод в поле переписки (как в Cursor): микрофон в капсуле, запись с волной и таймером, «Распознаю…». */
+
+/* Пока идёт запись, поле и смайлики прячутся, но не размонтируются — курсор и высота поля сохраняются. */
+.chat-compose__pill > [hidden] {
+  display: none;
+}
+
+.chat-compose__mic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s var(--ease-out, ease);
+}
+
+.chat-compose__mic:hover,
+.chat-compose__mic:focus-visible {
+  color: var(--accent-bright, var(--accent));
+  outline: none;
+}
+
+.chat-dictation {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 46px;
+  padding-right: 14px;
+}
+
+.chat-dictation__cancel {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chat-dictation__cancel:hover,
+.chat-dictation__cancel:focus-visible {
+  color: var(--danger);
+  outline: none;
+}
+
+.chat-dictation__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent);
+  animation: chat-dictation-pulse 1.2s ease-out infinite;
+}
+
+.chat-dictation__time {
+  flex: none;
+  min-width: 2.6em;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-dictation__time.is-ending {
+  color: var(--warning, #fbbf24);
+}
+
+.chat-dictation__wave {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  min-width: 0;
+  height: 28px;
+  overflow: hidden;
+}
+
+.chat-dictation__wave i {
+  flex: none;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-bright, var(--accent));
+  transform-origin: center;
+  transition: transform 0.09s linear;
+}
+
+.chat-dictation.is-busy {
+  padding-left: 16px;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.chat-dictation__dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.chat-dictation__dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-bright, var(--accent));
+  animation: chat-dictation-dot 1s ease-in-out infinite;
+}
+
+.chat-dictation__dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-dictation__dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Круглая кнопка справа во время записи — «Готово» (распознать). */
+.chat-compose__send.is-dictating {
+  background: linear-gradient(165deg, var(--accent-bright), var(--accent) 45%, var(--accent-dim));
+  box-shadow: 0 4px 18px var(--accent-glow);
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+}
+
+@keyframes chat-dictation-pulse {
+  70% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--danger) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 0%, transparent);
+  }
+}
+
+@keyframes chat-dictation-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-dictation__dot,
+  .chat-dictation__dots i {
+    animation: none;
+  }
+
+  .chat-dictation__wave i {
+    transition: none;
+  }
+}

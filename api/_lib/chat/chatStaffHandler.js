@@ -8,6 +8,7 @@
  * POST { op: 'send', client_id, kind, body } → { message }
  * POST { op: 'react', client_id, kind, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
  *      (реакцию ставит тот, кто может писать в диалог)
+ * POST { op: 'dictate', audio } → { text } — голос в текст для поля ввода (chatDictateHandler.js); всем, у кого есть переписка
  * Тренер, связанный с управляющим (linkedStaffStore), ведёт «Жалобы и предложения» (kind supervisor) от учётки управляющего.
  */
 import { sendJson } from '../adminSupabase.js'
@@ -26,7 +27,9 @@ import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
+import { staffDmRoleOf } from '../../../src/lib/chat/staffDmAccessCore.js'
 import { openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
+import { dictateChatAudio } from './chatDictateHandler.js'
 import { sendChatContacts } from './chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, staffDmAttention } from './staffDmHandler.js'
 import { isMissingChatTable, loadChatClient, loadClientsByIds, loadStaffThreads } from './chatStore.js'
@@ -142,6 +145,11 @@ export async function handleStaffChatPost(ctx, res, body) {
   const op = String(body?.op ?? '')
   if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body?.user_id, body)
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body?.user_id, body)
+  if (op === 'dictate') {
+    if (!chatStaffRole(ctx) && !staffDmRoleOf(ctx.profile?.role)) return sendJson(res, 403, { error: CHAT_NO_ACCESS_RU })
+    const out = await dictateChatAudio(`u:${ctx.user?.id ?? ''}`, body?.audio)
+    return sendJson(res, out.status, out.body)
+  }
   const scope = scopeOf(ctx, res)
   if (!scope) return
   if (op !== 'send' && op !== 'react') {

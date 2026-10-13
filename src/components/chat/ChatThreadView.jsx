@@ -16,9 +16,10 @@ import '../../styles/chat-search.css'
  *   canWrite?: boolean, readOnlyHint?: string, emptyHint: string, placeholder?: string,
  *   onAtBottom?: (atBottom: boolean) => void, onReact?: (messageId: string, emoji: string) => void,
  *   reply?: { to: object|null, start: (message: object) => void, cancel: () => void, find: (id: string) => Promise<boolean> },
- *   search?: (q: string) => Promise<{ results: object[] }>,
+ *   search?: (q: string) => Promise<{ results: object[] }>, dictate?: (audio: string) => Promise<{ text: string }>,
  * }} props
- * reply — «Ответить» с цитатой (useChatThread().reply); search — поиск по диалогу на сервере (лупа в углу ленты)
+ * reply — «Ответить» с цитатой (useChatThread().reply); search — поиск по диалогу на сервере (лупа в углу ленты);
+ * dictate — голос в текст для поля ввода (🎤)
  * onAtBottom — внизу ли человек: «прочитано» ставим, только когда новое на экране (useChatThread)
  */
 export function ChatThreadView({
@@ -37,6 +38,7 @@ export function ChatThreadView({
   onReact,
   reply,
   search,
+  dictate,
 }) {
   const endRef = useRef(null)
   const atBottomRef = useRef(true)
@@ -140,6 +142,7 @@ export function ChatThreadView({
           sending={sending}
           sendError={sendError}
           placeholder={placeholder}
+          dictate={dictate}
           above={floating}
           replyTo={reply?.to ?? null}
           onCancelReply={reply?.cancel}

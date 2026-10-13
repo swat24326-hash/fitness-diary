@@ -39,6 +39,11 @@ export function searchStaffDm(userId, q) {
   return inboxApiCall('chat', 'GET', { view: 'dm-search', user_id: userId, q })
 }
 
+/** Голос в текст для поля ввода (base64 PCM 16 кГц). @returns {Promise<{ text: string }>} */
+export function dictateStaffChat(audio) {
+  return inboxApiCall('chat', 'POST', {}, { op: 'dictate', audio })
+}
+
 /** @param {{ body: string } | { sticker: string }} outgoing */
 export function sendStaffDmMessage(userId, outgoing) {
   return inboxApiCall('chat', 'POST', {}, { op: 'dm-send', user_id: userId, ...outgoing })

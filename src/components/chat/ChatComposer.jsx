@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Keyboard, Send, Smile } from 'lucide-react'
+import { Check, Keyboard, Mic, Send, Smile } from 'lucide-react'
+import { useChatDictation } from '../../hooks/useChatDictation.js'
 import { CHAT_BODY_MAX, CHAT_PASTE_CUT_RU, chatLengthCounter, chatPasteCut } from '../../lib/chat/chatMessageCore.js'
+import { insertDictation } from '../../lib/chat/chatDictationCore.js'
 import { insertEmoji } from '../../lib/chat/chatEmojiCore.js'
 import { rememberSentEmoji } from '../../lib/chat/chatEmojiUsageStore.js'
 import { attachChatKeyboardInset } from '../../lib/chat/chatKeyboardInset.js'
+import { ChatDictationBar } from './ChatDictationBar.jsx'
 import { ChatEmojiPicker } from './ChatEmojiPicker.jsx'
 import { ChatReplyQuote } from './ChatReplyQuote.jsx'
 
@@ -17,16 +20,52 @@ function enterSends() {
  * @param {{ onSubmit: (input: string | { sticker: string }) => Promise<boolean>, sending: boolean, sendError: string, placeholder: string, above?: import('react').ReactNode }} props
  * above — висит над полем и едет вместе с ним над клавиатурой (кнопка «↓ Новые»)
  * replyTo — «Ответ …» над полем (крестик или Esc — onCancelReply); выбрали «Ответить» — фокус в поле, как в Telegram
+ * dictate — голосовой ввод (🎤 в капсуле): распознанный текст встаёт на место курсора, отправляет человек сам
  */
-export function ChatComposer({ onSubmit, sending, sendError, placeholder, above = null, replyTo = null, onCancelReply }) {
+export function ChatComposer({ onSubmit, sending, sendError, placeholder, above = null, replyTo = null, onCancelReply, dictate }) {
   const [draft, setDraft] = useState('')
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [pasteCut, setPasteCut] = useState(false)
   const inputRef = useRef(null)
   const caretRef = useRef(null)
   const formRef = useRef(null)
+  const draftRef = useRef(draft)
+  const selRef = useRef(null)
+  draftRef.current = draft
+  const dictation = useChatDictation({
+    dictate,
+    onText: (spoken) => {
+      const sel = selRef.current
+      const next = insertDictation(draftRef.current, sel?.start, sel?.end, spoken, CHAT_BODY_MAX)
+      caretRef.current = next.caret
+      setDraft(next.text)
+      setPasteCut(next.cut)
+    },
+  })
+  const listening = dictation.phase !== 'idle'
 
   useEffect(() => attachChatKeyboardInset(formRef.current), [])
+
+  const { phase, stop: stopDictation, cancel: cancelDictation } = dictation
+  useEffect(() => {
+    if (phase !== 'recording') return undefined
+    const onKey = (e) => {
+      if (e.key === 'Escape') cancelDictation()
+      else if (e.key === 'Enter') {
+        e.preventDefault()
+        void stopDictation()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [phase, stopDictation, cancelDictation])
+
+  function startDictation() {
+    const el = inputRef.current
+    selRef.current = el ? { start: el.selectionStart, end: el.selectionEnd } : null
+    setEmojiOpen(false)
+    void dictation.start()
+  }
 
   const replyId = replyTo?.id
   useEffect(() => {
@@ -67,7 +106,7 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
     if (next.text.length <= CHAT_BODY_MAX) setDraft(next.text)
   }
 
-  const canSend = Boolean(draft.trim()) && !sending
+  const canSend = Boolean(draft.trim()) && !sending && !listening
   const counter = chatLengthCounter(draft.length)
 
   return (
@@ -76,6 +115,11 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
       {sendError ? (
         <p className="chat-compose__error" role="alert">
           {sendError}
+        </p>
+      ) : null}
+      {dictation.error ? (
+        <p className="chat-compose__error" role="alert" data-testid="chat-dictation-error">
+          {dictation.error}
         </p>
       ) : null}
       {pasteCut ? (
@@ -92,8 +136,10 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
       {emojiOpen ? <ChatEmojiPicker onPick={pickEmoji} onSticker={(id) => void sendSticker(id)} sending={sending} /> : null}
       <div className="chat-compose__row">
         <div className="chat-compose__pill">
+          {listening ? <ChatDictationBar dictation={dictation} /> : null}
           <button
             type="button"
+            hidden={listening}
             className={`chat-compose__emoji${emojiOpen ? ' is-active' : ''}`}
             aria-label={emojiOpen ? 'Клавиатура' : 'Смайлики и стикеры'}
             aria-expanded={emojiOpen}
@@ -108,6 +154,7 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
           </button>
           <textarea
             ref={inputRef}
+            hidden={listening}
             className="chat-compose__input"
             rows={1}
             value={draft}
@@ -117,6 +164,7 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
             data-testid="chat-input"
             onChange={(e) => {
               setDraft(e.target.value)
+              dictation.clearError()
               if (e.target.value.length < CHAT_BODY_MAX) setPasteCut(false)
             }}
             onPaste={(e) => {
@@ -133,17 +181,42 @@ export function ChatComposer({ onSubmit, sending, sendError, placeholder, above 
               if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) void submit(e)
             }}
           />
+          {dictation.available && !listening ? (
+            <button
+              type="button"
+              className="chat-compose__mic"
+              aria-label="Голосовой ввод"
+              title="Голосовой ввод"
+              data-testid="chat-mic"
+              onClick={startDictation}
+            >
+              <Mic size={22} aria-hidden />
+            </button>
+          ) : null}
         </div>
-        <button
-          type="submit"
-          className={`chat-compose__send${canSend ? ' is-ready' : ''}`}
-          disabled={!canSend}
-          title="Отправить"
-          aria-label="Отправить"
-          data-testid="chat-send"
-        >
-          <Send size={20} aria-hidden />
-        </button>
+        {phase === 'recording' ? (
+          <button
+            type="button"
+            className="chat-compose__send is-dictating"
+            title="Готово — в текст"
+            aria-label="Готово — в текст"
+            data-testid="chat-dictation-done"
+            onClick={() => void stopDictation()}
+          >
+            <Check size={22} aria-hidden />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className={`chat-compose__send${canSend ? ' is-ready' : ''}`}
+            disabled={!canSend}
+            title="Отправить"
+            aria-label="Отправить"
+            data-testid="chat-send"
+          >
+            <Send size={20} aria-hidden />
+          </button>
+        )}
       </div>
     </form>
   )

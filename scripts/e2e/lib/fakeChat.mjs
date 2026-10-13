@@ -49,6 +49,7 @@ import {
   normalizeChatReaction,
   summarizeChatReactions,
 } from '../../../src/lib/chat/chatReactionCore.js'
+import { checkDictationAudio } from '../../../src/lib/chat/chatDictationCore.js'
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, CHAT_SEARCH_LIMIT, chatTextMatches, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
@@ -68,7 +69,18 @@ function staffCtx(user) {
 
 /** @param {{ users: object[], clients: object[] }} state */
 export function createFakeChat(state) {
-  const chat = { threads: [], messages: [], reactions: [], dm: { threads: [], messages: [], pushes: [] } }
+  const chat = {
+    threads: [], messages: [], reactions: [], dm: { threads: [], messages: [], pushes: [] },
+    dictation: 'Купите резинку средней жёсткости.',
+    dictated: [],
+  }
+  /** Как chatDictateHandler: тот же разбор звука, вместо SpeechKit — chat.dictation. */
+  const dictate = (audio) => {
+    const check = checkDictationAudio(audio)
+    if (!check.ok) return { status: check.status, json: { error: check.error } }
+    chat.dictated.push(check.bytes)
+    return { status: 200, json: { text: chat.dictation } }
+  }
   const names = () => new Map(state.users.map((u) => [String(u.id), u.name]))
   const threadOf = (clientId, kind) => chat.threads.find((t) => t.client_id === clientId && t.kind === kind)
   /** Как linkedStaffStore: тренерская учётка, связанная с управляющим, → строка управляющего. */
@@ -175,6 +187,7 @@ export function createFakeChat(state) {
 
   /** Ветки клиента; null — не чат, пусть ответит основной подменный портал. */
   function client(clientId, body) {
+    if (body?.action === 'chat-dictate') return dictate(body.audio)
     const row = state.clients.find((c) => c.id === clientId)
     const kind = String(body?.kind ?? '')
     if (body.action === 'chat-list') {
@@ -339,6 +352,7 @@ export function createFakeChat(state) {
   function staff(req, user) {
     if (req.searchParams.get('action') !== 'chat') return null
     const ctx = staffCtx(user)
+    if (req.method === 'POST' && req.body?.op === 'dictate') return dictate(req.body.audio)
     if (req.method === 'POST' && req.body?.op === 'dm-send') return dmSend(user, req.body.user_id, req.body)
     if (req.method === 'POST' && req.body?.op === 'dm-react') {
       const viewer = dmViewer(dmUser(user))

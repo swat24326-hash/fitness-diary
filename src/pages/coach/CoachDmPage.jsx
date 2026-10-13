@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
-import { fetchCoachDmThread, reactCoachDmMessage, searchCoachDm, sendCoachDmMessage } from '../../lib/coach/coachApiClient.js'
+import { dictateCoachChat, fetchCoachDmThread, reactCoachDmMessage, searchCoachDm, sendCoachDmMessage } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
 import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
@@ -19,7 +19,7 @@ export function CoachDmPage() {
   const send = useCallback((outgoing) => sendCoachDmMessage(userId, outgoing), [userId])
   const react = useCallback((messageId, emoji) => reactCoachDmMessage(userId, messageId, emoji), [userId])
   const search = useCallback((q) => searchCoachDm(userId, q), [userId])
-  const chat = useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search })
+  const chat = useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search, dictate: dictateCoachChat })
   const peer = chat.meta?.peer
 
   useEffect(() => {
@@ -48,6 +48,7 @@ export function CoachDmPage() {
           onReact={chat.react}
           reply={chat.reply}
           search={chat.search}
+          dictate={chat.dictate}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

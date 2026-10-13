@@ -11,6 +11,7 @@
  *      | { op: 'push-prefs', endpoint, schedule_reminders? } — напоминания Ежедневника на этом телефоне
  *      | { op: 'dm-send', user_id, body | sticker, reply_to? } — сообщение коллеге / администрации (reply_to — ответ с цитатой)
  *      | { op: 'chat-react', client_id, kind?, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } — реакция
+ *      | { op: 'chat-dictate', audio } → { text } — голос в текст для поля ввода
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
  *      | { op: 'schedule-save' | 'schedule-delete' | 'schedule-copies', ... } — правка Ежедневника
@@ -136,6 +137,7 @@ async function handlePost(ctx, res, body, store) {
     return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, client_msg_id, reply_to })
   }
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body.user_id, { message_id: body.message_id, emoji: body.emoji })
+  if (op === 'chat-dictate') return handleStaffChatPost(ctx, res, { op: 'dictate', audio: body.audio })
   if (op === 'client-invite') {
     const out = await issueClientInvite(ctx, { client_id: body.client_id })
     return sendJson(res, out.status, out.body)

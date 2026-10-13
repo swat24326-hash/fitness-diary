@@ -78,8 +78,8 @@ async function eventually(check) {
   return false
 }
 
-function wireClient(backend, chat) {
-  const portal = createFakeClientPortal(backend.state, { clientId: CLIENT_ID, inviteToken: INVITE, today: isoDay(0) })
+export function wireClient(backend, chat, inviteToken = INVITE) {
+  const portal = createFakeClientPortal(backend.state, { clientId: CLIENT_ID, inviteToken, today: isoDay(0) })
   backend.clientMe = (req) => {
     const authed = /^Bearer .+/.test(String(req.headers.authorization ?? ''))
     if (authed && req.path === '/api/client-me' && req.method === 'POST' && String(req.body?.action ?? '').startsWith('chat-')) {
