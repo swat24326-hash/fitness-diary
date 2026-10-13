@@ -3,7 +3,7 @@
  */
 import { chatReadCutoff, isUniqueViolation } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chronological } from '../../../src/lib/chat/chatMessageCore.js'
-import { USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../../../src/lib/userRoleConstants.js'
+import { USERS_ADMIN_ROLES, USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../../../src/lib/userRoleConstants.js'
 import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
 import { CHAT_PAGE } from './chatStore.js'
@@ -14,7 +14,7 @@ const THREAD_FIELDS =
 export const DM_MESSAGE_FIELDS = 'id, body, sticker, created_at, author_user_id, reply_to'
 const MESSAGE_FIELDS = DM_MESSAGE_FIELDS
 const USER_FIELDS = 'id, name, role, club_id, is_active'
-const DM_ROLES = [...USERS_TRAINER_ROLES, ...USERS_SALES_MANAGER_ROLES, ...USERS_SUPERVISOR_ROLES]
+const DM_ROLES = [...USERS_TRAINER_ROLES, ...USERS_SALES_MANAGER_ROLES, ...USERS_SUPERVISOR_ROLES, ...USERS_ADMIN_ROLES]
 
 export function isMissingDmTable(e) {
   const msg = String(e?.message ?? '')
@@ -30,6 +30,22 @@ export async function loadDmUser(db, userId) {
 /** Сотрудники клуба с ролью переписки; окончательный фильтр — pickStaffDmPeers. */
 export function loadClubStaff(db, clubId) {
   return rows(db.from('users').select(USER_FIELDS).eq('club_id', clubId).in('role', DM_ROLES))
+}
+
+/** Для главного админа: сотрудники всей сети + название клуба у каждого. */
+export async function loadNetworkStaff(db) {
+  const [staff, clubs] = await Promise.all([
+    rows(db.from('users').select(USER_FIELDS).in('role', DM_ROLES)),
+    rows(db.from('clubs').select('id, name')),
+  ])
+  const names = new Map(clubs.map((c) => [String(c.id), String(c.name ?? '').trim()]))
+  return staff.map((u) => ({ ...u, club_name: names.get(String(u.club_id ?? '')) ?? '' }))
+}
+
+/** Собеседники из чужих диалогов (главный админ у сотрудника) — по id. */
+export async function loadDmUsersByIds(db, userIds) {
+  const ids = [...new Set(userIds.map(String))]
+  return loadInChunks(ids, (part) => rows(db.from('users').select(USER_FIELDS).in('id', part)))
 }
 
 /** «Есть приложение»: подключённый телефон тренера или подписка на уведомления. */

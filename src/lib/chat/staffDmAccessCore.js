@@ -3,7 +3,7 @@
  * Без React и базы — сервер и подменный сервер автотестов зовут одно и то же.
  */
 import { normalizeStaffRole } from '../admin/adminRoleCore.js'
-import { USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../userRoleConstants.js'
+import { USERS_ADMIN_ROLES, USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../userRoleConstants.js'
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_COLLEAGUES } from './chatContactsCore.js'
 import { CHAT_PUSH_PREVIEW_MAX, chatPreview } from './chatMessageCore.js'
 
@@ -13,21 +13,22 @@ export const STAFF_DM_BLOCKED_RU = 'Сотрудник заблокирован 
 export const STAFF_DM_NO_ACCESS_RU = 'Нет доступа к этой переписке'
 export const STAFF_DM_NO_CLUB_RU = 'У вас не задан клуб — обратитесь к администратору'
 
-/** Главного админа нет: у него нет «Сообщений клуба» (/messages), письмо некому было бы прочитать. */
+/** Главный админ — на всю сеть, без клуба; куратора нет: у него нет «Сообщений» (/messages), письмо некому было бы прочитать. */
 const ROLE_VALUES = Object.freeze({
   trainer: USERS_TRAINER_ROLES,
   sales: USERS_SALES_MANAGER_ROLES,
   supervisor: USERS_SUPERVISOR_ROLES,
+  admin: USERS_ADMIN_ROLES,
 })
 
-const ROLE_LABEL_RU = Object.freeze({ trainer: 'Тренер', sales: 'Менеджер по продажам', supervisor: 'Управляющий' })
+const ROLE_LABEL_RU = Object.freeze({ trainer: 'Тренер', sales: 'Менеджер по продажам', supervisor: 'Управляющий', admin: 'Главный админ' })
 
 /** Подпись собеседника-сотрудника. Не chatKindLabelRu: диалог клиента «supervisor» — «Жалобы и предложения». */
 export function staffRoleLabelRu(roleRaw) {
   return ROLE_LABEL_RU[staffDmRoleOf(roleRaw)] ?? 'Сотрудник'
 }
 
-/** Роль строки users для переписки; пустая или другая (админ, куратор) — null. */
+/** Роль строки users для переписки; пустая или другая (куратор) — null. */
 export function staffDmRoleOf(roleRaw) {
   const role = normalizeStaffRole(roleRaw)
   if (!role) return null
@@ -45,7 +46,7 @@ export function staffDmFolderOf(peerRoleRaw) {
 const norm = (v) => String(v ?? '').trim()
 
 /**
- * Можно ли этой паре быть на связи: оба с ролью, не сам с собой, один клуб.
+ * Можно ли этой паре быть на связи: оба с ролью, не сам с собой, один клуб; с главным админом — любой клуб.
  * @param {{ id: string, role: string, club_id?: string|null }} viewer
  * @param {{ id: string, role: string, club_id?: string|null, is_active?: boolean } | null} peer
  * @returns {{ ok: true } | { ok: false, status: number, error: string }}
@@ -57,6 +58,7 @@ export function staffDmPairAccess(viewer, peer) {
   if (norm(peer.id) === norm(viewer.id)) return { ok: false, status: 400, error: STAFF_DM_SELF_RU }
   const them = staffDmRoleOf(peer.role)
   if (!them) return { ok: false, status: 403, error: STAFF_DM_NO_ACCESS_RU }
+  if (me === 'admin' || them === 'admin') return { ok: true }
   const club = norm(viewer.club_id)
   if (!club) return { ok: false, status: 403, error: STAFF_DM_NO_CLUB_RU }
   if (club !== norm(peer.club_id)) return { ok: false, status: 403, error: STAFF_DM_NO_ACCESS_RU }
@@ -140,12 +142,19 @@ export function buildStaffDmPushPayload({ authorId, authorName, body }) {
   }
 }
 
-/** Активные сотрудники своего клуба — кандидаты в папки «Коллеги» и «Администрация». */
-export function pickStaffDmPeers(viewer, users) {
+/**
+ * Кандидаты в папки «Коллеги» и «Администрация»: активные сотрудники своего клуба (у главного админа — всей сети).
+ * Главный админ в списке сотрудника — только когда уже есть диалог: написал первым — можно ответить.
+ * @param {Iterable<string>} [threadPeerIds] с кем у viewer уже есть диалог
+ */
+export function pickStaffDmPeers(viewer, users, threadPeerIds = []) {
+  const withThread = new Set([...threadPeerIds].map(norm))
+  const viewerIsAdmin = staffDmRoleOf(viewer?.role) === 'admin'
   const out = []
   for (const u of users ?? []) {
     if (u.is_active === false) continue
     if (!staffDmPairAccess(viewer, u).ok) continue
+    if (!viewerIsAdmin && staffDmRoleOf(u.role) === 'admin' && !withThread.has(norm(u.id))) continue
     out.push(u)
   }
   return out

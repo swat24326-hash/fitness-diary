@@ -48,6 +48,8 @@ import {
   isMissingDmTable,
   loadClubStaff,
   loadDmMessageByClientMsgId,
+  loadDmUsersByIds,
+  loadNetworkStaff,
   loadDmMessages,
   loadDmThread,
   loadDmThreadsFor,
@@ -151,7 +153,7 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
       sendJson(res, 400, { error: checked.error })
       return
     }
-    const thread = await ensureDmThread(db, staffDmPair(viewer.id, peer.id), viewer.club_id)
+    const thread = await ensureDmThread(db, staffDmPair(viewer.id, peer.id), viewer.club_id || peer.club_id)
     const clientMsgId = normalizeClientMsgId(input?.client_msg_id)
     const earlier = await loadDmMessageByClientMsgId(db, thread.id, clientMsgId)
     if (!earlier) {
@@ -236,6 +238,21 @@ export function reactStaffDmMessage(authCtx, res, peerId, input) {
   })
 }
 
+/** Главный админ — вся сеть с названием клуба; сотрудник — свой клуб + главный админ, если тот уже написал. */
+async function loadDmCandidates(db, viewer, threads) {
+  const role = staffDmRoleOf(viewer.role)
+  const clubId = String(viewer.club_id ?? '').trim()
+  if (role === 'admin') {
+    const [staff, hidden] = await Promise.all([loadNetworkStaff(db), loadHiddenLinkedTrainers(db, null)])
+    return { staff, hidden }
+  }
+  const peerIds = threads.map((t) => String(staffDmSideOf(t, viewer.id) === 'lo' ? t.user_hi : t.user_lo))
+  const [staff, hidden] = await Promise.all([loadClubStaff(db, clubId), loadHiddenLinkedTrainers(db, clubId)])
+  const known = new Set(staff.map((u) => String(u.id)))
+  const outside = await loadDmUsersByIds(db, peerIds.filter((id) => !known.has(id)))
+  return { staff: [...staff, ...outside.filter((u) => staffDmRoleOf(u.role) === 'admin')], hidden, peerIds }
+}
+
 /**
  * Люди для папок «Коллеги» / «Администрация»; null — роли нет в переписке сотрудников, клуба нет или таблиц ещё нет.
  * @returns {Promise<{ colleagues: object[], admin: object[] } | null>}
@@ -243,16 +260,13 @@ export function reactStaffDmMessage(authCtx, res, peerId, input) {
 export async function loadStaffDmContacts(authCtx) {
   const ctx = await staffDmCtx(authCtx)
   const viewer = viewerOf(ctx)
-  const clubId = String(viewer.club_id ?? '').trim()
-  if (!staffDmRoleOf(viewer.role) || !clubId) return null
+  const role = staffDmRoleOf(viewer.role)
+  if (!role || (role !== 'admin' && !String(viewer.club_id ?? '').trim())) return null
   const db = ctx.supabaseAdmin
   try {
-    const [staff, threads, hidden] = await Promise.all([
-      loadClubStaff(db, clubId),
-      loadDmThreadsFor(db, viewer.id),
-      loadHiddenLinkedTrainers(db, clubId),
-    ])
-    const peers = pickStaffDmPeers(viewer, staff).filter((p) => !hidden.has(String(p.id)))
+    const threads = await loadDmThreadsFor(db, viewer.id)
+    const { staff, hidden, peerIds } = await loadDmCandidates(db, viewer, threads)
+    const peers = pickStaffDmPeers(viewer, staff, peerIds).filter((p) => !hidden.has(String(p.id)))
     const liveUserIds = await loadLiveStaffIds(db, peers.map((p) => p.id))
     return buildStaffContacts({ viewerId: viewer.id, peers, liveUserIds, threads })
   } catch (e) {

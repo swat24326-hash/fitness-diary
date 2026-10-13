@@ -92,11 +92,12 @@ export async function linkedComplaintThreads(ctx) {
   return (await loadStaffThreads(ctx.supabaseAdmin, scope)).map((t) => ({ ...t, actor: sup }))
 }
 
-/** Тренерские учётки связанных пар клуба — не показываем коллегам вторым человеком. */
+/** Тренерские учётки связанных пар клуба (clubId null — всей сети) — не показываем коллегам вторым человеком. */
 export async function loadHiddenLinkedTrainers(db, clubId) {
-  const linked = await orEmpty(() =>
-    rows(db.from('users').select(LINK_FIELDS).eq('club_id', clubId).not('linked_user_id', 'is', null)),
-  )
+  const linked = await orEmpty(() => {
+    const q = db.from('users').select(LINK_FIELDS).not('linked_user_id', 'is', null)
+    return rows(clubId ? q.eq('club_id', clubId) : q)
+  })
   return hiddenLinkedTrainerIds(linked)
 }
 

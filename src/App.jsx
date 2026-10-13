@@ -305,11 +305,11 @@ export default function App() {
               <Route path="/trainer/challenges/:challengeId" element={<TrainerChallengeDetail />} />
             </Route>
             <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor']} />}>
-              <Route path="/messages" element={<StaffInboxPage />} />
               <Route path="/messages/:id" element={<StaffInboxItemPage />} />
-              <Route path="/messages/dm/:userId" element={<StaffDmThread />} />
             </Route>
             <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor', 'admin']} />}>
+              <Route path="/messages" element={<StaffInboxPage />} />
+              <Route path="/messages/dm/:userId" element={<StaffDmThread />} />
               <Route path="/messages/chat/:clientId/:kind" element={<StaffChatThread />} />
             </Route>
             <Route element={<RoleOutlet roles={['sales_manager']} />}>

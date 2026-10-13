@@ -2,6 +2,7 @@
  * Переписка сотрудников: тренер с телефона → папка «Администрация» (управляющая ярко, менеджер без приложения тускло,
  * главного админа и чужого клуба нет) → пишет управляющей → push ей ведёт в диалог. Управляющая на планшете:
  * папка «Тренеры» с числом → диалог → ответ → push тренеру откроет диалог на телефоне → тренер видит ответ.
+ * Главный админ: конверт → сотрудники всей сети → пишет тренеру → у тренера админ в «Администрации», ответ уходит админу.
  */
 import { randomUUID } from 'node:crypto'
 import { createChecks } from '../lib/e2eChecks.mjs'
@@ -28,8 +29,13 @@ const SALES_ID = 'e2e00000-0000-4000-8000-0000000000a3'
 const MATE_ID = 'e2e00000-0000-4000-8000-0000000000a4'
 const SUP_LOGIN = 'e2e_sup'
 const SUP_PASSWORD = randomUUID()
+const ADMIN_ID = 'e2e00000-0000-4000-8000-0000000000a5'
+const ADMIN_LOGIN = 'e2e_admin_net'
+const ADMIN_PASSWORD = randomUUID()
 const ASK = 'Сломан тренажёр в зале 2'
 const ANSWER = 'Спасибо, вызову мастера'
+const FROM_ADMIN = 'Завтра проверка, приходите к 8:00'
+const TO_ADMIN = 'Понял, буду'
 
 function reaches(locator, state = 'visible') {
   return locator
@@ -45,7 +51,7 @@ function setup() {
     staff(SUP_ID, 'Управляющая Ольга', 'supervisor', { login: SUP_LOGIN, email: `${SUP_LOGIN}@trainer.local`, password: SUP_PASSWORD }),
     staff(SALES_ID, 'Менеджер Пётр', 'sales_manager'),
     staff(MATE_ID, 'Коллега Игорь', 'trainer'),
-    staff('e2e-admin-net', 'Главный Админ', 'admin', { club_id: null }),
+    staff(ADMIN_ID, 'Главный Админ', 'admin', { club_id: null, login: ADMIN_LOGIN, email: `${ADMIN_LOGIN}@trainer.local`, password: ADMIN_PASSWORD }),
     staff('e2e-alien', 'Чужой Тренер', 'trainer', { club_id: 'e2e-other-club' }),
     staff('e2e-blocked', 'Уволенный Тренер', 'trainer', { is_active: false }),
   )
@@ -197,6 +203,64 @@ async function trainerNarrowPhoneThread(c, browser, backend, chat) {
   }
 }
 
+/** Главный админ: конверт «Сообщения сотрудников» → вся сеть (и чужой клуб), без «Клиентов» и «Рассылок» → пишет тренеру. */
+async function adminWrites(c, browser, backend, chat) {
+  const context = await newE2eContext(browser, backend, TABLET)
+  const page = await context.newPage()
+  try {
+    await loginUi(page, ADMIN_LOGIN, ADMIN_PASSWORD)
+    const envelope = page.getByRole('link', { name: /^Сообщения сотрудников/ })
+    c.ok(await reaches(envelope), 'админ: в шапке конверт «Сообщения сотрудников»')
+    await envelope.click()
+    const folders = page.getByTestId('chat-folders')
+    const trainers = folders.getByRole('button', { name: /^Тренеры/ })
+    c.ok(await reaches(trainers), 'админ: папки «Тренеры» и «Администрация»')
+    c.ok((await folders.getByRole('button', { name: /^Клиенты/ }).count()) === 0, 'админ: «Клиентов» нет — клиентов читает из карточки')
+    c.ok((await page.getByRole('link', { name: 'Рассылки' }).count()) === 0, 'админ: вкладки «Рассылки» нет')
+    await trainers.click()
+    const names = await titles(page)
+    c.ok(names.includes('Тренер Тестов · E2E клуб') && names.includes('Чужой Тренер'), `админ: тренеры всей сети, с клубом (${names.join(', ')})`)
+    c.ok(!names.some((n) => n.startsWith('Уволенный')), 'админ: заблокированных нет')
+    await folders.getByRole('button', { name: /^Администрация/ }).click()
+    const office = await titles(page)
+    c.ok(office.some((n) => n.startsWith('Управляющая Ольга')) && !office.some((n) => n.startsWith('Главный Админ')), 'админ: управляющая в «Администрации», себя нет')
+    await screenshot(page, 'staff-dm-admin-list')
+    await folders.getByRole('button', { name: /^Тренеры/ }).click()
+    await page.getByRole('link', { name: /Тренер Тестов/ }).click()
+    await page.waitForURL(`${ORIGIN}/messages/dm/${TRAINER_ID}`)
+    await page.getByTestId('chat-input').fill(FROM_ADMIN)
+    await page.getByTestId('chat-send').click()
+    c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: FROM_ADMIN })), 'админ: сообщение тренеру в ленте')
+    const push = chat.state.dm.pushes.at(-1)
+    c.ok(push?.to === TRAINER_ID && coachPushUrl(push.url) === `/coach/dm/${ADMIN_ID}`, 'push тренеру откроет диалог с админом на телефоне')
+    await screenshot(page, 'staff-dm-admin-thread')
+  } catch (e) {
+    await screenshot(page, 'staff-dm-admin-FAIL').catch(() => null)
+    c.ok(false, `админ: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
+}
+
+/** Тренер с телефона: админ написал — он появился в «Администрации», можно ответить. */
+async function trainerAnswersAdmin(c, page, chat) {
+  await page.goto(`${ORIGIN}/coach`)
+  await page.getByRole('link', { name: /^Сообщения/ }).click()
+  const folders = page.getByTestId('chat-folders')
+  await folders.getByRole('button', { name: /^Администрация/ }).click()
+  const row = page.getByRole('link', { name: /Главный Админ/ })
+  c.ok(await reaches(row), 'тренер: главный админ написал — он в «Администрации»')
+  await row.click()
+  await page.waitForURL(`${ORIGIN}/coach/dm/${ADMIN_ID}`)
+  c.ok(await reaches(page.locator('.chat-msg', { hasText: FROM_ADMIN })), 'тренер видит сообщение админа')
+  await page.getByTestId('chat-input').fill(TO_ADMIN)
+  await page.getByTestId('chat-send').click()
+  c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: TO_ADMIN })), 'тренер ответил админу')
+  const saved = chat.state.dm.messages.at(-1)
+  c.ok(saved?.author_user_id === TRAINER_ID && saved?.body === TO_ADMIN, 'ответ админу ушёл на сервер')
+  c.ok(chat.state.dm.pushes.at(-1)?.to === ADMIN_ID, 'push — админу')
+}
+
 export async function run(browser) {
   const c = createChecks('staff-dm')
   const { backend, chat, coach } = setup()
@@ -240,6 +304,8 @@ export async function run(browser) {
     c.ok(await reaches(page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: ANSWER })), 'тренер видит ответ управляющей')
     c.ok(await reaches(page.locator('.chat-msg--mine .chat-msg__tick.is-read').first()), 'у тренера две галочки — прочитано')
     await screenshot(page, 'staff-dm-coach-thread')
+    await adminWrites(c, browser, backend, chat)
+    await trainerAnswersAdmin(c, page, chat)
     c.ok(pageErrors.length === 0, `телефон: без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
     await screenshot(page, 'staff-dm-FAIL').catch(() => null)

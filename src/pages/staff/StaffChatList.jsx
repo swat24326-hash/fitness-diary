@@ -43,10 +43,11 @@ function ThreadList({ threads }) {
  * Вкладка «Диалоги» в /messages: папки «Клиенты · Коллеги/Тренеры · Администрация»
  * (+ «Жалобы и предложения» у тренера, связанного с управляющим).
  * У тренера «Клиенты» — все свои, с приложением сверху, тусклого можно пригласить;
- * у менеджера и управляющего «Клиенты» — список диалогов, непрочитанные сверху.
+ * у менеджера и управляющего «Клиенты» — список диалогов, непрочитанные сверху;
+ * у главного админа «Клиентов» нет (читает из карточки клиента) — только сотрудники всей сети.
  * @param {ReturnType<typeof import('../../hooks/useStaffChat.js').useStaffChats>} props
  */
-export function StaffChatList({ threads, folders, status, error }) {
+export function StaffChatList({ threads, folders, role, status, error }) {
   const [inviting, setInviting] = useState(null)
   if (!folders) {
     return status === 'error' ? (
@@ -67,7 +68,7 @@ export function StaffChatList({ threads, folders, status, error }) {
         <ChatContactList contacts={f.contacts} kind="trainer" hrefFor={staffHref} />
       ),
   }))
-  if (!folders.some((f) => f.id === CHAT_FOLDER_CLIENTS)) {
+  if (role !== 'admin' && !folders.some((f) => f.id === CHAT_FOLDER_CLIENTS)) {
     const list = threads ?? []
     views.unshift({
       id: CHAT_FOLDER_CLIENTS,

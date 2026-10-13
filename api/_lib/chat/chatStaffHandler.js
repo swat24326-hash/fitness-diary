@@ -1,6 +1,7 @@
 /**
  * admin-data?action=chat — переписка с клиентами для тренера, менеджера продаж, управляющего и админа.
- * GET  view=list → { threads, attention } (attention — ещё и личные диалоги сотрудников, ждущие ответа)
+ * GET  view=list → { threads, attention } (attention — ещё и личные диалоги сотрудников, ждущие ответа;
+ *      у главного админа threads пусто — клиентов он читает из карточки, конверт только про сотрудников)
  * GET  view=contacts → папки «Клиенты · Коллеги · Администрация» (chatContactsHandler.js)
  * GET  view=dm-thread&user_id / POST { op: 'dm-send', user_id } — переписка сотрудников (staffDmHandler.js)
  * GET  view=thread&client_id&kind[&before][&seen=0] → { client, kind, can_write, messages, has_more } (отмечает прочитанным; seen=0 — нет)
@@ -106,7 +107,8 @@ export async function handleStaffChatGet(ctx, req, res) {
   if (!scope) return
   try {
     if (view === 'list') {
-      const [list, dm] = await Promise.all([listThreads(ctx, scope), staffDmAttention(ctx)])
+      const clients = scope.role === 'admin' ? Promise.resolve({ threads: [], attention: 0 }) : listThreads(ctx, scope)
+      const [list, dm] = await Promise.all([clients, staffDmAttention(ctx)])
       sendJson(res, 200, { ...list, attention: list.attention + dm })
       return
     }

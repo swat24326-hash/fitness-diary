@@ -3,14 +3,18 @@ import { Mail } from 'lucide-react'
 import { inboxBadgeText } from '../../lib/client/clientInboxUiCore.js'
 import { useStaffInboxCount } from '../../pages/staff/useStaffInbox.js'
 
-/** Конверт «Сообщения клуба» в шапке тренера / менеджера / управляющего. */
-export function StaffInboxButton() {
-  const count = useStaffInboxCount(true)
+/**
+ * Конверт «Сообщения клуба» в шапке тренера / менеджера / управляющего.
+ * chatsOnly — главный админ: рассылок ему не приходит, только переписка с сотрудниками.
+ */
+export function StaffInboxButton({ chatsOnly = false }) {
+  const count = useStaffInboxCount(true, { chatsOnly })
   const badge = inboxBadgeText(count)
-  const label = count ? `Сообщения клуба: ${count} новых` : 'Сообщения клуба'
+  const title = chatsOnly ? 'Сообщения сотрудников' : 'Сообщения клуба'
+  const label = count ? `${title}: ${count} новых` : title
   return (
     <NavLink
-      to="/messages"
+      to={chatsOnly ? '/messages?tab=chats' : '/messages'}
       className={({ isActive }) =>
         `btn btn-secondary btn-sm app-header__inbox-btn${isActive ? ' app-header__inbox-btn--active' : ''}`
       }

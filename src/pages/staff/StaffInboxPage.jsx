@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { Mail, RefreshCw, WifiOff } from 'lucide-react'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 import { useStaffChats } from '../../hooks/useStaffChat.js'
 import { StaffChatList } from './StaffChatList.jsx'
 import { useStaffInbox } from './useStaffInbox.js'
@@ -29,11 +30,15 @@ function Tabs({ chats }) {
   )
 }
 
-/** /messages — объявления и опросы руководства; вкладка «Диалоги» — переписка с клиентами, коллегами и администрацией. */
+/**
+ * /messages — объявления и опросы руководства; вкладка «Диалоги» — переписка с клиентами, коллегами и администрацией.
+ * Главному админу рассылки не приходят — у него только диалоги с сотрудниками сети.
+ */
 export function StaffInboxPage() {
   const [params] = useSearchParams()
-  const chats = params.get('tab') === 'chats'
-  const { items, status, error, reload } = useStaffInbox()
+  const { isAdmin } = useAuth()
+  const chats = isAdmin || params.get('tab') === 'chats'
+  const { items, status, error, reload } = useStaffInbox(!isAdmin)
   const chatList = useStaffChats(chats)
   const loading = chats ? chatList.status === 'loading' : status === 'loading'
   let content
@@ -57,7 +62,7 @@ export function StaffInboxPage() {
       <div className="staff-inbox__head">
         <h1 className="staff-inbox__title">
           <Mail size={22} aria-hidden />
-          Сообщения клуба
+          {isAdmin ? 'Сообщения сотрудников' : 'Сообщения клуба'}
         </h1>
         <button
           type="button"
@@ -70,7 +75,7 @@ export function StaffInboxPage() {
           <RefreshCw size={18} aria-hidden className={loading ? 'icon-spin' : undefined} />
         </button>
       </div>
-      <Tabs chats={chats} />
+      {isAdmin ? null : <Tabs chats={chats} />}
       {!chats && items && status === 'error' ? (
         <p className="staff-inbox__error" role="alert">
           {error}

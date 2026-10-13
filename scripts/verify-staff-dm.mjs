@@ -38,7 +38,9 @@ const alien = { id: 'u-alien', role: 'trainer', club_id: 'club-2', name: 'Чуж
 const blocked = { ...trainer2, id: 'u-blocked', is_active: false }
 
 ok(staffDmRoleOf('Тренер') === 'trainer' && staffDmRoleOf('менеджер по продажам') === 'sales', 'роль: кириллица как в users')
-ok(staffDmRoleOf('') === null && staffDmRoleOf('admin') === null && staffDmRoleOf('curator') === null, 'роль: пустая, админ и куратор — не в переписке')
+ok(staffDmRoleOf('') === null && staffDmRoleOf('curator') === null, 'роль: пустая и куратор — не в переписке')
+ok(staffDmRoleOf('admin') === 'admin' && staffDmRoleOf('Администратор') === 'admin', 'роль: главный админ — в переписке')
+ok(staffDmFolderOf('admin') === 'admin', 'папка: главный админ — «Администрация»')
 ok(staffDmFolderOf('trainer') === 'colleagues', 'папка: тренер — «Коллеги»')
 ok(staffDmFolderOf('supervisor') === 'admin' && staffDmFolderOf('sales_manager') === 'admin', 'папка: управляющий и менеджер — «Администрация»')
 
@@ -49,7 +51,13 @@ ok(staffDmPairAccess(trainer, alien).status === 403, 'чужой клуб — 40
 ok(staffDmPairAccess(trainer, trainer).status === 400, 'самому себе — 400')
 ok(staffDmPairAccess(trainer, null).status === 404, 'нет собеседника — 404')
 ok(staffDmPairAccess({ ...trainer, role: '' }, sup).status === 403, 'пустая роль — 403')
-ok(staffDmPairAccess(trainer, admin).status === 403 && staffDmPairAccess(admin, trainer).status === 403, 'главный админ — вне переписки сотрудников')
+ok(staffDmPairAccess(admin, trainer).ok && staffDmPairAccess(admin, alien).ok, 'главный админ → любой сотрудник любого клуба (у админа клуба нет)')
+ok(staffDmPairAccess(trainer, admin).ok, 'сотрудник → главный админ (ответить)')
+ok(staffDmPairAccess(admin, { ...admin, id: 'u-admin2' }).ok, 'админ → другой админ')
+ok(staffDmPairAccess(admin, admin).status === 400, 'админ сам себе — 400')
+ok(staffDmPairAccess(admin, { id: 'u-cur', role: 'curator', club_id: CLUB }).status === 403, 'куратору не пишем — у него нет «Сообщений»')
+ok(staffDmWriteAccess(admin, blocked).status === 409, 'админ: заблокированному не пишем')
+ok(staffDmPairAccess(alien, sup).status === 403, 'обход через админа не открывает чужой клуб остальным')
 ok(staffDmPairAccess({ ...sup, club_id: '' }, trainer).status === 403, 'без клуба — 403')
 
 ok(staffDmWriteAccess(trainer, blocked).status === 409 && staffDmWriteAccess(trainer, blocked).error === STAFF_DM_BLOCKED_RU, 'заблокированному не пишем — 409')
@@ -87,6 +95,15 @@ ok(
   JSON.stringify(peers.map((p) => p.id)) === JSON.stringify(['u-t2', 'u-sup', 'u-sales']),
   `кандидаты: свой клуб, активные, с ролью, без себя и админа (${peers.map((p) => p.id).join(',')})`,
 )
+const withAdmin = pickStaffDmPeers(trainer, [trainer2, admin], ['u-admin'])
+ok(withAdmin.some((p) => p.id === 'u-admin'), 'админ уже написал тренеру — у тренера он в списке, можно ответить')
+const network = pickStaffDmPeers(admin, [admin, trainer, trainer2, sup, sales, alien, blocked, { id: 'u-empty', role: '', club_id: CLUB }])
+ok(
+  JSON.stringify(network.map((p) => p.id)) === JSON.stringify(['u-t1', 'u-t2', 'u-sup', 'u-sales', 'u-alien']),
+  `у админа: вся сеть, активные, с ролью, без себя (${network.map((p) => p.id).join(',')})`,
+)
+const adminContacts = buildStaffContacts({ viewerId: 'u-admin', peers: [{ ...alien, club_name: 'Клуб 2' }, sup], liveUserIds: [], threads: [] })
+ok(adminContacts.colleagues[0]?.club_name === 'Клуб 2' && !('club_name' in adminContacts.admin[0]), 'у админа в строке — название клуба')
 
 const contacts = buildStaffContacts({ viewerId: 'u-t1', peers, liveUserIds: ['u-t2'], threads: [thread] })
 ok(contacts.colleagues.length === 1 && contacts.colleagues[0].has_app, 'Коллеги: тренер с телефоном — ярко')

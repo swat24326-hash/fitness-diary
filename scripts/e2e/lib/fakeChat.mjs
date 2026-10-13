@@ -260,11 +260,18 @@ export function createFakeChat(state) {
     if (!viewerRole) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
     const viewer = dmViewer(dmUser(user))
     const hidden = hiddenLinkedTrainerIds(state.users)
+    const dmRole = staffDmRoleOf(viewer.role)
+    const threadPeerIds = chat.dm.threads.map((t) => {
+      const side = staffDmSideOf(t, viewer.id)
+      return side ? (side === 'lo' ? t.user_hi : t.user_lo) : null
+    })
+    const clubName = (u) => state.clubs?.find((c) => c.id === u.club_id)?.name ?? ''
+    const candidates = dmRole === 'admin' ? state.users.map((u) => ({ ...u, club_name: clubName(u) })) : state.users
     const staff =
-      staffDmRoleOf(viewer.role) && viewer.club_id
+      dmRole && (dmRole === 'admin' || viewer.club_id)
         ? buildStaffContacts({
             viewerId: viewer.id,
-            peers: pickStaffDmPeers(viewer, state.users).filter((p) => !hidden.has(String(p.id))),
+            peers: pickStaffDmPeers(viewer, candidates, threadPeerIds.filter(Boolean)).filter((p) => !hidden.has(String(p.id))),
             liveUserIds: state.live_user_ids ?? [],
             threads: chat.dm.threads,
           })
@@ -383,7 +390,7 @@ export function createFakeChat(state) {
     }
     if (req.searchParams.get('view') === 'contacts') return contacts(ctx, user)
     if ((req.searchParams.get('view') || 'list') === 'list') {
-      const own = chat.threads.filter((t) => t.last_message_at && canStaffReadChat(ctx, t.kind, find(t.client_id)))
+      const own = ctx.isAdmin ? [] : chat.threads.filter((t) => t.last_message_at && canStaffReadChat(ctx, t.kind, find(t.client_id)))
       const threads = [...own, ...(complaintThreads(user) ?? []).filter((t) => !own.includes(t))]
         .map((t) => ({
           client_id: t.client_id,

@@ -566,6 +566,7 @@ export function AppHeader() {
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHeartRate /> : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderStopwatch /> : null}
         {isDispatchInboxUser && supabaseReady ? <StaffInboxButton /> : null}
+        {isAdmin && user && supabaseReady ? <StaffInboxButton chatsOnly /> : null}
         {isDispatchInboxUser && supabaseReady ? (
           <button
             type="button"

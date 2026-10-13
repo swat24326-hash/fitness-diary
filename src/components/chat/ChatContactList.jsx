@@ -42,7 +42,7 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite }) {
           const body = (
             <ChatRowBody
               kind={c.role || kind}
-              title={c.name || 'Без имени'}
+              title={c.club_name ? `${c.name || 'Без имени'} · ${c.club_name}` : c.name || 'Без имени'}
               avatar={c.name}
               preview={previewOf(c)}
               unread={c.unread}

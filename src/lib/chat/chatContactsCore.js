@@ -108,7 +108,7 @@ function normalizeQuery(s) {
 export function filterChatContacts(contacts, query) {
   const q = normalizeQuery(query)
   if (!q) return contacts ?? []
-  return (contacts ?? []).filter((c) => normalizeQuery(c.name).includes(q))
+  return (contacts ?? []).filter((c) => normalizeQuery(`${c.name ?? ''} ${c.club_name ?? ''}`).includes(q))
 }
 
 /** Число на вкладке папки — сколько диалогов ждут ответа. */

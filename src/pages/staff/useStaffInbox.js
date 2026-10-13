@@ -13,7 +13,7 @@ import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
 const COUNT_POLL_MS = 120_000
 
 /** Список «Входящих» сотрудника. */
-export function useStaffInbox() {
+export function useStaffInbox(enabled = true) {
   const [state, setState] = useState({ items: null, status: 'loading', error: '' })
   const reload = useCallback(() => {
     setState((s) => ({ ...s, status: 'loading', error: '' }))
@@ -22,8 +22,8 @@ export function useStaffInbox() {
       .catch((e) => setState((s) => ({ ...s, status: 'error', error: e?.message || '' })))
   }, [])
   useEffect(() => {
-    reload()
-  }, [reload])
+    if (enabled) reload()
+  }, [enabled, reload])
   return { ...state, reload }
 }
 
@@ -62,7 +62,7 @@ export function useStaffInboxItem(id) {
  * Точка на конверте в шапке: рассылки + диалоги с клиентами; сразу при push, раз в 2 минуты, при возврате на вкладку и после чтения. Офлайн — тихо.
  * Число выросло — звук, если сотрудник включил «Звуки сообщений».
  */
-export function useStaffInboxCount(enabled) {
+export function useStaffInboxCount(enabled, { chatsOnly = false } = {}) {
   const [count, setCount] = useState(0)
   const lastRef = useRef(null)
   useEffect(() => {
@@ -74,7 +74,7 @@ export function useStaffInboxCount(enabled) {
     armChatSound('staff')
     let alive = true
     const load = () =>
-      Promise.allSettled([fetchStaffInbox(), fetchStaffChats()]).then((res) => {
+      Promise.allSettled(chatsOnly ? [fetchStaffChats()] : [fetchStaffInbox(), fetchStaffChats()]).then((res) => {
         if (!alive || res.every((r) => r.status === 'rejected')) return
         const next = res.reduce((sum, r) => sum + (r.status === 'fulfilled' ? Number(r.value?.attention) || 0 : 0), 0)
         if (didInboxCountRise(lastRef.current, next)) playChatSound('inbox', 'staff')
@@ -94,6 +94,6 @@ export function useStaffInboxCount(enabled) {
       document.removeEventListener('visibilitychange', onVisible)
       offPush()
     }
-  }, [enabled])
+  }, [enabled, chatsOnly])
   return count
 }
