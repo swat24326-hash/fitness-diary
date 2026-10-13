@@ -1,6 +1,6 @@
 import { sendJson } from '../adminSupabase.js'
 import { bearerFromHeaders } from '../clientPortal/clientAuthCore.js'
-import { decideCoachDevice } from '../deviceBindingCore.js'
+import { isCoachDeviceApproved } from '../deviceBindingCore.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
 import {
   COACH_BLOCKED_RU,
@@ -44,7 +44,7 @@ export async function requireCoachUser(req, res, store = coachStore) {
   }
   const denial =
     coachAccessDenial({ user, session, userId: tok.userId, deviceId: tok.deviceId }) ??
-    (decideCoachDevice({ deviceId: tok.deviceId, devices: devices.rows }).allow ? null : 'session')
+    (isCoachDeviceApproved(tok.deviceId, devices.rows) ? null : 'session')
   if (denial) {
     sendJson(res, 401, { error: DENIAL_RU[denial] })
     return null

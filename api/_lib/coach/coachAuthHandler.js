@@ -8,7 +8,7 @@ import { sendJson, setCors } from '../adminSupabase.js'
 import { isOwnAuthProvider, verifyOwnPassword } from '../authOwnCore.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../authLoginResolveCore.js'
 import { authFailLimiter, authRateLimitedMessageRu, clientIpFromHeaders, createAuthFailLimiter } from '../authRateLimitCore.js'
-import { decideCoachDevice, isCoachDeviceId } from '../deviceBindingCore.js'
+import { isCoachDeviceApproved, isCoachDeviceId } from '../deviceBindingCore.js'
 import { deviceIdFromHeaders } from '../deviceBindingGate.js'
 import { admitCoachPhone, coachDeviceLabel } from './coachAdmit.js'
 import {
@@ -74,12 +74,12 @@ async function refresh(req, res, body, { secret, store }) {
     sendJson(res, 503, { error: 'Сервер занят — повторите через минуту', code: 'busy' })
     return
   }
-  const device = decideCoachDevice({ deviceId: tok.deviceId, devices: rows })
-  if (!device.allow) {
+  const own = rows.find((d) => d.device_id === tok.deviceId)
+  if (!own || !isCoachDeviceApproved(tok.deviceId, rows)) {
     sendJson(res, 401, { error: COACH_SESSION_RU })
     return
   }
-  store.devices.touch(device.deviceRowId, coachDeviceLabel(req.headers)).catch(() => {})
+  store.devices.touch(own.id, coachDeviceLabel(req.headers)).catch(() => {})
   store.touchSession(tok.sid).catch(() => {})
   sendJson(res, 200, { session: buildCoachSession(tok, secret), user: { name: String(user.name ?? '') } })
 }

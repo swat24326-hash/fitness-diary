@@ -2,7 +2,7 @@
  * Подменный сервер телефона тренера: /api/coach-auth и /api/coach.
  * Решение «пускать ли телефон» и расписание — те же чистые функции, что на сервере; переписка — fakeChat.
  */
-import { decideCoachDevice } from '../../../api/_lib/deviceBindingCore.js'
+import { decideCoachDevice, isCoachDeviceApproved } from '../../../api/_lib/deviceBindingCore.js'
 import { canStaffInviteClient } from '../../../api/_lib/clientPortal/clientInviteCore.js'
 import { buildCoachMe, buildCoachSchedule } from '../../../api/_lib/coach/coachViewCore.js'
 import { COACH_HANDOFF_GONE_RU, COACH_INVITE_GONE_RU, coachHandoffDenial, coachInviteDenial } from '../../../api/_lib/coach/coachInviteCore.js'
@@ -41,7 +41,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
 
   function admit(deviceId, beforeSession = () => {}) {
     const decision = decideCoachDevice({ deviceId, devices: coach.devices })
-    if (decision.register) coach.devices.push({ id: `dev-${coach.devices.length + 1}`, device_id: deviceId, status: 'pending' })
+    if (decision.register) coach.devices.push({ id: `dev-${coach.devices.length + 1}`, device_id: deviceId, status: decision.register })
     if (decision.setStatus) coach.devices.find((d) => d.id === decision.deviceRowId).status = decision.setStatus
     if (!decision.allow) return { status: 403, json: { error: 'Телефон ждёт разрешения администратора', code: 'device_pending' } }
     beforeSession()
@@ -88,7 +88,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       if (s) s.revoked = true
       return { status: 200, json: {} }
     }
-    if (!s || s.revoked || !decideCoachDevice({ deviceId: s.deviceId, devices: coach.devices }).allow) return DENIED
+    if (!s || s.revoked || !isCoachDeviceApproved(s.deviceId, coach.devices)) return DENIED
     return { status: 200, json: { session: issue(s.deviceId) } }
   }
 
@@ -98,7 +98,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
   function data(req) {
     const token = String(req.headers.authorization ?? '').replace(/^Bearer /, '')
     const s = coach.sessions.find((x) => x.access === token)
-    const allowed = s && !s.revoked && s.deviceId === deviceOf(req) && decideCoachDevice({ deviceId: s.deviceId, devices: coach.devices }).allow
+    const allowed = s && !s.revoked && s.deviceId === deviceOf(req) && isCoachDeviceApproved(s.deviceId, coach.devices)
     if (!allowed) return DENIED
     const user = trainer()
     const q = req.searchParams
@@ -230,5 +230,10 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
     for (const d of coach.devices) d.status = status
   }
 
-  return { state: coach, handle: (req) => (req.path === '/api/coach-auth' ? auth(req) : data(req)), setPhoneStatus, addInvite }
+  /** Уже разрешённый телефон тренера (не этот): новый телефон встанет в «Ждут разрешения». */
+  function addApprovedPhone() {
+    coach.devices.push({ id: `dev-${coach.devices.length + 1}`, device_id: 'coach-e2e-other-phone-0001', status: 'approved' })
+  }
+
+  return { state: coach, handle: (req) => (req.path === '/api/coach-auth' ? auth(req) : data(req)), setPhoneStatus, addInvite, addApprovedPhone }
 }

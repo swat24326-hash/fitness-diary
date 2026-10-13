@@ -71,17 +71,17 @@ function setup() {
 
 const titles = (page) => page.getByTestId('chat-contacts').locator('.chat-row__title').allInnerTexts()
 
-async function trainerWrites(c, page, chat, coach) {
+async function trainerWrites(c, page, chat) {
   await page.goto(`${ORIGIN}/coach`)
   await page.getByLabel('Логин').fill(TRAINER_LOGIN)
   await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
   await page.getByRole('button', { name: 'Войти' }).click()
-  coach.setPhoneStatus('approved')
-  await page.getByRole('button', { name: 'Проверить сейчас' }).click()
   await page.getByRole('link', { name: /^Сообщения/ }).click()
   const folders = page.getByTestId('chat-folders')
   c.ok(await reaches(folders.getByRole('button', { name: 'Коллеги' })), 'телефон: папки «Клиенты · Коллеги · Администрация»')
   c.ok((await page.locator('.msgr.msgr--phone').count()) === 1, 'телефон тренера — та же рамка мессенджера, что у планшета и админа, одной панелью')
+  const tops = await folders.getByRole('button').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)))
+  c.ok(new Set(tops).size === 1, `телефон: папки одной строкой, как вкладки мобильного Telegram (строк: ${new Set(tops).size})`)
   await folders.getByRole('button', { name: 'Коллеги' }).click()
   c.ok(JSON.stringify(await titles(page)) === '["Коллега Игорь"]', 'Коллеги: тренер своего клуба, без чужих и заблокированных')
   await folders.getByRole('button', { name: 'Администрация' }).click()
@@ -400,6 +400,14 @@ async function adminWrites(c, browser, backend, chat) {
     c.ok(await reaches(recent.getByText('Тренер Тестов · E2E клуб')), '«Все клубы»: кому написал — сверху в «Переписках», с клубом')
     c.ok(!(await sectionNames(page, 'E2E клуб')).includes('Тренер Тестов'), 'в разделе клуба его больше нет — без дублей')
     await screenshot(page, 'staff-dm-admin-thread')
+
+    /* Push до компьютера не дошёл: конверт узнал о новом при возврате в окно — список обновился вместе с ним (INC-2026-10-13-04). */
+    c.ok(await reaches(waiting.first(), 'hidden'), 'перед проверкой: ждущих ответа нет')
+    chat.staff({ method: 'POST', searchParams: new URLSearchParams({ action: 'chat' }), body: { op: 'dm-send', user_id: ADMIN_ID, body: 'Без push' } }, kuk)
+    await page.evaluate(() => globalThis.document.dispatchEvent(new globalThis.Event('visibilitychange')))
+    c.ok(await reaches(page.getByRole('link', { name: 'Сообщения сотрудников: 1 новых' })), 'без push: вернулся в окно — на конверте «1»')
+    c.ok(await reaches(waiting.first()), 'и в мессенджере сразу «Ждут ответа» с числом — без кнопки «Обновить»')
+    c.ok(await reaches(page.getByTestId('staff-people').getByText('Без push')), 'в списке — само новое сообщение')
     await page.getByRole('button', { name: 'Меню аккаунта' }).click()
     await page.getByRole('button', { name: /Настройки/ }).click()
     c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'админ: в «Настройках» переключатель «Уведомления», как у всех')
@@ -469,13 +477,13 @@ async function trainerAnswersAdmin(c, page, chat) {
 
 export async function run(browser) {
   const c = createChecks('staff-dm')
-  const { backend, chat, coach } = setup()
+  const { backend, chat } = setup()
   const context = await newE2eContext(browser, backend, PHONE)
   const page = await context.newPage()
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
-    await trainerWrites(c, page, chat, coach)
+    await trainerWrites(c, page, chat)
     await page.getByRole('link', { name: 'Все диалоги' }).click()
     const tab = page.getByRole('link', { name: 'Сообщения, новых диалогов: 1' })
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения', exact: true })), 'вкладка «Сообщения» без числа, пока ответа нет')

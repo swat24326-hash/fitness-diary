@@ -8,7 +8,7 @@ import {
   isDeviceBoundRole,
   normalizeDeviceId,
 } from './deviceBindingCore.js'
-import { notifyAdminsPendingDevice } from './deviceBindingNotify.js'
+import { notifyAdminsDeviceAdded, notifyAdminsPendingDevice } from './deviceBindingNotify.js'
 import { userDevicesStore } from './userDevicesStore.js'
 
 const BUSY_RU = 'Сервер занят — повторите через минуту'
@@ -91,12 +91,13 @@ export async function gateSignInDevice(
 }
 
 /**
- * Вход с телефона тренера (/coach). Новый или отозванный телефон встаёт в «Ждут разрешения» + уведомление админам.
+ * Вход с телефона тренера (/coach). Первый телефон — сразу, админам уведомление «подключил»;
+ * новый при разрешённом или отозванный — в «Ждут разрешения» + уведомление админам.
  * @returns {Promise<{ allow: true } | { allow: false, error: string, code: 'device_pending' | 'device_update' | 'busy' }>}
  */
 export async function gateCoachDevice(
   { userId, deviceId, label = deviceLabelFromUserAgent('') },
-  { store = userDevicesStore, notify = notifyAdminsPendingDevice } = {},
+  { store = userDevicesStore, notify = notifyAdminsPendingDevice, notifyAdded = notifyAdminsDeviceAdded } = {},
 ) {
   const applied = await decideAndApply((devices) => decideCoachDevice({ deviceId, devices }), {
     userId,
@@ -111,6 +112,9 @@ export async function gateCoachDevice(
   if (applied.error) {
     console.warn('[device-binding] coach:', applied.error)
     return { allow: false, error: BUSY_RU, code: 'busy' }
+  }
+  if (decision.reason === 'first_device') {
+    notifyAdded(userId, label, 'первый телефон').catch((e) => console.warn('[device-binding] notify:', e?.message || e))
   }
   return decision.allow ? { allow: true } : { allow: false, error: deviceDenialMessageRu('pending'), code: 'device_pending' }
 }

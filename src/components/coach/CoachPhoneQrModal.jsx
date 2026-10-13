@@ -8,7 +8,7 @@ import { qrDataUrl } from '../../lib/qrDataUrl.js'
 
 /**
  * QR для входа в приложение тренера на своём телефоне. Ссылки нет — только код на экране:
- * одноразовый, 10 минут; телефон после сканирования ждёт «Разрешить» админа.
+ * одноразовый, 10 минут; первый телефон тренера входит сразу, следующий ждёт «Разрешить» админа.
  * Портал в body: внутри анимированных карточек и шапки position:fixed запирается в их рамке.
  * @param {{ open: boolean, onClose: () => void }} props
  */
@@ -52,7 +52,8 @@ export function CoachPhoneQrModal({ open, onClose }) {
       <div className="modal-panel client-invite-modal" onClick={(e) => e.stopPropagation()}>
         <ModalHeader titleId={titleId} title="Приложение на телефоне" onClose={onClose} closeDisabled={busy} />
         <p className="muted client-invite-modal__lead">
-          Наведите камеру своего телефона на код. Откроется приложение тренера — телефон войдёт после «Разрешить» администратора.
+          Наведите камеру своего телефона на код. Откроется приложение тренера: первый телефон входит сразу, новый вместо прежнего —
+          после «Разрешить» администратора.
         </p>
         <div className="client-invite-modal__qr" aria-busy={busy}>
           {qr ? (

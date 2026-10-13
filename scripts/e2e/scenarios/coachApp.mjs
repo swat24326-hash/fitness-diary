@@ -1,5 +1,5 @@
 /**
- * Телефон тренера (/coach): вход паролем планшета → «ждёт разрешения» → админ разрешил → Ежедневник
+ * Телефон тренера (/coach): вход паролем планшета → первый телефон сразу в Ежедневнике
  * и метка «1» на «Сообщениях» → ответ клиенту → админ отозвал телефон → экран входа с объяснением.
  * Отдельно — вход по QR с планшета.
  */
@@ -55,14 +55,9 @@ export async function run(browser) {
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти' }).click()
-    c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'новый телефон ждёт «Разрешить» админа')
+    c.ok(await reaches(slot10(page)), 'первый телефон тренера входит сразу, без админа — Ежедневник с записью 10:00')
     const phone = coach.state.devices[0]
-    c.ok(phone?.status === 'pending' && phone.device_id.startsWith('coach-'), 'на сервере телефон записан как ждущий, номер coach-…')
-    await screenshot(page, 'coach-pending')
-
-    coach.setPhoneStatus('approved')
-    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
-    c.ok(await reaches(slot10(page)), 'после разрешения — сразу Ежедневник с записью 10:00')
+    c.ok(phone?.status === 'approved' && phone.device_id.startsWith('coach-'), 'на сервере первый телефон записан разрешённым, номер coach-…')
     c.ok(await reaches(slot10(page).getByText(CLIENT_NAME)), 'в записи имя клиента')
     c.ok((await page.getByRole('link', { name: 'Сегодня' }).count()) === 0, 'вкладки «Сегодня» больше нет')
     const attention = page.getByRole('link', { name: /новых диалогов: 1/ })
@@ -113,7 +108,7 @@ export async function run(browser) {
 
 /** Android: значок по manifest клуба — после входа и сразу при загрузке, ещё до приложения (manifest-boot.js). */
 async function runAndroidManifest(browser, c) {
-  const { backend, coach } = setup()
+  const { backend } = setup()
   const context = await newE2eContext(browser, backend, {
     ...PHONE,
     userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36',
@@ -127,8 +122,6 @@ async function runAndroidManifest(browser, c) {
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти' }).click()
-    coach.setPhoneStatus('approved')
-    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
     await reaches(slot10(page))
     c.ok(JSON.stringify(await manifests()) === JSON.stringify([clubManifest]), 'Android: после входа manifest клуба — значок назовётся как клуб')
     await page.route('**/src/main.jsx*', (route) => route.abort())
@@ -157,8 +150,6 @@ async function runIconHandoff(browser, c) {
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти' }).click()
-    coach.setPhoneStatus('approved')
-    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
     const banner = page.getByRole('region', { name: 'Значок на экран «Домой»' })
     await banner.getByRole('button', { name: 'Как?' }).click()
     c.ok(await reaches(banner.getByText('Откройте значок «E2E клуб»')), 'значок: подсказка в Safari (над Ежедневником) с названием клуба')
@@ -189,16 +180,20 @@ async function runIconHandoff(browser, c) {
   }
 }
 
-/** QR с планшета: ссылка → «ждёт разрешения» (код убран из адреса, переживает перезагрузку) → разрешили → вошёл. */
+/**
+ * QR с планшета на второй телефон (первый уже разрешён): ссылка → «ждёт разрешения»
+ * (код убран из адреса, переживает перезагрузку) → разрешили → вошёл.
+ */
 async function runQrJoin(browser, c) {
   const { backend, coach } = setup()
   const token = 'e2eQrToken_0123456789abcdefABCD'
   coach.addInvite(token)
+  coach.addApprovedPhone()
   const context = await newE2eContext(browser, backend, PHONE)
   const page = await context.newPage()
   try {
     await page.goto(`${ORIGIN}/coach/join#t=${token}`)
-    c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'QR: телефон без пароля сразу ждёт «Разрешить»')
+    c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'QR: второй телефон без пароля сразу ждёт «Разрешить»')
     c.ok(new URL(page.url()).hash === '', 'QR: код убран из адресной строки')
     await page.reload()
     c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'QR: после перезагрузки ждёт дальше, код помнится')

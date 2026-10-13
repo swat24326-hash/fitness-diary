@@ -151,7 +151,7 @@ async function center(locator) {
 
 export async function run(browser) {
   const c = createChecks('coach-schedule')
-  const { backend, schedule, coach } = setup()
+  const { backend, schedule } = setup()
   const context = await newE2eContext(browser, backend, PHONE)
   const page = await context.newPage()
   const pageErrors = []
@@ -162,8 +162,6 @@ export async function run(browser) {
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти' }).click()
-    coach.setPhoneStatus('approved')
-    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
     await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 15_000 })
     await scrollBoardTo(page, 9 * 60)
     c.ok(await entryAt(page, '10:00').isVisible(), 'день: запись 10:00 с сервера')

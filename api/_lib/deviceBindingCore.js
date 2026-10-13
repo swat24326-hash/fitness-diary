@@ -1,5 +1,6 @@
 /**
- * Привязка устройств тренера (STRATEGY §5.7): 1 разрешённое устройство, остальные ждут «Разрешить» админа.
+ * Привязка устройств тренера (STRATEGY §5.7): первый планшет и первый телефон разрешены сразу,
+ * остальные ждут «Разрешить» админа.
  * Чистые решения без базы — входят вход по паролю и продление сессии (authPortOwn → deviceBindingGate).
  *
  * Включается env DEVICE_BINDING_SINCE (ISO-дата выкладки). Сессии старше этой даты — «как были»:
@@ -45,8 +46,8 @@ function sameKindDevices(devices, kind) {
 }
 
 /**
- * Телефон: каждое новое или отозванное устройство ждёт «Разрешить», даже первое и при выключенной
- * привязке планшетов; место планшета не занимает.
+ * Телефон (и при выключенной привязке планшетов): первый у тренера — разрешён сразу (админу уведомление),
+ * новый при уже разрешённом и отозванный — ждут «Разрешить». Место планшета не занимает.
  * @param {{ deviceId: string | null, devices: Array<{ id: string, device_id: string, status: string }> }} p
  */
 export function decideCoachDevice({ deviceId, devices }) {
@@ -54,7 +55,15 @@ export function decideCoachDevice({ deviceId, devices }) {
   const own = devices.find((d) => d.device_id === deviceId)
   if (own?.status === 'approved') return { allow: true, reason: 'approved', deviceRowId: own.id }
   if (own) return { allow: false, reason: 'pending', deviceRowId: own.id, ...(own.status === 'revoked' ? { setStatus: 'pending' } : {}) }
+  if (!sameKindDevices(devices, 'coach').some((d) => d.status === 'approved')) {
+    return { allow: true, reason: 'first_device', register: 'approved' }
+  }
   return { allow: false, reason: 'pending', register: 'pending' }
+}
+
+/** Продление и каждый запрос телефона: пускаем только уже разрешённый, ничего не регистрируя. */
+export function isCoachDeviceApproved(deviceId, devices) {
+  return isCoachDeviceId(deviceId) && devices.some((d) => d.device_id === deviceId && d.status === 'approved')
 }
 
 /**

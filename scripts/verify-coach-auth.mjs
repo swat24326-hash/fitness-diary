@@ -1,5 +1,5 @@
 /**
- * Телефон тренера (/coach): пропуск typ coach не открывает API зала, телефон всегда ждёт админа,
+ * Телефон тренера (/coach): пропуск typ coach не открывает API зала, первый телефон — сразу, следующий ждёт админа,
  * планшетная привязка не видит телефонов, вход / продление / выход. Без базы и сети.
  * node scripts/verify-coach-auth.mjs
  */
@@ -23,6 +23,7 @@ import {
   decideRefreshDevice,
   decideSignInDevice,
   deviceKindOf,
+  isCoachDeviceApproved,
   isCoachDeviceId,
   planAdminDeviceAction,
 } from '../api/_lib/deviceBindingCore.js'
@@ -150,8 +151,12 @@ function fakeRes() {
 
 function authHandler(store, limiter = createAuthFailLimiter({ perLoginIp: 3, perIp: 50, perLogin: 50 })) {
   const notify = async (userId, label) => store.devices.notified.push({ userId, label })
-  return createCoachAuthHandler({ store, limiter, ownAuth: () => true, deviceDeps: { store: store.devices, notify } })
+  const notifyAdded = async (userId, label, how) => store.devices.notified.push({ userId, label, how })
+  return createCoachAuthHandler({ store, limiter, ownAuth: () => true, deviceDeps: { store: store.devices, notify, notifyAdded } })
 }
+
+const quietDeps = (devices) => ({ store: devices, notify: async () => {}, notifyAdded: async () => {} })
+const OTHER_PHONE = { id: 'p0', user_id: TRAINER, device_id: PHONE_2, status: 'approved' }
 
 async function call(handler, body, { device = PHONE, ip = '10.0.0.1' } = {}) {
   const res = fakeRes()
@@ -171,13 +176,21 @@ try {
   ok(isCoachDeviceId(PHONE) && !isCoachDeviceId(TABLET) && !isCoachDeviceId('coach-'), 'телефон узнаётся по префиксу coach-')
   ok(deviceKindOf(PHONE) === 'coach' && deviceKindOf(TABLET) === 'tablet', 'deviceKindOf')
 
-  // --- Телефон: всегда ждёт админа ---
-  ok(decideCoachDevice({ deviceId: PHONE, devices: [] }).register === 'pending', 'первый телефон — ждёт, даже без других устройств')
+  // --- Телефон: первый — сразу, следующий и отозванный ждут админа ---
+  const firstPhone = decideCoachDevice({ deviceId: PHONE, devices: [] })
+  ok(firstPhone.allow && firstPhone.register === 'approved' && firstPhone.reason === 'first_device', 'первый телефон тренера — разрешён сразу')
+  const firstWithTablet = decideCoachDevice({ deviceId: PHONE, devices: [{ id: 't1', device_id: TABLET, status: 'approved' }] })
+  ok(firstWithTablet.allow && firstWithTablet.register === 'approved', 'разрешённый планшет не делает телефон «вторым»')
+  const secondPhone = decideCoachDevice({ deviceId: PHONE, devices: [OTHER_PHONE] })
+  ok(!secondPhone.allow && secondPhone.register === 'pending', 'второй телефон при разрешённом — ждёт админа')
   ok(!decideCoachDevice({ deviceId: TABLET, devices: [] }).allow, 'номер планшета на входе телефона — отказ')
   const phoneRow = { id: 'p1', device_id: PHONE, status: 'approved' }
   ok(decideCoachDevice({ deviceId: PHONE, devices: [phoneRow] }).allow, 'разрешённый телефон пускаем')
   const revoked = decideCoachDevice({ deviceId: PHONE, devices: [{ ...phoneRow, status: 'revoked' }] })
-  ok(!revoked.allow && revoked.setStatus === 'pending', 'отозванный телефон при входе снова ждёт')
+  ok(!revoked.allow && revoked.setStatus === 'pending', 'отозванный телефон при входе снова ждёт, даже если других нет')
+  const pendingOld = decideCoachDevice({ deviceId: PHONE, devices: [{ ...phoneRow, status: 'pending' }] })
+  ok(!pendingOld.allow && !pendingOld.register, 'телефон, ждавший до правила «первый сразу», ждёт дальше')
+  ok(isCoachDeviceApproved(PHONE, [phoneRow]) && !isCoachDeviceApproved(PHONE, []), 'продление: только уже разрешённый, без регистрации')
 
   // --- Планшетная привязка не видит телефонов ---
   const onlyPhone = [{ id: 'p1', device_id: PHONE, status: 'approved' }]
@@ -220,10 +233,19 @@ try {
 
   // --- Шлюз входа с телефона ---
   const gateStore = memoryDevices()
-  const gateDeps = { store: gateStore, notify: async (u, l) => gateStore.notified.push({ u, l }) }
+  const gateDeps = {
+    store: gateStore,
+    notify: async (u, l) => gateStore.notified.push({ u, l, kind: 'pending' }),
+    notifyAdded: async (u, l, how) => gateStore.notified.push({ u, l, kind: 'added', how }),
+  }
   const g1 = await gateCoachDevice({ userId: TRAINER, deviceId: PHONE, label: 'Телефон тренера · iPhone' }, gateDeps)
-  ok(!g1.allow && g1.code === 'device_pending' && gateStore.rows[0]?.status === 'pending', 'шлюз: новый телефон записан как ждущий')
-  ok(gateStore.notified.length === 1, 'шлюз: админам ушло уведомление')
+  ok(g1.allow && gateStore.rows[0]?.status === 'approved', 'шлюз: первый телефон записан разрешённым')
+  ok(gateStore.notified.length === 1 && gateStore.notified[0].kind === 'added', 'шлюз: админам — «тренер подключил телефон»')
+  const g1b = await gateCoachDevice({ userId: TRAINER, deviceId: PHONE_2, label: 'Телефон тренера · Android' }, gateDeps)
+  ok(!g1b.allow && g1b.code === 'device_pending' && gateStore.rows[1]?.status === 'pending', 'шлюз: второй телефон записан как ждущий')
+  ok(gateStore.notified.length === 2 && gateStore.notified[1].kind === 'pending', 'шлюз: админам — «ждёт разрешения»')
+  await gateCoachDevice({ userId: TRAINER, deviceId: PHONE }, gateDeps)
+  ok(gateStore.notified.length === 2, 'шлюз: повторный вход разрешённого — без уведомлений')
   const g2 = await gateCoachDevice({ userId: TRAINER, deviceId: PHONE }, { store: memoryDevices([], { failList: true }), notify: async () => {} })
   ok(!g2.allow && g2.code === 'busy', 'шлюз: база недоступна — «сервер занят», без входа')
 
@@ -254,12 +276,12 @@ try {
   ok((await call(handler, { action: 'sign-in', login: 'ivanov', password: 'wrong' })).statusCode === 401, 'неверный пароль — 401')
   ok((await call(handler, { action: 'sign-in', login: 'nobody', password: 'Secret-123' })).body?.error === 'Неверный логин или пароль', 'нет логина — тот же текст, что и неверный пароль')
   ok((await call(handler, { action: 'sign-in', login: 'ivanov', password: 'Secret-123' }, { device: TABLET })).statusCode === 400, 'без номера телефона — 400')
-  const pending = await call(handler, { action: 'sign-in', login: 'ivanov', password: 'Secret-123' })
-  ok(pending.statusCode === 403 && pending.body?.code === 'device_pending' && !pending.body.session, 'первый вход — «ждёт разрешения», без пропуска')
-  ok(store.devices.rows[0]?.label?.startsWith('Телефон тренера'), 'админ видит подпись «Телефон тренера»')
-  store.devices.rows[0].status = 'approved'
   const signed = await call(handler, { action: 'sign-in', login: 'IVANOV', password: ' Secret-123 ' })
-  ok(signed.statusCode === 200 && signed.body?.session?.access_token, 'после «Разрешить» вход выдаёт пропуск')
+  ok(signed.statusCode === 200 && signed.body?.session?.access_token, 'первый телефон — пропуск сразу')
+  ok(store.devices.rows[0]?.label?.startsWith('Телефон тренера') && store.devices.rows[0].status === 'approved', 'админ видит подпись «Телефон тренера»')
+  const withPhone = await memoryCoachStore({ devices: [OTHER_PHONE] })
+  const pending = await call(authHandler(withPhone), { action: 'sign-in', login: 'ivanov', password: 'Secret-123' })
+  ok(pending.statusCode === 403 && pending.body?.code === 'device_pending' && !pending.body.session, 'второй телефон — «ждёт разрешения», без пропуска')
   ok(Object.keys(signed.body.user).join() === 'name', 'в ответе только имя')
 
   let g = await guard(store, signed.body.session.access_token)
@@ -304,14 +326,14 @@ try {
   ok(coachInviteDenial({ ...fresh, expires_at: new Date(now - 1).toISOString() }, PHONE, now) === 'expired', 'просроченный QR — отказ')
   ok(coachInviteDenial(null, PHONE, now) === 'missing', 'выдуманный QR — отказ')
 
-  const qrStore = await memoryCoachStore()
+  const qrStore = await memoryCoachStore({ devices: [OTHER_PHONE] })
   const asTrainer = async () => ({ isTrainer: true, user: { id: TRAINER } })
   const qrHandler = createCoachAuthHandler({
     store: qrStore,
     ownAuth: () => true,
     auth: asTrainer,
     qrLimiter: createAuthFailLimiter({ perLoginIp: 3, perIp: 3, perLogin: Number.POSITIVE_INFINITY }),
-    deviceDeps: { store: qrStore.devices, notify: async () => {} },
+    deviceDeps: quietDeps(qrStore.devices),
   })
   const issued = await call(qrHandler, { action: 'invite' }, { device: null })
   ok(issued.statusCode === 200 && issued.body?.token && Date.parse(issued.body.expires_at) - Date.now() <= COACH_INVITE_TTL_MS, 'тренер получает QR на 10 минут')
@@ -320,7 +342,7 @@ try {
   ok((await call(asAdmin, { action: 'invite' }, { device: null })).statusCode === 403, 'QR для телефона выдаёт только тренер')
 
   const qrPending = await call(qrHandler, { action: 'redeem', token: issued.body.token })
-  ok(qrPending.statusCode === 403 && qrPending.body?.code === 'device_pending' && !qrPending.body.session, 'QR → телефон ждёт «Разрешить», без пропуска')
+  ok(qrPending.statusCode === 403 && qrPending.body?.code === 'device_pending' && !qrPending.body.session, 'QR → второй телефон ждёт «Разрешить», без пропуска')
   ok(qrStore.invites[0].device_id === PHONE && Date.parse(qrStore.invites[0].expires_at) - Date.now() > COACH_INVITE_TTL_MS, 'QR закреплён за телефоном и ждёт до суток')
   ok((await call(qrHandler, { action: 'redeem', token: issued.body.token }, { device: PHONE_2 })).statusCode === 401, 'чужой телефон по тому же QR — 401')
   qrStore.devices.rows.find((r) => r.device_id === PHONE).status = 'approved'
@@ -355,7 +377,7 @@ try {
     ownAuth: () => true,
     auth: asTrainer,
     qrLimiter: createAuthFailLimiter({ perLoginIp: 3, perIp: 3, perLogin: Number.POSITIVE_INFINITY }),
-    deviceDeps: { store: hStore.devices, notify: async () => {} },
+    deviceDeps: quietDeps(hStore.devices),
   })
   const issueHandoff = async () => {
     const res = fakeRes()

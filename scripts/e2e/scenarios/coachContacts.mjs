@@ -83,8 +83,6 @@ async function phone(c, browser) {
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти' }).click()
-    coach.setPhoneStatus('approved')
-    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
     await page.getByRole('link', { name: /^Сообщения/ }).click()
     await checkList(c, page, 'телефон')
     await screenshot(page, 'coach-contacts')

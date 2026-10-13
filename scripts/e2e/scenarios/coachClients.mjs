@@ -55,7 +55,7 @@ function setup() {
 
 export async function run(browser) {
   const c = createChecks('coach-clients')
-  const { backend, coach } = setup()
+  const { backend } = setup()
   const context = await newE2eContext(browser, backend, PHONE)
   const page = await context.newPage()
   const pageErrors = []
@@ -67,8 +67,6 @@ export async function run(browser) {
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти' }).click()
-    coach.setPhoneStatus('approved')
-    await page.getByRole('button', { name: 'Проверить сейчас' }).click()
     await page.getByRole('link', { name: 'Клиенты', exact: true }).click()
     await rows.first().waitFor({ timeout: 15_000 })
     await screenshot(page, 'coach-clients-list')
