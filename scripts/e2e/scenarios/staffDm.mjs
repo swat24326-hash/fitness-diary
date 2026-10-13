@@ -145,6 +145,19 @@ async function supervisorAnswers(c, browser, backend, chat) {
     const push = chat.state.dm.pushes.at(-1)
     c.ok(push?.to === TRAINER_ID && coachPushUrl(push.url) === `/coach/dm/${SUP_ID}`, 'push тренеру откроет диалог на телефоне')
     await screenshot(page, 'staff-dm-supervisor-thread')
+
+    await page.setViewportSize(MONITOR.viewport)
+    await page.waitForTimeout(200)
+    const m = await page.evaluate(() => {
+      const box = (sel) => globalThis.document.querySelector(sel)?.getBoundingClientRect()
+      const tabs = [...globalThis.document.querySelectorAll('[data-testid="chat-folders"] button')].map((b) => b.getBoundingClientRect())
+      return {
+        cols: box('.msgr__rail').left < box('.msgr__list').left && box('.msgr__list').left < box('.msgr__thread').left,
+        stacked: tabs.length > 1 && tabs.every((t, i) => !i || t.top >= tabs[i - 1].bottom - 1),
+      }
+    })
+    c.ok(m.cols && m.stacked, 'монитор управляющего — как у админа: папки столбиком слева, список, диалог')
+    await screenshot(page, 'staff-dm-supervisor-monitor')
   } catch (e) {
     await screenshot(page, 'staff-dm-supervisor-FAIL').catch(() => null)
     c.ok(false, `управляющая: сценарий прерван: ${e.message.split('\n')[0]}`)
@@ -331,7 +344,7 @@ async function adminWrites(c, browser, backend, chat) {
     c.ok(await reaches(page.getByText('Выберите, кому написать')), 'справа — «Выберите, кому написать»')
     c.ok((await page.getByTestId('chat-folders').count()) === 0, 'админ: без папок «Клиенты» — клиентов читает из карточки')
     c.ok((await page.getByRole('link', { name: 'Рассылки' }).count()) === 0, 'админ: вкладки «Рассылки» нет')
-    const railTitles = await rail.locator('.admin-msgr__club-title').allInnerTexts()
+    const railTitles = await rail.locator('.chat-folders__label').allInnerTexts()
     c.ok(JSON.stringify(railTitles.slice(0, 2)) === '["Все клубы","Ждут ответа"]' && railTitles.includes('E2E клуб') && railTitles.includes('Москва клуб'), `слева: «Все клубы», «Ждут ответа», клубы (${railTitles.join(', ')})`)
 
     await rail.getByRole('button', { name: /E2E клуб/ }).click()
@@ -390,11 +403,28 @@ async function adminWrites(c, browser, backend, chat) {
     await page.getByRole('button', { name: /Настройки/ }).click()
     c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'админ: в «Настройках» переключатель «Уведомления», как у всех')
     await page.keyboard.press('Escape')
-    await page.setViewportSize({ width: 820, height: 900 })
+    const layout = () =>
+      page.evaluate(() => {
+        const box = (sel) => globalThis.document.querySelector(sel)?.getBoundingClientRect()
+        const rail = box('.msgr__rail')
+        const list = box('.msgr__list')
+        const thread = box('.msgr__thread')
+        return { railLeft: rail?.left, listLeft: list?.left, threadLeft: thread?.left, railBelow: rail && list ? list.top >= rail.bottom - 1 : false }
+      })
+    const wide = await layout()
+    c.ok(wide.railLeft < wide.listLeft && wide.listLeft < wide.threadLeft, 'монитор: три колонки — клубы, люди, диалог')
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.waitForTimeout(200)
+    const tablet = await layout()
+    c.ok(
+      tablet.railLeft === tablet.listLeft && tablet.railBelow && tablet.threadLeft > tablet.listLeft && !(await page.getByRole('link', { name: 'К списку' }).isVisible()),
+      'планшет: как у тренера — клубы кнопками над людьми, диалог справа, без «К списку»',
+    )
+    await page.setViewportSize({ width: 700, height: 900 })
     const back = page.getByRole('link', { name: 'К списку' })
-    c.ok((await reaches(back)) && !(await rail.isVisible()), 'узкий экран: открыт диалог — только он и «К списку»')
+    c.ok((await reaches(back)) && !(await rail.isVisible()), 'телефон: открыт диалог — только он и «К списку»')
     await back.click()
-    c.ok((await reaches(rail)) && !(await page.getByTestId('chat-input').isVisible()), 'узкий экран: «К списку» — снова клубы и люди')
+    c.ok((await reaches(rail)) && !(await page.getByTestId('chat-input').isVisible()), 'телефон: «К списку» — снова клубы и люди')
   } catch (e) {
     await screenshot(page, 'staff-dm-admin-FAIL').catch(() => null)
     c.ok(false, `админ: сценарий прерван: ${e.message.split('\n')[0]}`)

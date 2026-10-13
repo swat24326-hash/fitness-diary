@@ -10,7 +10,7 @@ import { STAFF_FOLDER_INBOX } from '../../lib/chat/staffMessengerCore.js'
 
 function Status({ icon: Icon, title, hint, spin = false }) {
   return (
-    <div className="staff-msgr__status" role="status">
+    <div className="msgr__status" role="status">
       <Icon size={24} aria-hidden className={spin ? 'icon-spin' : undefined} />
       <strong>{title}</strong>
       {hint ? <p className="muted">{hint}</p> : null}

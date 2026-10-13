@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Mail, MessageCircle, RefreshCw, Search, WifiOff } from 'lucide-react'
-import { AdminClubRail } from '../../components/chat/AdminClubRail.jsx'
+import { useSearchParams } from 'react-router-dom'
+import { Building2, Inbox, Mail, RefreshCw, Search, Users, WifiOff } from 'lucide-react'
 import { AdminStaffList } from '../../components/chat/AdminStaffList.jsx'
+import { ChatFolders } from '../../components/chat/ChatFolders.jsx'
+import { MessengerBack, MessengerHead, MessengerLayout, MessengerPick } from '../../components/chat/MessengerLayout.jsx'
 import { StaffDmPane } from '../../components/chat/StaffDmPane.jsx'
 import {
   STAFF_VIEW_ALL,
@@ -17,11 +18,12 @@ import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
 import '../../styles/admin-messenger.css'
 
 const EMPTY_RU = { [STAFF_VIEW_UNREAD]: 'Все ответили — новых нет' }
+const ICON = { [STAFF_VIEW_ALL]: Users, [STAFF_VIEW_UNREAD]: Inbox }
 
 /**
- * Главный админ за монитором, как Telegram на компьютере: слева клубы, в середине люди клуба с поиском, справа диалог.
+ * Главный админ: папки — клубы («Все клубы», «Ждут ответа», каждый клуб с числом новых), в списке люди с поиском,
+ * справа диалог. Рамка — общая с тренером и управляющим (MessengerLayout), вид по ширине экрана.
  * Состояние в адресе (?view=клуб&dm=человек) — назад/вперёд браузера и push `/messages/dm/:id` открывают то же.
- * На узком экране — по одной панели: список → диалог со стрелкой «назад».
  * @param {{ chatList: ReturnType<typeof import('../../hooks/useStaffChat.js').useStaffChats> }} props
  */
 export function AdminMessenger({ chatList }) {
@@ -60,73 +62,60 @@ export function AdminMessenger({ chatList }) {
   }
 
   return (
-    <div className={`admin-msgr${dm ? ' admin-msgr--thread-open' : ''}`}>
-      <aside className="admin-msgr__side">
-        <div className="admin-msgr__side-head">
-          <h1 className="staff-inbox__title" title="Сообщения сотрудников">
-            <Mail size={22} aria-hidden />
-            Сотрудники
-          </h1>
-          <button type="button" className="btn btn-ghost btn-icon-square" onClick={reload} disabled={status === 'loading'} title="Обновить" aria-label="Обновить">
-            <RefreshCw size={18} aria-hidden className={status === 'loading' ? 'icon-spin' : undefined} />
-          </button>
-        </div>
-        {folders ? <AdminClubRail items={rail} view={searching ? '' : current.key} onPick={pickView} /> : null}
-      </aside>
-
-      <section className="admin-msgr__list" aria-label="Сотрудники">
-        <label className="chat-contacts__search admin-msgr__search">
-          <Search size={18} aria-hidden />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Клуб или сотрудник"
-            aria-label="Найти клуб или сотрудника"
-            enterKeyHint="search"
+    <MessengerLayout
+      open={Boolean(dm)}
+      listLabel="Сотрудники"
+      head={<MessengerHead icon={Mail} title="Сообщения сотрудников" short="Сотрудники" loading={status === 'loading'} onReload={reload} />}
+      folders={
+        folders ? (
+          <ChatFolders
+            label="Клубы"
+            testId="staff-clubs"
+            folders={rail.map((it, i) => ({ id: it.key, label: it.title, unread: it.unread, count: it.total, icon: ICON[it.key] ?? Building2, sep: i === 1 }))}
+            active={searching ? '' : current.key}
+            onChange={pickView}
           />
-        </label>
-        <p className="admin-msgr__list-meta muted" role="status">
-          {searching ? staffColumnsFoundRu(columns) : `${current.title} · ${current.total}`}
-        </p>
-        {!folders ? (
-          <div className="admin-msgr__status" role="status">
-            {status === 'error' ? <WifiOff size={24} aria-hidden /> : <RefreshCw size={24} aria-hidden className="icon-spin" />}
-            <span>{status === 'error' ? error || 'Не загрузилось — проверьте интернет' : 'Загружаем…'}</span>
-          </div>
+        ) : null
+      }
+      list={
+        <>
+          <label className="chat-contacts__search">
+            <Search size={18} aria-hidden />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Клуб или сотрудник"
+              aria-label="Найти клуб или сотрудника"
+              enterKeyHint="search"
+            />
+          </label>
+          <p className="admin-msgr__list-meta muted" role="status">
+            {searching ? staffColumnsFoundRu(columns) : `${current.title} · ${current.total}`}
+          </p>
+          {!folders ? (
+            <div className="msgr__status" role="status">
+              {status === 'error' ? <WifiOff size={24} aria-hidden /> : <RefreshCw size={24} aria-hidden className="icon-spin" />}
+              <span>{status === 'error' ? error || 'Не загрузилось — проверьте интернет' : 'Загружаем…'}</span>
+            </div>
+          ) : (
+            <AdminStaffList
+              sections={sections}
+              searching={searching}
+              hrefFor={(id) => hrefWith({ dm: id })}
+              selectedId={dm}
+              emptyText={searching ? 'Никого не нашли' : EMPTY_RU[view] || 'Пока никого нет'}
+            />
+          )}
+        </>
+      }
+      thread={
+        dm ? (
+          <StaffDmPane key={dm} userId={dm} onSent={reload} backTo={hrefWith({ dm: '' })} back={<MessengerBack to={hrefWith({ dm: '' })} />} />
         ) : (
-          <AdminStaffList
-            sections={sections}
-            searching={searching}
-            hrefFor={(id) => hrefWith({ dm: id })}
-            selectedId={dm}
-            emptyText={searching ? 'Никого не нашли' : EMPTY_RU[view] || 'Пока никого нет'}
-          />
-        )}
-      </section>
-
-      <main className="admin-msgr__thread">
-        {dm ? (
-          <StaffDmPane
-            key={dm}
-            userId={dm}
-            onSent={reload}
-            backTo={hrefWith({ dm: '' })}
-            back={
-              <Link to={hrefWith({ dm: '' })} className="btn btn-ghost btn-sm admin-msgr__back">
-                <ArrowLeft size={18} aria-hidden />
-                К списку
-              </Link>
-            }
-          />
-        ) : (
-          <div className="admin-msgr__pick" role="status">
-            <MessageCircle size={36} aria-hidden />
-            <strong>Выберите, кому написать</strong>
-            <span className="muted">Клуб слева, человек в списке — или найдите по имени.</span>
-          </div>
-        )}
-      </main>
-    </div>
+          <MessengerPick title="Выберите, кому написать" hint="Клуб слева, человек в списке — или найдите по имени." />
+        )
+      }
+    />
   )
 }

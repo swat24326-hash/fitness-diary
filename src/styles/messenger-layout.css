@@ -1,0 +1,226 @@
+/* Мессенджер сотрудников — одна рамка на админа, управляющего, менеджера и тренера (MessengerLayout.jsx).
+   Вид задаёт ширина экрана: монитор ≥1200px — три колонки, как Telegram на компьютере; планшет — две;
+   телефон ≤760px — одна панель. Каждая панель листается сама, страница стоит (chatViewportFit.js). */
+
+.app-main:has(.msgr) {
+  max-width: none;
+  padding: 12px clamp(12px, 1.5vw, 24px);
+}
+
+.msgr {
+  --msgr-top: calc(var(--header-h) + env(safe-area-inset-top, 0px) + 8px);
+  --msgr-h: calc(100dvh - var(--msgr-top) - 12px);
+
+  display: grid;
+  grid-template-columns: minmax(300px, 36%) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  width: 100%;
+}
+
+.msgr__side {
+  position: sticky;
+  top: var(--msgr-top);
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  height: var(--msgr-h);
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.msgr__rail,
+.msgr__list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.msgr__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.msgr__head .staff-inbox__title {
+  font-size: 1.1rem;
+}
+
+/* Папки кнопками переносятся на вторую строку — ни одна не прячется за край. */
+.msgr .chat-folders {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+.msgr__status {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 28px 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.msgr__status strong {
+  color: var(--text);
+}
+
+.msgr__status p {
+  margin: 0;
+}
+
+.msgr .chat-row.chat-row--selected,
+.msgr .client-inbox__row.client-inbox__row--selected {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.msgr__thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--msgr-h);
+}
+
+.msgr__thread > .chat-head {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.msgr__thread > .staff-inbox {
+  max-width: none;
+  margin: 0;
+}
+
+.msgr__pick {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  flex: 1;
+  gap: 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.msgr__pick strong {
+  color: var(--text);
+}
+
+.msgr .msgr__back {
+  display: none;
+  justify-self: start;
+  align-self: flex-start;
+}
+
+/* Монитор — три колонки: папки столбиком с иконками, список, диалог. */
+@media (min-width: 1200px) {
+  .msgr {
+    grid-template-columns: minmax(200px, 15%) minmax(320px, 27%) minmax(0, 1fr);
+  }
+
+  .msgr__side {
+    display: contents;
+  }
+
+  .msgr__rail,
+  .msgr__list {
+    position: sticky;
+    top: var(--msgr-top);
+    height: var(--msgr-h);
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .msgr .chat-folders {
+    display: grid;
+    gap: 2px;
+  }
+
+  .msgr .chat-folders__tab {
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: var(--radius-md);
+    font-size: 0.92rem;
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .msgr .chat-folders__tab:hover {
+    background: var(--bg-elevated, var(--bg-card));
+    color: var(--text);
+  }
+
+  .msgr .chat-folders__tab--on,
+  .msgr .chat-folders__tab--on:hover {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .msgr .chat-folders__tab--sep {
+    margin-bottom: 8px;
+  }
+
+  .msgr .chat-folders__icon {
+    display: block;
+  }
+
+  .msgr .chat-folders__tab--on .chat-folders__icon {
+    color: var(--accent);
+  }
+
+  .msgr .chat-folders__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Телефон — одна панель: список; открыт диалог — только он, со стрелкой «К списку». */
+@media (max-width: 760px) {
+  .msgr {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .msgr__side {
+    position: static;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .msgr__thread {
+    min-height: 0;
+  }
+
+  .msgr:not(.msgr--open) .msgr__thread,
+  .msgr--open .msgr__side {
+    display: none;
+  }
+
+  .msgr .msgr__back {
+    display: inline-flex;
+  }
+}

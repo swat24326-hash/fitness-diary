@@ -37,6 +37,18 @@
   color: color-mix(in srgb, var(--accent-dim) 25%, black);
 }
 
+/* Иконка папки — только в столбике на мониторе (messenger-layout.css). */
+.chat-folders__icon {
+  display: none;
+  flex: none;
+}
+
+.chat-folders__count {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
 .chat-folders__badge {
   display: grid;
   place-items: center;

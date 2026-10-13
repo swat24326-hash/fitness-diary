@@ -1,12 +1,15 @@
 import { useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Mail, MessageCircle, RefreshCw } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Briefcase, Mail, Megaphone, MessageSquareWarning, UserRound, Users } from 'lucide-react'
 import { ChatFolders } from '../../components/chat/ChatFolders.jsx'
+import { MessengerBack, MessengerHead, MessengerLayout, MessengerPick } from '../../components/chat/MessengerLayout.jsx'
 import { StaffChatPane } from '../../components/chat/StaffChatPane.jsx'
 import { StaffDmPane } from '../../components/chat/StaffDmPane.jsx'
+import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
 import { STAFF_INBOX_CHANGED } from '../../lib/inbox/staffInboxApiClient.js'
 import { onPushReceived } from '../../lib/push/pushReceivedSignal.js'
 import {
+  STAFF_FOLDER_INBOX,
   pickStaffFolder,
   staffChatFolders,
   staffFolderOfOpen,
@@ -17,12 +20,18 @@ import {
 } from '../../lib/chat/staffMessengerCore.js'
 import { StaffInboxItemPane } from './StaffInboxItemPane.jsx'
 import { StaffMessengerList } from './StaffMessengerList.jsx'
-import '../../styles/staff-messenger.css'
+
+const ICON = {
+  [CHAT_FOLDER_CLIENTS]: Users,
+  [CHAT_FOLDER_COLLEAGUES]: UserRound,
+  [CHAT_FOLDER_ADMIN]: Briefcase,
+  [CHAT_FOLDER_COMPLAINTS]: MessageSquareWarning,
+  [STAFF_FOLDER_INBOX]: Megaphone,
+}
 
 /**
- * «Сообщения клуба» тренера, менеджера, управляющего — как Telegram на планшете: слева папки
- * («Клиенты · Коллеги · Администрация», последней — «Рассылки») и список, справа открытый диалог или рассылка.
- * На телефоне — по одной панели: список → открытое со стрелкой «назад».
+ * «Сообщения клуба» тренера, менеджера, управляющего: папки «Клиенты · Коллеги · Администрация»,
+ * последней — «Рассылки», список и открытый диалог или рассылка. Рамка — общая с админом (MessengerLayout).
  * @param {{ chats: ReturnType<typeof import('../../hooks/useStaffChat.js').useStaffChats>, inbox: ReturnType<typeof import('./useStaffInbox.js').useStaffInbox> }} props
  */
 export function StaffMessenger({ chats, inbox }) {
@@ -35,10 +44,6 @@ export function StaffMessenger({ chats, inbox }) {
   const folderId = pickStaffFolder({ requested, folders })
   const folder = folders.find((f) => f.id === folderId)
   const href = (patch) => staffMessengerHref(params, patch)
-  const reloadAll = () => {
-    chats.reload()
-    inbox.reload()
-  }
   const { reload: reloadChats } = chats
   const { reload: reloadInbox } = inbox
 
@@ -60,46 +65,44 @@ export function StaffMessenger({ chats, inbox }) {
     }
   }, [reloadChats, reloadInbox])
 
-  const loading = chats.status === 'loading' || inbox.status === 'loading'
   const closeHref = href({ close: true })
-  const back = (
-    <Link to={closeHref} className="btn btn-ghost btn-sm staff-msgr__back">
-      <ArrowLeft size={18} aria-hidden />
-      К списку
-    </Link>
-  )
+  const back = <MessengerBack to={closeHref} />
 
   return (
-    <div className={`staff-msgr${open ? ' staff-msgr--open' : ''}`}>
-      <aside className="staff-msgr__side" aria-label="Диалоги">
-        <div className="staff-msgr__head">
-          <h1 className="staff-inbox__title">
-            <Mail size={22} aria-hidden />
-            Сообщения клуба
-          </h1>
-          <button type="button" className="btn btn-ghost btn-icon-square btn-touch" onClick={reloadAll} disabled={loading} title="Обновить" aria-label="Обновить">
-            <RefreshCw size={18} aria-hidden className={loading ? 'icon-spin' : undefined} />
-          </button>
-        </div>
-        <ChatFolders folders={folders} active={folderId} onChange={(id) => setParams(staffMessengerParams(params, { folder: id }))} />
-        <StaffMessengerList key={folderId} folder={folder} chats={chats} inbox={inbox} open={open} href={href} />
-      </aside>
-
-      <main className="staff-msgr__thread">
-        {open?.type === 'dm' ? (
+    <MessengerLayout
+      open={Boolean(open)}
+      listLabel="Диалоги"
+      head={
+        <MessengerHead
+          icon={Mail}
+          title="Сообщения клуба"
+          short="Сообщения"
+          loading={chats.status === 'loading' || inbox.status === 'loading'}
+          onReload={() => {
+            reloadChats()
+            reloadInbox()
+          }}
+        />
+      }
+      folders={
+        <ChatFolders
+          folders={folders.map((f) => ({ ...f, icon: ICON[f.id] }))}
+          active={folderId}
+          onChange={(id) => setParams(staffMessengerParams(params, { folder: id }))}
+        />
+      }
+      list={<StaffMessengerList key={folderId} folder={folder} chats={chats} inbox={inbox} open={open} href={href} />}
+      thread={
+        open?.type === 'dm' ? (
           <StaffDmPane key={open.userId} userId={open.userId} onSent={reloadChats} backTo={closeHref} back={back} />
         ) : open?.type === 'chat' ? (
           <StaffChatPane key={`${open.clientId}:${open.kind}`} clientId={open.clientId} kind={open.kind} onSent={reloadChats} backTo={closeHref} back={back} />
         ) : open?.type === 'item' ? (
           <StaffInboxItemPane key={open.id} id={open.id} back={back} />
         ) : (
-          <div className="staff-msgr__pick" role="status">
-            <MessageCircle size={36} aria-hidden />
-            <strong>Выберите диалог</strong>
-            <span className="muted">Слева — клиенты, коллеги, администрация и рассылки.</span>
-          </div>
-        )}
-      </main>
-    </div>
+          <MessengerPick title="Выберите диалог" hint="Слева — клиенты, коллеги, администрация и рассылки." />
+        )
+      }
+    />
   )
 }
