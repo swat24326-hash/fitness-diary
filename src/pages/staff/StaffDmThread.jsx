@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 import { useStaffDmThread } from '../../hooks/useStaffChat.js'
 import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
 
@@ -10,9 +11,10 @@ export function StaffDmThread() {
   const { userId = '' } = useParams()
   const chat = useStaffDmThread(userId)
   const peer = chat.meta?.peer
+  const { isAdmin } = useAuth()
 
   return (
-    <div className="staff-inbox">
+    <div className={`staff-inbox${isAdmin ? ' staff-inbox--thread-wide' : ''}`}>
       <Link to="/messages?tab=chats" className="btn btn-ghost btn-sm staff-inbox__back">
         <ArrowLeft size={18} aria-hidden />
         Все диалоги

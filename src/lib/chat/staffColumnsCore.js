@@ -2,6 +2,7 @@
  * Сотрудники сети столбцами по клубам — для главного админа на широком экране. Без React и базы.
  * Поиск: совпало название клуба — показываем весь клуб; иначе — только люди с совпавшим именем.
  */
+import { pluralRu } from '../client/clientMeUiCore.js'
 import { normalizeQuery } from './chatContactsCore.js'
 import { LINKED_ROLE_LABEL_RU } from './linkedStaffCore.js'
 import { staffRoleLabelRu } from './staffDmAccessCore.js'
@@ -27,10 +28,15 @@ function byColumn(a, b) {
   )
 }
 
+/** Кому реально дойдёт сейчас: есть приложение или уже идёт переписка. Остальные — свёрнутой группой внизу столбца. */
+export function isStaffReachable(p) {
+  return Boolean(p.has_app || p.has_thread || p.unread)
+}
+
 /**
  * @param {object[]} contacts люди из папок «Тренеры» и «Администрация» (с club_id / club_name)
  * @param {string} [query]
- * @returns {Array<{ key: string, title: string, unread: number, people: object[] }>}
+ * @returns {Array<{ key: string, title: string, unread: number, people: object[], reachable: object[], idle: object[] }>}
  */
 export function buildStaffColumns(contacts, query = '') {
   const q = normalizeQuery(query)
@@ -46,7 +52,22 @@ export function buildStaffColumns(contacts, query = '') {
     const clubHit = !q || normalizeQuery(col.title).includes(q)
     const people = clubHit ? col.people : col.people.filter((p) => normalizeQuery(p.name).includes(q))
     if (!people.length) continue
-    out.push({ ...col, people: [...people].sort(byPerson), unread: people.filter((p) => p.unread).length })
+    const sorted = [...people].sort(byPerson)
+    out.push({
+      ...col,
+      people: sorted,
+      reachable: sorted.filter(isStaffReachable),
+      idle: sorted.filter((p) => !isStaffReachable(p)),
+      unread: people.filter((p) => p.unread).length,
+    })
   }
   return out.sort(byColumn)
+}
+
+/** Подпись под поиском: «Нашли 3 в 2 клубах». */
+export function staffColumnsFoundRu(columns) {
+  const people = columns.reduce((n, c) => n + c.people.length, 0)
+  if (!people) return 'Никого не нашли'
+  const clubs = columns.length
+  return `Нашли ${people} · ${clubs} ${pluralRu(clubs, 'клуб', 'клуба', 'клубов')}`
 }

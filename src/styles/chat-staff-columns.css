@@ -1,8 +1,4 @@
-/* Главный админ: клубы столбцами, листаются вбок. */
-
-.staff-inbox.staff-inbox--wide {
-  max-width: none;
-}
+/* Главный админ: клубы столбцами, листаются вбок. Ширина страницы — staff-inbox.css. */
 
 .staff-columns {
   display: grid;
@@ -10,8 +6,15 @@
   min-width: 0;
 }
 
+.staff-columns__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
 .staff-columns__search {
-  max-width: 420px;
+  flex: 0 1 420px;
 }
 
 .staff-columns__track {
@@ -24,10 +27,12 @@
   padding-bottom: 8px;
 }
 
+/* Мало клубов — столбцы растягиваются на экран, много — листаются вбок. */
 .staff-columns__col {
   display: grid;
-  flex: 0 0 min(320px, 86vw);
-  max-height: calc(100dvh - 220px);
+  flex: 1 0 min(300px, 86vw);
+  max-width: 440px;
+  max-height: calc(100dvh - 190px);
   grid-template-rows: auto 1fr;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -39,27 +44,60 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border-soft, var(--border));
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.staff-columns__title {
+.staff-columns__head-text {
+  display: grid;
   flex: 1;
-  font-size: 1.02rem;
   min-width: 0;
+}
+
+.staff-columns__title {
   overflow: hidden;
+  font-size: 1.02rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.staff-columns__count {
+.staff-columns__meta {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .staff-columns__list {
   overflow-y: auto;
   padding: 4px;
+}
+
+.staff-columns__idle-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 0;
+  border-top: 1px solid var(--border-soft, var(--border));
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.staff-columns__idle-toggle:hover {
+  color: var(--text);
+}
+
+.staff-columns__idle-toggle svg {
+  transition: transform 0.15s var(--ease-out, ease);
+}
+
+.staff-columns__chevron--open {
+  transform: rotate(180deg);
 }

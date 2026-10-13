@@ -2,7 +2,7 @@
  * Главный админ: сотрудники сети столбцами по клубам, поиск по клубу и по человеку.
  * node scripts/verify-staff-columns.mjs
  */
-import { NETWORK_COLUMN_RU, buildStaffColumns } from '../src/lib/chat/staffColumnsCore.js'
+import { NETWORK_COLUMN_RU, buildStaffColumns, staffColumnsFoundRu } from '../src/lib/chat/staffColumnsCore.js'
 import { buildStaffContacts } from '../src/lib/chat/staffDmContactsCore.js'
 
 function ok(cond, msg) {
@@ -41,6 +41,12 @@ ok(cols[1].people.map((p) => p.id).join() === 'm2,t2', 'непрочитанны
 ok(cols[2].people[0].role_label === 'Управляющий · тренер', 'совмещённая роль подписана')
 ok(cols[1].people[1].role_label === 'Тренер', 'обычная роль подписана')
 ok(cols[1].people[0].role_label === 'Менеджер по продажам', 'менеджер — не «Сотрудник» (роль в контакте уже приведена: sales)')
+
+ok(cols[1].reachable.map((p) => p.id).join() === 'm2' && cols[1].idle.map((p) => p.id).join() === 't2', 'без приложения — в свёрнутую группу внизу')
+const talked = buildStaffColumns([person('x', 'Без телефона', 'trainer', 'msk', 'М', { has_app: false, has_thread: true })])
+ok(talked[0].reachable.length === 1, 'без приложения, но переписка уже есть — не прячем')
+ok(staffColumnsFoundRu(buildStaffColumns(people, 'x•fit')) === 'Нашли 4 · 2 клуба', 'счётчик поиска: люди и клубы')
+ok(staffColumnsFoundRu([]) === 'Никого не нашли', 'счётчик поиска: пусто')
 
 const byClub = buildStaffColumns(people, 'питер')
 ok(byClub.length === 1 && byClub[0].people.length === 2, 'поиск по клубу — весь клуб')
