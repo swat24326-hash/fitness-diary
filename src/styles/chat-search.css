@@ -1,0 +1,126 @@
+/* Поиск по переписке и «↓ назад к ответу», как в Telegram. Поле поиска встаёт на место поля ввода (chat.css .chat-compose). */
+
+/* Лупа в углу ленты: не занимает строку, висит над сообщениями при листании. */
+.chat-thread__search-toggle {
+  position: sticky;
+  top: 8px;
+  z-index: 3;
+  align-self: flex-end;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: -40px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chat-thread__search-toggle:hover,
+.chat-thread__search-toggle:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.chat-search .chat-compose__row {
+  align-items: center;
+}
+
+.chat-compose__pill.chat-search__pill {
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.chat-search__icon {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.chat-search__input {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.chat-search__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.chat-search__count {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.chat-search__count.is-error {
+  color: var(--danger, #e5484d);
+}
+
+.chat-search__step {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chat-search__step:disabled {
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat-search__step:not(:disabled):hover,
+.chat-search__step:focus-visible {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  outline: none;
+}
+
+/* Найденное в тексте пузыря. */
+.chat-search-hit {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: inherit;
+}
+
+/* «↓ к ответу»: круглая кнопка справа над полем, как в Telegram. */
+.chat-thread__back {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--bg);
+  color: var(--accent);
+  box-shadow: 0 6px 18px color-mix(in srgb, #000 30%, transparent);
+  cursor: pointer;
+}
+
+.chat-compose > .chat-thread__back {
+  position: absolute;
+  right: 4px;
+  bottom: calc(100% + 4px);
+}
+
+.chat-thread > .chat-thread__back {
+  position: sticky;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  justify-self: end;
+}

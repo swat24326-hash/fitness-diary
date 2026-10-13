@@ -318,6 +318,48 @@ async function clientReads(c, browser, backend, chat) {
     const reqReply = chat.state.messages.at(-1)
     c.ok(reqReply?.author_side === 'client' && reqReply?.reply_to === chat.state.messages.find((m) => m.body === REPLY)?.id, 'на сервере ответ клиента помнит сообщение тренера')
     await screenshot(page, 'client-chat-reply')
+
+    chat.state.pageSize = 2
+    try {
+      await page.reload()
+      const thanksAgain = page.locator('.chat-msg--mine', { hasText: 'Спасибо, беру!' })
+      c.ok(await reaches(thanksAgain), 'короткие страницы: открыл диалог — видно только последние сообщения')
+      const trainerReply = page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: REPLY })
+      c.ok((await trainerReply.count()) === 0, 'ответа тренера ещё нет на экране — он старше')
+      await thanksAgain.getByTestId('chat-reply-quote').click()
+      c.ok(
+        await reaches(page.locator('.chat-msg.is-flash:not(.chat-msg--mine)', { hasText: REPLY })),
+        'нажал цитату старого сообщения — история догрузилась, лента у исходного, оно подсвечено',
+      )
+      await screenshot(page, 'client-chat-reply-found-older')
+      const back = page.getByTestId('chat-jump-back')
+      c.ok(await reaches(back), 'после перехода к старому — круглая «↓ назад к ответу», как в Telegram')
+      await screenshot(page, 'client-chat-jump-back')
+      await back.click()
+      c.ok(await reaches(page.locator('.chat-msg--mine.is-flash', { hasText: 'Спасибо, беру!' })), '«назад» — лента снова у ответа, откуда уходили')
+      c.ok(await reaches(back, 'hidden'), 'вернулся — кнопка «назад» пропала')
+
+      await page.reload()
+      c.ok(await reaches(thanksAgain), 'поиск: снова только последние сообщения')
+      await page.getByRole('button', { name: 'Поиск по переписке' }).click()
+      const input = page.getByTestId('chat-search-input')
+      c.ok(await reaches(input), 'лупа — вместо поля ввода строка поиска')
+      c.ok((await page.getByTestId('chat-input').count()) === 0, 'пока ищем, поля «Сообщение» нет')
+      await input.fill('резинк')
+      c.ok(await reaches(page.getByTestId('chat-search-count').getByText('1 из 1')), 'нашлось «1 из 1» — вопрос про резинку')
+      const found = page.locator('.chat-msg--mine', { hasText: 'Посмотрите резинку' })
+      c.ok(await reaches(found.locator('mark.chat-search-hit')), 'старое сообщение догрузилось, найденное слово подсвечено')
+      await screenshot(page, 'client-chat-search')
+      await input.fill('жестк')
+      c.ok(await reaches(page.locator('.chat-msg:not(.chat-msg--mine) mark.chat-search-hit', { hasText: 'жёстк' })), '«жестк» находит «жёсткость» — ё и е без разницы')
+      await input.fill('гантели')
+      c.ok(await reaches(page.getByTestId('chat-search-count').getByText('Ничего не нашлось')), 'нет такого слова — «Ничего не нашлось»')
+      await page.getByRole('button', { name: 'Закрыть поиск' }).click()
+      c.ok(await reaches(page.getByTestId('chat-input')), 'закрыл поиск — снова поле «Сообщение»')
+      c.ok((await page.locator('mark.chat-search-hit').count()) === 0, 'подсветка найденного убрана')
+    } finally {
+      chat.state.pageSize = undefined
+    }
   } catch (e) {
     await screenshot(page, 'client-chat-read-FAIL').catch(() => null)
     c.ok(false, `клиент (ответ): сценарий прерван: ${e.message.split('\n')[0]}`)

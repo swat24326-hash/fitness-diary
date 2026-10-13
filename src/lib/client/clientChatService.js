@@ -18,6 +18,11 @@ export function sendClientChatMessage(kind, outgoing) {
 }
 
 /** emoji null — снять свою реакцию. @returns {Promise<{ message_id: string, reactions: object[] }>} */
+/** Поиск по своему диалогу. @returns {Promise<{ results: object[] }>} */
+export function searchClientChat(kind, q) {
+  return postClientMe({ action: 'chat-search', kind, q })
+}
+
 export function reactClientChatMessage(kind, messageId, emoji) {
   return postClientMe({ action: 'chat-react', kind, message_id: messageId, emoji })
 }

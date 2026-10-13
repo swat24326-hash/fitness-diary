@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { nextChatOutgoingId } from '../lib/chat/chatDeliveryCore.js'
 import { mergeChatMessages } from '../lib/chat/chatMessageCore.js'
 import { CHAT_REACTION_OFFLINE_RU, patchChatReactions, toggleChatReaction } from '../lib/chat/chatReactionCore.js'
-import { buildChatReplyQuote } from '../lib/chat/chatReplyCore.js'
+import { CHAT_REPLY_NOT_FOUND_RU, buildChatReplyQuote, loadChatHistoryUntil } from '../lib/chat/chatReplyCore.js'
 import { chatSeenNeedsRefresh } from '../lib/chat/chatSeenCore.js'
 import { countNewPeerMessages } from '../lib/chat/chatSoundCore.js'
 import { armChatSound, playChatSound } from '../lib/chat/chatSoundPlayer.js'
@@ -17,9 +17,10 @@ export const CHAT_OFFLINE_RU = 'Нет сети — сообщение не от
  * Пока экран открыт и виден — свежие сообщения раз в 10 с и сразу при приходе push.
  * Читает историю выше — опрос без отметки «прочитано» (seen=false); дошёл до низа — перечитываем с отметкой.
  * react(messageId, emoji|null) — реакция на сообщение; на экране сразу, ответ сервера уточняет.
+ * search(q) — поиск по диалогу на сервере ({ results }); отдаём как есть в ChatThreadView.
  * @param {{ key: string, side: 'client' | 'staff', load: (before?: string, opts?: { seen: boolean }) => Promise<{ messages: object[], has_more: boolean }>, send: (outgoing: { body: string } | { sticker: string }) => Promise<{ message: object }>, react?: (messageId: string, emoji: string|null) => Promise<{ reactions: object[] }> }} p
  */
-export function useChatThread({ key, side, load, send, react }) {
+export function useChatThread({ key, side, load, send, react, search }) {
   const [state, setState] = useState({ messages: null, meta: null, hasMore: false, status: 'loading', error: '', errorStatus: null })
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
@@ -33,6 +34,7 @@ export function useChatThread({ key, side, load, send, react }) {
   const pendingRef = useRef(null)
   const seenRef = useRef(true)
   const stateMetaRef = useRef(null)
+  const hasMoreRef = useRef(false)
   loadRef.current = load
   sendRef.current = send
   reactRef.current = react
@@ -40,6 +42,7 @@ export function useChatThread({ key, side, load, send, react }) {
   keyRef.current = key
   replyRef.current = replyTo
   stateMetaRef.current = state.meta
+  hasMoreRef.current = state.hasMore
 
   const refresh = useCallback((quiet) => {
     if (!quiet) setState((s) => ({ ...s, status: 'loading', error: '', errorStatus: null }))
@@ -169,13 +172,34 @@ export function useChatThread({ key, side, load, send, react }) {
   }, [])
   const cancelReply = useCallback(() => setReplyTo(null), [])
 
+  /** Цитата старого сообщения: догрузить историю до него. true — оно в ленте, можно ехать к нему. */
+  const findMessage = useCallback(async (id) => {
+    const forKey = keyRef.current
+    try {
+      const out = await loadChatHistoryUntil({
+        id,
+        messages: messagesRef.current,
+        hasMore: hasMoreRef.current,
+        loadOlder: (before) => loadRef.current(before),
+      })
+      if (keyRef.current !== forKey) return false
+      setState((s) => ({ ...s, messages: mergeChatMessages(s.messages, out.messages), hasMore: out.hasMore }))
+      if (!out.found) setSendError(CHAT_REPLY_NOT_FOUND_RU)
+      return out.found
+    } catch (e) {
+      if (keyRef.current === forKey) setSendError(e?.message || 'Не загрузилось')
+      return false
+    }
+  }, [])
+
   return {
     ...state,
     reload: () => refresh(false),
     loadOlder,
     submit,
     react: react ? reactTo : undefined,
-    reply: { to: replyTo, start: startReply, cancel: cancelReply },
+    reply: { to: replyTo, start: startReply, cancel: cancelReply, find: findMessage },
+    search,
     sending,
     sendError,
     onAtBottom,

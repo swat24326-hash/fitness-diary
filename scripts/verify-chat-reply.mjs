@@ -1,5 +1,6 @@
 /**
- * «Ответить» с цитатой: кто в цитате, текст, стикер, мусорный id, исходное не нашлось, свайп влево.
+ * «Ответить» с цитатой: кто в цитате, текст, стикер, мусорный id, исходное не нашлось, свайп влево,
+ * догрузка истории до старого исходного (порядок, лимит страниц, пустая страница).
  * node scripts/verify-chat-reply.mjs
  */
 import {
@@ -11,6 +12,7 @@ import {
   chatReplyQuoteFor,
   chatReplySwipeOffset,
   isChatReplySwipe,
+  loadChatHistoryUntil,
   normalizeChatReplyTo,
 } from '../src/lib/chat/chatReplyCore.js'
 import { buildChatMessageView } from '../src/lib/chat/chatMessageCore.js'
@@ -67,6 +69,38 @@ ok(!isChatReplySwipe(CHAT_REPLY_SWIPE_PX * 2, 0), 'вправо — нет')
 ok(!isChatReplySwipe(-80, 70), 'наискосок (листал ленту) — нет')
 ok(chatReplySwipeOffset(40) === 0 && chatReplySwipeOffset(-30) === -30, 'пузырь едет только влево')
 ok(chatReplySwipeOffset(-500) === -CHAT_REPLY_SWIPE_PX * 1.4, 'и не дальше упора')
+
+console.log('цитата старого сообщения — догрузить историю')
+const at = (i) => new Date(Date.UTC(2026, 8, 1) + i * 60_000).toISOString()
+const history = Array.from({ length: 10 }, (_, i) => ({ id: `m${i}`, created_at: at(i) }))
+/** Сервер: до before, последние size, по возрастанию. */
+const pager = (size) => {
+  const calls = []
+  const loadOlder = async (before) => {
+    calls.push(before)
+    const older = history.filter((m) => m.created_at < before)
+    return { messages: older.slice(-size), has_more: older.length > size }
+  }
+  return { calls, loadOlder }
+}
+const shown = history.slice(-2)
+const p1 = pager(3)
+const r1 = await loadChatHistoryUntil({ id: 'm2', messages: shown, hasMore: true, loadOlder: p1.loadOlder })
+ok(r1.found && p1.calls.length === 2, 'старое на второй странице — догрузили две страницы и нашли')
+ok(r1.messages[0].id === 'm2' && r1.messages.length === 8 && r1.hasMore, 'лента без дыр, по порядку, «Раньше» осталось')
+ok(r1.messages.every((m, i, a) => !i || a[i - 1].created_at < m.created_at), 'порядок по времени')
+const p2 = pager(3)
+const r2 = await loadChatHistoryUntil({ id: 'deleted', messages: shown, hasMore: true, loadOlder: p2.loadOlder })
+ok(!r2.found && !r2.hasMore && r2.messages.length === 10, 'исходного нет — дошли до начала истории и остановились')
+const p3 = pager(1)
+const r3 = await loadChatHistoryUntil({ id: 'm0', messages: shown, hasMore: true, loadOlder: p3.loadOlder, maxPages: 3 })
+ok(!r3.found && p3.calls.length === 3 && r3.hasMore, 'упёрлись в лимит страниц — не грузим бесконечно, «Раньше» осталось')
+const p4 = pager(3)
+const r4 = await loadChatHistoryUntil({ id: 'm9', messages: shown, hasMore: true, loadOlder: p4.loadOlder })
+ok(r4.found && p4.calls.length === 0, 'уже в ленте — сервер не трогаем')
+const r5 = await loadChatHistoryUntil({ id: 'm1', messages: shown, hasMore: true, loadOlder: async () => ({ messages: [], has_more: true }) })
+ok(!r5.found && !r5.hasMore, 'сервер вернул пустую страницу при has_more — не зацикливаемся')
+ok(!(await loadChatHistoryUntil({ id: 'm1', messages: shown, hasMore: false, loadOlder: p4.loadOlder })).found, 'истории больше нет — не ищем')
 
 if (failed) {
   console.error(`\nverify-chat-reply: ${failed} fail`)

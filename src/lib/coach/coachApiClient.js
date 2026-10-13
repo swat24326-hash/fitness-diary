@@ -72,6 +72,10 @@ export function reactCoachChatMessage(clientId, messageId, emoji, kind = 'traine
   return coachRequest({}, { op: 'chat-react', client_id: clientId, kind, message_id: messageId, emoji })
 }
 
+/** Поиск по диалогу. @returns {Promise<{ results: object[] }>} */
+export const searchCoachChat = (clientId, q, kind = 'trainer') => coachRequest({ view: 'chat-search', client_id: clientId, kind, q })
+export const searchCoachDm = (userId, q) => coachRequest({ view: 'dm-search', user_id: userId, q })
+
 export function reactCoachDmMessage(userId, messageId, emoji) {
   return coachRequest({}, { op: 'dm-react', user_id: userId, message_id: messageId, emoji })
 }

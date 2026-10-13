@@ -44,6 +44,7 @@ export function StaffChatThread() {
           onAtBottom={chat.onAtBottom}
           onReact={chat.react}
           reply={chat.reply}
+          search={chat.search}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

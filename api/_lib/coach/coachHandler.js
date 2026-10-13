@@ -3,6 +3,7 @@
  * GET  ?view=me | schedule | chats | contacts | chat-thread&client_id[&kind=supervisor][&before][&seen=0] | push-status&endpoint
  *      contacts — папки «Сообщений», клиенты с приложением сверху (chatContactsHandler.js)
  *      | dm-thread&user_id[&before] — переписка с коллегой / администрацией (staffDmHandler.js)
+ *      | chat-search&client_id[&kind]&q | dm-search&user_id&q — поиск по диалогу → { results }
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
  *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
  * GET  ?manifest=<club uuid> — без пропуска: manifest с названием клуба (браузер шлёт его без токена).
@@ -21,7 +22,7 @@ import { sendJson, setCors } from '../adminSupabase.js'
 import { loadInChunks } from '../batchCore.js'
 import { handleStaffChatGet, handleStaffChatPost } from '../chat/chatStaffHandler.js'
 import { sendChatContacts } from '../chat/chatContactsHandler.js'
-import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmThread } from '../chat/staffDmHandler.js'
+import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread } from '../chat/staffDmHandler.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
 import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
@@ -98,6 +99,11 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'chats') return handleStaffChatGet(ctx, { query: { view: 'list' } }, res)
   if (view === 'contacts') return sendChatContacts(ctx, res)
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
+  if (view === 'dm-search') return sendStaffDmSearch(ctx, res, req.query?.user_id, req.query?.q)
+  if (view === 'chat-search') {
+    const { client_id, q } = req.query ?? {}
+    return handleStaffChatGet(ctx, { query: { view: 'search', kind: coachChatKind(req.query?.kind), client_id, q } }, res)
+  }
   if (view === 'chat-thread') {
     const { client_id, before, seen } = req.query ?? {}
     return handleStaffChatGet(ctx, { query: { view: 'thread', kind: coachChatKind(req.query?.kind), client_id, before, seen } }, res)

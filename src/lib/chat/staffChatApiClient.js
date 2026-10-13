@@ -30,6 +30,15 @@ export async function fetchStaffDmThread(userId, before, seen) {
   return data
 }
 
+/** Поиск по диалогу с клиентом / коллегой. @returns {Promise<{ results: object[] }>} */
+export function searchStaffChat(clientId, kind, q) {
+  return inboxApiCall('chat', 'GET', { view: 'search', client_id: clientId, kind, q })
+}
+
+export function searchStaffDm(userId, q) {
+  return inboxApiCall('chat', 'GET', { view: 'dm-search', user_id: userId, q })
+}
+
 /** @param {{ body: string } | { sticker: string }} outgoing */
 export function sendStaffDmMessage(userId, outgoing) {
   return inboxApiCall('chat', 'POST', {}, { op: 'dm-send', user_id: userId, ...outgoing })

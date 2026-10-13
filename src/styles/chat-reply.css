@@ -22,6 +22,18 @@ button.chat-reply__quote {
   cursor: pointer;
 }
 
+/* Ищем старое исходное в истории — цитата мягко мигает. */
+button.chat-reply__quote.is-busy {
+  cursor: progress;
+  animation: chat-reply-busy 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes chat-reply-busy {
+  to {
+    opacity: 0.55;
+  }
+}
+
 .chat-reply__who {
   overflow: hidden;
   color: var(--accent);
@@ -109,6 +121,11 @@ button.chat-reply__quote {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  button.chat-reply__quote.is-busy {
+    animation: none;
+    opacity: 0.6;
+  }
+
   .chat-msg.is-flash .chat-msg__body {
     animation: none;
     outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);

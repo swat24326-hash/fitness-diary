@@ -5,6 +5,7 @@ import { chatTextParts } from '../../lib/chat/chatTextLinksCore.js'
 import { buildChatFeed } from '../../lib/chat/chatFeedCore.js'
 import { splitEmojiText } from '../../lib/chat/chatEmojiNotoCore.js'
 import { CHAT_QUICK_REACTION, myChatReaction } from '../../lib/chat/chatReactionCore.js'
+import { splitChatSearchMatches } from '../../lib/chat/chatSearchCore.js'
 import { useChatLongPress } from '../../hooks/useChatLongPress.js'
 import { ChatEmojiAnimated } from './ChatEmojiAnimated.jsx'
 import { ChatEmojiGlyph } from './ChatEmojiGlyph.jsx'
@@ -15,27 +16,28 @@ import { ChatReplyQuote } from './ChatReplyQuote.jsx'
 import { ChatSticker } from './stickers/ChatSticker.jsx'
 
 const BURST_MS = 1200
-const FLASH_MS = 1300
 const TIME_FMT = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
-/** К исходному сообщению цитаты; его нет в загруженной ленте (старое) — остаёмся на месте. */
-function jumpToMessage(id) {
-  const el = document.querySelector(`[data-msg-id="${CSS.escape(String(id))}"]`)
-  if (!el) return
-  el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  el.classList.remove('is-flash')
-  void el.offsetWidth
-  el.classList.add('is-flash')
-  window.setTimeout(() => el.classList.remove('is-flash'), FLASH_MS)
-}
-
-function TextWithEmoji({ text }) {
-  return splitEmojiText(text).map((p, i) =>
-    p.key ? <ChatEmojiGlyph key={i} emoji={p.text} emojiKey={p.key} /> : <span key={i}>{p.text}</span>,
+/** Найденное поиском — подсвечено, как в Telegram. */
+function Highlighted({ text, highlight }) {
+  return splitChatSearchMatches(text, highlight).map((p, i) =>
+    p.hit ? (
+      <mark key={i} className="chat-search-hit">
+        {p.text}
+      </mark>
+    ) : (
+      <span key={i}>{p.text}</span>
+    ),
   )
 }
 
-function MessageText({ body, mine, onLink }) {
+function TextWithEmoji({ text, highlight }) {
+  return splitEmojiText(text).map((p, i) =>
+    p.key ? <ChatEmojiGlyph key={i} emoji={p.text} emojiKey={p.key} /> : <Highlighted key={i} text={p.text} highlight={highlight} />,
+  )
+}
+
+function MessageText({ body, mine, onLink, highlight }) {
   const click = (e, href) => {
     const check = chatLinkCheck(href, window.location.origin)
     if (!chatLinkNeedsConfirm(check, mine)) return
@@ -52,7 +54,7 @@ function MessageText({ body, mine, onLink }) {
         {p.text}
       </a>
     ) : (
-      <TextWithEmoji key={i} text={p.text} />
+      <TextWithEmoji key={i} text={p.text} highlight={highlight} />
     ),
   )
 }
@@ -87,10 +89,12 @@ function Meta({ m }) {
  * Сообщения как в Telegram: плашки дней, пачки одного автора с «хвостиком» у последнего,
  * время и галочки внутри пузыря, крупные смайлики и стикеры без пузыря, реакции под сообщением.
  * onReact — может писать в диалог: долгое нажатие открывает реакции, «Ответить» и «Копировать», двойной тап — 👍,
- * свайп влево — «Ответить» (onReply). Нажали цитату — лента едет к исходному сообщению и подсвечивает его.
- * @param {{ messages: object[], peerReadAt?: string|null, onReact?: (id: string, emoji: string) => void, onReply?: (message: object) => void }} props
+ * свайп влево — «Ответить» (onReply). Нажали цитату — onJump(исходное, откуда) — useChatJump; finding — ищем его в истории.
+ * highlight — запрос поиска: совпадения в тексте подсвечены.
+ * @param {{ messages: object[], peerReadAt?: string|null, onReact?: (id: string, emoji: string) => void, onReply?: (message: object) => void,
+ *   onJump?: (id: string, fromId: string) => void, finding?: string|null, highlight?: string }} props
  */
-export function ChatFeed({ messages, peerReadAt, onReact, onReply }) {
+export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, finding = null, highlight = '' }) {
   const [link, setLink] = useState(null)
   const [menu, setMenu] = useState(null)
   const [burst, setBurst] = useState(null)
@@ -151,13 +155,15 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply }) {
           <span className="chat-msg__author">{item.author_name}</span>
         ) : null}
         <div className="chat-msg__body">
-          {item.reply ? <ChatReplyQuote quote={item.reply} onJump={jumpToMessage} /> : null}
+          {item.reply ? (
+            <ChatReplyQuote quote={item.reply} onJump={(id) => onJump?.(id, item.id)} busy={finding === String(item.reply.id)} />
+          ) : null}
           {item.sticker ? (
             <ChatSticker id={item.sticker} />
           ) : item.big ? (
             <BigEmoji body={item.body} />
           ) : (
-            <MessageText body={item.body} mine={item.mine} onLink={setLink} />
+            <MessageText body={item.body} mine={item.mine} onLink={setLink} highlight={highlight} />
           )}
           <Meta m={item} />
         </div>

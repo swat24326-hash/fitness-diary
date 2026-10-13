@@ -144,6 +144,8 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
     if (view === 'contacts') return staff({ view: 'contacts' })
     if (view === 'dm-thread') return staff({ view: 'dm-thread', user_id: q.get('user_id') })
     if (view === 'chat-thread') return staff({ view: 'thread', kind: coachKind(q.get('kind')), client_id: q.get('client_id') })
+    if (view === 'dm-search') return staff({ view: 'dm-search', user_id: q.get('user_id'), q: q.get('q') })
+    if (view === 'chat-search') return staff({ view: 'search', kind: coachKind(q.get('kind')), client_id: q.get('client_id'), q: q.get('q') })
     if (view === 'push-status') return { status: 200, json: { configured: false, public_key: '', subscribed: false } }
     return { status: 400, json: { error: 'Неизвестный запрос' } }
   }

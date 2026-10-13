@@ -13,10 +13,12 @@ import {
 import { buildChatMessageView } from '../../../src/lib/chat/chatMessageCore.js'
 import { CHAT_REACTION_GONE_RU, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
+import { buildChatSearchHit, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
 import { sendChatPush } from './chatPushJob.js'
 import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
+import { searchThreadMessages } from './chatSearchStore.js'
 import {
   countRecentChatMessages,
   ensureChatThread,
@@ -60,6 +62,22 @@ export async function openChatThread(db, { client, kind, side, reactor, before, 
     marked_read: marked,
     peer_read_at: chatPeerReadAt(side, thread),
   }
+}
+
+/**
+ * Поиск по диалогу: { results } новые сверху или 400 (короткий запрос). Диалога ещё нет — пусто.
+ * @param {'client'|'staff'} side
+ * @returns {Promise<{ status: number, body: object }>}
+ */
+export async function searchChatThread(db, { client, kind, side, q }) {
+  const checked = normalizeChatSearchQuery(q)
+  if (!checked.ok) return { status: 400, body: { error: checked.error } }
+  const thread = await loadChatThread(db, client.id, kind)
+  if (!thread) return { status: 200, body: { results: [] } }
+  const found = await searchThreadMessages(db, 'chat', thread.id, checked.q)
+  const names = await loadStaffNames(db, found.map((m) => m.author_user_id))
+  const results = found.map((m) => buildChatSearchHit(buildChatMessageView(m, side, names), checked.q, peerNameOf(side, client)))
+  return { status: 200, body: { results } }
 }
 
 /** Своя реакция на сообщение диалога; reactor — chatReactorKey того, кто ставит. */

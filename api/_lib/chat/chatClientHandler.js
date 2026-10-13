@@ -2,12 +2,13 @@
  * Переписка клиента через /api/client-me (токен клиента, только свои диалоги).
  * POST { action: 'chat-list' } | { action: 'chat-thread', kind, before?, seen? } (отмечает прочитанным; seen=0 — нет) | { action: 'chat-send', kind, body, reply_to? }
  *      | { action: 'chat-react', kind, message_id, emoji|null } → { message_id, reactions }
+ *      | { action: 'chat-search', kind, q } → { results } — поиск по своему диалогу
  */
 import { sendJson } from '../adminSupabase.js'
 import { chatKindLabelRu, chatUnreadCount, clientChatAttention, clientChatKinds, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
-import { openChatThread, reactChatMessage, sendChatMessage } from './chatConversation.js'
+import { openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { isMissingChatTable, loadClientThreads, loadStaffNames } from './chatStore.js'
 
 const UNAVAILABLE_RU = 'Сообщения пока недоступны — попробуйте позже'
@@ -80,6 +81,11 @@ export async function handleClientChatPost(db, ctx, body, res) {
         clientMsgId: body.client_msg_id,
         replyTo: body.reply_to,
       })
+      sendJson(res, out.status, out.body)
+      return
+    }
+    if (body.action === 'chat-search') {
+      const out = await searchChatThread(db, { client, kind, side: 'client', q: body.q })
       sendJson(res, out.status, out.body)
       return
     }

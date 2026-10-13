@@ -4,6 +4,7 @@
  * GET  view=contacts → папки «Клиенты · Коллеги · Администрация» (chatContactsHandler.js)
  * GET  view=dm-thread&user_id / POST { op: 'dm-send', user_id } — переписка сотрудников (staffDmHandler.js)
  * GET  view=thread&client_id&kind[&before][&seen=0] → { client, kind, can_write, messages, has_more } (отмечает прочитанным; seen=0 — нет)
+ * GET  view=search&client_id&kind&q | view=dm-search&user_id&q → { results: [{ id, created_at, who, snippet }] } — поиск по диалогу, новые сверху
  * POST { op: 'send', client_id, kind, body } → { message }
  * POST { op: 'react', client_id, kind, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
  *      (реакцию ставит тот, кто может писать в диалог)
@@ -25,9 +26,9 @@ import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
-import { openChatThread, reactChatMessage, sendChatMessage } from './chatConversation.js'
+import { openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
-import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmThread, staffDmAttention } from './staffDmHandler.js'
+import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, staffDmAttention } from './staffDmHandler.js'
 import { isMissingChatTable, loadChatClient, loadClientsByIds, loadStaffThreads } from './chatStore.js'
 import { linkedComplaintThreads, linkedSupervisorCtx } from './linkedStaffStore.js'
 
@@ -97,6 +98,7 @@ export async function handleStaffChatGet(ctx, req, res) {
   const view = String(req.query?.view ?? 'list')
   if (view === 'contacts') return sendChatContacts(ctx, res)
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
+  if (view === 'dm-search') return sendStaffDmSearch(ctx, res, req.query?.user_id, req.query?.q)
   const scope = scopeOf(ctx, res)
   if (!scope) return
   try {
@@ -109,6 +111,11 @@ export async function handleStaffChatGet(ctx, req, res) {
     const found = await resolveClient(ctx, res, req.query?.client_id, kind, false)
     if (!found) return
     const { client, actor } = found
+    if (view === 'search') {
+      const out = await searchChatThread(ctx.supabaseAdmin, { client, kind, side: 'staff', q: req.query?.q })
+      sendJson(res, out.status, out.body)
+      return
+    }
     const page = await openChatThread(ctx.supabaseAdmin, {
       client,
       kind,

@@ -109,6 +109,7 @@ run('chat text links (сайты, почта, телефоны)', 'node', ['scri
 run('chat seen (прочитано на экране)', 'node', ['scripts/verify-chat-seen.mjs'])
 run('chat reactions (реакции на сообщения)', 'node', ['scripts/verify-chat-reactions.mjs'])
 run('chat reply (ответ с цитатой)', 'node', ['scripts/verify-chat-reply.mjs'])
+run('chat search (поиск по переписке)', 'node', ['scripts/verify-chat-search.mjs'])
 run('stand load test', 'node', ['scripts/verify-load-test.mjs'])
 run('client app branding', 'node', ['scripts/verify-client-app-branding.mjs'])
 run('sync auth stuck + api log', 'node', ['scripts/verify-sync-auth-stuck.mjs'])

@@ -7,6 +7,8 @@ import {
   fetchStaffDmThread,
   reactStaffChatMessage,
   reactStaffDmMessage,
+  searchStaffChat,
+  searchStaffDm,
   sendStaffChatMessage,
   sendStaffDmMessage,
 } from '../lib/chat/staffChatApiClient.js'
@@ -43,7 +45,8 @@ export function useStaffDmThread(userId) {
   const load = useCallback((before, opts) => fetchStaffDmThread(userId, before, opts?.seen), [userId])
   const send = useCallback((outgoing) => sendStaffDmMessage(userId, outgoing), [userId])
   const react = useCallback((messageId, emoji) => reactStaffDmMessage(userId, messageId, emoji), [userId])
-  return useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react })
+  const search = useCallback((q) => searchStaffDm(userId, q), [userId])
+  return useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search })
 }
 
 /** Лента диалога с клиентом. */
@@ -51,5 +54,6 @@ export function useStaffChatThread(clientId, kind) {
   const load = useCallback((before, opts) => fetchStaffChatThread(clientId, kind, before, opts?.seen), [clientId, kind])
   const send = useCallback((outgoing) => sendStaffChatMessage(clientId, kind, outgoing), [clientId, kind])
   const react = useCallback((messageId, emoji) => reactStaffChatMessage(clientId, kind, messageId, emoji), [clientId, kind])
-  return useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react })
+  const search = useCallback((q) => searchStaffChat(clientId, kind, q), [clientId, kind])
+  return useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search })
 }

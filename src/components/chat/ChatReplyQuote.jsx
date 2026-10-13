@@ -12,9 +12,10 @@ function QuoteText({ text }) {
 /**
  * Цитата, как в Telegram: полоска слева, кто и первая строка.
  * В пузыре — кнопка «к исходному» (onJump); над полем ввода — «Ответ …» с крестиком (onCancel).
- * @param {{ quote: { id: string, who: string, text: string }, onJump?: (id: string) => void, onCancel?: () => void }} props
+ * busy — ищем старое исходное в истории: цитата мигает, повторное нажатие не запускает второй поиск.
+ * @param {{ quote: { id: string, who: string, text: string }, onJump?: (id: string) => void, onCancel?: () => void, busy?: boolean }} props
  */
-export function ChatReplyQuote({ quote, onJump, onCancel }) {
+export function ChatReplyQuote({ quote, onJump, onCancel, busy = false }) {
   if (!quote) return null
   if (onCancel) {
     return (
@@ -35,8 +36,10 @@ export function ChatReplyQuote({ quote, onJump, onCancel }) {
   return (
     <button
       type="button"
-      className="chat-reply chat-reply__quote"
+      className={`chat-reply chat-reply__quote${busy ? ' is-busy' : ''}`}
       data-testid="chat-reply-quote"
+      aria-busy={busy || undefined}
+      title={busy ? 'Ищу сообщение в истории…' : undefined}
       aria-label={`Ответ на сообщение ${quote.who}: ${quote.text}`}
       onClick={() => onJump?.(quote.id)}
     >

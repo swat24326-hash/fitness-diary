@@ -1,6 +1,7 @@
 /**
  * Переписка сотрудник ↔ сотрудник: /api/coach (view=dm-thread, op dm-send) и admin-data?action=chat (те же view/op).
  * GET  dm-thread&user_id[&before][&seen=0 — не отмечать прочитанным] → { peer: { id, name, label }, can_write, messages, has_more, marked_read, peer_read_at }
+ * GET  dm-search&user_id&q → { results } — поиск по диалогу (права — как на чтение)
  * POST { op: 'dm-send', user_id, body | sticker, reply_to? } → { message } (reply_to — ответ с цитатой, только на сообщение этого диалога)
  * POST { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
  * Текст сообщений в лог не пишем.
@@ -17,6 +18,7 @@ import {
 } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { CHAT_REACTION_GONE_RU, chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
+import { buildChatSearchHit, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
 import {
@@ -37,6 +39,7 @@ import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { isLinkedPairIds, loadHiddenLinkedTrainers, staffDmCtx } from './linkedStaffStore.js'
 import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
+import { searchThreadMessages } from './chatSearchStore.js'
 import { sendStaffDmPush } from './staffDmPushJob.js'
 import {
   countRecentDmMessages,
@@ -180,6 +183,30 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
       console.warn('[staff-dm-push]', e?.message || e),
     )
     sendJson(res, 200, { message: view })
+  })
+}
+
+/** Поиск по переписке с коллегой: те же права, что на чтение диалога. */
+export function sendStaffDmSearch(authCtx, res, peerId, q) {
+  return withDmTable(res, async () => {
+    const checked = normalizeChatSearchQuery(q)
+    if (!checked.ok) {
+      sendJson(res, 400, { error: checked.error })
+      return
+    }
+    const ctx = await staffDmCtx(authCtx)
+    const db = ctx.supabaseAdmin
+    const viewer = viewerOf(ctx)
+    const peer = await loadPeer(ctx, res, peerId)
+    if (!peer) return
+    const thread = await loadDmThread(db, staffDmPair(viewer.id, peer.id))
+    if (!canReadStaffDm(viewer, peer, Boolean(thread))) {
+      sendJson(res, 403, { error: STAFF_DM_NO_ACCESS_RU })
+      return
+    }
+    const found = thread ? await searchThreadMessages(db, 'dm', thread.id, checked.q) : []
+    const peerName = String(peer.name ?? '').trim()
+    sendJson(res, 200, { results: found.map((m) => buildChatSearchHit(buildStaffDmMessageView(m, viewer.id), checked.q, peerName)) })
   })
 }
 

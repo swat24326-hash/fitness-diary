@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchClientChatThread, fetchClientChats, reactClientChatMessage, sendClientChatMessage } from '../../lib/client/clientChatService.js'
+import {
+  fetchClientChatThread,
+  fetchClientChats,
+  reactClientChatMessage,
+  searchClientChat,
+  sendClientChatMessage,
+} from '../../lib/client/clientChatService.js'
 import { ClientSessionGoneError } from '../../lib/client/clientSession.js'
 import { useChatThread } from '../../hooks/useChatThread.js'
 
@@ -25,5 +31,6 @@ export function useClientChatThread(kind) {
   const load = useCallback((before, opts) => fetchClientChatThread(kind, before, opts?.seen), [kind])
   const send = useCallback((outgoing) => sendClientChatMessage(kind, outgoing), [kind])
   const react = useCallback((messageId, emoji) => reactClientChatMessage(kind, messageId, emoji), [kind])
-  return useChatThread({ key: kind, side: 'client', load, send, react })
+  const search = useCallback((q) => searchClientChat(kind, q), [kind])
+  return useChatThread({ key: kind, side: 'client', load, send, react, search })
 }

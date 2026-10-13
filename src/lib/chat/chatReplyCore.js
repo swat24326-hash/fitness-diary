@@ -1,5 +1,5 @@
 /** «Ответить» с цитатой, как в Telegram. Без React и без базы — общее для сервера и экрана. */
-import { chatPreview } from './chatMessageCore.js'
+import { chatPreview, mergeChatMessages } from './chatMessageCore.js'
 import { isInboxUuid } from '../inbox/inboxCampaignCore.js'
 
 export const CHAT_REPLY_PREVIEW_MAX = 100
@@ -39,6 +39,29 @@ export function buildChatReplyQuote(message, peerName = '') {
 export function chatReplyQuoteFor(message, quoted, toView, peerName = '') {
   const target = message?.reply_to ? quoted.get(String(message.reply_to)) : null
   return target ? buildChatReplyQuote(toView(target), peerName) : null
+}
+
+/** Страниц по 60 — до ~1500 сообщений назад за одно нажатие цитаты; дальше не ищем, чтобы не грузить телефон. */
+export const CHAT_REPLY_FIND_MAX_PAGES = 25
+export const CHAT_REPLY_NOT_FOUND_RU = 'Исходное сообщение не нашлось — возможно, оно удалено'
+
+/**
+ * Нажали цитату старого сообщения: подгружать «Раньше» страницами, пока оно не появится в ленте.
+ * Страница пустая или без новых сообщений — истории больше нет, останавливаемся.
+ * @param {{ id: string, messages: object[]|null, hasMore: boolean, loadOlder: (before: string) => Promise<{ messages: object[], has_more: boolean }>, maxPages?: number }} p
+ * @returns {Promise<{ messages: object[], hasMore: boolean, found: boolean }>}
+ */
+export async function loadChatHistoryUntil({ id, messages, hasMore, loadOlder, maxPages = CHAT_REPLY_FIND_MAX_PAGES }) {
+  let list = messages ?? []
+  let more = Boolean(hasMore)
+  const has = () => list.some((m) => String(m.id) === String(id))
+  for (let i = 0; !has() && more && list.length && i < maxPages; i++) {
+    const page = await loadOlder(list[0].created_at)
+    const before = list.length
+    list = mergeChatMessages(list, page?.messages)
+    more = Boolean(page?.has_more) && list.length > before
+  }
+  return { messages: list, hasMore: more, found: has() }
 }
 
 /** Палец ушёл влево достаточно далеко и почти горизонтально. */
