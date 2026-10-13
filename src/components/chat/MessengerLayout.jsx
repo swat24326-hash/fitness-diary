@@ -1,26 +1,36 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, RefreshCw } from 'lucide-react'
+import { messengerColsStyle } from '../../lib/chat/messengerColumnsCore.js'
+import { useMessengerColumns } from '../../hooks/useMessengerColumns.js'
+import { useMessengerMode } from '../../hooks/useMessengerMode.js'
+import { MessengerResizeHandle } from './MessengerResizeHandle.jsx'
 import '../../styles/messenger-layout.css'
 
 /**
- * Рамка мессенджера сотрудников — одна на все роли, вид задаёт ширина экрана, не роль:
- * монитор — три колонки (папки · список · диалог), планшет — две (папки над списком · диалог),
- * телефон — одна панель и «К списку». Роль решает только, что лежит в папках и списке.
- * @param {{ open: boolean, head: import('react').ReactNode, folders: import('react').ReactNode, list: import('react').ReactNode, thread: import('react').ReactNode, listLabel: string }} props
+ * Рамка мессенджера — одна на все роли (админ, управляющий, менеджер, тренер на планшете и телефоне).
+ * Вид задаёт экран, не роль: монитор — три колонки (папки · список · диалог, ширину можно подвинуть),
+ * планшет — две (папки над списком · диалог), телефон — одна панель и «К списку». Роль решает только содержимое.
+ * @param {{ open: boolean, head?: import('react').ReactNode, folders: import('react').ReactNode, list: import('react').ReactNode, thread?: import('react').ReactNode, listLabel: string, compact?: boolean }} props
+ * compact — экран сам узкий (телефон тренера /coach): всегда одна панель, диалог — своя страница.
  */
-export function MessengerLayout({ open, head, folders, list, thread, listLabel }) {
+export function MessengerLayout({ open, head = null, folders, list, thread = null, listLabel, compact = false }) {
+  const mode = useMessengerMode(compact)
+  const { cols, resize, reset } = useMessengerColumns()
+  const monitor = mode === 'monitor'
   return (
-    <div className={`msgr${open ? ' msgr--open' : ''}`}>
+    <div className={`msgr msgr--${mode}${open ? ' msgr--open' : ''}`} style={monitor ? messengerColsStyle(cols) : undefined}>
       <div className="msgr__side">
         <aside className="msgr__rail">
           {head}
           {folders}
         </aside>
+        {monitor ? <MessengerResizeHandle col="rail" label="Ширина папок" onResize={resize} onReset={reset} /> : null}
         <section className="msgr__list" aria-label={listLabel}>
           {list}
         </section>
+        {monitor ? <MessengerResizeHandle col="list" label="Ширина списка" onResize={resize} onReset={reset} /> : null}
       </div>
-      <main className="msgr__thread">{thread}</main>
+      {thread ? <main className="msgr__thread">{thread}</main> : null}
     </div>
   )
 }

@@ -1,9 +1,4 @@
 /* Папки «Сообщений»: вкладки, поиск, яркие (есть приложение) и тусклые строки. */
-.chat-folders-view {
-  display: grid;
-  gap: 10px;
-}
-
 .chat-folders {
   display: flex;
   gap: 6px;

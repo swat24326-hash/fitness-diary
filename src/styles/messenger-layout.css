@@ -1,6 +1,7 @@
-/* Мессенджер сотрудников — одна рамка на админа, управляющего, менеджера и тренера (MessengerLayout.jsx).
-   Вид задаёт ширина экрана: монитор ≥1200px — три колонки, как Telegram на компьютере; планшет — две;
-   телефон ≤760px — одна панель. Каждая панель листается сама, страница стоит (chatViewportFit.js). */
+/* Мессенджер — одна рамка на админа, управляющего, менеджера и тренера (MessengerLayout.jsx).
+   Вид задаёт класс из useMessengerMode: msgr--monitor — три колонки, как Telegram на компьютере;
+   msgr--tablet — две; msgr--phone — одна панель (и телефон тренера /coach). Каждая панель листается сама,
+   страница стоит (chatViewportFit.js). */
 
 .app-main:has(.msgr) {
   max-width: none;
@@ -123,104 +124,135 @@
   align-self: flex-start;
 }
 
-/* Монитор — три колонки: папки столбиком с иконками, список, диалог. */
-@media (min-width: 1200px) {
-  .msgr {
-    grid-template-columns: minmax(200px, 15%) minmax(320px, 27%) minmax(0, 1fr);
-  }
+/* --- Монитор: папки столбиком с иконками · список · диалог; между колонками — разделители. */
 
-  .msgr__side {
-    display: contents;
-  }
-
-  .msgr__rail,
-  .msgr__list {
-    position: sticky;
-    top: var(--msgr-top);
-    height: var(--msgr-h);
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-card);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
-  .msgr .chat-folders {
-    display: grid;
-    gap: 2px;
-  }
-
-  .msgr .chat-folders__tab {
-    justify-content: flex-start;
-    gap: 10px;
-    min-height: 42px;
-    padding: 8px 12px;
-    border: 0;
-    border-radius: var(--radius-md);
-    font-size: 0.92rem;
-    font-weight: 500;
-    text-align: left;
-  }
-
-  .msgr .chat-folders__tab:hover {
-    background: var(--bg-elevated, var(--bg-card));
-    color: var(--text);
-  }
-
-  .msgr .chat-folders__tab--on,
-  .msgr .chat-folders__tab--on:hover {
-    background: color-mix(in srgb, var(--accent) 16%, transparent);
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  .msgr .chat-folders__tab--sep {
-    margin-bottom: 8px;
-  }
-
-  .msgr .chat-folders__icon {
-    display: block;
-  }
-
-  .msgr .chat-folders__tab--on .chat-folders__icon {
-    color: var(--accent);
-  }
-
-  .msgr .chat-folders__label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.msgr--monitor {
+  grid-template-columns:
+    var(--msgr-rail, minmax(200px, 15%)) 12px
+    var(--msgr-list, minmax(320px, 27%)) 12px
+    minmax(0, 1fr);
+  column-gap: 0;
 }
 
-/* Телефон — одна панель: список; открыт диалог — только он, со стрелкой «К списку». */
-@media (max-width: 760px) {
-  .msgr {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.msgr--monitor .msgr__side {
+  display: contents;
+}
 
-  .msgr__side {
-    position: static;
-    height: auto;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    overflow: visible;
-  }
+.msgr--monitor .msgr__rail,
+.msgr--monitor .msgr__list {
+  position: sticky;
+  top: var(--msgr-top);
+  height: var(--msgr-h);
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
-  .msgr__thread {
-    min-height: 0;
-  }
+.msgr__resize {
+  position: sticky;
+  top: var(--msgr-top);
+  height: var(--msgr-h);
+  cursor: col-resize;
+  touch-action: none;
+}
 
-  .msgr:not(.msgr--open) .msgr__thread,
-  .msgr--open .msgr__side {
-    display: none;
-  }
+.msgr__resize::after {
+  content: '';
+  display: block;
+  width: 2px;
+  height: 100%;
+  margin: 0 auto;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s var(--ease-out, ease);
+}
 
-  .msgr .msgr__back {
-    display: inline-flex;
-  }
+.msgr__resize:hover::after,
+.msgr__resize:focus-visible::after,
+.msgr__resize:active::after {
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.msgr__resize:focus-visible {
+  outline: none;
+}
+
+.msgr--monitor .chat-folders {
+  display: grid;
+  gap: 2px;
+}
+
+.msgr--monitor .chat-folders__tab {
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.msgr--monitor .chat-folders__tab:hover {
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text);
+}
+
+.msgr--monitor .chat-folders__tab--on,
+.msgr--monitor .chat-folders__tab--on:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.msgr--monitor .chat-folders__tab--sep {
+  margin-bottom: 8px;
+}
+
+.msgr--monitor .chat-folders__icon {
+  display: block;
+}
+
+.msgr--monitor .chat-folders__tab--on .chat-folders__icon {
+  color: var(--accent);
+}
+
+.msgr--monitor .chat-folders__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Телефон: одна панель; открыт диалог — только он, со стрелкой «К списку». */
+
+.msgr--phone {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.msgr--phone .msgr__side {
+  position: static;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.msgr--phone .msgr__thread {
+  min-height: 0;
+}
+
+.msgr--phone:not(.msgr--open) .msgr__thread,
+.msgr--phone.msgr--open .msgr__side {
+  display: none;
+}
+
+.msgr--phone .msgr__back {
+  display: inline-flex;
 }

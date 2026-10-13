@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { ChatContactList } from '../../components/chat/ChatContactList.jsx'
-import { ChatFoldersView } from '../../components/chat/ChatFoldersView.jsx'
+import { ChatFolders } from '../../components/chat/ChatFolders.jsx'
+import { MessengerLayout } from '../../components/chat/MessengerLayout.jsx'
 import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx'
+import { useSavedChatFolder } from '../../hooks/useSavedChatFolder.js'
 import { createCoachClientInvite, fetchCoachContacts } from '../../lib/coach/coachApiClient.js'
 import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
 import { CoachShell } from './CoachShell.jsx'
@@ -14,13 +16,14 @@ const complaintHref = (c) => `/coach/chat/${c.id}/supervisor`
 const staffHref = (c) => `/coach/dm/${c.id}`
 
 /**
- * «Сообщения»: папки «Клиенты · Коллеги · Администрация». В каждой все люди — с приложением ярко и сверху,
- * без — тускло (клиента можно пригласить, коллеге — всё равно написать).
- * Тренер, связанный с управляющим, видит ещё «Жалобы и предложения».
+ * «Сообщения» телефона тренера: папки «Клиенты · Коллеги · Администрация» (у связанного с управляющим —
+ * ещё «Жалобы и предложения») и список. Рамка — общая с планшетом и админом (MessengerLayout, одна панель),
+ * диалог открывается своей страницей /coach/chat|dm/:id.
  */
 export function CoachChatsPage() {
   const { data, status, error, reload } = useCoachLoad(fetchCoachContacts, { refreshOnReturn: true })
   const [inviting, setInviting] = useState(null)
+  const [saved, pick] = useSavedChatFolder()
   const folders = data?.folders ?? null
 
   let body
@@ -28,23 +31,24 @@ export function CoachChatsPage() {
   else if (!folders.length) {
     body = <CoachStatus icon={MessageCircle} title="Пока пусто" hint="Здесь появятся ваши клиенты и сообщения из приложения клуба." />
   } else {
+    const active = folders.find((f) => f.id === saved) ?? folders[0]
+    const clients = active.id === CHAT_FOLDER_CLIENTS
+    const complaints = active.id === CHAT_FOLDER_COMPLAINTS
     body = (
-      <ChatFoldersView
-        folders={folders.map((f) => {
-          const clients = f.id === CHAT_FOLDER_CLIENTS
-          const complaints = f.id === CHAT_FOLDER_COMPLAINTS
-          return {
-            ...f,
-            node: (
-              <ChatContactList
-                contacts={f.contacts}
-                kind={complaints ? 'supervisor' : 'trainer'}
-                hrefFor={clients ? clientHref : complaints ? complaintHref : staffHref}
-                onInvite={clients ? setInviting : undefined}
-              />
-            ),
-          }
-        })}
+      <MessengerLayout
+        compact
+        open={false}
+        listLabel="Диалоги"
+        folders={<ChatFolders folders={folders} active={active.id} onChange={pick} />}
+        list={
+          <ChatContactList
+            key={active.id}
+            contacts={active.contacts}
+            kind={complaints ? 'supervisor' : 'trainer'}
+            hrefFor={clients ? clientHref : complaints ? complaintHref : staffHref}
+            onInvite={clients ? setInviting : undefined}
+          />
+        }
       />
     )
   }
