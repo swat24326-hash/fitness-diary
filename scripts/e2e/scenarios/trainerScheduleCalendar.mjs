@@ -7,6 +7,7 @@ import { createChecks, waitFor } from '../lib/e2eChecks.mjs'
 import { ORIGIN, screenshot } from '../lib/e2eHarness.mjs'
 import { CLIENT_ID, CLIENT_NAME, CLUB_ID, DONE_TODAY_ID, TRAINER_ID, completedTodaySeed, isoDay } from '../lib/fixtures.mjs'
 import { openTrainerSession } from '../lib/trainerSteps.mjs'
+import { scheduleHeadsLayout } from '../lib/scheduleLayout.mjs'
 
 export const name = 'тренер: ежедневник — повтор, перенос пальцем, сейчас'
 
@@ -268,6 +269,9 @@ export async function run(browser) {
     await pickView(page, 'Неделя')
     await page.locator('.trainer-schedule-day--week').waitFor({ timeout: 10_000 })
     c.ok((await page.locator('.trainer-schedule-day__now').count()) === 1, 'неделя: линия «сейчас» только в одной колонке')
+    const heads = await scheduleHeadsLayout(page)
+    c.ok(heads.clipped <= 1 && heads.height >= 28, `неделя: шапка дней не обрезана по высоте (${heads.height}px)`)
+    c.ok(heads.drift <= 1, `неделя: колонки шапки ровно над колонками сетки (сдвиг ${heads.drift}px)`)
     await scrollBoardTo(page, 9 * 60)
     await screenshot(page, 'schedule-week')
 

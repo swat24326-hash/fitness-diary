@@ -15,6 +15,7 @@ import { useTrainerScheduleNow } from '../../hooks/useTrainerScheduleNow.js'
 import { useTrainerScheduleDrag } from '../../hooks/useTrainerScheduleDrag.js'
 import { useScheduleSwipe } from '../../hooks/useScheduleSwipe.js'
 import { useScheduleZoomGesture } from '../../hooks/useScheduleZoomGesture.js'
+import { useScrollbarWidthVar } from '../../hooks/useScrollbarWidthVar.js'
 import { TrainerScheduleDayTrack } from './TrainerScheduleDayTrack.jsx'
 import { TrainerScheduleColHeads } from './TrainerScheduleColHeads.jsx'
 import { TrainerScheduleKindLegend } from './TrainerScheduleKindPicker.jsx'
@@ -157,6 +158,7 @@ export function TrainerScheduleMultiDayAgenda({
     onZoom,
     isBlocked: () => previewRef.current != null,
   })
+  useScrollbarWidthVar(boardRef, swipeAreaRef, '--schedule-scrollbar')
 
   useEffect(() => {
     const el = boardRef.current

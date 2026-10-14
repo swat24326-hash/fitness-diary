@@ -418,9 +418,8 @@
   gap: 8px;
   margin-bottom: 6px;
   align-items: stretch;
-  /* Тот же отступ под полосу прокрутки, что у __board, иначе колонки шапки шире колонок сетки. */
-  overflow: hidden;
-  scrollbar-gutter: stable;
+  /* Полоса прокрутки __board сужает колонки сетки — шапку сужаем на столько же (useScrollbarWidthVar). */
+  padding-right: var(--schedule-scrollbar, 0px);
 }
 
 /* Лента листания: экраны дней в ряд; с соседями (--carousel) видна средняя треть, крайние въезжают за пальцем. */
@@ -486,7 +485,6 @@
   gap: 8px;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-gutter: stable;
   max-height: min(68vh, 720px);
   /* Щипок двумя пальцами — масштаб сетки (useScheduleZoomGesture), а не зум всей страницы. */
   touch-action: pan-x pan-y;

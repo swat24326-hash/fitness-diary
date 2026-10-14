@@ -8,6 +8,7 @@ import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
 import { ORIGIN, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { scheduleHeadsLayout } from '../lib/scheduleLayout.mjs'
 import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 
 export const name = 'телефон тренера: Ежедневник с правкой'
@@ -194,6 +195,9 @@ export async function run(browser) {
       (await page.locator('.trainer-schedule-day__col-heads .trainer-schedule-day__page:not([aria-hidden]) .trainer-schedule-day__col-head').count()) === 7,
       'неделя: 7 колонок пн–вс',
     )
+    const heads = await scheduleHeadsLayout(page)
+    c.ok(heads.clipped <= 1 && heads.height >= 28, `неделя: шапка дней не обрезана по высоте (${heads.height}px)`)
+    c.ok(heads.drift <= 1, `неделя: колонки шапки ровно над колонками сетки (сдвиг ${heads.drift}px)`)
     await screenshot(page, 'coach-calendar-week')
     const weekTitle = await titleText(page, '.trainer-schedule-day__title')
     await touchSwipe(cdp, page, '.trainer-schedule-day__board', -160)
