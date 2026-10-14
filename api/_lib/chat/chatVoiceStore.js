@@ -3,9 +3,9 @@ import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { rows } from '../inbox/inboxStore.js'
 
 const VOICE_FIELDS = 'id, created_at, author_user_id, voice_key, voice_sec, voice_text, voice_stt_op, voice_played_at, voice_once'
-const FIELDS_OF = { chat_messages: `${VOICE_FIELDS}, author_side`, staff_dm_messages: VOICE_FIELDS }
+const FIELDS_OF = { chat_messages: `${VOICE_FIELDS}, author_side`, staff_dm_messages: VOICE_FIELDS, staff_group_messages: VOICE_FIELDS }
 
-/** @param {'chat_messages' | 'staff_dm_messages'} table — сообщение ищем только в диалоге, к которому у человека есть доступ */
+/** @param {'chat_messages' | 'staff_dm_messages' | 'staff_group_messages'} table — сообщение ищем только в диалоге, к которому у человека есть доступ */
 export async function loadVoiceMessage(db, table, threadId, messageId) {
   if (!threadId || !isInboxUuid(messageId)) return null
   const { data, error } = await db.from(table).select(FIELDS_OF[table]).eq('thread_id', threadId).eq('id', String(messageId).trim()).maybeSingle()

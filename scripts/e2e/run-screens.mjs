@@ -14,11 +14,13 @@ import * as clientChat from './scenarios/clientChat.mjs'
 import * as chatVoice from './scenarios/chatVoice.mjs'
 import * as clientSparkShake from './scenarios/clientSparkShake.mjs'
 import * as trainerSchedule from './scenarios/trainerScheduleCalendar.mjs'
+import * as trainerScheduleDesktop from './scenarios/trainerScheduleDesktopScrollbar.mjs'
 import * as coachApp from './scenarios/coachApp.mjs'
 import * as coachSchedule from './scenarios/coachSchedule.mjs'
 import * as coachClients from './scenarios/coachClients.mjs'
 import * as coachContacts from './scenarios/coachContacts.mjs'
 import * as staffDm from './scenarios/staffDm.mjs'
+import * as staffGroup from './scenarios/staffGroup.mjs'
 import * as linkedStaff from './scenarios/linkedStaff.mjs'
 import * as settingsMenu from './scenarios/trainerSettingsMenu.mjs'
 import * as adminSchedule from './scenarios/adminTrainerSchedule.mjs'
@@ -29,7 +31,7 @@ import * as adminHomeworkLibrary from './scenarios/adminHomeworkLibrary.mjs'
 import * as localDbBlocked from './scenarios/localDbUpgradeBlocked.mjs'
 import * as deviceHealth from './scenarios/deviceHealth.mjs'
 
-const SCENARIOS = [localDbBlocked, deviceHealth, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, linkedStaff, settingsMenu]
+const SCENARIOS = [localDbBlocked, deviceHealth, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, linkedStaff, settingsMenu]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

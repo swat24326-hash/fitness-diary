@@ -62,6 +62,8 @@ import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, CHAT_SEARCH_LIMIT, chatTextMatches, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
+import { staffGroupAttention } from '../../../src/lib/chat/staffGroupCore.js'
+import { createFakeStaffGroup } from './fakeStaffGroup.mjs'
 
 function staffCtx(user) {
   const role = String(user?.role ?? '')
@@ -87,6 +89,8 @@ export function createFakeChat(state) {
     /** id сообщений, отправленных «без звука» (push у собеседника был бы тихим). */
     silentSends: [],
   }
+  const group = createFakeStaffGroup(state)
+  chat.group = group.state
   /** Как storeChatVoice: только MP3, файл под ключом автора. */
   function storeVoice(checked) {
     if (!checked.voice) return { ok: true, columns: {} }
@@ -342,13 +346,16 @@ export function createFakeChat(state) {
         : null
     const complaints = complaintThreads(user)
     const clientNames = new Map(state.clients.map((c) => [c.id, c]))
+    const groups = group.summaries(viewer)
+    const own = dmRole === 'admin' ? null : groups[0] ?? null
+    const colleagues = staff ? folderOf(CHAT_FOLDER_COLLEAGUES, viewerRole, staff.colleagues) : null
     const folders = [
       clientsFolder(viewerRole, user),
-      staff ? folderOf(CHAT_FOLDER_COLLEAGUES, viewerRole, staff.colleagues) : null,
+      colleagues && own ? { ...colleagues, group: own, unread: colleagues.unread + staffGroupAttention(own) } : colleagues,
       staff ? folderOf(CHAT_FOLDER_ADMIN, viewerRole, staff.admin) : null,
       complaints ? folderOf(CHAT_FOLDER_COMPLAINTS, viewerRole, buildThreadContacts(complaints, clientNames)) : null,
     ].filter(Boolean)
-    return { status: 200, json: { role: viewerRole, folders } }
+    return { status: 200, json: { role: viewerRole, folders, groups } }
   }
 
   const dmViewer = (user) => ({ id: String(user?.id ?? ''), role: user?.role, club_id: user?.club_id })
@@ -428,6 +435,8 @@ export function createFakeChat(state) {
   function staff(req, user) {
     if (req.searchParams.get('action') !== 'chat') return null
     const ctx = staffCtx(user)
+    const inGroup = group.handle(req, dmUser(user))
+    if (inGroup) return inGroup
     if (req.method === 'POST' && (req.body?.op === 'dm-voice-audio' || req.body?.op === 'dm-voice-text')) {
       const viewer = dmViewer(dmUser(user))
       const peer = dmPeer(req.body.user_id)
@@ -488,7 +497,7 @@ export function createFakeChat(state) {
           unread_count: chatUnreadCount('staff', t),
           reaction: chatUnseenReaction('staff', t),
         }))
-      return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length + dmAttention(user) } }
+      return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length + dmAttention(user) + group.attention(dmUser(user)) } }
     }
     const kind = req.searchParams.get('kind')
     const row = find(req.searchParams.get('client_id'))

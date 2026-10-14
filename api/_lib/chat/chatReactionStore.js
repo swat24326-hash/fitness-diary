@@ -1,5 +1,5 @@
 /**
- * Реакции на сообщения (service role): переписка с клиентом — chat_*, сотрудников — staff_dm_*.
+ * Реакции на сообщения (service role): переписка с клиентом — chat_*, сотрудников — staff_dm_*, чат клуба — staff_group_*.
  * Доступ к диалогу проверяет вызывающий handler; здесь — что сообщение из этого диалога, запись, чтение,
  * имена «кто поставил» и значок реакции в списке диалогов (last_reaction_* у диалога).
  */
@@ -19,6 +19,8 @@ import { loadStaffNames } from './chatStore.js'
 const TABLES = {
   chat: { reactions: 'chat_message_reactions', messages: 'chat_messages', threads: 'chat_threads', author: 'author_side, author_user_id' },
   dm: { reactions: 'staff_dm_message_reactions', messages: 'staff_dm_messages', threads: 'staff_dm_threads', author: 'author_user_id' },
+  /** Чат клуба: значка реакции в списке нет — threads не нужен. */
+  group: { reactions: 'staff_group_message_reactions', messages: 'staff_group_messages', threads: null, author: 'author_user_id' },
 }
 const FIELDS = 'message_id, reactor, emoji'
 const UNAVAILABLE_RU = 'Реакции пока недоступны — попробуйте позже'
@@ -70,6 +72,7 @@ function authorKey(scope, message) {
 /** Значок в списке у автора сообщения: поставил — показать, снял свою последнюю — убрать. */
 async function updateThreadBadge(db, scope, threadId, { message, reactor, emoji }) {
   const t = TABLES[scope]
+  if (!t.threads) return
   const notifies = chatReactionNotifies(authorKey(scope, message), scope === 'chat' ? chatReactorSide(reactor) : reactor)
   if (emoji && notifies) {
     const patch = { last_reaction_at: new Date().toISOString(), last_reaction_emoji: emoji, last_reaction_by: reactor }

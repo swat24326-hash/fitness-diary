@@ -4,6 +4,7 @@
  *      у главного админа threads пусто — клиентов он читает из карточки, конверт только про сотрудников)
  * GET  view=contacts → папки «Клиенты · Коллеги · Администрация» (chatContactsHandler.js)
  * GET  view=dm-thread&user_id / POST { op: 'dm-send', user_id } — переписка сотрудников (staffDmHandler.js)
+ * GET  view=group-* / POST { op: 'group-*', club_id } — чат клуба (staffGroupRoutes.js)
  * GET  view=thread&client_id&kind[&before][&seen=0] → { client, kind, can_write, messages, has_more } (отмечает прочитанным; seen=0 — нет)
  * GET  view=search&client_id&kind&q | view=dm-search&user_id&q → { results: [{ id, created_at, who, snippet }] } — поиск по диалогу, новые сверху
  * POST { op: 'send', client_id, kind, body | sticker | (audio, sec, wave) } → { message } (audio — голосовое, base64 MP3)
@@ -32,6 +33,7 @@ import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice, staffDmAttention } from './staffDmHandler.js'
+import { handleStaffGroupGet, handleStaffGroupPost, staffGroupsAttention } from './staffGroupRoutes.js'
 import { isMissingChatTable, loadChatClient, loadClientsByIds, loadStaffThreads } from './chatStore.js'
 import { linkedComplaintThreads, linkedSupervisorCtx } from './linkedStaffStore.js'
 
@@ -102,13 +104,14 @@ export async function handleStaffChatGet(ctx, req, res) {
   if (view === 'contacts') return sendChatContacts(ctx, res)
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
   if (view === 'dm-search') return sendStaffDmSearch(ctx, res, req.query?.user_id, req.query?.q)
+  if (view.startsWith('group-')) return handleStaffGroupGet(ctx, res, view, req.query ?? {})
   const scope = scopeOf(ctx, res)
   if (!scope) return
   try {
     if (view === 'list') {
       const clients = scope.role === 'admin' ? Promise.resolve({ threads: [], attention: 0 }) : listThreads(ctx, scope)
-      const [list, dm] = await Promise.all([clients, staffDmAttention(ctx)])
-      sendJson(res, 200, { ...list, attention: list.attention + dm })
+      const [list, dm, group] = await Promise.all([clients, staffDmAttention(ctx), staffGroupsAttention(ctx)])
+      sendJson(res, 200, { ...list, attention: list.attention + dm + group })
       return
     }
     const kind = String(req.query?.kind ?? '')
@@ -149,6 +152,7 @@ export async function handleStaffChatPost(ctx, res, body) {
   if (op === 'dm-voice-audio' || op === 'dm-voice-text') {
     return sendStaffDmVoice(ctx, res, body?.user_id, body?.message_id, op === 'dm-voice-text' ? 'text' : 'audio')
   }
+  if (op.startsWith('group-')) return handleStaffGroupPost(ctx, res, op, body ?? {})
   const scope = scopeOf(ctx, res)
   if (!scope) return
   const voiceWant = op === 'voice-audio' ? 'audio' : op === 'voice-text' ? 'text' : null

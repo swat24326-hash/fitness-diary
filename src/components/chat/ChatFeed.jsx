@@ -96,9 +96,10 @@ function Meta({ m }) {
  * голосовые ленты по порядку — очередь общего плеера: доиграло одно — включается следующее собеседника.
  * @param {{ messages: object[], peerReadAt?: string|null, onReact?: (id: string, emoji: string) => void, onReply?: (message: object) => void,
  *   onJump?: (id: string, fromId: string) => void, finding?: string|null, highlight?: string,
- *   voice?: { audio: (id: string) => Promise<object>, text: (id: string) => Promise<object>, peerName?: string } | null }} props
+ *   voice?: { audio: (id: string) => Promise<object>, text: (id: string) => Promise<object>, peerName?: string } | null,
+ *   menuActions?: (message: object) => object[] }} props — menuActions: пункты списком в меню долгого нажатия (ChatReactionMenu)
  */
-export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, finding = null, highlight = '', voice = null }) {
+export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, finding = null, highlight = '', voice = null, menuActions }) {
   const [link, setLink] = useState(null)
   const [menu, setMenu] = useState(null)
   const [burst, setBurst] = useState(null)
@@ -207,7 +208,7 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
     <>
       {items}
       <ChatLinkConfirm link={link} onClose={closeLink} />
-      {onReact ? <ChatReactionMenu key={menu?.id ?? ''} target={menu} onPick={react} onReply={onReply} onClose={closeMenu} /> : null}
+      {onReact ? <ChatReactionMenu key={menu?.id ?? ''} target={menu} onPick={react} onReply={onReply} onClose={closeMenu} actions={menuActions} /> : null}
     </>
   )
 }

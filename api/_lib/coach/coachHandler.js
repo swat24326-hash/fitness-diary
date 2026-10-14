@@ -3,6 +3,7 @@
  * GET  ?view=me | schedule | chats | contacts | chat-thread&client_id[&kind=supervisor][&before][&seen=0] | push-status&endpoint
  *      contacts — папки «Сообщений», клиенты с приложением сверху (chatContactsHandler.js)
  *      | dm-thread&user_id[&before] — переписка с коллегой / администрацией (staffDmHandler.js)
+ *      | group-thread | group-search | group-readers — чат клуба (staffGroupRoutes.js); POST op group-send | group-react | group-mute | group-pin | group-voice-*
  *      | chat-search&client_id[&kind]&q | dm-search&user_id&q — поиск по диалогу → { results }
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
  *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
@@ -25,6 +26,7 @@ import { loadInChunks } from '../batchCore.js'
 import { handleStaffChatGet, handleStaffChatPost } from '../chat/chatStaffHandler.js'
 import { sendChatContacts } from '../chat/chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice } from '../chat/staffDmHandler.js'
+import { handleStaffGroupGet, handleStaffGroupPost } from '../chat/staffGroupRoutes.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
 import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
@@ -102,6 +104,7 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'contacts') return sendChatContacts(ctx, res)
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
   if (view === 'dm-search') return sendStaffDmSearch(ctx, res, req.query?.user_id, req.query?.q)
+  if (view.startsWith('group-')) return handleStaffGroupGet(ctx, res, view, req.query ?? {})
   if (view === 'chat-search') {
     const { client_id, q } = req.query ?? {}
     return handleStaffChatGet(ctx, { query: { view: 'search', kind: coachChatKind(req.query?.kind), client_id, q } }, res)
@@ -150,6 +153,7 @@ async function handlePost(ctx, res, body, store) {
     return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, audio, sec, wave, once, client_msg_id, reply_to, silent })
   }
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body.user_id, { message_id: body.message_id, emoji: body.emoji })
+  if (op.startsWith('group-')) return handleStaffGroupPost(ctx, res, op, body)
   if (op === 'client-invite') {
     const out = await issueClientInvite(ctx, { client_id: body.client_id })
     return sendJson(res, out.status, out.body)

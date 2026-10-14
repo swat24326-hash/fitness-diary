@@ -1,10 +1,10 @@
-import { Building2, Crown, Dumbbell, Handshake } from 'lucide-react'
+import { Building2, Crown, Dumbbell, Handshake, Users } from 'lucide-react'
 import { chatTimeRu } from '../../lib/chat/chatMessageCore.js'
 import { chatInitials, chatUnreadBadge } from '../../lib/chat/chatUiCore.js'
 import { ChatEmojiGlyph } from './ChatEmojiGlyph.jsx'
 import '../../styles/chat-reactions.css'
 
-const KIND_ICON = { trainer: Dumbbell, sales: Handshake, supervisor: Building2, admin: Crown }
+const KIND_ICON = { trainer: Dumbbell, sales: Handshake, supervisor: Building2, admin: Crown, group: Users }
 
 /**
  * Внутренность строки диалога: аватарка, имя и время, последнее сообщение, число новых

@@ -90,6 +90,21 @@ export function reactCoachDmMessage(userId, messageId, emoji) {
   return coachRequest({}, { op: 'dm-react', user_id: userId, message_id: messageId, emoji })
 }
 
+/** Чат своего клуба (клуб сервер берёт из учётки) — тот же набор вызовов, что staffGroupApi планшета. */
+export const coachGroupApi = Object.freeze({
+  load: (before, seen) => coachRequest({ view: 'group-thread', ...(before ? { before } : {}), ...chatSeenParam(seen) }),
+  send: (outgoing) => coachRequest({}, { op: 'group-send', ...outgoing }),
+  react: (messageId, emoji) => coachRequest({}, { op: 'group-react', message_id: messageId, emoji }),
+  search: (q) => coachRequest({ view: 'group-search', q }),
+  mute: (muted) => coachRequest({}, { op: 'group-mute', muted }),
+  pin: (messageId) => coachRequest({}, { op: 'group-pin', message_id: messageId }),
+  readers: (messageId) => coachRequest({ view: 'group-readers', message_id: messageId }),
+  voice: Object.freeze({
+    audio: (messageId) => coachRequest({}, { op: 'group-voice-audio', message_id: messageId }),
+    text: (messageId) => coachRequest({}, { op: 'group-voice-text', message_id: messageId }),
+  }),
+})
+
 export const fetchCoachPushStatus = (endpoint) => coachRequest({ view: 'push-status', endpoint: endpoint || '' })
 
 /** @param {{ endpoint: string, p256dh?: string, auth?: string, user_agent?: string }} sub */

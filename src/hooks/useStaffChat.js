@@ -17,11 +17,11 @@ import {
 import { useChatThread } from './useChatThread.js'
 
 async function loadChatsAndFolders() {
-  const { folders, role = '' } = await fetchStaffChatContacts()
+  const { folders, groups = [], role = '' } = await fetchStaffChatContacts()
   const list = folders ?? []
-  if (role === 'admin' || list.some((f) => f.id === CHAT_FOLDER_CLIENTS)) return { folders: list, threads: [], role }
+  if (role === 'admin' || list.some((f) => f.id === CHAT_FOLDER_CLIENTS)) return { folders: list, groups, threads: [], role }
   const { threads } = await fetchStaffChats()
-  return { folders: list, threads: threads ?? [], role }
+  return { folders: list, groups, threads: threads ?? [], role }
 }
 
 /**
@@ -29,11 +29,11 @@ async function loadChatsAndFolders() {
  * у остальных клиентская часть — прежний список диалогов (непрочитанные сверху).
  */
 export function useStaffChats(enabled = true) {
-  const [state, setState] = useState({ threads: null, folders: null, role: '', status: 'loading', error: '' })
+  const [state, setState] = useState({ threads: null, folders: null, groups: [], role: '', status: 'loading', error: '' })
   const reload = useCallback(() => {
     setState((s) => ({ ...s, status: 'loading', error: '' }))
     loadChatsAndFolders()
-      .then(({ threads, folders, role }) => setState({ threads, folders, role, status: 'ready', error: '' }))
+      .then(({ threads, folders, groups, role }) => setState({ threads, folders, groups, role, status: 'ready', error: '' }))
       .catch((e) => setState((s) => ({ ...s, status: 'error', error: e?.message || '' })))
   }, [])
   useEffect(() => {

@@ -5,6 +5,7 @@ import { ChatFolders } from '../../components/chat/ChatFolders.jsx'
 import { MessengerBack, MessengerHead, MessengerLayout, MessengerPick } from '../../components/chat/MessengerLayout.jsx'
 import { StaffChatPane } from '../../components/chat/StaffChatPane.jsx'
 import { StaffDmPane } from '../../components/chat/StaffDmPane.jsx'
+import { StaffGroupPane } from '../../components/chat/StaffGroupPane.jsx'
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
 import { useStaffMessengerRefresh } from '../../hooks/useStaffMessengerRefresh.js'
 import {
@@ -84,6 +85,8 @@ export function StaffMessenger({ chats, inbox }) {
       thread={
         open?.type === 'dm' ? (
           <StaffDmPane key={open.userId} userId={open.userId} onSent={reloadChats} backTo={closeHref} back={back} />
+        ) : open?.type === 'group' ? (
+          <StaffGroupPane key={open.clubId} clubId={open.clubId} onSent={reloadChats} backTo={closeHref} back={back} />
         ) : open?.type === 'chat' ? (
           <StaffChatPane key={`${open.clientId}:${open.kind}`} clientId={open.clientId} kind={open.kind} onSent={reloadChats} backTo={closeHref} back={back} />
         ) : open?.type === 'item' ? (

@@ -69,7 +69,7 @@ function setup() {
   return { backend, chat, coach }
 }
 
-const titles = (page) => page.getByTestId('chat-contacts').locator('.chat-row__title').allInnerTexts()
+const titles = (page) => page.getByTestId('chat-contacts').locator('.chat-contacts__item .chat-row__title').allInnerTexts()
 
 async function trainerWrites(c, page, chat) {
   await page.goto(`${ORIGIN}/coach`)

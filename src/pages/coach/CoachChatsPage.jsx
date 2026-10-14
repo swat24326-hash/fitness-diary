@@ -3,6 +3,7 @@ import { MessageCircle } from 'lucide-react'
 import { ChatContactList } from '../../components/chat/ChatContactList.jsx'
 import { ChatFolders } from '../../components/chat/ChatFolders.jsx'
 import { MessengerLayout } from '../../components/chat/MessengerLayout.jsx'
+import { StaffGroupRow } from '../../components/chat/StaffGroupRow.jsx'
 import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx'
 import { useSavedChatFolder } from '../../hooks/useSavedChatFolder.js'
 import { createCoachClientInvite, fetchCoachContacts } from '../../lib/coach/coachApiClient.js'
@@ -47,6 +48,7 @@ export function CoachChatsPage() {
             kind={complaints ? 'supervisor' : 'trainer'}
             hrefFor={clients ? clientHref : complaints ? complaintHref : staffHref}
             onInvite={clients ? setInviting : undefined}
+            pinned={active.group ? <StaffGroupRow group={active.group} to="/coach/group" /> : null}
           />
         }
       />

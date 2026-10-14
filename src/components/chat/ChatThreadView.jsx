@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, MessageCircle, Search } from 'lucide-react'
 import { ChatComposer } from './ChatComposer.jsx'
 import { ChatFeed } from './ChatFeed.jsx'
+import { ChatPinnedBar } from './ChatPinnedBar.jsx'
 import { ChatSearchBar } from './ChatSearchBar.jsx'
 import { ChatVoiceMiniPlayer } from './ChatVoiceMiniPlayer.jsx'
 import { useChatJump } from '../../hooks/useChatJump.js'
@@ -24,6 +25,7 @@ import '../../styles/chat-search.css'
  * reply — «Ответить» с цитатой (useChatThread().reply); search — поиск по диалогу на сервере (лупа в углу ленты);
  * voice — голосовые: слушать и «→ Аа» в ленте, записывать — 🎤 в поле ввода
  * onAtBottom — внизу ли человек: «прочитано» ставим, только когда новое на экране (useChatThread)
+ * pinned / onUnpin — закреплённое сообщение над лентой (нажатие — к нему); menuActions — пункты в меню долгого нажатия
  */
 export function ChatThreadView({
   messages,
@@ -43,6 +45,9 @@ export function ChatThreadView({
   search,
   voice,
   initialDraft = '',
+  pinned = null,
+  onUnpin,
+  menuActions,
 }) {
   const threadRef = useRef(null)
   const feedRef = useRef(null)
@@ -112,6 +117,7 @@ export function ChatThreadView({
   return (
     <div className="chat-thread" ref={threadRef}>
       {voice ? <ChatVoiceMiniPlayer inline /> : null}
+      <ChatPinnedBar pinned={pinned} onOpen={(id) => void jumper.jump(id)} onUnpin={onUnpin} />
       <div className="chat-thread__feed" ref={feedRef} aria-live="polite" data-testid="chat-feed">
         {finder.available && !finder.isOpen ? (
           <button type="button" className="chat-thread__search-toggle" aria-label="Поиск по переписке" title="Поиск по переписке" onClick={finder.open}>
@@ -140,6 +146,7 @@ export function ChatThreadView({
           finding={jumper.finding}
           highlight={finder.isOpen && finder.results?.length ? finder.query : ''}
           voice={voice}
+          menuActions={menuActions}
         />
       </div>
 

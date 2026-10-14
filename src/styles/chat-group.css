@@ -1,0 +1,105 @@
+/* Чат клуба: строка в списке, шапка с «без звука». Токены — tokens.css, строка — общая .chat-row (chat.css). */
+
+.chat-row__avatar--group {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent-bright) 70%, var(--text)), var(--accent));
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+}
+
+.staff-group__row {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+
+.staff-group__muted-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.staff-group__head {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.staff-group__head > :not(.staff-group__mute) {
+  grid-column: 1;
+}
+
+.staff-group__mute {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.staff-group__mute.is-muted {
+  color: var(--text-muted);
+}
+
+.chat-row--muted .chat-row__badge {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+/* «Кто прочитал»: два списка, как просмотры в группе Telegram; не открывшие — тусклее. */
+.staff-readers {
+  display: grid;
+  gap: 12px;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+}
+
+.staff-readers__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.staff-readers__top .section-title {
+  margin: 0;
+}
+
+.staff-readers__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.staff-readers__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.staff-readers__person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+}
+
+.staff-readers__person.is-dim {
+  color: var(--text-muted);
+}
+
+.staff-readers__person.is-dim .chat-row__avatar {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+.staff-readers__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staff-group__pin-error {
+  margin: 0;
+  color: var(--danger, #e5484d);
+  font-size: 0.85rem;
+}

@@ -68,3 +68,22 @@ export function reactStaffChatMessage(clientId, kind, messageId, emoji) {
 export function reactStaffDmMessage(userId, messageId, emoji) {
   return inboxApiCall('chat', 'POST', {}, { op: 'dm-react', user_id: userId, message_id: messageId, emoji })
 }
+
+/** Чат клуба: те же вызовы, что у личной переписки, с club_id вместо собеседника. */
+export const staffGroupApi = (clubId) => ({
+  async load(before, seen) {
+    const data = await inboxApiCall('chat', 'GET', { view: 'group-thread', club_id: clubId, ...(before ? { before } : {}), ...chatSeenParam(seen) })
+    if (data?.marked_read) window.dispatchEvent(new Event(STAFF_INBOX_CHANGED))
+    return data
+  },
+  send: (outgoing) => inboxApiCall('chat', 'POST', {}, { op: 'group-send', club_id: clubId, ...outgoing }),
+  react: (messageId, emoji) => inboxApiCall('chat', 'POST', {}, { op: 'group-react', club_id: clubId, message_id: messageId, emoji }),
+  search: (q) => inboxApiCall('chat', 'GET', { view: 'group-search', club_id: clubId, q }),
+  mute: (muted) => inboxApiCall('chat', 'POST', {}, { op: 'group-mute', club_id: clubId, muted }),
+  pin: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'group-pin', club_id: clubId, message_id: messageId }),
+  readers: (messageId) => inboxApiCall('chat', 'GET', { view: 'group-readers', club_id: clubId, message_id: messageId }),
+  voice: {
+    audio: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'group-voice-audio', club_id: clubId, message_id: messageId }),
+    text: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'group-voice-text', club_id: clubId, message_id: messageId }),
+  },
+})

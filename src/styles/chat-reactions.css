@@ -146,6 +146,48 @@
   outline: none;
 }
 
+/* Действия списком под реакциями — карточка, как контекстное меню Telegram. */
+.chat-react-menu__actions {
+  position: fixed;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-width: calc(100vw - 16px);
+  padding: 4px;
+  border: 1px solid var(--border, color-mix(in srgb, var(--text) 12%, transparent));
+  border-radius: 14px;
+  background: var(--bg-elevated, var(--bg-card));
+  box-shadow: 0 10px 30px color-mix(in srgb, #000 35%, transparent);
+  animation: chat-react-pop 0.16s ease-out;
+}
+
+.chat-react-menu__action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-react-menu__action svg {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.chat-react-menu__action:hover,
+.chat-react-menu__action:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  outline: none;
+}
+
 @keyframes chat-react-pop {
   from {
     opacity: 0;

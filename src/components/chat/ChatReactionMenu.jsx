@@ -11,6 +11,8 @@ import '../../styles/chat-reactions.css'
 const GAP = 8
 const BAR_H = 56
 const GRID_H = 320
+const ITEM_H = 44
+const LIST_PAD = 8
 
 /** Над сообщением, если сверху есть место, иначе под ним; не выходит за экран; к краю своей стороны. */
 function placeOf(rect, mine, height) {
@@ -18,6 +20,29 @@ function placeOf(rect, mine, height) {
   const top = above >= GAP ? above : Math.min(rect.bottom + GAP, window.innerHeight - height - GAP)
   const side = mine ? { right: Math.max(GAP, window.innerWidth - rect.right) } : { left: Math.max(GAP, rect.left) }
   return { top: Math.max(GAP, top), ...side }
+}
+
+/** Действия списком под реакциями, как в Telegram: «Закрепить», «Прочитали 3 из 5». */
+function ActionList({ actions, style, onClose }) {
+  return (
+    <div className="chat-react-menu__actions" role="menu" aria-label="Действия с сообщением" style={style} data-testid="chat-msg-actions">
+      {actions.map(({ key, label, icon: Icon, onSelect }) => (
+        <button
+          key={key}
+          type="button"
+          role="menuitem"
+          className="chat-react-menu__action"
+          onClick={() => {
+            onClose()
+            onSelect()
+          }}
+        >
+          {Icon ? <Icon size={18} aria-hidden /> : null}
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function EmojiButton({ emoji, current, onPick, refEl }) {
@@ -58,11 +83,13 @@ function AllEmoji({ current, onPick }) {
 
 /**
  * Меню по долгому нажатию на сообщение: 6 реакций, стрелка «ещё» (весь набор), «Ответить» и «Копировать» для текста.
+ * actions(message) — пункты списком под реакциями (чат клуба: закреп, «Кто прочитал»).
  * Рисовать с key по сообщению — у нового меню стрелка снова свёрнута.
  * @param {{ target: { id: string, rect: DOMRect, mine: boolean, text: string, current: string|null, message: object } | null,
- *   onPick: (id: string, emoji: string) => void, onReply?: (message: object) => void, onClose: () => void }} props
+ *   onPick: (id: string, emoji: string) => void, onReply?: (message: object) => void, onClose: () => void,
+ *   actions?: (message: object) => Array<{ key: string, label: string, icon?: import('react').ComponentType, onSelect: () => void }> }} props
  */
-export function ChatReactionMenu({ target, onPick, onReply, onClose }) {
+export function ChatReactionMenu({ target, onPick, onReply, onClose, actions }) {
   const firstRef = useRef(null)
   const [expanded, setExpanded] = useState(false)
 
@@ -91,15 +118,18 @@ export function ChatReactionMenu({ target, onPick, onReply, onClose }) {
     void navigator.clipboard?.writeText(target.text).catch(() => {})
     onClose()
   }
-  const height = expanded ? GRID_H : BAR_H
+  const list = expanded ? [] : (actions?.(target.message) ?? [])
+  const listH = list.length ? GAP + LIST_PAD + list.length * ITEM_H : 0
+  const place = placeOf(target.rect, target.mine, (expanded ? GRID_H : BAR_H) + listH)
   return createPortal(
     <>
       <button type="button" className="chat-react-menu__backdrop" aria-label="Закрыть" onClick={onClose} />
+      {list.length ? <ActionList actions={list} style={{ ...place, top: place.top + BAR_H + GAP }} onClose={onClose} /> : null}
       <div
         className={`chat-react-menu${expanded ? ' is-expanded' : ''}`}
         role="menu"
         aria-label="Реакция на сообщение"
-        style={placeOf(target.rect, target.mine, height)}
+        style={place}
         data-testid="chat-react-menu"
       >
         {expanded ? (

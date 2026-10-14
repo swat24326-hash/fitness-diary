@@ -1,6 +1,7 @@
 /**
  * Папки «Сообщений»: GET /api/coach?view=contacts и admin-data?action=chat&view=contacts.
- * → { role, folders: [{ id, label, unread, contacts }] }; люди уже в порядке «яркие сверху».
+ * → { role, folders: [{ id, label, unread, contacts, group? }], groups }; люди уже в порядке «яркие сверху».
+ * groups — чаты клубов (у сотрудника — свой, он же group в «Коллегах»; у главного админа — все клубы).
  * «Клиенты» — только у тренера (у менеджера и управляющего клиентская часть — прежний список диалогов).
  * «Жалобы и предложения» — только у тренера, связанного с управляющим (linkedStaffStore).
  */
@@ -21,6 +22,8 @@ import { loadTrainerClientContacts } from './chatContactsStore.js'
 import { isMissingChatTable, loadClientsByIds } from './chatStore.js'
 import { linkedComplaintThreads, linkedSupervisorCtx } from './linkedStaffStore.js'
 import { loadStaffDmContacts } from './staffDmHandler.js'
+import { loadStaffGroups } from './staffGroupHandler.js'
+import { staffGroupAttention } from '../../../src/lib/chat/staffGroupCore.js'
 
 function folder(id, role, contacts) {
   const sorted = sortChatContacts(contacts)
@@ -57,16 +60,22 @@ export async function sendChatContacts(ctx, res) {
     sendJson(res, 403, { error: CHAT_NO_ACCESS_RU })
     return
   }
-  const [clients, staff, complaints] = await Promise.all([
+  const [clients, staff, complaints, groups] = await Promise.all([
     clientsFolder(ctx, role),
     loadStaffDmContacts(ctx),
     complaintsFolder(ctx, role),
+    loadStaffGroups(ctx),
   ])
   const folders = [
     clients,
-    staff ? folder(CHAT_FOLDER_COLLEAGUES, role, staff.colleagues) : null,
+    staff ? withGroup(folder(CHAT_FOLDER_COLLEAGUES, role, staff.colleagues), role === 'admin' ? null : groups?.[0]) : null,
     staff ? folder(CHAT_FOLDER_ADMIN, role, staff.admin) : null,
     complaints,
   ].filter(Boolean)
-  sendJson(res, 200, { role, folders })
+  sendJson(res, 200, { role, folders, groups: groups ?? [] })
+}
+
+/** Чат своего клуба — первой строкой в «Коллегах» / «Тренерах»; незаглушённое новое — в число на вкладке. */
+function withGroup(f, group) {
+  return group ? { ...f, group, unread: f.unread + staffGroupAttention(group) } : f
 }

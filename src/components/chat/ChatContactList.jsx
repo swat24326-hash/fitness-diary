@@ -18,11 +18,13 @@ function previewOf(c) {
  * Без onInvite (коллеги) тусклому всё равно можно написать — увидит на планшете.
  * kind — аватарка по умолчанию; у сотрудника своя по роли (c.role).
  * selectedId — открыт справа (планшет), строка подсвечена.
- * @param {{ contacts: object[], kind: string, hrefFor: (c: object) => string, onInvite?: (c: object) => void, selectedId?: string }} props
+ * pinned — строка над людьми (чат клуба в «Коллегах»), пока не ищут по имени.
+ * @param {{ contacts: object[], kind: string, hrefFor: (c: object) => string, onInvite?: (c: object) => void, selectedId?: string, pinned?: import('react').ReactNode }} props
  */
-export function ChatContactList({ contacts, kind, hrefFor, onInvite, selectedId = '' }) {
+export function ChatContactList({ contacts, kind, hrefFor, onInvite, selectedId = '', pinned = null }) {
   const [query, setQuery] = useState('')
   const shown = filterChatContacts(contacts, query)
+  const top = query.trim() ? null : pinned
   return (
     <div className="chat-contacts">
       <label className="chat-contacts__search">
@@ -36,8 +38,9 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite, selectedId 
           enterKeyHint="search"
         />
       </label>
-      {!shown.length ? <p className="muted chat-contacts__empty">{query ? 'Никого не нашли' : 'Пока никого нет'}</p> : null}
+      {!shown.length && !top ? <p className="muted chat-contacts__empty">{query ? 'Никого не нашли' : 'Пока никого нет'}</p> : null}
       <ol className="chat-list" data-testid="chat-contacts">
+        {top}
         {shown.map((c, i) => {
           const dim = !c.has_app
           const body = (

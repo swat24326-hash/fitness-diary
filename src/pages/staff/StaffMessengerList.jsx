@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Mail, MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
 import { ChatContactList } from '../../components/chat/ChatContactList.jsx'
 import { ChatThreadList } from '../../components/chat/ChatThreadList.jsx'
+import { StaffGroupRow } from '../../components/chat/StaffGroupRow.jsx'
 import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
 import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
@@ -85,5 +86,16 @@ export function StaffMessengerList({ folder, chats, inbox, open, href }) {
       />
     )
   }
-  return <ChatContactList contacts={contacts} kind="trainer" hrefFor={(c) => href({ dm: c.id })} selectedId={open?.type === 'dm' ? open.userId : ''} />
+  const group = folder.group ? (
+    <StaffGroupRow group={folder.group} to={href({ group: folder.group.club_id })} selected={open?.type === 'group'} />
+  ) : null
+  return (
+    <ChatContactList
+      contacts={contacts}
+      kind="trainer"
+      hrefFor={(c) => href({ dm: c.id })}
+      selectedId={open?.type === 'dm' ? open.userId : ''}
+      pinned={group}
+    />
+  )
 }

@@ -7,10 +7,12 @@ import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
 import { CHAT_MESSAGE_FIELDS } from './chatStore.js'
 import { DM_MESSAGE_FIELDS } from './staffDmStore.js'
+import { GROUP_MESSAGE_FIELDS } from './staffGroupStore.js'
 
 const TABLES = {
   chat: { messages: 'chat_messages', fields: CHAT_MESSAGE_FIELDS },
   dm: { messages: 'staff_dm_messages', fields: DM_MESSAGE_FIELDS },
+  group: { messages: 'staff_group_messages', fields: GROUP_MESSAGE_FIELDS },
 }
 
 /**
