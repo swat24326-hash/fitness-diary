@@ -59,3 +59,31 @@ export function resolveAdminClubId({ urlClub, lastClub, validClubIds = [], singl
   if (last && valid.has(last)) return last
   return null
 }
+
+/**
+ * Клубы для переключателя админа: демо-клуб прячем, если в облаке есть настоящие.
+ * @param {Array<{ id: string|number }>} rows
+ * @param {{ hideDemo: boolean, demoClubId: string }} opts
+ */
+export function visibleAdminClubs(rows, { hideDemo, demoClubId }) {
+  const list = Array.isArray(rows) ? rows : []
+  if (!hideDemo || list.length <= 1) return list
+  return list.filter((c) => String(c.id) !== String(demoClubId))
+}
+
+/**
+ * Клуб в шапке: на страницах /admin — из адреса; вне их (мессенджер, «Сбои») — последний выбранный.
+ * Переключать можно только внутри /admin и только при 2+ клубах.
+ * @param {{ onAdminRoute: boolean, urlClub?: string, lastClub?: string | null, clubs: Array<{ id: string|number }> }} opts
+ * @returns {{ clubId: string, switchable: boolean }}
+ */
+export function adminHeaderClub({ onAdminRoute, urlClub, lastClub, clubs }) {
+  const ids = clubs.map((c) => String(c.id))
+  const single = ids.length === 1 ? ids[0] : null
+  const clubId = onAdminRoute
+    ? ids.includes(String(urlClub ?? '').trim())
+      ? String(urlClub).trim()
+      : ''
+    : (resolveAdminClubId({ urlClub: '', lastClub, validClubIds: ids, singleClubId: single }) ?? '')
+  return { clubId, switchable: onAdminRoute && ids.length > 1 }
+}

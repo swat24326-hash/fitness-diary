@@ -2,7 +2,7 @@
  * Стабильность PWA: кэш идентичности, контекст клуба, политика обновлений.
  * node scripts/verify-app-stability.mjs
  */
-import { resolveAdminClubId } from '../src/lib/clubContext.js'
+import { adminHeaderClub, resolveAdminClubId, visibleAdminClubs } from '../src/lib/clubContext.js'
 import { decideAppUpdate, isOnTrainingPage, isOnSalesReportPage, shouldAutoApplyUpdate } from '../src/lib/appUpdatePolicy.js'
 import {
   isPwaUpdateReloadInCooldown,
@@ -54,6 +54,33 @@ ok(
     singleClubId: 'club-a',
   }) === 'club-a',
   'admin: single club auto-pick',
+)
+
+const twoClubs = [{ id: 'club-a' }, { id: 'club-b' }]
+ok(
+  JSON.stringify(adminHeaderClub({ onAdminRoute: true, urlClub: 'club-a', lastClub: 'club-b', clubs: twoClubs })) ===
+    '{"clubId":"club-a","switchable":true}',
+  'шапка админа на /admin: клуб из адреса, переключатель есть',
+)
+ok(
+  adminHeaderClub({ onAdminRoute: true, urlClub: '', lastClub: 'club-b', clubs: twoClubs }).clubId === '',
+  'шапка на /admin без клуба в адресе — «Выберите клуб», пока адрес не подставлен',
+)
+ok(
+  JSON.stringify(adminHeaderClub({ onAdminRoute: false, urlClub: '', lastClub: 'club-b', clubs: twoClubs })) ===
+    '{"clubId":"club-b","switchable":false}',
+  'шапка в мессенджере: последний клуб, без переключателя',
+)
+ok(
+  adminHeaderClub({ onAdminRoute: false, lastClub: null, clubs: [{ id: 'solo' }] }).clubId === 'solo',
+  'шапка вне /admin: единственный клуб — его название',
+)
+ok(!adminHeaderClub({ onAdminRoute: true, urlClub: 'solo', clubs: [{ id: 'solo' }] }).switchable, 'один клуб — переключать нечего')
+ok(
+  visibleAdminClubs([{ id: 'demo' }, { id: 'real' }], { hideDemo: true, demoClubId: 'demo' }).length === 1 &&
+    visibleAdminClubs([{ id: 'demo' }], { hideDemo: true, demoClubId: 'demo' }).length === 1 &&
+    visibleAdminClubs([{ id: 'demo' }, { id: 'real' }], { hideDemo: false, demoClubId: 'demo' }).length === 2,
+  'демо-клуб скрыт только если есть настоящие и облако подключено',
 )
 
 ok(isOnTrainingPage('/trainer/workouts/abc'), 'training path detected')

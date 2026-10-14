@@ -10,7 +10,7 @@ export function HeaderDeviceHealthButton() {
     <NavLink
       to="/admin/health"
       className={({ isActive }) =>
-        `btn btn-secondary btn-sm app-header__inbox-btn${isActive ? ' app-header__inbox-btn--active' : ''}`
+        `btn btn-secondary btn-sm app-header__inbox-btn${isActive ? ' app-header__inbox-btn--active' : ''}${attention ? '' : ' header-device-health--quiet'}`
       }
       title={label}
       aria-label={label}

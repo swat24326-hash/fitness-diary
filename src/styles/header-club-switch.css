@@ -1,0 +1,322 @@
+/* Клуб в шапке админа (HeaderClubSwitcher.jsx): название клуба само переключает клуб.
+   Монитор — панель под названием; телефон — шторка снизу, как выбор аккаунта в Telegram.
+   Плюс компактная шапка админа и управляющего на телефоне (.app-header--staff). */
+
+.club-switch__trigger {
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 10px 2px 2px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease-out),
+    background 0.2s var(--ease-out);
+}
+
+.club-switch__trigger .app-brand-club {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-switch__trigger:hover,
+.club-switch__trigger--open {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.club-switch__trigger:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+.club-switch__chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s var(--ease-out);
+}
+
+.club-switch__trigger--open .club-switch__chevron {
+  transform: rotate(180deg);
+  color: var(--accent-bright);
+}
+
+.club-switch__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: transparent;
+}
+
+.club-switch__panel {
+  position: fixed;
+  z-index: 301;
+  top: var(--club-switch-top, 72px);
+  left: var(--club-switch-left, 12px);
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(60vh, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--bg);
+  box-shadow: var(--shadow);
+  animation: club-switch-drop 0.18s var(--ease-out);
+}
+
+.club-switch__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 2px 6px;
+}
+
+.club-switch__title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.club-switch__count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.club-switch__head .club-switch__close {
+  margin-left: auto;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.club-switch__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+}
+
+.club-switch__search:focus-within {
+  border-color: var(--border-strong);
+}
+
+.club-switch__search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+}
+
+.club-switch__list {
+  display: grid;
+  gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.club-switch__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-align: left;
+  transition:
+    border-color 0.2s var(--ease-out),
+    background 0.2s var(--ease-out);
+}
+
+.club-switch__item:hover,
+.club-switch__item:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.club-switch__item--active {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-bright);
+}
+
+.club-switch__item-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.club-switch__item--active .club-switch__item-icon,
+.club-switch__item-check {
+  flex-shrink: 0;
+  color: var(--accent-bright);
+}
+
+.club-switch__item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-switch__empty {
+  margin: 0;
+  padding: 14px 8px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+@keyframes club-switch-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes club-switch-sheet {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* Телефон: шторка снизу на всю ширину — до клуба дотягивается большой палец. */
+@media (max-width: 640px) {
+  .club-switch__backdrop {
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .club-switch__panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 72dvh;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom: 0;
+    animation: club-switch-sheet 0.24s var(--ease-out);
+  }
+
+  .club-switch__item {
+    min-height: 48px;
+  }
+
+  .club-switch__head .club-switch__close {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-switch__panel {
+    animation: none;
+  }
+}
+
+/* Меню ☰ сотрудника — непрозрачное: сквозь полупрозрачный --bg-elevated просвечивали карточки страницы. */
+.app-header--staff .app-header__dropdown {
+  background: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--bg);
+}
+
+/* Шапка админа и управляющего на телефоне: клуб забирает всё свободное место,
+   справа — только нужное сейчас. Тихие кнопки (Sync без очереди, «Сбои» без сбоев) — в меню ☰. */
+@media (max-width: 560px) {
+  .app-header--staff {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    column-gap: 8px;
+  }
+
+  .app-header--staff .app-header__brand-slot {
+    flex: 1 1 auto;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .app-header--staff .app-header__brand-slot .app-brand-club {
+    max-width: none;
+    font-size: 1rem;
+  }
+
+  .app-header--staff .app-header__right {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  .app-header--staff .app-header__tools {
+    flex: 0 0 auto;
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .app-header--staff .app-header__sync-wrap--quiet,
+  .app-header--staff .header-device-health--quiet {
+    display: none;
+  }
+
+  .app-header--staff .app-header__inbox-btn,
+  .app-header--staff .app-header__vasya-btn,
+  .app-header--staff .app-header__sync-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+  }
+
+  .app-header--staff .app-header__burger {
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 10px;
+  }
+
+  .app-header--staff .app-header__dropdown {
+    max-height: calc(100dvh - var(--header-h) - env(safe-area-inset-top, 0px) - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-header--staff .app-brand-mark--micro {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .app-header--staff .app-brand--club-hero {
+    gap: 6px;
+  }
+}

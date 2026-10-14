@@ -1,23 +1,17 @@
 import { Link, NavLink, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
-import { resolveAdminClubId, readLastAdminClub, writeLastAdminClub } from '../lib/clubContext'
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { AlertTriangle, BarChart3, CalendarDays, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
-import { OsMark } from './brand/OsMark.jsx'
 import { HeaderSettingsMenu, HeaderStaffSettingsItems } from './header/HeaderSettingsMenu.jsx'
 import { HeaderSettingsModals } from './header/HeaderSettingsModals.jsx'
+import { HeaderClubSwitcher } from './header/HeaderClubSwitcher.jsx'
+import { useAdminClubContext } from './header/useAdminClubContext.js'
 import { IskraOrb } from './iskra/IskraOrb.jsx'
-import { PRODUCT_BRAND_NAME, productBrandAriaOnline, productBrandDocumentTitle } from '../lib/productBrand.js'
-import {
-  listClubsLocal,
-  LOCAL_DATA_CHANGED,
-  pullClubsFromSupabase,
-  resolveClubDisplayName,
-} from '../lib/dataAccess'
-import { DEMO_CLUB_ID } from '../lib/seedDemo'
+import { productBrandDocumentTitle } from '../lib/productBrand.js'
+import { LOCAL_DATA_CHANGED, resolveClubDisplayName } from '../lib/dataAccess'
 import { HeaderStopwatch } from './HeaderStopwatch'
 import { HeaderHeartRate } from './HeaderHeartRate'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
@@ -64,8 +58,6 @@ export function AppHeader() {
     closeIskra,
   } = useIskraPanel()
   const menuRootRef = useRef(null)
-  const [adminClubs, setAdminClubs] = useState([])
-  const [adminClubsLoading, setAdminClubsLoading] = useState(false)
   /** Название клуба тренера (adminClubs грузится только на /admin). */
   const [trainerClubLabel, setTrainerClubLabel] = useState(null)
   const [inboxOpen, setInboxOpen] = useState(false)
@@ -97,7 +89,16 @@ export function AppHeader() {
   } = useHeaderSync({ user, isAdmin, isSalesManager: isSalesManager || isSupervisor, supabaseReady, searchParams, menuOpen, closeMenu })
 
   const showAdminClubSelect = isAdmin && location.pathname.startsWith('/admin')
-  const adminClubValue = searchParams.get('club') ?? ''
+  const adminClub = useAdminClubContext({
+    enabled: isAdmin,
+    onAdminRoute: showAdminClubSelect,
+    userId: user?.id,
+    supabaseReady,
+    searchParams,
+    setSearchParams,
+  })
+  /** Вне /admin (мессенджер) — последний клуб, чтобы «Главная» и ИСКРА вели туда же. */
+  const adminClubValue = showAdminClubSelect ? (searchParams.get('club') ?? '') : adminClub.clubId
   const adminQs = useMemo(() => (adminClubValue ? `?club=${encodeURIComponent(adminClubValue)}` : ''), [adminClubValue])
   const salesReportActive = searchParams.get('tab') === 'report'
   const salesStatsActive = searchParams.get('tab') === 'stats'
@@ -106,58 +107,6 @@ export function AppHeader() {
     location.pathname === '/sales' && !salesReportActive && !salesStatsActive && !salesAnalyticsActive
 
   useEffect(() => subscribeAppUpdatePending(setUpdatePending), [])
-
-  useEffect(() => {
-    if (!showAdminClubSelect) return
-    let alive = true
-    const load = async () => {
-      setAdminClubsLoading(true)
-      try {
-        let rows = await listClubsLocal()
-        if (supabaseReady && rows.length > 1) {
-          rows = rows.filter((c) => String(c.id) !== DEMO_CLUB_ID)
-        }
-        if (alive && rows.length) setAdminClubs(Array.isArray(rows) ? rows : [])
-
-        if (supabaseReady) {
-          await pullClubsFromSupabase()
-          rows = await listClubsLocal()
-          if (supabaseReady && rows.length > 1) {
-            rows = rows.filter((c) => String(c.id) !== DEMO_CLUB_ID)
-          }
-        }
-        if (alive) setAdminClubs(Array.isArray(rows) ? rows : [])
-      } catch {
-        if (alive) setAdminClubs([])
-      } finally {
-        if (alive) setAdminClubsLoading(false)
-      }
-    }
-    void load()
-    let clubDebounce = null
-    const onData = (e) => {
-      if (e?.detail?.reason === 'club-deleted') {
-        void listClubsLocal().then((rows) => {
-          if (!alive) return
-          const filtered =
-            supabaseReady && rows.length > 1 ? rows.filter((c) => String(c.id) !== DEMO_CLUB_ID) : rows
-          setAdminClubs(Array.isArray(filtered) ? filtered : [])
-        })
-        return
-      }
-      if (clubDebounce) clearTimeout(clubDebounce)
-      clubDebounce = setTimeout(() => {
-        clubDebounce = null
-        void load()
-      }, 300)
-    }
-    window.addEventListener(LOCAL_DATA_CHANGED, onData)
-    return () => {
-      alive = false
-      if (clubDebounce) clearTimeout(clubDebounce)
-      window.removeEventListener(LOCAL_DATA_CHANGED, onData)
-    }
-  }, [showAdminClubSelect, supabaseReady])
 
   useEffect(() => {
     if (isAdmin) {
@@ -232,41 +181,6 @@ export function AppHeader() {
     }
   }, [isDispatchInboxUser, searchParams, setSearchParams])
 
-  /** Один зал — сразу в URL; несколько — последний выбранный или явный выбор. */
-  useEffect(() => {
-    if (!showAdminClubSelect || adminClubs.length === 0) return
-
-    const current = searchParams.get('club')?.trim() ?? ''
-    const validIds = adminClubs.map((c) => String(c.id))
-    const singleClubId = adminClubs.length === 1 ? String(adminClubs[0].id) : null
-    const lastClub = readLastAdminClub(user?.id)
-    const nextClub =
-      resolveAdminClubId({
-        urlClub: current,
-        lastClub,
-        validClubIds: validIds,
-        singleClubId,
-      }) ?? (current && validIds.includes(current) ? current : '')
-
-    if (nextClub && nextClub !== current) {
-      const next = new URLSearchParams(searchParams)
-      next.set('club', nextClub)
-      setSearchParams(next, { replace: true })
-      return
-    }
-    if (!nextClub && current && !validIds.includes(current)) {
-      const next = new URLSearchParams(searchParams)
-      next.delete('club')
-      setSearchParams(next, { replace: true })
-    }
-  }, [showAdminClubSelect, adminClubs, searchParams, setSearchParams, user?.id])
-
-  useEffect(() => {
-    if (!isAdmin || !user?.id) return
-    const cid = searchParams.get('club')?.trim()
-    if (cid) writeLastAdminClub(user.id, cid)
-  }, [isAdmin, user?.id, searchParams])
-
   useEffect(() => subscribeNetworkStatus(setOnline), [])
 
   useEffect(() => {
@@ -315,7 +229,7 @@ export function AppHeader() {
 
   const journalContext = useMemo(() => {
     const clubId = isAdmin ? adminClubValue : String(user?.club_id ?? '').trim()
-    const club = adminClubs.find((c) => String(c.id) === clubId)
+    const club = adminClub.clubs.find((c) => String(c.id) === clubId)
     return {
       user,
       role: isAdmin ? 'admin' : isSalesManager ? 'sales_manager' : isSupervisor ? 'supervisor' : 'trainer',
@@ -338,28 +252,18 @@ export function AppHeader() {
     online,
     supabaseReady,
     adminClubValue,
-    adminClubs,
+    adminClub.clubs,
     trainerClubLabel,
     location.pathname,
     location.search,
   ])
 
-  const onAdminClubChange = (e) => {
-    const v = e.target.value
-    const next = new URLSearchParams(searchParams)
-    if (v) next.set('club', v)
-    else next.delete('club')
-    setSearchParams(next, { replace: true })
-  }
-
-  const adminClubName = useMemo(() => {
-    const club = adminClubs.find((c) => String(c.id) === String(adminClubValue))
-    return club?.name?.trim() || ''
-  }, [adminClubs, adminClubValue])
+  const adminClubName = adminClub.clubName
 
   /** В шапке герой — клуб; продукт только микро-знаком (docs/BRAND_SYSTEM.md). */
   const headerClubTitle = isAdmin
-    ? adminClubName || (adminClubsLoading && adminClubs.length === 0 ? '…' : 'Выберите клуб')
+    ? adminClubName ||
+      (adminClub.loading && adminClub.clubs.length === 0 ? '…' : showAdminClubSelect ? 'Выберите клуб' : 'Все клубы')
     : trainerClubLabel === null
       ? '…'
       : trainerClubLabel || '—'
@@ -380,6 +284,7 @@ export function AppHeader() {
       className={[
         'app-header',
         isAdmin ? 'app-header--admin' : 'app-header--trainer',
+        isAdmin || isSupervisor ? 'app-header--staff' : '',
         showAdminClubSelect ? 'app-header--with-club' : '',
       ]
         .filter(Boolean)
@@ -405,21 +310,16 @@ export function AppHeader() {
             </div>
           </Link>
         ) : (
-          <Link
-            to={homeTo}
-            className="app-brand app-brand--club-hero u-no-decoration"
-            style={{ color: 'inherit' }}
-            title={`${PRODUCT_BRAND_NAME} · ${online ? 'онлайн' : 'офлайн'}`}
-            aria-label={`${headerClubTitle}. ${productBrandAriaOnline(online)}`}
-          >
-            <span
-              className={`app-brand-mark app-brand-mark--micro ${online ? 'app-brand-mark--online' : 'app-brand-mark--offline'}`}
-              aria-hidden
-            >
-              <OsMark size={18} className="app-brand-mark__svg" />
-            </span>
-            <span className="app-brand-club">{headerClubTitle}</span>
-          </Link>
+          <HeaderClubSwitcher
+            title={headerClubTitle}
+            clubs={adminClub.clubs}
+            clubId={adminClub.clubId}
+            online={online}
+            switchable={isAdmin && adminClub.switchable}
+            homeTo={homeTo}
+            homeTitle={isAdmin && !showAdminClubSelect && adminClubName ? `Вернуться в клуб «${adminClubName}»` : ''}
+            onSelect={adminClub.selectClub}
+          />
         )}
       </div>
       <nav className="app-header__nav" aria-label="Разделы">
@@ -536,26 +436,6 @@ export function AppHeader() {
       <div className="app-header__right" ref={menuRootRef}>
         <div className="app-header__tools">
         {showAdminClubSelect ? (
-          <select
-            className="app-header__club-select"
-            value={adminClubValue}
-            onChange={onAdminClubChange}
-            aria-label="Клуб"
-            title="Клуб"
-          >
-            {adminClubsLoading && adminClubs.length === 0 ? (
-              <option value="">Загрузка клубов…</option>
-            ) : !adminClubValue && adminClubs.length !== 1 ? (
-              <option value="">Выберите клуб…</option>
-            ) : null}
-            {adminClubs.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        {showAdminClubSelect ? (
           <button
             type="button"
             className={`btn btn-secondary btn-sm app-header__vasya-btn${iskraMode !== 'closed' ? ' app-header__vasya-btn--active' : ''}`}
@@ -590,7 +470,7 @@ export function AppHeader() {
           </button>
         ) : null}
         {showHeaderSync ? (
-          <div className="app-header__sync-wrap">
+          <div className={`app-header__sync-wrap${!syncBusy && !syncHasPending ? ' app-header__sync-wrap--quiet' : ''}`}>
             <button
               type="button"
               className={`${syncBtnClass}${syncHasPending && !syncBusy ? ' app-header__sync-btn--labeled' : ''}`}
@@ -668,9 +548,17 @@ export function AppHeader() {
                   <NavLink to={`/admin/statistics${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Статистика
                   </NavLink>
+                  <NavLink to={`/admin/sales${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Продажи
+                  </NavLink>
                   <NavLink to={`/admin/challenges${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Челленджи
                   </NavLink>
+                  {supabaseReady ? (
+                    <NavLink to={`/admin/health${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                      Сбои устройств
+                    </NavLink>
+                  ) : null}
                 </>
               ) : isSupervisor ? (
                 <>
@@ -682,6 +570,9 @@ export function AppHeader() {
                   </NavLink>
                   <NavLink to="/club/statistics" className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Статистика
+                  </NavLink>
+                  <NavLink to="/club/sales" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Продажи
                   </NavLink>
                   <NavLink to="/club/settings" className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Настройки
