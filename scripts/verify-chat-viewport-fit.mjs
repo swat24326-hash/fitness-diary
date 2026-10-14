@@ -3,7 +3,14 @@
  * лишний сдвиг страницы вверх — вернуть.
  * node scripts/verify-chat-viewport-fit.mjs
  */
-import { CHAT_FIT_MIN_PX, chatFitHeightPx, chatFitShiftPx, chatFitShouldUnpan } from '../src/lib/chat/chatViewportFit.js'
+import {
+  CHAT_FIT_MIN_PX,
+  CHAT_FIT_TOUCH_MAX_MS,
+  chatFitDeferDuringTouch,
+  chatFitHeightPx,
+  chatFitShiftPx,
+  chatFitShouldUnpan,
+} from '../src/lib/chat/chatViewportFit.js'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -37,5 +44,10 @@ ok(shiftBy(0) === 0 && shiftBy(undefined) === 0, 'сдвига нет — стр
 ok(shiftBy(-30) === 0, 'оттяжка вверх (отрицательный сдвиг) — не двигаем')
 ok(shiftBy(120.6) === 121, 'дробные пиксели округляются')
 ok(shiftBy(336, 2) === 0, 'страницу увеличили пальцами — это не клавиатура, не двигаем')
+
+const defer = (touchStartedAt, now) => chatFitDeferDuringTouch({ touchStartedAt, now })
+ok(defer(1000, 1300), 'палец тянет экран — подгонку отложить, не спорить с пружиной iPhone (INC-2026-10-14-04)')
+ok(!defer(null, 1300), 'палец отпущен — подгонка сразу')
+ok(!defer(1000, 1000 + CHAT_FIT_TOUCH_MAX_MS), 'iPhone не прислал «отпустил» — через 2 с подгонка всё равно оживает, поле не застрянет')
 
 console.log('verify-chat-viewport-fit: all passed')

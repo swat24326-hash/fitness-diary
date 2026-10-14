@@ -14,6 +14,13 @@
   height: var(--chat-fit-h, auto);
 }
 
+/* Пока открыт диалог, страница целиком не пружинит (iPhone): тянется и пружинит только лента. Иначе подгонка
+   под экран (chatViewportFit.js) спорит с пружиной страницы и экран дрожит (INC-2026-10-14-04). */
+html[data-chat-fit],
+html[data-chat-fit] body {
+  overscroll-behavior: none;
+}
+
 .chat-thread__feed {
   display: flex;
   flex-direction: column;

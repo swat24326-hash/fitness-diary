@@ -47,6 +47,19 @@ export function chatFitShiftPx({ offsetTop, scale = 1 }) {
   return top > 0 ? top : 0
 }
 
+/** Дольше палец на экране не держат; если iPhone не прислал «отпустил», подгонка всё равно оживёт. */
+export const CHAT_FIT_TOUCH_MAX_MS = 2000
+
+/**
+ * Палец тянет экран — подгонку откладываем до «отпустил»: иначе пересчёт высоты на каждом кадре
+ * спорит с пружиной iPhone и экран дрожит (INC-2026-10-14-04).
+ * @param {{ touchStartedAt: number | null, now: number }} p
+ */
+export function chatFitDeferDuringTouch({ touchStartedAt, now }) {
+  if (touchStartedAt == null) return false
+  return now - touchStartedAt < CHAT_FIT_TOUCH_MAX_MS
+}
+
 /** Оболочка страницы с диалогом — непосредственный потомок #root / body; её и сдвигаем. */
 function shellOf(el) {
   let node = el
@@ -78,6 +91,8 @@ export function attachChatViewportFit(el) {
   const shell = shellOf(el)
   let shift = 0
   let raf = 0
+  let touchStartedAt = null
+  let pending = false
 
   const sync = () => {
     raf = 0
@@ -96,8 +111,30 @@ export function attachChatViewportFit(el) {
     }
   }
   const schedule = () => {
+    if (chatFitDeferDuringTouch({ touchStartedAt, now: Date.now() })) {
+      pending = true
+      return
+    }
     if (!raf) raf = window.requestAnimationFrame(sync)
   }
+  const onTouchStart = () => {
+    touchStartedAt = Date.now()
+  }
+  const onTouchEnd = (e) => {
+    if (e.touches?.length) return
+    touchStartedAt = null
+    if (pending) {
+      pending = false
+      schedule()
+    }
+  }
+  /* Тап по полю ввода: клавиатура выезжает уже после «отпустил», но на всякий случай фокус снимает отсрочку. */
+  const onFocusChange = () => {
+    touchStartedAt = null
+    pending = false
+    schedule()
+  }
+  const touchOpts = { passive: true, capture: true }
 
   const ro = typeof ResizeObserver === 'function' && el.parentElement ? new ResizeObserver(schedule) : null
   ro?.observe(el.parentElement)
@@ -105,8 +142,11 @@ export function attachChatViewportFit(el) {
   vv?.addEventListener('scroll', schedule, { passive: true })
   window.addEventListener('resize', schedule, { passive: true })
   /* Фокус в поле ввода меняет отступы оболочки снизу (chat.css, pointer: coarse). */
-  el.addEventListener('focusin', schedule)
-  el.addEventListener('focusout', schedule)
+  el.addEventListener('focusin', onFocusChange)
+  el.addEventListener('focusout', onFocusChange)
+  document.addEventListener('touchstart', onTouchStart, touchOpts)
+  document.addEventListener('touchend', onTouchEnd, touchOpts)
+  document.addEventListener('touchcancel', onTouchEnd, touchOpts)
   root.setAttribute(CHAT_FIT_ROOT_ATTR, '')
   sync()
   return () => {
@@ -116,8 +156,11 @@ export function attachChatViewportFit(el) {
     vv?.removeEventListener('resize', schedule)
     vv?.removeEventListener('scroll', schedule)
     window.removeEventListener('resize', schedule)
-    el.removeEventListener('focusin', schedule)
-    el.removeEventListener('focusout', schedule)
+    el.removeEventListener('focusin', onFocusChange)
+    el.removeEventListener('focusout', onFocusChange)
+    document.removeEventListener('touchstart', onTouchStart, touchOpts)
+    document.removeEventListener('touchend', onTouchEnd, touchOpts)
+    document.removeEventListener('touchcancel', onTouchEnd, touchOpts)
     el.style.removeProperty(CHAT_FIT_VAR)
     if (shift) shell.style.transform = ''
   }

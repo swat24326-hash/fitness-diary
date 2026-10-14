@@ -107,6 +107,24 @@ async function trainerWrites(c, page, chat) {
   })
   c.ok(gap >= 0 && gap < 60, `короткий диалог: сообщение у поля ввода, как в Telegram, — без пустоты (зазор ${Math.round(gap)}px)`)
   await screenshot(page, 'staff-dm-coach-short')
+
+  /* iPhone: тянут пальцем без клавиатуры — страница не пружинит, высота не пересчитывается во время жеста (INC-2026-10-14-04). */
+  c.ok(
+    await page.evaluate(() => globalThis.getComputedStyle(globalThis.document.documentElement).overscrollBehaviorY === 'none'),
+    'открыт диалог — страница целиком не пружинит, только лента',
+  )
+  const fitH = () => page.locator('.chat-thread').evaluate((el) => el.style.getPropertyValue('--chat-fit-h'))
+  const before = await fitH()
+  await page.evaluate(() => globalThis.document.dispatchEvent(new globalThis.Event('touchstart')))
+  await page.setViewportSize({ width: 390, height: 700 })
+  await page.waitForTimeout(300)
+  c.ok((await fitH()) === before, `палец на экране — высота диалога не дёргается за каждым кадром (${before})`)
+  await page.evaluate(() => globalThis.document.dispatchEvent(new globalThis.Event('touchend')))
+  await page.waitForTimeout(300)
+  const after = await fitH()
+  c.ok(after !== before, `отпустил — диалог подогнан под экран (${before} → ${after})`)
+  await page.setViewportSize(PHONE.viewport)
+  await page.waitForTimeout(300)
   const saved = chat.state.dm.messages.at(-1)
   c.ok(saved?.author_user_id === TRAINER_ID && saved?.body === ASK, 'на сервер ушло сообщение от тренера')
   const push = chat.state.dm.pushes.at(-1)
