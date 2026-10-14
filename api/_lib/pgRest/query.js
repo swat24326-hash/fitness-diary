@@ -2,6 +2,7 @@ import { logDbError, pgErrorForServer } from '../dbErrorPublicCore.js'
 import { compilePgRestQuery } from './buildSql.js'
 import { executeCompiled, loadUdtOf } from './pool.js'
 import { shapePgRestResult } from './shapeResult.js'
+import { specWriteColumns } from './udtCache.js'
 
 function blankSpec(table) {
   return {
@@ -182,7 +183,7 @@ export class PgRestQuery {
       return { data: null, error: { message: 'Запрос отменён', code: 'ABORT', details: null, hint: null }, count: null }
     }
     try {
-      const udtOf = await loadUdtOf(this.spec.table)
+      const udtOf = await loadUdtOf(this.spec.table, specWriteColumns(this.spec))
       const compiled = compilePgRestQuery(this.spec, { udtOf })
       if (compiled.error) {
         return { data: null, error: { message: compiled.error, code: 'PGREST', details: null, hint: null }, count: null }

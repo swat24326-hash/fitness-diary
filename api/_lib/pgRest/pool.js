@@ -4,11 +4,13 @@ import { pgClientSslOption } from '../../../src/lib/pgMigrateOrderCore.js'
 import { pgSslCaPath } from './backend.js'
 import { pgPoolMaxFromEnv } from './poolConfig.js'
 import { pgNumberMaybe, pgTimestamptzToIso } from './pgValues.js'
+import { needsUdtReload } from './udtCache.js'
 
 const { types } = pg
 
 let parsersReady = false
 let typesReady = false
+let typesLoadedAt = 0
 /** @type {Map<string, string>} */
 let typesByKey = new Map()
 /** @type {import('pg').Pool | null} */
@@ -64,8 +66,9 @@ export function getPgRestPool() {
   return pool
 }
 
-async function ensureColumnTypes() {
-  if (typesReady) return
+async function ensureColumnTypes(table, columns) {
+  if (typesReady && !needsUdtReload(typesByKey, table, columns, typesLoadedAt, Date.now())) return
+  typesLoadedAt = Date.now()
   const result = await getPgRestPool().query(
     `SELECT table_name, column_name, udt_name
      FROM information_schema.columns
@@ -79,9 +82,12 @@ async function ensureColumnTypes() {
   typesReady = true
 }
 
-/** @param {string} table */
-export async function loadUdtOf(table) {
-  await ensureColumnTypes()
+/**
+ * @param {string} table
+ * @param {string[]} [columns] поля записи — неизвестное поле перечитывает кэш (миграция после старта)
+ */
+export async function loadUdtOf(table, columns = []) {
+  await ensureColumnTypes(table, columns)
   return (column) => typesByKey.get(`${table}.${column}`) ?? null
 }
 

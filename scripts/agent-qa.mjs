@@ -71,6 +71,7 @@ run('portable host security', 'node', ['scripts/verify-portable-host-security.mj
 run('auth session recover', 'node', ['scripts/verify-auth-session-recover.mjs'])
 run('pg migrate order', 'node', ['scripts/verify-pg-migrate-order.mjs'])
 run('pg rest data-port', 'node', ['scripts/verify-pg-rest.mjs'])
+run('pg кэш типов после миграции', 'node', ['scripts/verify-pg-udt-cache.mjs'])
 run('own auth jwt', 'node', ['scripts/verify-auth-own.mjs'])
 run('trainer device binding', 'node', ['scripts/verify-device-binding.mjs'])
 run('coach phone auth', 'node', ['scripts/verify-coach-auth.mjs'])
