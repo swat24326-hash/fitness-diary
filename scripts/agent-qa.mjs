@@ -95,6 +95,7 @@ run('pwa single manifest link', 'node', ['scripts/verify-pwa-single-manifest.mjs
 run('client inbox', 'node', ['scripts/verify-inbox.mjs'])
 run('client chat', 'node', ['scripts/verify-chat.mjs'])
 run('chat emoji (Noto)', 'node', ['scripts/verify-chat-emoji.mjs'])
+run('chat art stickers (набор «Зал»)', 'node', ['scripts/verify-chat-art-stickers.mjs'])
 run('chat emoji frequent (часто используемые)', 'node', ['scripts/verify-chat-emoji-frequent.mjs'])
 run('chat viewport fit', 'node', ['scripts/verify-chat-viewport-fit.mjs'])
 run('staff messenger (папки, адрес)', 'node', ['scripts/verify-staff-messenger.mjs'])

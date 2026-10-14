@@ -61,6 +61,7 @@ export default defineConfig(({ mode }) => ({
         'icons/icon-192.png',
         'icons/icon-384.png',
         'icons/icon-512.png',
+        'stickers/art/*.webp',
       ],
       manifest: {
         name: PRODUCT_BRAND_NAME,

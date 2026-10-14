@@ -1,6 +1,19 @@
-import { useId, useState } from 'react'
-import { chatStickerLabel } from '../../../lib/chat/chatStickerCore.js'
+import { lazy, Suspense, useId, useState } from 'react'
+import { chatStickerLabel, isChatArtSticker } from '../../../lib/chat/chatStickerCore.js'
 import { STICKER_SHAPES } from './chatStickerShapes.jsx'
+
+/** Набор «Зал» — отдельный chunk: грузится, когда такой стикер впервые на экране, а не с каждым открытием приложения. */
+const ChatArtSticker = lazy(() => import('./art/ChatArtSticker.jsx').then((m) => ({ default: m.ChatArtSticker })))
+
+/** Место под стикер, пока грузится рисунок: лента не прыгает. */
+function ArtStickerSlot({ size, label }) {
+  return (
+    <span className={`chat-sticker chat-sticker--${size}`} role="img" aria-label={`Стикер: ${label}`}>
+      <span className="chat-sticker__art" aria-hidden />
+      <span className="chat-sticker__label">{label}</span>
+    </span>
+  )
+}
 
 /**
  * Стикер клуба как в Telegram: Гирька с белой «вырезной» обводкой, анимация при появлении,
@@ -12,6 +25,13 @@ export function ChatSticker({ id, size = 'feed' }) {
   const [round, setRound] = useState(0)
   const Shape = STICKER_SHAPES[id]
   const label = chatStickerLabel(id)
+  if (isChatArtSticker(id)) {
+    return (
+      <Suspense fallback={<ArtStickerSlot size={size} label={label} />}>
+        <ChatArtSticker id={id} size={size} />
+      </Suspense>
+    )
+  }
   if (!Shape) return null
   return (
     <span

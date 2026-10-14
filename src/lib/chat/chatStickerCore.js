@@ -8,6 +8,7 @@ import { chatVoiceLabel, checkVoiceUpload } from './chatVoiceCore.js'
 export const CHAT_STICKER_GROUPS = Object.freeze([
   { id: 'practical', label: 'По делу' },
   { id: 'mood', label: 'Настроение' },
+  { id: 'gym', label: 'Зал' },
 ])
 
 export const CHAT_STICKERS = Object.freeze([
@@ -23,6 +24,12 @@ export const CHAT_STICKERS = Object.freeze([
   { id: 'tired', group: 'mood', label: 'Устал, но сделал' },
   { id: 'water', group: 'mood', label: 'Пей воду' },
   { id: 'great', group: 'mood', label: 'Отличная работа' },
+  // art — растровый анимированный стикер (public/stickers/art/<id>.webp), рисунок в components/chat/stickers/art/.
+  { id: 'glutes', group: 'gym', label: 'Ягодицы сами себя не накачают', art: true },
+  { id: 'dance', group: 'gym', label: 'Когда в зале включили мой трек', art: true },
+  { id: 'shake', group: 'gym', label: 'Замешиваю протеин', art: true },
+  { id: 'no-legs', group: 'gym', label: 'Ноги? Не, не слышал', art: true },
+  { id: 'strut', group: 'gym', label: 'После первой тренировки', art: true },
 ])
 
 const BY_ID = new Map(CHAT_STICKERS.map((s) => [s.id, s]))
@@ -33,6 +40,10 @@ export function isChatSticker(id) {
 
 export function chatStickerLabel(id) {
   return BY_ID.get(String(id ?? ''))?.label ?? ''
+}
+
+export function isChatArtSticker(id) {
+  return BY_ID.get(String(id ?? ''))?.art === true
 }
 
 /**
