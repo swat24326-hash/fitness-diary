@@ -58,7 +58,7 @@ needRefresh / buildStale
 | План действия | `appUpdatePlanCore.js` | wait_auth / auto / manual_only / hard_recover |
 | Анти-цикл reload | `appUpdateReloadGuard.js` | 90 с без повторного auto; 2-й тап → hard recover |
 | In-flight | `appUpdateInFlightCore.js` | после reload не мигать login 120 с |
-| Apply | `appUpdateApplyService.js` | flush черновиков тренировок → SW + пауза sync + reload / `viteChunkReload` |
+| Apply | `appUpdateApplyService.js` | flush черновиков тренировок → ждёт докачки новой версии (до 20 с) → SW + пауза sync + reload / `viteChunkReload`. Ручное («Восстановить», «Обновить сейчас»): версия не сменилась, а на сервере новее (другая копия приложения держит старую) → сброс оболочки `hardResetAppShell` (кэш + SW, IndexedDB цела) — `shouldHardResetAfterUpdateAttempt` (INC-2026-10-14-01) |
 | Черновик тренировки | `trainingDraftDurableStorage.js`, `trainingDraftUpdateFlush.js`, `trainingDraftDurableHydrate.js`, `trainingDraftCleanup.js` | localStorage + flush перед reload; после обновления — восстановление в IDB / вкладки; **удаление draft** снимает durable (иначе hydrate воскрешает). См. [SYNC.md](./SYNC.md) §3c |
 | UI | `PwaUpdatePrompt.jsx`, `AppUpdatedBanner.jsx` | баннер / «Приложение обновлено» |
 | Auth | `AuthContext.jsx`, `Login.jsx`, `App.jsx` | splash «Обновляем…», дольше getSession |

@@ -96,3 +96,12 @@ export function pwaUpdateBannerCopy(ctx = {}) {
     secondary: 'Позже',
   }
 }
+
+/**
+ * Ручное обновление: новая версия так и не взяла управление (ждёт, пока закроется другая копия
+ * приложения, или ещё качалась), а на сервере сборка новее — обычный reload вернёт старую.
+ * @param {{ manual?: boolean, controllerChanged?: boolean, remoteStale?: boolean }} ctx
+ */
+export function shouldHardResetAfterUpdateAttempt(ctx = {}) {
+  return ctx.manual === true && ctx.controllerChanged !== true && ctx.remoteStale === true
+}

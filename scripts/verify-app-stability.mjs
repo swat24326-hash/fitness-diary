@@ -11,7 +11,7 @@ import {
   shouldBlockAutoPwaReload,
   shouldHardRecoverPwaUpdate,
 } from '../src/lib/appUpdateReloadGuard.js'
-import { planPwaUpdateAction, pwaUpdateBannerCopy } from '../src/lib/appUpdatePlanCore.js'
+import { planPwaUpdateAction, pwaUpdateBannerCopy, shouldHardResetAfterUpdateAttempt } from '../src/lib/appUpdatePlanCore.js'
 import { isPwaUpdateInFlightStamp, parsePwaUpdateInFlight } from '../src/lib/appUpdateInFlightCore.js'
 import { getAppUpdatePending, setAppUpdatePending, clearAppUpdatePending } from '../src/lib/appUpdateState.js'
 import { mergeIdentityCacheIntoUser } from '../src/lib/userIdentityCache.js'
@@ -108,6 +108,22 @@ ok(!shouldAutoApplyUpdate('defer'), 'no auto on defer')
   ok(pwaUpdateBannerCopy({ action: 'defer' }).primary === 'Обновить сейчас', 'defer banner still has update button')
   ok(planPwaUpdateAction({ decision: 'immediate', manual: true, guard: first, now: t0 + 1_000 }) === 'hard_recover', 'plan: hard recover')
   ok(pwaUpdateBannerCopy({ action: 'manual_only' }).primary === 'Обновить ещё раз', 'copy: retry')
+  ok(
+    shouldHardResetAfterUpdateAttempt({ manual: true, controllerChanged: false, remoteStale: true }),
+    'ручное: новая версия не встала, на сервере новее — сброс оболочки',
+  )
+  ok(
+    !shouldHardResetAfterUpdateAttempt({ manual: true, controllerChanged: true, remoteStale: true }),
+    'ручное: версия сменилась — обычный reload',
+  )
+  ok(
+    !shouldHardResetAfterUpdateAttempt({ manual: true, controllerChanged: false, remoteStale: false }),
+    'ручное: на сервере та же версия — без сброса',
+  )
+  ok(
+    !shouldHardResetAfterUpdateAttempt({ manual: false, controllerChanged: false, remoteStale: true }),
+    'авто: без сброса оболочки',
+  )
   const inflight = parsePwaUpdateInFlight(JSON.stringify({ at: t0 }))
   ok(isPwaUpdateInFlightStamp(inflight, t0 + 1_000), 'in-flight active')
   ok(!isPwaUpdateInFlightStamp(inflight, t0 + 200_000), 'in-flight expired')

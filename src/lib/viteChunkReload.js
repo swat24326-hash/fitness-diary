@@ -87,6 +87,15 @@ export async function recoverFromStaleViteDeploy() {
   }
 
   if (withinCooldown(HARD_KEY, HARD_COOLDOWN_MS)) return false
+  return hardResetAppShell()
+}
+
+/**
+ * Сброс кэша оболочки и service worker, загрузка свежей сборки с сервера.
+ * IndexedDB (клиенты, очередь Sync) не трогается.
+ */
+export async function hardResetAppShell() {
+  if (typeof window === 'undefined') return false
   writeTs(HARD_KEY)
   writeTs(RELOAD_KEY)
   await clearSiteCaches()
