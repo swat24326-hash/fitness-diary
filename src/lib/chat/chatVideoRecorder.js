@@ -40,7 +40,7 @@ export async function startChatVideo() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user', width: { ideal: CHAT_VIDEO_SIDE }, height: { ideal: CHAT_VIDEO_SIDE }, aspectRatio: { ideal: 1 } },
-      audio: { echoCancellation: true, noiseSuppression: true },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
     })
   } catch (e) {
     throw new Error(cameraErrorRu(e))

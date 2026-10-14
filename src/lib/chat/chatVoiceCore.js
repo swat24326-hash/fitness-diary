@@ -1,17 +1,18 @@
 /**
  * Голосовые сообщения, как в Telegram: держишь 🎤 — пишется, отпустил — ушло; влево — отмена, вверх — без рук.
- * Звук — MP3 16 кГц моно (играет на iPhone, Android и ПК, его же понимает SpeechKit), до 5 минут, слушать — сутки.
+ * Звук — MP3 24 кГц моно (играет на iPhone, Android и ПК, его же понимает SpeechKit), до 5 минут, слушать — сутки.
+ * 16 кГц резал всё выше 8 кГц — «с», «ш» звучали глухо, как в телефонной трубке.
  * Без React, браузера и базы — общее для сервера и экрана, проверяется verify-chat-voice.mjs.
  */
 
-export const CHAT_VOICE_RATE = 16000
-export const CHAT_VOICE_KBPS = 32
+export const CHAT_VOICE_RATE = 24000
+export const CHAT_VOICE_KBPS = 48
 export const CHAT_VOICE_MAX_SEC = 300
 export const CHAT_VOICE_MIN_SEC = 1
 /** Последние секунды таймер красный. */
 export const CHAT_VOICE_WARN_SEC = 15
-/** 5 минут при 32 кбит/с ≈ 1,2 МБ; запас на заголовки и округления. */
-export const CHAT_VOICE_MAX_BYTES = 2_000_000
+/** 5 минут при 48 кбит/с ≈ 1,8 МБ; запас на заголовки и округления (в base64 — до 3 МБ, под потолком тела 5 МБ). */
+export const CHAT_VOICE_MAX_BYTES = 2_200_000
 const MIN_BYTES = 400
 export const CHAT_VOICE_BARS = 48
 export const CHAT_VOICE_TTL_MS = 24 * 60 * 60 * 1000
@@ -42,7 +43,7 @@ export const CHAT_VOICE_ONCE_PLAYED_RU = 'Одноразовое голосов�
 export const CHAT_VOICE_ONCE_PEER_RU = 'Одноразовое голосовое слушает только собеседник'
 export const CHAT_VOICE_ONCE_TEXT_RU = 'Одноразовое голосовое не расшифровывается'
 
-/** Частота микрофона (обычно 44,1 / 48 кГц) → 16 кГц: среднее по окну, без «звона» от простого прореживания. */
+/** Частота микрофона (обычно 44,1 / 48 кГц) → 24 кГц: среднее по окну, без «звона» от простого прореживания. */
 export function downsamplePcm(input, inRate, outRate = CHAT_VOICE_RATE) {
   if (!input?.length || !(inRate > 0)) return new Float32Array(0)
   if (inRate <= outRate) return Float32Array.from(input)

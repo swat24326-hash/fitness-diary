@@ -1,6 +1,6 @@
 /**
  * Запись голосового: сырой звук через Web Audio (MediaRecorder на iPhone пишет mp4, в Chrome — webm,
- * а нужен один формат для всех и для SpeechKit) → 16 кГц → MP3 прямо по ходу записи: 5 минут не копятся в памяти.
+ * а нужен один формат для всех и для SpeechKit) → 24 кГц → MP3 прямо по ходу записи: 5 минут не копятся в памяти.
  * Кодировщик грузится при первой записи. На паузе и после остановки микрофон гаснет; «дописать» включает его снова
  * и продолжает тот же MP3.
  */
@@ -47,7 +47,7 @@ async function openMic(onData) {
   let stream
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false },
     })
   } catch (e) {
     throw new Error(micErrorRu(e))

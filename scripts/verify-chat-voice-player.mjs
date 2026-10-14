@@ -55,7 +55,7 @@ ok(parseVoiceSpeed('1.5') === 1.5 && parseVoiceSpeed('3') === 1 && parseVoiceSpe
 ok(isPastVoiceRange(9.96, 10, [0, 1]) && !isPastVoiceRange(5, 10, [0, 0.8]) && isPastVoiceRange(8, 10, [0, 0.8]), 'обрезанная запись: стоп у правой ручки')
 
 console.log('Обрезка по кадрам MP3')
-/** MPEG-2 Layer III 16 кГц 32 кбит/с моно — как пишет телефон: кадр 144 байта. */
+/** MPEG-2 Layer III 16 кГц 32 кбит/с моно — так писали до 15.10.2026, такие ещё лежат в черновиках: кадр 144 байта. */
 const frame = (i) => {
   const f = new Uint8Array(144)
   f.set([0xff, 0xf3, 0x48, 0xc4])
@@ -65,6 +65,9 @@ const frame = (i) => {
 const mp3 = new Uint8Array(144 * 10)
 for (let i = 0; i < 10; i += 1) mp3.set(frame(i), i * 144)
 ok(mp3FrameOffsets(mp3).length === 10, '10 кадров по 144 байта')
+const mp3hq = new Uint8Array(144 * 4)
+for (let i = 0; i < 4; i += 1) mp3hq.set([0xff, 0xf3, 0x64, 0xc4], i * 144)
+ok(mp3FrameOffsets(mp3hq).length === 4, 'как пишет телефон сейчас: 24 кГц 48 кбит/с — тоже кадры по 144 байта')
 const id3 = new Uint8Array(20 + mp3.length)
 id3.set([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 10])
 id3.set(mp3, 20)

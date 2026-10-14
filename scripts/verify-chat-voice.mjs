@@ -1,5 +1,5 @@
 /**
- * Голосовые сообщения, как в Telegram: звук → 16 кГц, волна, таймер, жест (отмена / без рук / нажатие),
+ * Голосовые сообщения, как в Telegram: звук → 24 кГц, волна, таймер, жест (отмена / без рук / нажатие),
  * проверка загрузки (MP3, размер, 1–300 с), метка «🎤 Голосовое», срок сутки, вид для экрана, запрос SpeechKit (MP3),
  * лимит расшифровок, обработчики: загрузка, звук, «→ Аа» (запуск, ожидание, готово, сбой).
  * node scripts/verify-chat-voice.mjs
@@ -63,7 +63,9 @@ const upload = (over = {}) => ({ audio: b64(mp3Bytes()), sec: 7, wave, ...over }
 
 console.log('Звук и волна')
 const down = downsamplePcm(new Float32Array(48000).fill(0.5), 48000)
-ok(down.length === 16000 && Math.abs(down[100] - 0.5) < 1e-6, '48 кГц → 16 кГц: секунда остаётся секундой, уровень тот же')
+ok(down.length === 24000 && Math.abs(down[100] - 0.5) < 1e-6, '48 кГц → 24 кГц: секунда остаётся секундой, уровень тот же')
+const down44 = downsamplePcm(new Float32Array(44100).fill(0.5), 44100)
+ok(down44.length === 24000 && Math.abs(down44[777] - 0.5) < 1e-6, '44,1 кГц (iPhone) → 24 кГц: тоже секунда в секунду')
 ok(downsamplePcm(null, 48000).length === 0, 'пусто — пусто, без падения')
 const pcm = pcm16Samples(Float32Array.from([1, -1, 0, 2]))
 ok(pcm[0] === 32767 && pcm[1] === -32768 && pcm[3] === 32767, '16 бит: край шкалы, перегруз обрезается')
@@ -93,7 +95,7 @@ console.log('Загрузка')
 ok(checkVoiceUpload(upload()).ok, 'MP3 7 с — берём')
 ok(checkVoiceUpload(upload({ sec: 0.3 })).error === CHAT_VOICE_SHORT_RU, 'короче секунды — «слишком коротко»')
 ok(checkVoiceUpload(upload({ sec: CHAT_VOICE_MAX_SEC + 5 })).status === 413, 'дольше 5 минут — 413')
-ok(checkVoiceUpload(upload({ audio: b64(mp3Bytes(CHAT_VOICE_MAX_BYTES + 10)) })).status === 413, 'больше 2 МБ — 413')
+ok(checkVoiceUpload(upload({ audio: b64(mp3Bytes(CHAT_VOICE_MAX_BYTES + 10)) })).status === 413, 'больше 2,2 МБ — 413')
 ok(checkVoiceUpload(upload({ audio: 'не base64!' })).status === 400, 'мусор — 400')
 ok(checkVoiceUpload(upload({ audio: b64(new Uint8Array(30)) })).error === CHAT_VOICE_SHORT_RU, 'пара байт — «слишком коротко»')
 ok(checkVoiceUpload(upload({ wave: [1] })).status === 400, 'без волны — 400')
