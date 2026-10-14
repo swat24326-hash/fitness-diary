@@ -45,6 +45,18 @@ const headerFits = (page) =>
     return { wide: root.scrollWidth - root.clientWidth, right, width: root.clientWidth }
   })
 
+/** Видимые кнопки справа в шапке — размеры «ширина×высота», для проверки «все одного квадрата». */
+const buttonSizes = (page) =>
+  page.evaluate(() =>
+    [...globalThis.document.querySelectorAll('.app-header__right .app-header__tools > *, .app-header__right > button')]
+      .map((el) => (el.matches('.app-header__sync-wrap') ? el.querySelector('button') : el))
+      .filter((el) => el && el.getBoundingClientRect().width > 0)
+      .map((el) => {
+        const r = el.getBoundingClientRect()
+        return `${Math.round(r.width)}×${Math.round(r.height)}`
+      }),
+  )
+
 async function adminPhone(c, browser, backend) {
   const context = await newE2eContext(browser, backend, PHONE)
   const page = await context.newPage()
@@ -56,6 +68,8 @@ async function adminPhone(c, browser, backend) {
     const fit = await headerFits(page)
     c.ok(fit.wide <= 0 && fit.right <= fit.width, `шапка не шире экрана (лишних ${fit.wide}px, правый край ${Math.round(fit.right)} из ${fit.width})`)
     c.ok(!(await page.getByTestId('header-device-health').isVisible()), 'без сбоев «Сбои устройств» не занимает место — он в меню')
+    const phoneSizes = await buttonSizes(page)
+    c.ok(phoneSizes.length >= 3 && new Set(phoneSizes).size === 1, `телефон: кнопки шапки одного размера (${phoneSizes.join(', ')})`)
     await screenshot(page, 'staff-header-admin-phone')
 
     await trigger.click()
@@ -92,6 +106,10 @@ async function adminMonitor(c, browser, backend) {
   try {
     await loginUi(page, ADMIN.login, ADMIN.password)
     const trigger = page.getByTestId('header-club-switch')
+    await page.getByTestId('header-device-health').waitFor()
+    const sizes = await buttonSizes(page)
+    c.ok(sizes.length >= 5 && new Set(sizes).size === 1, `монитор: ИСКРА, конверт, «Сбои», Sync и меню — один квадрат (${sizes.join(', ')})`)
+    await page.locator('.app-header__right').screenshot({ path: 'qa-screenshots/e2e/staff-header-buttons.png' })
     await trigger.click()
     const panel = page.getByRole('dialog', { name: 'Выбор клуба' })
     c.ok(await reaches(panel), 'монитор: панель выбора клуба')

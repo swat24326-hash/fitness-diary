@@ -284,22 +284,8 @@
   }
 
   .app-header--staff .app-header__sync-wrap--quiet,
-  .app-header--staff .header-device-health--quiet {
+  .app-header--staff .app-header__right .app-header__inbox-btn.header-device-health--quiet {
     display: none;
-  }
-
-  .app-header--staff .app-header__inbox-btn,
-  .app-header--staff .app-header__vasya-btn,
-  .app-header--staff .app-header__sync-btn {
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
-  }
-
-  .app-header--staff .app-header__burger {
-    min-width: 44px;
-    min-height: 44px;
-    padding-inline: 10px;
   }
 
   .app-header--staff .app-header__dropdown {

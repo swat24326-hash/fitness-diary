@@ -1,0 +1,79 @@
+/* Кнопки шапки админа и управляющего — один квадрат: ИСКРА, конверт, «Сбои устройств», Планёрка, Sync, меню ☰.
+   Своё у кнопки только по смыслу: очередь Sync (жёлтая), открытый раздел (рамка акцента), число в углу.
+   Здесь, а не в gemini-analytics.css: тот грузится вместе с панелью ИСКРЫ, и до её открытия кнопка была шире. */
+
+.app-header--staff .app-header__right .app-header__inbox-btn,
+.app-header--staff .app-header__right .app-header__vasya-btn,
+.app-header--staff .app-header__right .app-header__sync-btn:not(.app-header__sync-btn--labeled),
+.app-header--staff .app-header__right .app-header__burger {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transform: none;
+  animation: none;
+}
+
+/* Sync с очередью на широком экране — «3 в очереди»: та же высота, ширина по тексту. */
+.app-header--staff .app-header__right .app-header__sync-btn--labeled {
+  height: 40px;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+}
+
+.app-header--staff .app-header__right .app-header__inbox-btn,
+.app-header--staff .app-header__right .app-header__vasya-btn,
+.app-header--staff .app-header__right .app-header__sync-btn--idle,
+.app-header--staff .app-header__right .app-header__burger {
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: none;
+}
+
+.app-header--staff .app-header__right .app-header__inbox-btn:hover,
+.app-header--staff .app-header__right .app-header__vasya-btn:hover:not(:disabled),
+.app-header--staff .app-header__right .app-header__sync-btn--idle:hover:not(:disabled),
+.app-header--staff .app-header__right .app-header__burger:hover {
+  color: var(--accent-bright);
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: none;
+  transform: none;
+}
+
+.app-header--staff .app-header__right .app-header__inbox-btn--active,
+.app-header--staff .app-header__right .app-header__vasya-btn--active,
+.app-header--staff .app-header__right .app-header__burger[aria-expanded='true'] {
+  color: var(--accent-bright);
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: none;
+}
+
+.app-header--staff .app-header__right .app-header__vasya-btn:disabled {
+  opacity: 0.45;
+}
+
+.app-header--staff .app-header__vasya-orb.iskra-orb {
+  width: 24px;
+  height: 24px;
+}
+
+.app-header--staff .app-header__right .app-header__inbox-btn svg,
+.app-header--staff .app-header__right .app-header__sync-btn svg,
+.app-header--staff .app-header__right .app-header__burger svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.app-header--staff .app-header__sync-progress {
+  width: 40px;
+}
