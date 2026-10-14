@@ -6,6 +6,7 @@ import { normalizeStaffRole } from '../admin/adminRoleCore.js'
 import { USERS_ADMIN_ROLES, USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../userRoleConstants.js'
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_COLLEAGUES } from './chatContactsCore.js'
 import { CHAT_PUSH_PREVIEW_MAX, chatPreview } from './chatMessageCore.js'
+import { buildAttachView } from './chatAttachCore.js'
 import { buildVoiceView } from './chatVoiceCore.js'
 
 export const STAFF_DM_SELF_RU = 'Нельзя написать самому себе'
@@ -130,6 +131,7 @@ export function buildStaffDmMessageView(m, userId) {
     body: m.body,
     sticker: m.sticker ?? null,
     voice: buildVoiceView(m),
+    attach: buildAttachView(m),
     created_at: m.created_at,
     side: mine ? 'staff' : 'client',
     mine,

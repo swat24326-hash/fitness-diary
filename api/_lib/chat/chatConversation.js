@@ -19,7 +19,8 @@ import { sendChatPush } from './chatPushJob.js'
 import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
-import { answerChatVoice, chatVoiceBlocked, storeChatVoice } from './chatVoiceHandler.js'
+import { answerChatAttach, storeChatOutgoing } from './chatAttachHandler.js'
+import { answerChatVoice, chatVoiceBlocked } from './chatVoiceHandler.js'
 import { chatVoiceStorageMode } from './chatVoiceStorage.js'
 import {
   countRecentChatMessages,
@@ -92,12 +93,13 @@ export async function reactChatMessage(db, { client, kind, reactor, messageId, e
 }
 
 /**
- * Звук или расшифровка голосового из диалога клиента (доступ на чтение уже проверен).
- * @param {'audio'|'text'} want
+ * Звук или расшифровка голосового, файл вложения из диалога клиента (доступ на чтение уже проверен).
+ * @param {'audio'|'text'|'file'} want
  * @param {'client'|'staff'} side кто слушает; mark=false — смотрит не ответственный: «прослушано» не ставим
  */
 export async function chatVoiceOf(db, { client, kind, messageId, want, who, side, mark = true }) {
   const thread = await loadChatThread(db, client.id, kind)
+  if (want === 'file') return answerChatAttach(db, 'chat_messages', thread?.id ?? null, messageId)
   return answerChatVoice(db, 'chat_messages', thread?.id ?? null, messageId, want, who, { side, mark })
 }
 
@@ -113,26 +115,25 @@ function peerNameOf(side, client) {
 
 /**
  * replyTo — id сообщения этого диалога, на которое отвечают (не из диалога — отправим без цитаты).
- * voice — { audio, sec, wave } голосового (chatVoiceCore); тогда body и sticker не нужны. silent — push без звука.
+ * voice — { audio, sec, wave } голосового (chatVoiceCore); тогда body и sticker не нужны.
+ * attach — { kind, data, name?, w?, h? } фото или PDF (chatAttachCore); body тогда — подпись. silent — push без звука.
  * @returns {Promise<{ status: number, body: object }>}
  */
-export async function sendChatMessage(db, { client, kind, side, userId, body, sticker, voice, clientMsgId, replyTo, silent = false }) {
-  const checked = resolveChatOutgoing({ body, sticker, ...voice })
+export async function sendChatMessage(db, { client, kind, side, userId, body, sticker, voice, attach, clientMsgId, replyTo, silent = false }) {
+  const checked = resolveChatOutgoing({ body, sticker, ...voice, attach })
   if (!checked.ok) return { status: checked.status ?? 400, body: { error: checked.error } }
   const blocked = chatVoiceBlocked(checked)
   if (blocked) return { status: blocked.status, body: { error: blocked.error } }
   const thread = await ensureChatThread(db, client, kind)
   const msgId = normalizeClientMsgId(clientMsgId)
   const earlier = await loadChatMessageByClientMsgId(db, thread.id, msgId)
-  let stored = null
+  let stored = { voice: null, attach: null }
   if (!earlier) {
     const recent = await countRecentChatMessages(db, thread.id, { side, userId }, chatSendWindowStart(), CHAT_SEND_PER_MINUTE)
     if (isChatSendLimited(recent)) return { status: 429, body: { error: CHAT_SEND_LIMIT_RU } }
-    if (checked.voice) {
-      const put = await storeChatVoice(checked.voice, { side, authorId: side === 'client' ? client.id : userId, msgId })
-      if (!put.ok) return { status: put.status, body: { error: put.error } }
-      stored = put.voice
-    }
+    const put = await storeChatOutgoing(checked, { side, authorId: side === 'client' ? client.id : userId, msgId })
+    if (!put.ok) return { status: put.status, body: { error: put.error } }
+    stored = put
   }
   const target = earlier ? null : await loadReplyTarget(db, 'chat', thread.id, replyTo)
   const { message, duplicate } = earlier
@@ -144,7 +145,8 @@ export async function sendChatMessage(db, { client, kind, side, userId, body, st
         sticker: checked.sticker,
         clientMsgId: msgId,
         replyTo: target?.id ?? null,
-        voice: stored,
+        voice: stored.voice,
+        attach: stored.attach,
       })
   const quoted = await loadReplyTargets(db, 'chat', thread.id, [message])
   const names = await loadStaffNames(db, [message.author_user_id ?? (side === 'staff' ? userId : null), ...[...quoted.values()].map((m) => m.author_user_id)])

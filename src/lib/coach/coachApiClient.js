@@ -78,12 +78,12 @@ export const searchCoachDm = (userId, q) => coachRequest({ view: 'dm-search', us
 /** Голосовые: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done). */
 export function coachChatVoice(clientId, kind = 'trainer') {
   const call = (op) => (messageId) => coachRequest({}, { op, client_id: clientId, kind, message_id: messageId })
-  return { audio: call('chat-voice-audio'), text: call('chat-voice-text') }
+  return { audio: call('chat-voice-audio'), text: call('chat-voice-text'), file: call('chat-attach') }
 }
 
 export function coachDmVoice(userId) {
   const call = (op) => (messageId) => coachRequest({}, { op, user_id: userId, message_id: messageId })
-  return { audio: call('dm-voice-audio'), text: call('dm-voice-text') }
+  return { audio: call('dm-voice-audio'), text: call('dm-voice-text'), file: call('dm-attach') }
 }
 
 export function reactCoachDmMessage(userId, messageId, emoji) {
@@ -102,6 +102,7 @@ export const coachGroupApi = Object.freeze({
   voice: Object.freeze({
     audio: (messageId) => coachRequest({}, { op: 'group-voice-audio', message_id: messageId }),
     text: (messageId) => coachRequest({}, { op: 'group-voice-text', message_id: messageId }),
+    file: (messageId) => coachRequest({}, { op: 'group-attach', message_id: messageId }),
   }),
 })
 

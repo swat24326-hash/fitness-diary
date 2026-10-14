@@ -5,6 +5,7 @@
  * POST { op: 'dm-send', user_id, body | sticker | (audio, sec, wave), reply_to? } → { message } (reply_to — ответ с цитатой, только на сообщение этого диалога)
  * POST { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
  * POST { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id } → { audio, mime } | { done, text? } (chatVoiceHandler.js)
+ * POST { op: 'dm-attach', user_id, message_id } → { data, mime, name } — фото / PDF (сутки, потом 410; chatAttachHandler.js)
  * Текст сообщений в лог не пишем.
  * Тренер, связанный с управляющим (linkedStaffStore), переписывается с коллегами от учётки управляющего.
  */
@@ -43,7 +44,8 @@ import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatRe
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
 import { sendStaffDmPush } from './staffDmPushJob.js'
-import { answerChatVoice, chatVoiceBlocked, storeChatVoice } from './chatVoiceHandler.js'
+import { answerChatAttach, storeChatOutgoing } from './chatAttachHandler.js'
+import { answerChatVoice, chatVoiceBlocked } from './chatVoiceHandler.js'
 import { chatVoiceStorageMode } from './chatVoiceStorage.js'
 import {
   countRecentDmMessages,
@@ -163,7 +165,15 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
       sendJson(res, access.status, { error: access.error })
       return
     }
-    const checked = resolveChatOutgoing({ body: input?.body, sticker: input?.sticker, audio: input?.audio, sec: input?.sec, wave: input?.wave, once: input?.once })
+    const checked = resolveChatOutgoing({
+      body: input?.body,
+      sticker: input?.sticker,
+      audio: input?.audio,
+      sec: input?.sec,
+      wave: input?.wave,
+      once: input?.once,
+      attach: input?.attach,
+    })
     const refused = checked.ok ? chatVoiceBlocked(checked) : checked
     if (refused) {
       sendJson(res, refused.status ?? 400, { error: refused.error })
@@ -172,21 +182,19 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
     const thread = await ensureDmThread(db, staffDmPair(viewer.id, peer.id), viewer.club_id || peer.club_id)
     const clientMsgId = normalizeClientMsgId(input?.client_msg_id)
     const earlier = await loadDmMessageByClientMsgId(db, thread.id, clientMsgId)
-    let voice = null
+    let stored = { voice: null, attach: null }
     if (!earlier) {
       const recent = await countRecentDmMessages(db, thread.id, viewer.id, chatSendWindowStart(), CHAT_SEND_PER_MINUTE)
       if (isChatSendLimited(recent)) {
         sendJson(res, 429, { error: CHAT_SEND_LIMIT_RU })
         return
       }
-      if (checked.voice) {
-        const put = await storeChatVoice(checked.voice, { side: 'staff', authorId: viewer.id, msgId: clientMsgId })
-        if (!put.ok) {
-          sendJson(res, put.status, { error: put.error })
-          return
-        }
-        voice = put.voice
+      const put = await storeChatOutgoing(checked, { side: 'staff', authorId: viewer.id, msgId: clientMsgId })
+      if (!put.ok) {
+        sendJson(res, put.status, { error: put.error })
+        return
       }
+      stored = put
     }
     const target = earlier ? null : await loadReplyTarget(db, 'dm', thread.id, input?.reply_to)
     const { message, duplicate } = earlier
@@ -197,7 +205,8 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
           sticker: checked.sticker,
           clientMsgId,
           replyTo: target?.id ?? null,
-          voice,
+          voice: stored.voice,
+          attach: stored.attach,
         })
     const quoted = await loadReplyTargets(db, 'dm', thread.id, [message])
     const toView = (m) => buildStaffDmMessageView(m, viewer.id)
@@ -239,7 +248,7 @@ export function sendStaffDmSearch(authCtx, res, peerId, q) {
   })
 }
 
-/** Звук или расшифровка голосового из переписки с коллегой: права — как на чтение диалога. @param {'audio'|'text'} want */
+/** Звук или расшифровка голосового, файл вложения из переписки с коллегой: права — как на чтение диалога. @param {'audio'|'text'|'file'} want */
 export function sendStaffDmVoice(authCtx, res, peerId, messageId, want) {
   return withDmTable(res, async () => {
     const ctx = await staffDmCtx(authCtx)
@@ -252,9 +261,12 @@ export function sendStaffDmVoice(authCtx, res, peerId, messageId, want) {
       sendJson(res, 403, { error: STAFF_DM_NO_ACCESS_RU })
       return
     }
-    const out = await answerChatVoice(db, 'staff_dm_messages', thread?.id ?? null, messageId, want, `u:${String(ctx.user?.id ?? viewer.id)}`, {
-      userId: viewer.id,
-    })
+    const out =
+      want === 'file'
+        ? await answerChatAttach(db, 'staff_dm_messages', thread?.id ?? null, messageId)
+        : await answerChatVoice(db, 'staff_dm_messages', thread?.id ?? null, messageId, want, `u:${String(ctx.user?.id ?? viewer.id)}`, {
+            userId: viewer.id,
+          })
     sendJson(res, out.status, out.body)
   })
 }

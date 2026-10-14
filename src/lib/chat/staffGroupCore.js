@@ -5,6 +5,7 @@
  */
 import { pluralRu } from '../client/clientMeUiCore.js'
 import { CHAT_PUSH_PREVIEW_MAX, chatPreview } from './chatMessageCore.js'
+import { buildAttachView } from './chatAttachCore.js'
 import { buildVoiceView } from './chatVoiceCore.js'
 import { STAFF_DM_NO_ACCESS_RU, STAFF_DM_NO_CLUB_RU, staffDmRoleOf } from './staffDmAccessCore.js'
 
@@ -56,6 +57,7 @@ export function buildStaffGroupMessageView(m, viewerId, names) {
     body: m.body,
     sticker: m.sticker ?? null,
     voice: buildVoiceView(m),
+    attach: buildAttachView(m),
     created_at: m.created_at,
     side: mine ? 'staff' : 'client',
     mine,

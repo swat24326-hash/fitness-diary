@@ -36,10 +36,6 @@ import { ClubTrainerSchedulePage } from './pages/admin/ClubTrainerSchedulePage.j
 import { AdminLoyaltyJournal } from './pages/admin/AdminLoyaltyJournal.jsx'
 import { ClubSupervisorSettings } from './pages/admin/ClubSupervisorSettings'
 import { AdminInboxPage } from './pages/admin/AdminInboxPage.jsx'
-import { StaffInboxPage } from './pages/staff/StaffInboxPage.jsx'
-import { StaffInboxItemPage } from './pages/staff/StaffInboxItemPage.jsx'
-import { StaffChatThread } from './pages/staff/StaffChatThread.jsx'
-import { StaffDmThread } from './pages/staff/StaffDmThread.jsx'
 import { ClubSupervisorClubTasks } from './pages/admin/ClubSupervisorClubTasks'
 import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
 import { IskraPanelProvider } from './context/IskraPanelContext'
@@ -101,6 +97,11 @@ const ClientChatPage = lazy(() => import('./pages/client/ClientChatPage.jsx').th
 const ClientAppProvider = lazy(() =>
   import('./pages/client/ClientAppContext.jsx').then((m) => ({ default: m.ClientAppProvider })),
 )
+/* Мессенджер сотрудников — отдельным куском: основной бандл планшета ограничен (verify-project-health), чанки в предкэше PWA. */
+const StaffInboxPage = lazy(() => import('./pages/staff/StaffInboxPage.jsx').then((m) => ({ default: m.StaffInboxPage })))
+const StaffInboxItemPage = lazy(() => import('./pages/staff/StaffInboxItemPage.jsx').then((m) => ({ default: m.StaffInboxItemPage })))
+const StaffChatThread = lazy(() => import('./pages/staff/StaffChatThread.jsx').then((m) => ({ default: m.StaffChatThread })))
+const StaffDmThread = lazy(() => import('./pages/staff/StaffDmThread.jsx').then((m) => ({ default: m.StaffDmThread })))
 const CoachAppRoutesLazy = lazy(() => import('./pages/coach/CoachAppRoutes.jsx').then((m) => ({ default: m.CoachAppRoutes })))
 
 /** Телефон тренера: вне LoggedInLayout — свой пропуск, без шапки, IndexedDB и sync зала. */
@@ -202,7 +203,9 @@ function LoggedInLayout() {
             </AppChromeTop>
             <BreadcrumbsBar />
             <main className="app-main">
-              <Outlet />
+              <Suspense fallback={null}>
+                <Outlet />
+              </Suspense>
             </main>
           </IskraPanelProvider>
         </HeartRateSessionsProvider>

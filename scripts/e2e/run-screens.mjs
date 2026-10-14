@@ -12,6 +12,7 @@ import * as clientMe from './scenarios/clientMeApp.mjs'
 import * as staffInbox from './scenarios/staffInbox.mjs'
 import * as clientChat from './scenarios/clientChat.mjs'
 import * as chatVoice from './scenarios/chatVoice.mjs'
+import * as chatAttach from './scenarios/chatAttach.mjs'
 import * as clientSparkShake from './scenarios/clientSparkShake.mjs'
 import * as trainerSchedule from './scenarios/trainerScheduleCalendar.mjs'
 import * as trainerScheduleDesktop from './scenarios/trainerScheduleDesktopScrollbar.mjs'
@@ -32,7 +33,7 @@ import * as localDbBlocked from './scenarios/localDbUpgradeBlocked.mjs'
 import * as deviceHealth from './scenarios/deviceHealth.mjs'
 import * as staffHeader from './scenarios/staffHeader.mjs'
 
-const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, linkedStaff, settingsMenu]
+const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, chatAttach, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, linkedStaff, settingsMenu]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

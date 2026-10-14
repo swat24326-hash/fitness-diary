@@ -120,6 +120,7 @@ run('chat reply (ответ с цитатой)', 'node', ['scripts/verify-chat-r
 run('chat search (поиск по переписке)', 'node', ['scripts/verify-chat-search.mjs'])
 run('chat voice (голосовые сообщения)', 'node', ['scripts/verify-chat-voice.mjs'])
 run('chat voice player (подряд, обрезка, прослушано, без звука)', 'node', ['scripts/verify-chat-voice-player.mjs'])
+run('chat attach (фото и PDF: тип по байтам, лимиты, сутки)', 'node', ['scripts/verify-chat-attach.mjs'])
 run('stand load test', 'node', ['scripts/verify-load-test.mjs'])
 run('client app branding', 'node', ['scripts/verify-client-app-branding.mjs'])
 run('sync auth stuck + api log', 'node', ['scripts/verify-sync-auth-stuck.mjs'])

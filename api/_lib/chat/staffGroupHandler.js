@@ -5,6 +5,7 @@
  * POST { op: 'group-send', club_id, body | sticker | (audio, sec, wave), reply_to?, client_msg_id?, silent? } → { message }
  * POST { op: 'group-react', club_id, message_id, emoji|null } → { message_id, reactions }
  * POST { op: 'group-voice-audio' | 'group-voice-text', club_id, message_id } → { audio, mime } | { done, text? }
+ * POST { op: 'group-attach', club_id, message_id } → { data, mime, name } — фото / PDF (сутки); в group-send — attach { kind, data, name?, w?, h? }
  * POST { op: 'group-mute', club_id, muted } → { muted } — «без звука»: без push и без числа на конверте
  * Тренер, связанный с управляющим, в чате — от учётки управляющего (один человек). Текст сообщений в лог не пишем.
  */
@@ -34,7 +35,8 @@ import { buildStaffGroupPinned, canPinStaffGroup, staffGroupSeenCount } from '..
 import { loadReactionsFor, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
-import { answerChatVoice, chatVoiceBlocked, storeChatVoice } from './chatVoiceHandler.js'
+import { answerChatAttach, storeChatOutgoing } from './chatAttachHandler.js'
+import { answerChatVoice, chatVoiceBlocked } from './chatVoiceHandler.js'
 import { chatVoiceStorageMode } from './chatVoiceStorage.js'
 import { loadLinkedStaffView, staffDmCtx } from './linkedStaffStore.js'
 import { loadNetworkStaff } from './staffDmStore.js'
@@ -111,7 +113,15 @@ export function sendStaffGroupMessage(authCtx, res, clubId, input) {
     const scope = await groupScope(authCtx, res, clubId)
     if (!scope) return
     const { ctx, db, viewer } = scope
-    const checked = resolveChatOutgoing({ body: input?.body, sticker: input?.sticker, audio: input?.audio, sec: input?.sec, wave: input?.wave, once: false })
+    const checked = resolveChatOutgoing({
+      body: input?.body,
+      sticker: input?.sticker,
+      audio: input?.audio,
+      sec: input?.sec,
+      wave: input?.wave,
+      once: false,
+      attach: input?.attach,
+    })
     const refused = checked.ok ? chatVoiceBlocked(checked) : checked
     if (refused) {
       sendJson(res, refused.status ?? 400, { error: refused.error })
@@ -120,26 +130,32 @@ export function sendStaffGroupMessage(authCtx, res, clubId, input) {
     const thread = await ensureGroupThread(db, scope.clubId)
     const clientMsgId = normalizeClientMsgId(input?.client_msg_id)
     const earlier = await loadGroupMessageByClientMsgId(db, thread.id, clientMsgId)
-    let voice = null
+    let stored = { voice: null, attach: null }
     if (!earlier) {
       const recent = await countRecentGroupMessages(db, thread.id, viewer.id, chatSendWindowStart(), CHAT_SEND_PER_MINUTE)
       if (isChatSendLimited(recent)) {
         sendJson(res, 429, { error: CHAT_SEND_LIMIT_RU })
         return
       }
-      if (checked.voice) {
-        const put = await storeChatVoice(checked.voice, { side: 'staff', authorId: viewer.id, msgId: clientMsgId })
-        if (!put.ok) {
-          sendJson(res, put.status, { error: put.error })
-          return
-        }
-        voice = put.voice
+      const put = await storeChatOutgoing(checked, { side: 'staff', authorId: viewer.id, msgId: clientMsgId })
+      if (!put.ok) {
+        sendJson(res, put.status, { error: put.error })
+        return
       }
+      stored = put
     }
     const target = earlier ? null : await loadReplyTarget(db, 'group', thread.id, input?.reply_to)
     const { message, duplicate } = earlier
       ? { message: earlier, duplicate: true }
-      : await insertGroupMessage(db, thread, { authorId: viewer.id, body: checked.body, sticker: checked.sticker, clientMsgId, replyTo: target?.id ?? null, voice })
+      : await insertGroupMessage(db, thread, {
+          authorId: viewer.id,
+          body: checked.body,
+          sticker: checked.sticker,
+          clientMsgId,
+          replyTo: target?.id ?? null,
+          voice: stored.voice,
+          attach: stored.attach,
+        })
     const quoted = await loadReplyTargets(db, 'group', thread.id, [message])
     const names = await loadAuthorNames(db, [viewer.id, ...[...quoted.values()].map((m) => m.author_user_id)])
     const toView = (m) => buildStaffGroupMessageView(m, viewer.id, names)
@@ -178,15 +194,19 @@ export function sendStaffGroupSearch(authCtx, res, clubId, q) {
   })
 }
 
-/** @param {'audio'|'text'} want */
+/** @param {'audio'|'text'|'file'} want — file: фото / PDF вложения */
 export function sendStaffGroupVoice(authCtx, res, clubId, messageId, want) {
   return withGroupTable(res, async () => {
     const scope = await groupScope(authCtx, res, clubId)
     if (!scope) return
     const thread = await loadGroupThread(scope.db, scope.clubId)
-    const out = await answerChatVoice(scope.db, 'staff_group_messages', thread?.id ?? null, messageId, want, `u:${String(authCtx.user?.id ?? scope.viewer.id)}`, {
-      userId: scope.viewer.id,
-    })
+    const threadId = thread?.id ?? null
+    const out =
+      want === 'file'
+        ? await answerChatAttach(scope.db, 'staff_group_messages', threadId, messageId)
+        : await answerChatVoice(scope.db, 'staff_group_messages', threadId, messageId, want, `u:${String(authCtx.user?.id ?? scope.viewer.id)}`, {
+            userId: scope.viewer.id,
+          })
     sendJson(res, out.status, out.body)
   })
 }

@@ -1,5 +1,5 @@
 /**
- * Звук голосовых: бакет Object Storage CHAT_VOICE_BUCKET, файлы удаляет правило бакета через сутки.
+ * Звук голосовых и вложения (фото, PDF — voice/att/): бакет Object Storage CHAT_VOICE_BUCKET, префикс voice/ удаляет правило бакета через сутки.
  * Доступ — токен сервисного аккаунта ВМ (как у копий базы, scripts/pg-backup-upload-vm.sh), без статических ключей.
  * CHAT_VOICE_STORAGE=memory — в памяти процесса (локально и в автотестах экрана).
  */
@@ -21,15 +21,15 @@ function objectUrl(key) {
   return `${STORAGE_URL}/${encodeURIComponent(bucket)}/${key.split('/').map(encodeURIComponent).join('/')}`
 }
 
-/** @param {string} key @param {Buffer} bytes */
-export async function putVoice(key, bytes) {
+/** @param {string} key @param {Buffer} bytes @param {string} mime — звук голосового или вложение (фото, PDF) */
+export async function putVoice(key, bytes, mime = 'audio/mpeg') {
   if (chatVoiceStorageMode() === 'memory') {
     memory.set(key, Buffer.from(bytes))
     return
   }
   const res = await fetch(objectUrl(key), {
     method: 'PUT',
-    headers: { 'X-YaCloud-SubjectToken': await metadataIamToken(), 'Content-Type': 'audio/mpeg' },
+    headers: { 'X-YaCloud-SubjectToken': await metadataIamToken(), 'Content-Type': mime },
     body: bytes,
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })

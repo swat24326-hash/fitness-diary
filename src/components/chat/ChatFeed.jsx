@@ -1,5 +1,5 @@
 import { Check, CheckCheck } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { chatLinkCheck, chatLinkNeedsConfirm } from '../../lib/chat/chatLinkCore.js'
 import { chatTextParts } from '../../lib/chat/chatTextLinksCore.js'
 import { buildChatFeed } from '../../lib/chat/chatFeedCore.js'
@@ -16,6 +16,15 @@ import { ChatReactions } from './ChatReactions.jsx'
 import { ChatReplyQuote } from './ChatReplyQuote.jsx'
 import { ChatSticker } from './stickers/ChatSticker.jsx'
 import { ChatVoiceBubble } from './ChatVoiceBubble.jsx'
+
+/** Пузырь фото / PDF и просмотр — отдельным куском сборки: основной бандл планшета ограничен (verify-project-health). */
+const ChatAttachBubble = lazy(() => import('./ChatAttachBubble.jsx').then((m) => ({ default: m.ChatAttachBubble })))
+
+/** Пока кусок грузится — место под фото уже занято, лента не прыгает. */
+function AttachSlot({ attach }) {
+  if (attach.kind !== 'photo' || attach.expired) return <span className="chat-attach-slot" />
+  return <span className="chat-attach-photo" style={{ aspectRatio: attach.w && attach.h ? `${attach.w} / ${attach.h}` : '4 / 3' }} />
+}
 
 const BURST_MS = 1200
 const TIME_FMT = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -96,7 +105,7 @@ function Meta({ m }) {
  * голосовые ленты по порядку — очередь общего плеера: доиграло одно — включается следующее собеседника.
  * @param {{ messages: object[], peerReadAt?: string|null, onReact?: (id: string, emoji: string) => void, onReply?: (message: object) => void,
  *   onJump?: (id: string, fromId: string) => void, finding?: string|null, highlight?: string,
- *   voice?: { audio: (id: string) => Promise<object>, text: (id: string) => Promise<object>, peerName?: string } | null,
+ *   voice?: { audio: (id: string) => Promise<object>, text: (id: string) => Promise<object>, file?: (id: string) => Promise<object>, peerName?: string } | null,
  *   menuActions?: (message: object) => object[] }} props — menuActions: пункты списком в меню долгого нажатия (ChatReactionMenu)
  */
 export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, finding = null, highlight = '', voice = null, menuActions }) {
@@ -147,7 +156,7 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
         id: item.id,
         rect: el.getBoundingClientRect(),
         mine: item.mine,
-        text: item.voice ? (item.voice.text ?? '') : item.sticker ? '' : String(item.body ?? ''),
+        text: item.voice ? (item.voice.text ?? '') : item.attach ? item.attach.caption : item.sticker ? '' : String(item.body ?? ''),
         current: myChatReaction(item.reactions),
         message: item,
       }),
@@ -170,6 +179,7 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
       item.big && 'chat-msg--big',
       item.sticker && 'chat-msg--sticker',
       item.voice && voice && 'chat-msg--voice',
+      item.attach && voice?.file && `chat-msg--attach chat-msg--${item.attach.kind}`,
       onReact && 'chat-msg--pressable',
       menu?.id === item.id && 'is-pressed',
     ]
@@ -186,6 +196,17 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
           ) : null}
           {item.sticker ? (
             <ChatSticker id={item.sticker} />
+          ) : item.attach && voice?.file ? (
+            <>
+              <Suspense fallback={<AttachSlot attach={item.attach} />}>
+                <ChatAttachBubble id={item.id} attach={item.attach} load={voice.file} />
+              </Suspense>
+              {item.attach.caption ? (
+                <p className="chat-attach-caption">
+                  <MessageText body={item.attach.caption} mine={item.mine} onLink={setLink} highlight={highlight} />
+                </p>
+              ) : null}
+            </>
           ) : item.voice && voice ? (
             <ChatVoiceBubble track={tracks.get(String(item.id))} voice={item.voice} loadText={() => voice.text(item.id)} />
           ) : item.big ? (

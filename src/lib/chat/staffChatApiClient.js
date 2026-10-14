@@ -39,15 +39,15 @@ export function searchStaffDm(userId, q) {
   return inboxApiCall('chat', 'GET', { view: 'dm-search', user_id: userId, q })
 }
 
-/** Голосовые диалога с клиентом: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done). */
+/** Файлы диалога с клиентом: звук голосового ({ audio, mime }), «→ Аа» ({ done, text? }), фото / PDF ({ data, mime, name }) — сутки. */
 export function staffChatVoice(clientId, kind) {
   const call = (op) => (messageId) => inboxApiCall('chat', 'POST', {}, { op, client_id: clientId, kind, message_id: messageId })
-  return { audio: call('voice-audio'), text: call('voice-text') }
+  return { audio: call('voice-audio'), text: call('voice-text'), file: call('attach') }
 }
 
 export function staffDmVoice(userId) {
   const call = (op) => (messageId) => inboxApiCall('chat', 'POST', {}, { op, user_id: userId, message_id: messageId })
-  return { audio: call('dm-voice-audio'), text: call('dm-voice-text') }
+  return { audio: call('dm-voice-audio'), text: call('dm-voice-text'), file: call('dm-attach') }
 }
 
 /** @param {{ body: string } | { sticker: string } | { audio: string, sec: number, wave: number[] }} outgoing */
@@ -85,5 +85,6 @@ export const staffGroupApi = (clubId) => ({
   voice: {
     audio: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'group-voice-audio', club_id: clubId, message_id: messageId }),
     text: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'group-voice-text', club_id: clubId, message_id: messageId }),
+    file: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'group-attach', club_id: clubId, message_id: messageId }),
   },
 })

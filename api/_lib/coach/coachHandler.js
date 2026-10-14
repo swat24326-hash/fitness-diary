@@ -13,6 +13,7 @@
  *      | { op: 'dm-send', user_id, body | sticker | (audio, sec, wave), reply_to? } — сообщение коллеге / администрации (reply_to — ответ с цитатой)
  *      | { op: 'chat-react', client_id, kind?, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } — реакция
  *      | { op: 'chat-voice-audio' | 'chat-voice-text', client_id, kind?, message_id } | { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id }
+ *      | { op: 'chat-attach', client_id, kind?, message_id } | { op: 'dm-attach', user_id, message_id } → { data, mime, name } — фото / PDF
  *        — звук голосового (сутки) и расшифровка «→ Аа»
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
@@ -132,25 +133,27 @@ async function handlePost(ctx, res, body, store) {
       sec: body.sec,
       wave: body.wave,
       once: body.once,
+      attach: body.attach,
       client_msg_id: body.client_msg_id,
       reply_to: body.reply_to,
       silent: body.silent,
     })
   }
-  if (op === 'chat-voice-audio' || op === 'chat-voice-text') {
+  if (op === 'chat-voice-audio' || op === 'chat-voice-text' || op === 'chat-attach') {
     const kind = coachChatKind(body.kind)
     return handleStaffChatPost(ctx, res, { op: op.slice('chat-'.length), kind, client_id: body.client_id, message_id: body.message_id })
   }
   if (op === 'dm-voice-audio' || op === 'dm-voice-text') {
     return sendStaffDmVoice(ctx, res, body.user_id, body.message_id, op === 'dm-voice-text' ? 'text' : 'audio')
   }
+  if (op === 'dm-attach') return sendStaffDmVoice(ctx, res, body.user_id, body.message_id, 'file')
   if (op === 'chat-react') {
     const kind = coachChatKind(body.kind)
     return handleStaffChatPost(ctx, res, { op: 'react', kind, client_id: body.client_id, message_id: body.message_id, emoji: body.emoji })
   }
   if (op === 'dm-send') {
-    const { body: text, sticker, audio, sec, wave, once, client_msg_id, reply_to, silent } = body
-    return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, audio, sec, wave, once, client_msg_id, reply_to, silent })
+    const { body: text, sticker, audio, sec, wave, once, attach, client_msg_id, reply_to, silent } = body
+    return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, audio, sec, wave, once, attach, client_msg_id, reply_to, silent })
   }
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body.user_id, { message_id: body.message_id, emoji: body.emoji })
   if (op.startsWith('group-')) return handleStaffGroupPost(ctx, res, op, body)

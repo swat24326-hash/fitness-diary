@@ -5,6 +5,7 @@ import { chatReadCutoff, isUniqueViolation, mergeChatThreads } from '../../../sr
 import { chronological } from '../../../src/lib/chat/chatMessageCore.js'
 import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
+import { ATTACH_FIELDS, attachColumns } from './chatAttachStore.js'
 
 export const CHAT_PAGE = 60
 export const CHAT_LIST_LIMIT = 100
@@ -15,7 +16,8 @@ export const CHAT_THREAD_FIELDS =
   'last_reaction_at, last_reaction_emoji, last_reaction_by, client_reaction_seen_at, staff_reaction_seen_at'
 const THREAD_FIELDS = CHAT_THREAD_FIELDS
 export const CHAT_MESSAGE_FIELDS =
-  'id, body, sticker, created_at, author_side, author_user_id, reply_to, voice_key, voice_sec, voice_wave, voice_text, voice_played_at, voice_once'
+  'id, body, sticker, created_at, author_side, author_user_id, reply_to, voice_key, voice_sec, voice_wave, voice_text, voice_played_at, voice_once, ' +
+  ATTACH_FIELDS
 const MESSAGE_FIELDS = CHAT_MESSAGE_FIELDS
 
 export function isMissingChatTable(e) {
@@ -130,7 +132,7 @@ export function voiceColumns(voice) {
  * duplicate — повтор с тем же client_msg_id (гонка двух повторов): сообщение уже было, push не шлём.
  * @returns {Promise<{ message: object, duplicate: boolean }>}
  */
-export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null, clientMsgId = null, replyTo = null, voice = null }) {
+export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null, clientMsgId = null, replyTo = null, voice = null, attach = null }) {
   const { data, error } = await db
     .from('chat_messages')
     .insert({
@@ -143,6 +145,7 @@ export async function insertChatMessage(db, thread, client, { side, userId, body
       ...(clientMsgId ? { client_msg_id: clientMsgId } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
       ...voiceColumns(voice),
+      ...attachColumns(attach),
     })
     .select(MESSAGE_FIELDS)
     .single()

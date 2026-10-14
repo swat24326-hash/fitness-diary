@@ -1,4 +1,5 @@
 /** Текст сообщения и строки ленты. Без React и без базы — общее для сервера и экрана. */
+import { buildAttachView } from './chatAttachCore.js'
 import { buildVoiceView } from './chatVoiceCore.js'
 
 export const CHAT_BODY_MAX = 2000
@@ -48,6 +49,7 @@ export function buildChatMessageView(m, viewerSide, staffNames) {
     body: m.body,
     sticker: m.sticker ?? null,
     voice: buildVoiceView(m),
+    attach: buildAttachView(m),
     created_at: m.created_at,
     side: m.author_side,
     mine: m.author_side === viewerSide,

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Keyboard, Send, Smile } from 'lucide-react'
+import { useChatAttachDraft } from '../../hooks/useChatAttachDraft.js'
 import { useChatVoiceRecord } from '../../hooks/useChatVoiceRecord.js'
 import { CHAT_BODY_MAX, CHAT_PASTE_CUT_RU, chatLengthCounter, chatPasteCut } from '../../lib/chat/chatMessageCore.js'
 import { insertEmoji } from '../../lib/chat/chatEmojiCore.js'
 import { rememberSentEmoji } from '../../lib/chat/chatEmojiUsageStore.js'
+import { ChatAttachButton, ChatAttachDraft } from './ChatAttachDraft.jsx'
 import { ChatEmojiPicker } from './ChatEmojiPicker.jsx'
 import { ChatReplyQuote } from './ChatReplyQuote.jsx'
 import { ChatVoiceButton, ChatVoicePanel } from './ChatVoiceRecorder.jsx'
@@ -21,6 +23,7 @@ function enterSends() {
  * replyTo — «Ответ …» над полем (крестик или Esc — onCancelReply); выбрали «Ответить» — фокус в поле, как в Telegram
  * voiceEnabled — поле пустое: вместо «Отправить» 🎤, голосовое как в Telegram (useChatVoiceRecord);
  * voiceDraftKey — диалог: ушли посреди записи — она ждёт тут черновиком
+ * attachEnabled — скрепка: фото / PDF (ещё вставка картинки и перетаскивание файла); текст поля уходит подписью
  * initialDraft — текст в поле при открытии (центр сбоев: «что сказать тренеру»), отправляет человек сам
  */
 export function ChatComposer({
@@ -33,6 +36,7 @@ export function ChatComposer({
   onCancelReply,
   voiceEnabled = false,
   voiceDraftKey = '',
+  attachEnabled = false,
   initialDraft = '',
 }) {
   const [draft, setDraft] = useState(initialDraft)
@@ -41,7 +45,9 @@ export function ChatComposer({
   const inputRef = useRef(null)
   const caretRef = useRef(null)
   const rec = useChatVoiceRecord({ send: onSubmit, enabled: voiceEnabled, draftKey: voiceDraftKey })
+  const att = useChatAttachDraft()
   const recording = rec.phase !== 'idle'
+  const hasAttach = Boolean(att.item)
 
   useEffect(() => {
     if (recording) setEmojiOpen(false)
@@ -66,13 +72,23 @@ export function ChatComposer({
 
   async function submit(e) {
     e?.preventDefault()
-    if (!draft.trim() || sending || recording) return
-    if (await onSubmit(draft)) {
+    if ((!draft.trim() && !hasAttach) || sending || recording || att.busy) return
+    if (await onSubmit(hasAttach ? { attach: att.payload, body: draft } : draft)) {
       rememberSentEmoji(draft)
       setDraft('')
       setPasteCut(false)
       setEmojiOpen(false)
+      att.clear()
     }
+  }
+
+  /** Картинка из буфера (скриншот) или файл, брошенный на поле, — во вложение. */
+  function takeFile(e, files) {
+    const file = attachEnabled && !recording ? [...(files ?? [])].find((f) => f.type.startsWith('image/') || f.type === 'application/pdf') : null
+    if (!file) return false
+    e.preventDefault()
+    void att.pick(file)
+    return true
   }
 
   /* Фокус остаётся в поле: иначе iPhone прячет клавиатуру, поле съезжает из-под пальца и нажатие не отправляет. */
@@ -91,13 +107,23 @@ export function ChatComposer({
     if (next.text.length <= CHAT_BODY_MAX) setDraft(next.text)
   }
 
-  const canSend = Boolean(draft.trim()) && !sending
-  const showVoice = rec.available && (recording || !draft.trim())
+  const canSend = (Boolean(draft.trim()) || hasAttach) && !sending && !att.busy
+  const showVoice = rec.available && (recording || (!draft.trim() && !hasAttach && !att.busy))
   const counter = chatLengthCounter(draft.length)
 
   return (
-    <form className="chat-compose" onSubmit={(e) => void submit(e)}>
+    <form
+      className="chat-compose"
+      onSubmit={(e) => void submit(e)}
+      onDragOver={(e) => attachEnabled && e.dataTransfer?.types?.includes('Files') && e.preventDefault()}
+      onDrop={(e) => takeFile(e, e.dataTransfer?.files)}
+    >
       {above}
+      {att.error ? (
+        <p className="chat-compose__error" role="alert" data-testid="chat-attach-error">
+          {att.error}
+        </p>
+      ) : null}
       {sendError ? (
         <p className="chat-compose__error" role="alert">
           {sendError}
@@ -124,6 +150,7 @@ export function ChatComposer({
         </p>
       ) : null}
       {replyTo && onCancelReply ? <ChatReplyQuote quote={replyTo} onCancel={onCancelReply} /> : null}
+      {recording ? null : <ChatAttachDraft att={att} />}
       {emojiOpen ? <ChatEmojiPicker onPick={pickEmoji} onSticker={(id) => void sendSticker(id)} sending={sending} /> : null}
       <div className="chat-compose__row">
         <div className="chat-compose__pill">
@@ -150,7 +177,7 @@ export function ChatComposer({
             rows={1}
             value={draft}
             maxLength={CHAT_BODY_MAX}
-            placeholder={placeholder}
+            placeholder={hasAttach ? 'Подпись' : placeholder}
             aria-label="Текст сообщения"
             data-testid="chat-input"
             onChange={(e) => {
@@ -159,6 +186,7 @@ export function ChatComposer({
               if (e.target.value.length < CHAT_BODY_MAX) setPasteCut(false)
             }}
             onPaste={(e) => {
+              if (takeFile(e, e.clipboardData?.files)) return
               const el = e.currentTarget
               const pasted = e.clipboardData?.getData('text')?.length ?? 0
               setPasteCut(chatPasteCut(draft.length, el.selectionEnd - el.selectionStart, pasted))
@@ -172,6 +200,7 @@ export function ChatComposer({
               if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) void submit(e)
             }}
           />
+          {attachEnabled && !recording ? <ChatAttachButton onPick={(file) => void att.pick(file)} disabled={sending} /> : null}
         </div>
         {showVoice ? (
           <ChatVoiceButton rec={rec} />

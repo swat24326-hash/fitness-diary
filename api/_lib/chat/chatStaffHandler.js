@@ -12,6 +12,8 @@
  *      (реакцию ставит тот, кто может писать в диалог)
  * POST { op: 'voice-audio' | 'voice-text', client_id, kind, message_id } | { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id }
  *      → { audio, mime } | { done, text? } — звук голосового (сутки) и расшифровка «→ Аа»; права — как на чтение диалога
+ * POST { op: 'attach', client_id, kind, message_id } | { op: 'dm-attach', user_id, message_id } → { data, mime, name } — фото / PDF (сутки);
+ *      в send / dm-send — attach { kind: 'photo'|'file', data (base64), name?, w?, h? }, body — подпись
  * Тренер, связанный с управляющим (linkedStaffStore), ведёт «Жалобы и предложения» (kind supervisor) от учётки управляющего.
  */
 import { sendJson } from '../adminSupabase.js'
@@ -152,10 +154,11 @@ export async function handleStaffChatPost(ctx, res, body) {
   if (op === 'dm-voice-audio' || op === 'dm-voice-text') {
     return sendStaffDmVoice(ctx, res, body?.user_id, body?.message_id, op === 'dm-voice-text' ? 'text' : 'audio')
   }
+  if (op === 'dm-attach') return sendStaffDmVoice(ctx, res, body?.user_id, body?.message_id, 'file')
   if (op.startsWith('group-')) return handleStaffGroupPost(ctx, res, op, body ?? {})
   const scope = scopeOf(ctx, res)
   if (!scope) return
-  const voiceWant = op === 'voice-audio' ? 'audio' : op === 'voice-text' ? 'text' : null
+  const voiceWant = op === 'voice-audio' ? 'audio' : op === 'voice-text' ? 'text' : op === 'attach' ? 'file' : null
   if (op !== 'send' && op !== 'react' && !voiceWant) {
     sendJson(res, 400, { error: 'Неизвестное действие' })
     return
@@ -193,6 +196,7 @@ export async function handleStaffChatPost(ctx, res, body) {
       body: body?.body,
       sticker: body?.sticker,
       voice: { audio: body?.audio, sec: body?.sec, wave: body?.wave, once: body?.once },
+      attach: body?.attach,
       clientMsgId: body?.client_msg_id,
       replyTo: body?.reply_to,
       silent: body?.silent === true,

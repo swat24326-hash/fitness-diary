@@ -7,12 +7,13 @@ import { linkedPersonNames } from '../../../src/lib/chat/linkedStaffCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
+import { ATTACH_FIELDS, attachColumns } from './chatAttachStore.js'
 import { CHAT_PAGE, voiceColumns } from './chatStore.js'
 import { LINK_FIELDS, isMissingLinkColumn } from './linkedStaffStore.js'
 
 const THREAD_FIELDS = 'id, club_id, last_message_at, last_author, last_preview'
 export const GROUP_MESSAGE_FIELDS =
-  'id, body, sticker, created_at, author_user_id, reply_to, voice_key, voice_sec, voice_wave, voice_text, voice_played_at, voice_once'
+  'id, body, sticker, created_at, author_user_id, reply_to, voice_key, voice_sec, voice_wave, voice_text, voice_played_at, voice_once, ' + ATTACH_FIELDS
 const READ_FIELDS = 'thread_id, user_id, read_at, muted'
 /** Больше не считаем: в кружке всё равно «99+». */
 const UNREAD_COUNT_MAX = 100
@@ -141,7 +142,7 @@ export async function countRecentGroupMessages(db, threadId, authorId, since, li
  * Последнее сообщение чата и «прочитано» автора обновляет триггер базы (миграция 20261027120000).
  * @returns {Promise<{ message: object, duplicate: boolean }>}
  */
-export async function insertGroupMessage(db, thread, { authorId, body, sticker = null, clientMsgId = null, replyTo = null, voice = null }) {
+export async function insertGroupMessage(db, thread, { authorId, body, sticker = null, clientMsgId = null, replyTo = null, voice = null, attach = null }) {
   const { data, error } = await db
     .from('staff_group_messages')
     .insert({
@@ -152,6 +153,7 @@ export async function insertGroupMessage(db, thread, { authorId, body, sticker =
       ...(clientMsgId ? { client_msg_id: clientMsgId } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
       ...voiceColumns(voice),
+      ...attachColumns(attach),
     })
     .select(GROUP_MESSAGE_FIELDS)
     .single()

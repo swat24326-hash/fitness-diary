@@ -23,10 +23,10 @@ export function searchClientChat(kind, q) {
   return postClientMe({ action: 'chat-search', kind, q })
 }
 
-/** Голосовые своего диалога: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done). */
+/** Файлы своего диалога: звук голосового ({ audio, mime }), «→ Аа» ({ done, text? }), фото / PDF ({ data, mime, name }) — сутки. */
 export function clientChatVoice(kind) {
   const call = (action) => (messageId) => postClientMe({ action, kind, message_id: messageId })
-  return { audio: call('chat-voice-audio'), text: call('chat-voice-text') }
+  return { audio: call('chat-voice-audio'), text: call('chat-voice-text'), file: call('chat-attach') }
 }
 
 export function reactClientChatMessage(kind, messageId, emoji) {

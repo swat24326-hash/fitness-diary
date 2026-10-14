@@ -67,7 +67,7 @@ export function buildChatFeed(messages, opts = {}) {
       groupStart: !(near(prev, m) && sameDay(prev)),
       groupEnd: !(near(m, next) && sameDay(next)),
       read: Boolean(m.mine && peer && String(m.created_at) <= peer),
-      big: Boolean(sticker) || isEmojiOnly(m.body),
+      big: Boolean(sticker) || (!m.attach && isEmojiOnly(m.body)),
     })
   })
   return out

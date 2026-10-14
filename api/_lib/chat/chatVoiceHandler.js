@@ -21,6 +21,7 @@ import {
   voiceOnceRefusal,
   voiceStorageKey,
 } from '../../../src/lib/chat/chatVoiceCore.js'
+import { CHAT_ATTACH_UNAVAILABLE_RU } from '../../../src/lib/chat/chatAttachCore.js'
 import { resolveIskraLlmConfig } from '../iskraLlmCore.js'
 import { pollYandexStt, startYandexStt } from '../yandexSttClient.js'
 import { chatVoiceStorageMode, getVoice, putVoice } from './chatVoiceStorage.js'
@@ -31,9 +32,11 @@ const limiter = createChatVoiceTextLimiter()
 
 const fail = (status, error) => ({ ok: false, status, error })
 
-/** Голосовое пришло, а хранилище не настроено — отказ до создания диалога и проверки лимитов. */
+/** Голосовое или вложение пришло, а хранилище не настроено — отказ до создания диалога и проверки лимитов. */
 export function chatVoiceBlocked(checked, env = process.env) {
-  return checked.voice && !chatVoiceStorageMode(env) ? fail(503, CHAT_VOICE_UNAVAILABLE_RU) : null
+  if (chatVoiceStorageMode(env)) return null
+  if (checked.voice) return fail(503, CHAT_VOICE_UNAVAILABLE_RU)
+  return checked.attach ? fail(503, CHAT_ATTACH_UNAVAILABLE_RU) : null
 }
 
 /**

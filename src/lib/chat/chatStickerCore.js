@@ -3,6 +3,7 @@
  * текст сообщения сервер берёт из подписи (её видят push, превью в списке и старые экраны). Без React.
  */
 import { normalizeChatBody } from './chatMessageCore.js'
+import { chatAttachLabel, checkAttachUpload, normalizeAttachCaption } from './chatAttachCore.js'
 import { chatVoiceLabel, checkVoiceUpload } from './chatVoiceCore.js'
 
 export const CHAT_STICKER_GROUPS = Object.freeze([
@@ -47,22 +48,30 @@ export function isChatArtSticker(id) {
 }
 
 /**
- * Что сохранить: голосовое (текст = «🎤 Голосовое 0:42»), стикер (текст = подпись) или обычный текст.
- * Чужой id стикера — ошибка, не текст.
- * @param {{ body?: unknown, sticker?: unknown, audio?: unknown, sec?: unknown, wave?: unknown, once?: unknown }} input
- * @returns {{ ok: true, body: string, sticker: string|null, voice: ReturnType<typeof checkVoiceUpload> & { ok: true } | null }
+ * Что сохранить: голосовое (текст = «🎤 Голосовое 0:42»), фото / PDF (текст = «📷 подпись», body — подпись),
+ * стикер (текст = подпись стикера) или обычный текст. Чужой id стикера — ошибка, не текст.
+ * @param {{ body?: unknown, sticker?: unknown, audio?: unknown, sec?: unknown, wave?: unknown, once?: unknown, attach?: unknown }} input
+ * @returns {{ ok: true, body: string, sticker: string|null, voice: ReturnType<typeof checkVoiceUpload> & { ok: true } | null,
+ *   attach: (ReturnType<typeof checkAttachUpload> & { ok: true, caption: string }) | null }
  *   | { ok: false, error: string, status?: number }}
  */
 export function resolveChatOutgoing(input) {
   if (input?.audio != null) {
     const voice = checkVoiceUpload(input)
-    return voice.ok ? { ok: true, body: chatVoiceLabel(voice.sec, voice.once), sticker: null, voice } : voice
+    return voice.ok ? { ok: true, body: chatVoiceLabel(voice.sec, voice.once), sticker: null, voice, attach: null } : voice
+  }
+  if (input?.attach != null) {
+    const attach = checkAttachUpload(input.attach)
+    if (!attach.ok) return attach
+    const cap = normalizeAttachCaption(input?.body)
+    if (!cap.ok) return cap
+    return { ok: true, body: chatAttachLabel(attach.kind, attach.name, cap.caption), sticker: null, voice: null, attach: { ...attach, caption: cap.caption } }
   }
   const sticker = input?.sticker
   if (sticker != null && sticker !== '') {
     if (!isChatSticker(sticker)) return { ok: false, error: 'Такого стикера нет — обновите приложение' }
-    return { ok: true, body: chatStickerLabel(sticker), sticker: String(sticker), voice: null }
+    return { ok: true, body: chatStickerLabel(sticker), sticker: String(sticker), voice: null, attach: null }
   }
   const checked = normalizeChatBody(input?.body)
-  return checked.ok ? { ok: true, body: checked.body, sticker: null, voice: null } : checked
+  return checked.ok ? { ok: true, body: checked.body, sticker: null, voice: null, attach: null } : checked
 }

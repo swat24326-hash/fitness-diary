@@ -171,6 +171,7 @@ export function ChatThreadView({
           placeholder={placeholder}
           voiceEnabled={Boolean(voice?.record)}
           voiceDraftKey={voice?.draftKey ?? ''}
+          attachEnabled={Boolean(voice?.record && voice?.file)}
           above={floating}
           replyTo={reply?.to ?? null}
           onCancelReply={reply?.cancel}

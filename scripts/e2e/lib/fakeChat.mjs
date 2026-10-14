@@ -57,6 +57,9 @@ import {
 import { randomUUID } from 'node:crypto'
 import { noteVoicePlayed, onceVoiceAnswer, voiceAudioAnswer, voiceTextAnswer } from '../../../api/_lib/chat/chatVoiceHandler.js'
 import { voiceColumns } from '../../../api/_lib/chat/chatStore.js'
+import { attachFileAnswer } from '../../../api/_lib/chat/chatAttachHandler.js'
+import { attachColumns } from '../../../api/_lib/chat/chatAttachStore.js'
+import { CHAT_ATTACH_BAD_RU, attachStorageKey, checkAttachBytes } from '../../../src/lib/chat/chatAttachCore.js'
 import { CHAT_VOICE_BAD_RU, isMp3Header, voiceOnceRefusal, voiceStorageKey } from '../../../src/lib/chat/chatVoiceCore.js'
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, CHAT_SEARCH_LIMIT, chatTextMatches, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
@@ -93,6 +96,7 @@ export function createFakeChat(state) {
   chat.group = group.state
   /** Как storeChatVoice: только MP3, файл под ключом автора. */
   function storeVoice(checked) {
+    if (checked.attach) return storeAttach(checked.attach)
     if (!checked.voice) return { ok: true, columns: {} }
     if (!chat.voiceReady) return { ok: false, status: 503, error: 'Голосовые пока недоступны' }
     const bytes = Buffer.from(checked.voice.audio, 'base64')
@@ -100,6 +104,22 @@ export function createFakeChat(state) {
     const key = voiceStorageKey('client', randomUUID(), randomUUID())
     chat.voices.set(key, bytes)
     return { ok: true, columns: voiceColumns({ key, sec: checked.voice.sec, wave: checked.voice.wave, once: checked.voice.once }) }
+  }
+  /** Как storeChatAttach: тип по байтам, файл в chat.voices под ключом voice/att/…. */
+  function storeAttach(attach) {
+    if (!chat.voiceReady) return { ok: false, status: 503, error: 'Фото и файлы пока недоступны' }
+    const bytes = Buffer.from(attach.data, 'base64')
+    const mime = checkAttachBytes(attach.kind, bytes)
+    if (!mime) return { ok: false, status: 400, error: CHAT_ATTACH_BAD_RU }
+    const key = attachStorageKey('client', randomUUID(), randomUUID(), mime)
+    chat.voices.set(key, bytes)
+    const { kind, name, w, h, caption } = attach
+    return { ok: true, columns: attachColumns({ kind, key, mime, bytes: bytes.length, name, w, h, caption }) }
+  }
+  /** Как answerChatAttach: только сообщение этого диалога; сутки — по created_at. */
+  function fileOf(messages, thread, messageId) {
+    const message = thread && messages.find((m) => m.id === messageId && m.thread_id === thread.id)
+    return attachFileAnswer(message ?? null, async (key) => chat.voices.get(key) ?? null).then((out) => ({ status: out.status, json: out.body }))
   }
   /**
    * Как answerChatVoice: тот же код ответа, вместо бакета — chat.voices, вместо SpeechKit — chat.voiceText со второго опроса.
@@ -272,6 +292,7 @@ export function createFakeChat(state) {
       return { status: 200, json: { ...page(threadOf(clientId, kind), 'client', body.seen, chatReactorKey('client', clientId), body.before), kind, name } }
     }
     if (body.action === 'chat-send') return send(row, kind, 'client', null, body)
+    if (body.action === 'chat-attach') return fileOf(chat.messages, threadOf(clientId, kind), body.message_id)
     if (body.action === 'chat-voice-audio' || body.action === 'chat-voice-text') {
       const want = body.action === 'chat-voice-text' ? 'text' : 'audio'
       return voiceOf(chat.messages, threadOf(clientId, kind), body.message_id, want, `c:${clientId}`, { side: 'client' })
@@ -437,12 +458,13 @@ export function createFakeChat(state) {
     const ctx = staffCtx(user)
     const inGroup = group.handle(req, dmUser(user))
     if (inGroup) return inGroup
-    if (req.method === 'POST' && (req.body?.op === 'dm-voice-audio' || req.body?.op === 'dm-voice-text')) {
+    if (req.method === 'POST' && ['dm-voice-audio', 'dm-voice-text', 'dm-attach'].includes(req.body?.op)) {
       const viewer = dmViewer(dmUser(user))
       const peer = dmPeer(req.body.user_id)
       if (!peer) return { status: 404, json: { error: 'Сотрудник не найден' } }
       const thread = dmThreadOf(viewer.id, peer.id)
       if (!canReadStaffDm(viewer, peer, Boolean(thread))) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+      if (req.body.op === 'dm-attach') return fileOf(chat.dm.messages, thread, req.body.message_id)
       return voiceOf(chat.dm.messages, thread, req.body.message_id, req.body.op === 'dm-voice-text' ? 'text' : 'audio', `u:${viewer.id}`, { userId: viewer.id })
     }
     if (req.method === 'POST' && req.body?.op === 'dm-send') return dmSend(user, req.body.user_id, req.body)
@@ -466,9 +488,10 @@ export function createFakeChat(state) {
     if (req.method === 'POST') {
       const row = find(req.body?.client_id)
       const actor = actorFor(user, req.body?.kind)
-      const voiceWant = req.body?.op === 'voice-audio' ? 'audio' : req.body?.op === 'voice-text' ? 'text' : null
+      const voiceWant = { 'voice-audio': 'audio', 'voice-text': 'text', attach: 'file' }[req.body?.op] ?? null
       if (voiceWant) {
         if (!canStaffReadChat(staffCtx(actor), req.body.kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+        if (voiceWant === 'file') return fileOf(chat.messages, threadOf(row.id, req.body.kind), req.body.message_id)
         return voiceOf(chat.messages, threadOf(row.id, req.body.kind), req.body.message_id, voiceWant, `u:${user.id}`, {
           side: 'staff',
           mark: !ctx.isAdmin,

@@ -27,5 +27,6 @@ export function handleStaffGroupPost(ctx, res, op, body) {
   if (op === 'group-voice-audio' || op === 'group-voice-text') {
     return sendStaffGroupVoice(ctx, res, body.club_id, body.message_id, op === 'group-voice-text' ? 'text' : 'audio')
   }
+  if (op === 'group-attach') return sendStaffGroupVoice(ctx, res, body.club_id, body.message_id, 'file')
   sendJson(res, 400, { error: 'Неизвестное действие' })
 }
