@@ -11,7 +11,7 @@ import {
   CHAT_VOICE_RATE,
   chatVoiceLevel,
   compressVoiceWave,
-  downsamplePcm,
+  createPcmResampler,
   pcm16Samples,
 } from './chatVoiceCore.js'
 
@@ -42,7 +42,29 @@ function concat(parts) {
   return out
 }
 
-/** Микрофон → куски звука в onData(samples, частота); close — выключить микрофон. */
+/**
+ * Звук до кодировщика: гул ниже 80 Гц (бас музыки в зале, стук телефона) — прочь; верх выше ~10 кГц — прочь, чтобы
+ * пересчёт в 24 кГц не дал «песка»; мягкий компрессор — тихий голос громче, громкий не хрипит (прибавку громкости
+ * компрессор Web Audio делает сам, ~+10 дБ при этих настройках; своя сверху — уже перегруз).
+ * Автогромкость браузера выключена: она «плавает», а этот уровень ровный на всю запись.
+ */
+function voiceChain(ctx) {
+  const highpass = Object.assign(ctx.createBiquadFilter(), { type: 'highpass' })
+  highpass.frequency.value = 80
+  const lowpass = [0, 1].map(() => Object.assign(ctx.createBiquadFilter(), { type: 'lowpass' }))
+  lowpass.forEach((f) => (f.frequency.value = 10_500))
+  const comp = ctx.createDynamicsCompressor()
+  comp.threshold.value = -24
+  comp.knee.value = 10
+  comp.ratio.value = 4
+  comp.attack.value = 0.005
+  comp.release.value = 0.25
+  const nodes = [highpass, ...lowpass, comp]
+  nodes.reduce((a, b) => a.connect(b))
+  return { input: highpass, output: comp, nodes }
+}
+
+/** Микрофон → куски звука 24 кГц в onData(samples); close — выключить микрофон. */
 async function openMic(onData) {
   let stream
   try {
@@ -56,17 +78,21 @@ async function openMic(onData) {
   const ctx = new Ctx()
   if (ctx.state === 'suspended') await ctx.resume().catch(() => {})
   const source = ctx.createMediaStreamSource(stream)
+  const chain = voiceChain(ctx)
+  const resample = createPcmResampler(ctx.sampleRate)
   const proc = ctx.createScriptProcessor(4096, 1, 1)
   const mute = ctx.createGain()
   mute.gain.value = 0
-  proc.onaudioprocess = (ev) => onData(ev.inputBuffer.getChannelData(0), ctx.sampleRate)
-  source.connect(proc)
+  proc.onaudioprocess = (ev) => onData(resample(ev.inputBuffer.getChannelData(0)))
+  source.connect(chain.input)
+  chain.output.connect(proc)
   proc.connect(mute)
   mute.connect(ctx.destination)
   return {
     close() {
       proc.onaudioprocess = null
       source.disconnect()
+      chain.nodes.forEach((n) => n.disconnect())
       proc.disconnect()
       mute.disconnect()
       stream.getTracks().forEach((t) => t.stop())
@@ -94,11 +120,11 @@ export async function startChatVoice({ onLevel } = {}) {
   }
   const levels = []
   let samples = 0
-  const onData = (data, rate) => {
+  const onData = (data) => {
     const level = chatVoiceLevel(data)
     levels.push(level)
     onLevel?.(level)
-    const pcm = pcm16Samples(downsamplePcm(data, rate))
+    const pcm = pcm16Samples(data)
     samples += pcm.length
     if (encoder) encode(pcm)
     else backlog.push(pcm)

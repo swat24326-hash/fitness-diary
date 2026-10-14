@@ -4,8 +4,8 @@
  */
 import { baseVideoMime } from './chatVideoCore.js'
 
-/** 5 МБ с телефона в зале: 15 с обычного запроса мало. */
-export const CHAT_VIDEO_FETCH_MS = 90_000
+/** До 15 МБ с телефона в зале (отдача ~1 Мбит/с — пара минут): 15 с обычного запроса мало. */
+export const CHAT_VIDEO_FETCH_MS = 180_000
 
 /** Ответ API: видео — { blob, mime }, остальное — JSON (ошибка разбора — пустой объект). */
 export async function readApiBody(res) {

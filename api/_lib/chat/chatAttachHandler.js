@@ -74,7 +74,7 @@ export async function attachFileAnswer(message, get = getVoice) {
   return { status: 200, body: { data: bytes.toString('base64'), mime: message.attach_mime, name: message.attach_name ?? null } }
 }
 
-/** Ответ «дай файл / звук»: видео — байтами (до 10 МБ, без base64), остальное — JSON. */
+/** Ответ «дай файл / звук»: видео — байтами (до 15 МБ, без base64), остальное — JSON. */
 export function sendChatFileAnswer(res, out) {
   if (!out.file) {
     sendJson(res, out.status, out.body)

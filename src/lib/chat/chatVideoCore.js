@@ -9,10 +9,11 @@ import { formatVoiceTime } from './chatVoiceCore.js'
 export const CHAT_VIDEO_MAX_SEC = 60
 export const CHAT_VIDEO_MIN_SEC = 1
 export const CHAT_VIDEO_WARN_SEC = 10
-/** Как PORTABLE_MAX_UPLOAD_BYTES_DEFAULT: минута при ~1 Мбит/с ≈ 7,5 МБ, запас на перебор битрейта браузером. */
-export const CHAT_VIDEO_MAX_BYTES = 10 * 1024 * 1024
-export const CHAT_VIDEO_SIDE = 480
-export const CHAT_VIDEO_VIDEO_BPS = 900_000
+/** Как PORTABLE_MAX_UPLOAD_BYTES_DEFAULT: минута при ~1,5 Мбит/с ≈ 11 МБ, запас на перебор битрейта браузером. */
+export const CHAT_VIDEO_MAX_BYTES = 15 * 1024 * 1024
+/** Кружок в ленте 220 точек — на экране телефона ~660 пикселей. */
+export const CHAT_VIDEO_SIDE = 640
+export const CHAT_VIDEO_VIDEO_BPS = 1_400_000
 export const CHAT_VIDEO_AUDIO_BPS = 96_000
 const MIN_BYTES = 1000
 

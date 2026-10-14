@@ -19,7 +19,7 @@ import {
   chatVoiceLevel,
   checkVoiceUpload,
   compressVoiceWave,
-  downsamplePcm,
+  createPcmResampler,
   formatVoiceTime,
   isMp3Header,
   isVoiceEnding,
@@ -62,11 +62,28 @@ const wave = Array.from({ length: CHAT_VOICE_BARS }, (_, i) => i)
 const upload = (over = {}) => ({ audio: b64(mp3Bytes()), sec: 7, wave, ...over })
 
 console.log('Звук и волна')
-const down = downsamplePcm(new Float32Array(48000).fill(0.5), 48000)
-ok(down.length === 24000 && Math.abs(down[100] - 0.5) < 1e-6, '48 кГц → 24 кГц: секунда остаётся секундой, уровень тот же')
-const down44 = downsamplePcm(new Float32Array(44100).fill(0.5), 44100)
-ok(down44.length === 24000 && Math.abs(down44[777] - 0.5) < 1e-6, '44,1 кГц (iPhone) → 24 кГц: тоже секунда в секунду')
-ok(downsamplePcm(null, 48000).length === 0, 'пусто — пусто, без падения')
+/** Секунда звука кусками по 4096, как отдаёт микрофон. */
+const inChunks = (rate, fn, size = 4096) => {
+  const resample = createPcmResampler(rate)
+  const parts = []
+  for (let at = 0; at < rate; at += size) parts.push(resample(Float32Array.from({ length: Math.min(size, rate - at) }, (_, i) => fn(at + i, rate))))
+  return Float32Array.from(parts.flatMap((p) => [...p]))
+}
+const flat = () => 0.5
+const tone = (i, rate) => Math.sin((2 * Math.PI * 440 * i) / rate)
+for (const rate of [48000, 44100, 16000]) {
+  const out = inChunks(rate, flat)
+  ok(Math.abs(out.length - 24000) <= 1 && out.every((v) => Math.abs(v - 0.5) < 1e-6), `${rate / 1000} кГц → 24 кГц: секунда остаётся секундой, уровень тот же`)
+}
+const whole = createPcmResampler(44100)(Float32Array.from({ length: 44100 }, (_, i) => tone(i, 44100)))
+const parts = inChunks(44100, tone)
+ok(
+  whole.length === parts.length && parts.every((v, i) => Math.abs(v - whole[i]) < 1e-6),
+  '44,1 кГц (iPhone) кусками — то же, что целиком: на стыках нет щелчков и сдвига',
+)
+ok(Math.abs(parts[12000] - Math.sin((2 * Math.PI * 440 * 12000) / 24000)) < 0.01, 'тон 440 Гц после пересчёта на своём месте')
+ok(createPcmResampler(24000)(Float32Array.from([0.1, 0.2])).join() === Float32Array.from([0.1, 0.2]).join(), 'микрофон уже 24 кГц — без изменений')
+ok(createPcmResampler(48000)(null).length === 0, 'пусто — пусто, без падения')
 const pcm = pcm16Samples(Float32Array.from([1, -1, 0, 2]))
 ok(pcm[0] === 32767 && pcm[1] === -32768 && pcm[3] === 32767, '16 бит: край шкалы, перегруз обрезается')
 ok(chatVoiceLevel(new Float32Array(100)) === 0 && chatVoiceLevel(new Float32Array(100).fill(0.05)) > 0.3, 'тишина — 0, тихая речь заметна')

@@ -29,11 +29,12 @@ ok(portableMaxBodyBytes('10485760') === 10485760, 'env задаёт лимит')
 const json = portableBodyPolicy('application/json; charset=utf-8')
 ok(!json.binary && json.limit === PORTABLE_MAX_BODY_BYTES_DEFAULT, 'JSON и Sync — текстом, 5 МБ')
 const mp4 = portableBodyPolicy('video/mp4')
-ok(mp4.binary && mp4.limit === PORTABLE_MAX_UPLOAD_BYTES_DEFAULT, 'видеокружок MP4 — байтами, 10 МБ')
+ok(mp4.binary && mp4.limit === PORTABLE_MAX_UPLOAD_BYTES_DEFAULT, 'видеокружок MP4 — байтами, 15 МБ')
+ok(PORTABLE_MAX_UPLOAD_BYTES_DEFAULT === 15 * 1024 * 1024, 'лимит байтов 15 МБ — минута кружка 640 px с запасом')
 ok(portableBodyPolicy('Video/WebM; codecs=vp9').binary, 'WebM с кодеком — тоже байтами')
 ok(!portableBodyPolicy('application/octet-stream').binary && !portableBodyPolicy('image/png').binary, 'прочие типы — не байтами, лимит не растёт')
 ok(portableBodyPolicy('video/mp4', { MAX_UPLOAD_BYTES: '2048' }).limit === 2048, 'env MAX_UPLOAD_BYTES задаёт лимит видео')
-ok(portableBodyPolicy('video/mp4', { MAX_UPLOAD_BYTES: 'x' }).limit === PORTABLE_MAX_UPLOAD_BYTES_DEFAULT, 'мусор в env — 10 МБ')
+ok(portableBodyPolicy('video/mp4', { MAX_UPLOAD_BYTES: 'x' }).limit === PORTABLE_MAX_UPLOAD_BYTES_DEFAULT, 'мусор в env — 15 МБ')
 ok(
   [...PORTABLE_BINARY_APIS].sort().join() === 'admin-data,client-me,coach',
   'байты принимают только входные точки переписки (Sync, вход, push — нет)',

@@ -1,14 +1,17 @@
 /**
- * Видеокружки: тип по первым байтам (MP4 / WebM), 1–60 с, до 10 МБ, только настоящие байты (не из JSON),
+ * Видеокружки: тип по первым байтам (MP4 / WebM), 1–60 с, до 15 МБ, только настоящие байты (не из JSON),
  * подпись «📹 Видеосообщение 0:12», формат записи, ключ хранилища, вид для экрана, бинарный запрос → тело отправки,
  * отдача файла байтами и «удалено через сутки», повтор отправки без дубля.
  * node scripts/verify-chat-video.mjs
  */
 import {
   CHAT_VIDEO_BAD_RU,
+  CHAT_VIDEO_AUDIO_BPS,
   CHAT_VIDEO_BIG_RU,
   CHAT_VIDEO_MAX_BYTES,
+  CHAT_VIDEO_MAX_SEC,
   CHAT_VIDEO_SHORT_RU,
+  CHAT_VIDEO_VIDEO_BPS,
   baseVideoMime,
   chatVideoLabel,
   checkVideoUpload,
@@ -62,7 +65,8 @@ ok(checkVideoUpload({ bytes: MP4, sec: 0 }).error === CHAT_VIDEO_SHORT_RU, 'бе
 ok(checkVideoUpload({ bytes: HTML, sec: 5 }).error === CHAT_VIDEO_BAD_RU, 'не видео — «не записалось»')
 ok(checkVideoUpload({ bytes: Buffer.alloc(10), sec: 5 }).ok === false, 'пустышка — отказ')
 const big = checkVideoUpload({ bytes: withHead([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70], CHAT_VIDEO_MAX_BYTES + 1), sec: 30 })
-ok(big.status === 413 && big.error === CHAT_VIDEO_BIG_RU, 'больше 10 МБ — 413')
+ok(big.status === 413 && big.error === CHAT_VIDEO_BIG_RU, 'больше 15 МБ — 413')
+ok(CHAT_VIDEO_MAX_BYTES >= ((CHAT_VIDEO_VIDEO_BPS + CHAT_VIDEO_AUDIO_BPS) * CHAT_VIDEO_MAX_SEC * 1.25) / 8, 'минута при заданном битрейте влезает в лимит с запасом 25%')
 ok(checkVideoUpload({ bytes: { length: 5000, 4: 0x66, 5: 0x74, 6: 0x79, 7: 0x70 }, sec: 5 }).ok === false, 'из JSON видео не принимаем — только настоящие байты')
 ok(checkAttachUpload({ kind: 'video', data: MP4.toString('base64'), sec: 5 }).ok === false, 'base64-видео в JSON — отказ (только бинарный запрос)')
 ok(isVideoEnding(50) && !isVideoEnding(49), 'последние 10 секунд — таймер предупреждает')

@@ -43,20 +43,30 @@ export const CHAT_VOICE_ONCE_PLAYED_RU = 'Одноразовое голосов�
 export const CHAT_VOICE_ONCE_PEER_RU = 'Одноразовое голосовое слушает только собеседник'
 export const CHAT_VOICE_ONCE_TEXT_RU = 'Одноразовое голосовое не расшифровывается'
 
-/** Частота микрофона (обычно 44,1 / 48 кГц) → 24 кГц: среднее по окну, без «звона» от простого прореживания. */
-export function downsamplePcm(input, inRate, outRate = CHAT_VOICE_RATE) {
-  if (!input?.length || !(inRate > 0)) return new Float32Array(0)
-  if (inRate <= outRate) return Float32Array.from(input)
-  const ratio = inRate / outRate
-  const out = new Float32Array(Math.floor(input.length / ratio))
-  for (let i = 0; i < out.length; i += 1) {
-    const from = Math.floor(i * ratio)
-    const to = Math.min(input.length, Math.floor((i + 1) * ratio))
-    let sum = 0
-    for (let j = from; j < to; j += 1) sum += input[j]
-    out[i] = to > from ? sum / (to - from) : 0
+/**
+ * Частота микрофона (44,1 / 48 кГц, гарнитура — 16 кГц) → 24 кГц, кусок за куском без швов: позиция и последний
+ * отсчёт переходят в следующий кусок, иначе на каждом стыке щелчок и запись «уезжает» по времени.
+ * Верх выше 12 кГц срезают фильтры до пересчёта (chatVoiceRecorder.js).
+ */
+export function createPcmResampler(inRate, outRate = CHAT_VOICE_RATE) {
+  const step = inRate / outRate
+  let pos = 0
+  let last = 0
+  return (input) => {
+    if (!input?.length || !(step > 0)) return new Float32Array(0)
+    if (step === 1) return Float32Array.from(input)
+    const end = input.length - 1
+    const out = new Float32Array(Math.max(0, Math.ceil((end - pos) / step)))
+    let n = 0
+    for (; pos < end && n < out.length; pos += step, n += 1) {
+      const i = Math.floor(pos)
+      const a = i < 0 ? last : input[i]
+      out[n] = a + (input[i + 1] - a) * (pos - i)
+    }
+    pos -= input.length
+    last = input[end]
+    return out.subarray(0, n)
   }
-  return out
 }
 
 /** -1…1 → 16 бит со знаком (то, что берёт MP3-кодировщик). */
