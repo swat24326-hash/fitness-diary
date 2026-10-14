@@ -48,16 +48,18 @@ export async function loadDmUsersByIds(db, userIds) {
   return loadInChunks(ids, (part) => rows(db.from('users').select(USER_FIELDS).in('id', part)))
 }
 
-/** «Есть приложение»: подключённый телефон тренера или подписка на уведомления. */
+/**
+ * «Есть приложение»: разрешённое устройство (планшет или телефон тренера), подписка на уведомления
+ * или незакрытый вход (у менеджера и управляющего устройства не привязываются).
+ */
 export async function loadLiveStaffIds(db, userIds) {
   const ids = [...new Set(userIds.map(String))]
-  const [phones, subs] = await Promise.all([
-    loadInChunks(ids, (part) =>
-      rows(db.from('user_devices').select('user_id').eq('status', 'approved').like('device_id', 'coach-%').in('user_id', part)),
-    ),
+  const [devices, subs, sessions] = await Promise.all([
+    loadInChunks(ids, (part) => rows(db.from('user_devices').select('user_id').eq('status', 'approved').in('user_id', part))),
     loadInChunks(ids, (part) => rows(db.from('user_push_subscriptions').select('user_id').in('user_id', part))),
+    loadInChunks(ids, (part) => rows(db.from('auth_sessions').select('user_id').is('revoked_at', null).in('user_id', part))),
   ])
-  return new Set([...phones, ...subs].map((r) => String(r.user_id)))
+  return new Set([...devices, ...subs, ...sessions].map((r) => String(r.user_id)))
 }
 
 export async function loadDmThreadsFor(db, userId) {
