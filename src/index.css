@@ -5,6 +5,7 @@
 @import './styles/deletion-audit.css';
 @import './styles/local-db-blocked.css';
 @import './styles/trainer-devices.css';
+@import './styles/device-health.css';
 @import './styles/header-settings.css';
 @import './styles/membership-early-activate.css';
 @import './styles/trainer-path.css';
@@ -4452,7 +4453,6 @@ tr:last-child td {
 .app-shell--admin .admin-section-shell,
 .app-shell--admin .admin-section-shell--wide,
 .app-shell--admin .challenge-admin-shell,
-.app-shell--admin .admin-diagnostics.admin-section-shell,
 .app-shell--admin .admin-iskra-settings.admin-section-shell {
   max-width: none;
   margin-inline: 0;
@@ -8434,10 +8434,6 @@ tr:last-child td {
   border-radius: var(--radius-md);
   background: var(--bg-subtle);
   padding: 18px 20px;
-}
-
-.admin-diagnostics.admin-section-shell {
-  max-width: 900px;
 }
 
 .admin-diagnostics__summary {

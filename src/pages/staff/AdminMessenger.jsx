@@ -23,6 +23,7 @@ const ICON = { [STAFF_VIEW_ALL]: Users, [STAFF_VIEW_UNREAD]: Inbox }
  * Главный админ: папки — клубы («Все клубы», «Ждут ответа», каждый клуб с числом новых), в списке люди с поиском,
  * справа диалог. Рамка — общая с тренером и управляющим (MessengerLayout), вид по ширине экрана.
  * Состояние в адресе (?view=клуб&dm=человек) — назад/вперёд браузера и push `/messages/dm/:id` открывают то же.
+ * &text= — готовый текст в поле (центр сбоев «Написать тренеру»).
  * @param {{ chatList: ReturnType<typeof import('../../hooks/useStaffChat.js').useStaffChats> }} props
  */
 export function AdminMessenger({ chatList }) {
@@ -97,7 +98,7 @@ export function AdminMessenger({ chatList }) {
             <AdminStaffList
               sections={sections}
               searching={searching}
-              hrefFor={(id) => hrefWith({ dm: id })}
+              hrefFor={(id) => hrefWith({ dm: id, text: '' })}
               selectedId={dm}
               emptyText={searching ? 'Никого не нашли' : EMPTY_RU[view] || 'Пока никого нет'}
             />
@@ -106,7 +107,14 @@ export function AdminMessenger({ chatList }) {
       }
       thread={
         dm ? (
-          <StaffDmPane key={dm} userId={dm} onSent={reload} backTo={hrefWith({ dm: '' })} back={<MessengerBack to={hrefWith({ dm: '' })} />} />
+          <StaffDmPane
+            key={dm}
+            userId={dm}
+            onSent={reload}
+            initialDraft={params.get('text') ?? ''}
+            backTo={hrefWith({ dm: '', text: '' })}
+            back={<MessengerBack to={hrefWith({ dm: '', text: '' })} />}
+          />
         ) : (
           <MessengerPick title="Выберите, кому написать" hint="Клуб слева, человек в списке — или найдите по имени." />
         )

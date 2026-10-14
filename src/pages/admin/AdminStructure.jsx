@@ -11,7 +11,6 @@ import { AdminHomeworkLibrary } from './AdminHomeworkLibrary.jsx'
 import { AdminMaxOutreach } from './AdminMaxOutreach'
 import { AdminCoachQualitySettings } from './AdminCoachQualitySettings'
 import { AdminClubPlanSettings } from './AdminClubPlanSettings'
-import { AdminDiagnostics } from './AdminDiagnostics'
 import { AdminIskraSettings } from './AdminIskraSettings'
 import { AdminLoyaltySettings } from './AdminLoyaltySettings.jsx'
 
@@ -29,7 +28,6 @@ const TAB_IDS = [
   'exercises',
   'max-messages',
   'coach-quality',
-  'diagnostics',
   'iskra-settings',
 ]
 
@@ -47,7 +45,6 @@ const TABS = [
   { id: 'exercises', label: 'Упражнения' },
   { id: 'max-messages', label: 'Max и SMS' },
   { id: 'coach-quality', label: 'Качество ведения' },
-  { id: 'diagnostics', label: 'Диагностика' },
   { id: 'iskra-settings', label: 'ИСКРА' },
 ]
 
@@ -74,7 +71,7 @@ export function AdminStructure() {
       <header className="admin-structure__header">
         <h1 className="admin-structure__title">Структура</h1>
         <p className="muted admin-structure__intro">
-          Клубы, тренеры, справочники, тексты Max, диагностика и настройки ИСКРА — в одном разделе. Выбранный в
+          Клубы, тренеры, справочники, тексты Max и настройки ИСКРА — в одном разделе. Сбои планшетов — иконка в шапке. Выбранный в
           шапке клуб (<code className="muted">?club=</code>) используется во вкладках ниже.
         </p>
       </header>
@@ -213,15 +210,6 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'coach-quality' ? <AdminCoachQualitySettings /> : null}
-        </div>
-        <div
-          id="admin-structure-panel-diagnostics"
-          role="tabpanel"
-          aria-labelledby="admin-structure-tab-diagnostics"
-          hidden={tab !== 'diagnostics'}
-          className="admin-structure__panel"
-        >
-          {tab === 'diagnostics' ? <AdminDiagnostics /> : null}
         </div>
         <div
           id="admin-structure-panel-iskra-settings"

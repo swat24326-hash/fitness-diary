@@ -20,6 +20,7 @@ import {
 } from '../src/lib/trainer/trainerScheduleCore.js'
 import { isTransientDbError, logDbError, pgErrorPublic } from './_lib/dbErrorPublicCore.js'
 import { loadHomeworkLibraryRows } from './_lib/homeworkLibrary/homeworkLibraryRows.js'
+import { markDevicePullOk } from './_lib/deviceHealth/deviceHealthPullMark.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -493,6 +494,7 @@ async function handler(req, res) {
       days_forward: SCHEDULE_PULL_DAYS_FORWARD,
     },
   })
+  markDevicePullOk(req, trainerId, trainerClubId)
 }
 
 export default withSafeApiHandler(handler, { label: 'trainer-pull' })

@@ -21,7 +21,7 @@ const GUIDE_LINES = {
   structure:
     'Админ: «Структура» — клубы, тренеры, диагностика и настройки ИСКРА; «Статистика» — сводка клуба; панель ИСКРА в шапке — аналитика. Управляющий видит свой клуб без смены филиала в шапке.',
   deploy:
-    'Прод: git push в main и деплой на Vercel. Supabase — миграции и RLS по чеклисту docs/SUPABASE_PROD_CHECKLIST.md. Ошибки — Структура → «Диагностика» в админке.',
+    'Прод: git push в main и деплой на Vercel. Supabase — миграции и RLS по чеклисту docs/SUPABASE_PROD_CHECKLIST.md. Сбои планшетов — иконка «Сбои устройств» в шапке админки (/admin/health).',
 }
 
 function normalizeGuideText(text) {

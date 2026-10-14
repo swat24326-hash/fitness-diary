@@ -21,6 +21,12 @@
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
+/* «Сбои устройств»: красный — критичный сбой планшета, жёлтый (по умолчанию) — предупреждение */
+.app-header__inbox-badge.device-health-badge--critical {
+  color: #fff;
+  background: var(--danger);
+}
+
 .app-header__inbox-badge {
   position: absolute;
   top: -4px;

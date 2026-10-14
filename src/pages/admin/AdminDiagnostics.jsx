@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import { Stethoscope } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { listSyncQueue } from '../../lib/localDb'
 import { getPersistentErrorCount, subscribeSyncAttention } from '../../lib/appErrorJournal'
 import { formatAppErrorTime, loadDiagnosticsErrors, suggestErrorHint, sourceLabel } from '../../lib/appDiagnostics'
@@ -12,6 +10,7 @@ import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { DiagnosticsPanel } from '../../components/DiagnosticsPanel'
 import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../../lib/syncService'
 
+/** «Это устройство» в центре сбоев (/admin/health): журнал ошибок, очередь sync, отчёт для разработчика. */
 export function AdminDiagnostics() {
   const { user, supabaseReady } = useAuth()
   const location = useLocation()
@@ -115,12 +114,7 @@ export function AdminDiagnostics() {
   }
 
   return (
-    <section className="admin-diagnostics admin-section-shell">
-      <AdminSectionHeader
-        icon={Stethoscope}
-        title="Диагностика"
-        lead="Состояние этого устройства, очередь sync и журнал ошибок. Скопируйте отчёт и отправьте разработчику или тренеру с планшета — так проще найти причину сбоя."
-      />
+    <section className="admin-diagnostics">
 
       <div className="admin-diagnostics__summary os-enter" aria-label="Краткая сводка">
         <div className={`admin-diagnostics__stat${persistentErrorCount > 0 ? ' admin-diagnostics__stat--warn' : ''}`}>

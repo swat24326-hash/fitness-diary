@@ -7,9 +7,9 @@ import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
 /**
  * Шапка и лента личного диалога сотрудника — отдельной страницей (/messages/dm/:id) и панелью справа у главного админа.
  * @param {{ userId: string, backTo: string, back?: import('react').ReactNode, onSent?: () => void }} props
- *   back — ссылка «назад» над шапкой; onSent — после отправки (обновить список рядом)
+ *   back — ссылка «назад» над шапкой; onSent — после отправки (обновить список рядом); initialDraft — текст в поле
  */
-export function StaffDmPane({ userId, backTo, back = null, onSent }) {
+export function StaffDmPane({ userId, backTo, back = null, onSent, initialDraft = '' }) {
   const chat = useStaffDmThread(userId)
   const submit = async (...args) => {
     const sent = await chat.submit(...args)
@@ -56,6 +56,7 @@ export function StaffDmPane({ userId, backTo, back = null, onSent }) {
           readOnlyHint={STAFF_DM_READ_ONLY_RU}
           emptyHint="Сообщений пока нет. Собеседник увидит ваше сообщение в «Сообщениях клуба»."
           placeholder="Сообщение"
+          initialDraft={initialDraft}
         />
       )}
     </>

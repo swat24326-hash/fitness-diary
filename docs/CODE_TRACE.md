@@ -214,6 +214,7 @@
 |------|------|
 | SW / баннер | `src/lib/appUpdateApplyService.js`, `vite.config.js` (PWA) |
 | Диагностика | `src/lib/appBuildInfo.js` — поле «Сборка» в Помощь → Диагностика |
+| Центр сбоев устройств | планшет: `src/lib/deviceHealth/` (сигналы, отметки, `deviceHealthReporter.js`); сервер: `api/_lib/deviceHealth/` (core, handler, job), cron `scripts/device-health-vm.mjs`; админ: `src/pages/admin/AdminDeviceHealthPage.jsx`, `HeaderDeviceHealthButton.jsx`; тренер: `HeaderHelpButton.jsx` |
 | Verify | `scripts/verify-app-stability.mjs` |
 | Docs | [PWA.md](./PWA.md), [RELEASE.md](./RELEASE.md), INCIDENTS **P** |
 

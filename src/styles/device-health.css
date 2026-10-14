@@ -1,0 +1,187 @@
+/* Центр сбоев устройств /admin/health (AdminDeviceHealthPage, DeviceHealthCard) */
+.device-health {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 980px;
+}
+
+.device-health__title {
+  margin: 12px 0 0;
+  font-size: 1.05rem;
+}
+
+.device-health__ok {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--success, #4caf50) 40%, transparent);
+  background: color-mix(in srgb, var(--success, #4caf50) 10%, transparent);
+}
+
+.device-health__cards,
+.device-health__list,
+.device-health-card__codes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.device-health__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.device-health-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
+  background: var(--border-soft);
+}
+
+.device-health-card--critical {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  background: color-mix(in srgb, var(--danger) 8%, var(--border-soft));
+}
+
+.device-health-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.device-health-card__codes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.device-health-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+}
+
+.device-health-chip--critical {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+.device-health-card__meta {
+  margin: 0;
+  font-size: 13px;
+}
+
+.device-health-card__say {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.device-health-card__say-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.device-health-card__say p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.device-health-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device-health-card__actions .btn {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.device-health__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.device-health__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 1fr) minmax(160px, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.device-health__row-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.device-health__row-state--bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.device-health__row-state--ok {
+  color: var(--text-muted);
+}
+
+.device-health__row-meta {
+  font-size: 13px;
+}
+
+.device-health__self {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.device-health__self > summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.device-health__self[open] > summary {
+  margin-bottom: 12px;
+}
+
+/* «Помощь» у тренера: что не так с планшетом (DeviceProblemsHint) */
+.device-problems-hint {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.device-problems-hint p {
+  margin: 0 0 6px;
+}
+
+.device-problems-hint p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .device-health__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

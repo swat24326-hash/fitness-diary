@@ -158,7 +158,7 @@ export function createFakeBackend(seed) {
     pushLog: [],
     requestLog: [],
   }
-  const backend = { state, cloudDown: false, clientMe: null, adminData: null, coach: null }
+  const backend = { state, cloudDown: false, pullFails: false, clientMe: null, adminData: null, coach: null }
 
   /**
    * @param {{ method: string, path: string, searchParams: URLSearchParams, headers: Record<string,string>, body: any }} req
@@ -203,7 +203,10 @@ export function createFakeBackend(seed) {
       const trainers = state.users.filter((u) => u.role === role).map((u) => profileOf(u))
       return { status: 200, json: { trainers } }
     }
-    if (path === '/api/trainer-pull') return { status: 200, json: trainerPull(state, user) }
+    if (path === '/api/trainer-pull') {
+      if (backend.pullFails) return { status: 502, json: { error: 'Bad Gateway' } }
+      return { status: 200, json: trainerPull(state, user) }
+    }
     if (path === '/api/get-client') {
       const id = searchParams.get('client_id')
       const client = state.clients.find((c) => c.id === id)

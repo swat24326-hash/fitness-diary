@@ -21,6 +21,7 @@ function enterSends() {
  * replyTo — «Ответ …» над полем (крестик или Esc — onCancelReply); выбрали «Ответить» — фокус в поле, как в Telegram
  * voiceEnabled — поле пустое: вместо «Отправить» 🎤, голосовое как в Telegram (useChatVoiceRecord);
  * voiceDraftKey — диалог: ушли посреди записи — она ждёт тут черновиком
+ * initialDraft — текст в поле при открытии (центр сбоев: «что сказать тренеру»), отправляет человек сам
  */
 export function ChatComposer({
   onSubmit,
@@ -32,8 +33,9 @@ export function ChatComposer({
   onCancelReply,
   voiceEnabled = false,
   voiceDraftKey = '',
+  initialDraft = '',
 }) {
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(initialDraft)
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [pasteCut, setPasteCut] = useState(false)
   const inputRef = useRef(null)

@@ -27,6 +27,8 @@ import { useStaffPushSelfHeal } from '../hooks/useStaffPushSelfHeal.js'
 import { SyncMottoStrip } from './SyncMottoStrip'
 import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
 import { StaffInboxButton } from './inbox/StaffInboxButton.jsx'
+import { HeaderDeviceHealthButton } from './HeaderDeviceHealthButton.jsx'
+import { HeaderHelpButton } from './HeaderHelpButton.jsx'
 import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
 import { TRAINER_INBOX_OPEN_EVENT } from '../lib/admin/trainerInboxEvents.js'
 import { recoverApp } from '../lib/appLifecycle'
@@ -565,10 +567,12 @@ export function AppHeader() {
             <IskraOrb state="idle" size={26} className="app-header__vasya-orb" />
           </button>
         ) : null}
+        {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHelpButton onOpen={openErrorJournal} /> : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHeartRate /> : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderStopwatch /> : null}
         {isDispatchInboxUser && supabaseReady ? <StaffInboxButton /> : null}
         {isAdmin && user && supabaseReady ? <StaffInboxButton chatsOnly /> : null}
+        {isAdmin && user && supabaseReady ? <HeaderDeviceHealthButton /> : null}
         {isDispatchInboxUser && supabaseReady ? (
           <button
             type="button"

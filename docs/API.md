@@ -13,7 +13,7 @@
 |----------|------------|
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
 | `/api/list-memberships` | Абонементы **всех** клиентов клуба + `client_hall_lifecycle` того же клуба — **только admin / sales_manager** своего клуба. **Тренер не вызывает** (403): абонементы и lifecycle на планшете — `/api/trainer-pull` |
-| `/api/trainer-pull` | Pull на планшет тренера: клиенты, **memberships** (своих клиентов), health_cards, trainings (опц. `skip_trainings=1`), `client_plans` — отметки отправленного «В приложение» за 45 дней (`sent_at`, `client_seen_at`, без `payload`), `homework_auto` — настройки авто-ДЗ своих клиентов, `health_screenings` — анкеты здоровья своих клиентов, `homework_library` — правки библиотеки ДЗ сети |
+| `/api/trainer-pull` | Pull на планшет тренера: клиенты, **memberships** (своих клиентов), health_cards, trainings (опц. `skip_trainings=1`), `client_plans` — отметки отправленного «В приложение» за 45 дней (`sent_at`, `client_seen_at`, без `payload`), `homework_auto` — настройки авто-ДЗ своих клиентов, `health_screenings` — анкеты здоровья своих клиентов, `homework_library` — правки библиотеки ДЗ сети. После успеха без ожидания пишет `device_health.last_pull_ok_at` по `x-device-id` (центр сбоев) |
 | `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). Тренер (`clients` / `trainings` / `memberships`, insert и update): указанный `club_id` = клуб профиля, своего клиента или самой строки, иначе **403**; пустой не меняется (`trainerPushClubBindingCore.js`). `challenges` (тренер, управляющий): клуб строки в базе по id и указанный `club_id` = клуб профиля, иначе **403** «Челлендж другого клуба» (`challengePushClubCore.js`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |
 
@@ -79,6 +79,7 @@
 | `trainer-self-stats` | trainer (свой клуб) / admin+trainer_id | ЗП день/месяц + сводка периода (сервер) |
 | `trainer-self-journal` | trainer (свой клуб) / admin+trainer_id | Список завершённых тренировок за период (для журнала на планшете; тот же контур, что цифры stats) |
 | `trainer-devices` | **admin** (`requireAdmin`) | Устройства тренеров: ожидающие и разрешённые + `binding_active` (задан ли `DEVICE_BINDING_SINCE`). UI `/admin/devices` |
+| `device-health` | **admin** | Центр сбоев: `{ devices: [{ id, user_id, trainer_name, club_name, label, codes, critical, needs_attention, instruction, problem_since, last_report_at, queue_count, bundle_id }], attention }` — устройства с отчётом за 30 дней. UI `/admin/health` ([DEVICE_HEALTH.md](./DEVICE_HEALTH.md)) |
 | `deletion-audit-log` | **admin** (HTTP: `requireAdmin`) | Журнал жёстких удалений клиентов (`deletion_audit_log`). UI `/sales/deletion-log` у менеджера — отдельный accessMode; API-лог — admin |
 | `push-subscription` | admin / trainer / sales_manager / **supervisor** | VAPID public key |
 | `membership-types` | admin / trainer / sales_manager / **supervisor** (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
@@ -102,6 +103,8 @@
 | `push-subscription` | auth user | Регистрация push: POST `op` = `subscribe` / `unsubscribe` / `test`; `prefs` `{ endpoint, schedule_reminders? }` → `{ found, schedule_reminders }` — напоминания Ежедневника на этом устройстве, только своя подписка (без флага — чтение; до миграции `{ ok: false, migration_pending }`) |
 | `reset-trainer-password`, `set-trainer-active`, `set-trainer-name`, `set-trainer-uses-tablet`, `delete-trainer` | admin | Управление тренером (пароль / блок / ФИО / планшет / удаление без клиентов) |
 | `trainer-device-set` | admin | `{ id, op: approve \| replace \| revoke }` — разрешить устройство, заменить старое (старое отозвано вместе с его сессиями), отозвать |
+| `device-health` | trainer / supervisor (только о себе) | Отчёт планшета `{ problems, bundle_id, queue_count }`; устройство — из заголовка `x-device-id` (нет — 400). Коды только из списка планшета (`server_no_pull` ставит сервер); тот же отчёт чаще раза в минуту не пишется. `deviceHealthHandler.js` |
+| `device-health-resolve` | admin | `{ id }` — «Решено»: карточка скрыта, пока набор проблем не расширился |
 | `pnk` | admin / sales_manager | Мутации ПНК |
 | `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
 | `club-sms` | admin / sales_manager / supervisor | SMS клиенту через Мои Звонки клуба (`client_id`, `scenario` / `text`); в `club_sms_log` пишется **ok** после успеха и **fail** при постоянной ошибке (не 429). Массовая кампания на доске = N таких запросов с клиента (очередь + код + окно итога) |

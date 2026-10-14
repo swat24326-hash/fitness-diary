@@ -80,6 +80,11 @@ import { handleStaffInboxGet, handleStaffInboxPost } from './_lib/inbox/inboxSta
 import { handleSurveyPointsGet, handleSurveyPointsPost } from './_lib/inbox/inboxPointsHandler.js'
 import { handleStaffChatGet, handleStaffChatPost } from './_lib/chat/chatStaffHandler.js'
 import { handleTrainerDeviceSetPost, handleTrainerDevicesGet } from './_lib/trainerDevicesAdmin.js'
+import {
+  handleDeviceHealthGet,
+  handleDeviceHealthReportPost,
+  handleDeviceHealthResolvePost,
+} from './_lib/deviceHealth/deviceHealthHandler.js'
 
 async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -114,6 +119,8 @@ async function handler(req, res) {
       'set-trainer-uses-tablet',
       'delete-trainer',
       'trainer-device-set',
+      'device-health',
+      'device-health-resolve',
       'pnk',
       'sale-clips',
       'club-sms',
@@ -266,6 +273,16 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleTrainerDeviceSetPost(ctx, res, body)
+    }
+    if (action === 'device-health') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleDeviceHealthReportPost(ctx, req, res, body)
+    }
+    if (action === 'device-health-resolve') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleDeviceHealthResolvePost(ctx, res, body)
     }
     if (action === 'price-list') {
       const clubId = String(body?.club_id ?? '').trim()
@@ -625,6 +642,12 @@ async function handler(req, res) {
     const ctx = await requireAdmin(req, res)
     if (!ctx) return
     return handleTrainerDevicesGet(ctx, res)
+  }
+
+  if (action === 'device-health') {
+    const ctx = await requireAdmin(req, res)
+    if (!ctx) return
+    return handleDeviceHealthGet(ctx, res)
   }
 
   if (action === 'search' || action === 'clients-last-trainings') {

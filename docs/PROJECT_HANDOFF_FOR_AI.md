@@ -32,6 +32,8 @@ Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUT
 
 Привязка устройств тренера (✅ в проде с 10.10 22:31 МСК): заголовок `x-device-id` на входе и продлении, таблица `user_devices`, экран админа `/admin/devices`; включается env `DEVICE_BINDING_SINCE` — [RUNBOOK §4e](./RUNBOOK.md).
 
+Центр сбоев устройств (📋 ждёт выкатки): планшет тренера сам сообщает о серьёзном сбое (`admin-data?action=device-health`, таблица `device_health`), cron `device-health-vm.sh` раз в 5 мин шлёт push админу; у админа иконка в шапке → `/admin/health` (бывшая «Структура → Диагностика» — там же, свёрнуто), у тренера значок «Помощь» в шапке только при сбое — [DEVICE_HEALTH.md](./DEVICE_HEALTH.md).
+
 ---
 
 ## 2. Технологический стек

@@ -27,8 +27,9 @@ import * as homeworkAuto from './scenarios/homeworkAutoSchedule.mjs'
 import * as healthScreening from './scenarios/healthScreening.mjs'
 import * as adminHomeworkLibrary from './scenarios/adminHomeworkLibrary.mjs'
 import * as localDbBlocked from './scenarios/localDbUpgradeBlocked.mjs'
+import * as deviceHealth from './scenarios/deviceHealth.mjs'
 
-const SCENARIOS = [localDbBlocked, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, linkedStaff, settingsMenu]
+const SCENARIOS = [localDbBlocked, deviceHealth, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, linkedStaff, settingsMenu]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

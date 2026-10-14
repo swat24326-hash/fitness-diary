@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { DiagnosticsPanel } from './DiagnosticsPanel'
+import { DeviceProblemsHint } from './DeviceProblemsHint.jsx'
 
 export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback, context, onSyncNow, syncBusy, onSignOut }) {
   useEffect(() => {
@@ -24,6 +25,7 @@ export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback,
       onClick={onClose}
     >
       <div className="modal-panel app-error-journal" onClick={(e) => e.stopPropagation()}>
+        {context?.isAdmin ? null : <DeviceProblemsHint />}
         <DiagnosticsPanel
           variant="modal"
           context={context}

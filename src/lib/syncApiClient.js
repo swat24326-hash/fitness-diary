@@ -8,6 +8,7 @@ import { mapWithConcurrency } from './syncConcurrency'
 import { collapseMemoryPushBatch } from './syncFlushResult'
 import { splitSyncPushWaves } from './syncQueuePriorityCore.js'
 import { normalizeTrainerPullPayload } from './trainerPullResponseCore.js'
+import { deviceHeaders } from './deviceIdentity.js'
 
 /** Меньшие пачки — иначе serverless (10–60 с) обрывает запрос, клиент уходит в медленный retry. */
 export const PUSH_BATCH_SIZE = 12
@@ -391,7 +392,7 @@ export async function fetchTrainerPullViaApi(opts = {}) {
       url,
       {
         method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, ...deviceHeaders },
         credentials: 'same-origin',
         cache: 'no-store',
       },

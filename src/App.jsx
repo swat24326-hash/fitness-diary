@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { isSupabaseConfigured } from './lib/supabase'
 import { clearPoisonedSyncQueue } from './lib/syncService'
 import { initTrainerWorkspaceCacheInvalidation } from './lib/trainerWorkspaceCache'
+import { startDeviceHealthReporter } from './lib/deviceHealth/deviceHealthReporter.js'
 import { isPwaUpdateInFlight } from './lib/appUpdateInFlightSession.js'
 import { AppChromeTop } from './components/AppChromeTop'
 import { AppHeader } from './components/AppHeader'
@@ -29,6 +30,7 @@ import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
 import { AdminDeletionLogPage } from './pages/admin/AdminDeletionLogPage.jsx'
 import { AdminTrainerDevicesPage } from './pages/admin/AdminTrainerDevicesPage.jsx'
+import { AdminDeviceHealthPage } from './pages/admin/AdminDeviceHealthPage.jsx'
 import { AdminClubCallLogPage } from './pages/admin/AdminClubCallLogPage.jsx'
 import { ClubTrainerSchedulePage } from './pages/admin/ClubTrainerSchedulePage.jsx'
 import { AdminLoyaltyJournal } from './pages/admin/AdminLoyaltyJournal.jsx'
@@ -168,6 +170,9 @@ function LoggedInLayout() {
 
   useEffect(() => initTrainerWorkspaceCacheInvalidation(), [])
 
+  const reportDeviceHealth = Boolean(user) && role === 'trainer' && isSupabaseConfigured()
+  useEffect(() => (reportDeviceHealth ? startDeviceHealthReporter() : undefined), [reportDeviceHealth])
+
   if (loading || (user && role == null)) {
     return <AppWelcomeSplash />
   }
@@ -260,11 +265,13 @@ function AdminLegacyExercisesRedirect() {
   return <Navigate to={`/admin/structure?${sp.toString()}`} replace />
 }
 
+/** Бывшая «Структура → Диагностика» — теперь центр сбоев /admin/health (блок «Это устройство»). */
 function AdminLegacyDiagnosticsRedirect() {
   const loc = useLocation()
   const sp = new URLSearchParams(loc.search || '')
-  sp.set('tab', 'diagnostics')
-  return <Navigate to={`/admin/structure?${sp.toString()}`} replace />
+  sp.delete('tab')
+  const qs = sp.toString()
+  return <Navigate to={`/admin/health${qs ? `?${qs}` : ''}`} replace />
 }
 
 function AdminLegacyIskraSettingsRedirect() {
@@ -282,6 +289,7 @@ function AdminLegacyStructureStatisticsTabRedirect() {
     const qs = sp.toString()
     return <Navigate to={`/admin/statistics${qs ? `?${qs}` : ''}`} replace />
   }
+  if (sp.get('tab') === 'diagnostics') return <AdminLegacyDiagnosticsRedirect />
   return <AdminStructure />
 }
 
@@ -364,6 +372,7 @@ export default function App() {
                 </Route>
                 <Route path="deletion-log" element={<AdminDeletionLogPage />} />
                 <Route path="devices" element={<AdminTrainerDevicesPage />} />
+                <Route path="health" element={<AdminDeviceHealthPage />} />
                 <Route path="call-log" element={<AdminClubCallLogPage />} />
                 <Route path="trainer-schedule" element={<ClubTrainerSchedulePage />} />
                 <Route path="loyalty" element={<AdminLoyaltyJournal />} />

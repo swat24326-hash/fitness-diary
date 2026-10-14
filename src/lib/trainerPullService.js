@@ -28,6 +28,7 @@ import { pruneLocalTrainingsForTrainer } from './idbRetention'
 import { pruneOrphanTrainingsForTrainerClients } from './clientTrainingsCache'
 import { pruneOrphanMembershipsForClients } from './clientMembershipsCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
+import { notePullResult } from './deviceHealth/deviceHealthMarks.js'
 import { cacheClubOutreachTemplates } from './trainer/trainerOutreachLogService'
 import {
   planTrainerOrphanClientPrune,
@@ -249,7 +250,7 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
   if (!tid || !isSupabaseConfigured()) return { ok: false, reason: 'no_trainer' }
   const mode = String(opts?.mode ?? 'active') // active | archive | all
 
-  return enqueueTrainerPull(async () => {
+  const result = await enqueueTrainerPull(async () => {
     try {
       const skipTrainings = opts?.skipTrainings === true
       const viaApi = await fetchTrainerPullWithIncremental(tid, mode, { skipTrainings })
@@ -304,4 +305,6 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
 
     return { ok: false, error: 'Нет связи с сервером — показаны данные с устройства' }
   })
+  notePullResult(result?.ok === true)
+  return result
 }

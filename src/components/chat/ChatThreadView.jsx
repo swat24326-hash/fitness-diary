@@ -42,6 +42,7 @@ export function ChatThreadView({
   reply,
   search,
   voice,
+  initialDraft = '',
 }) {
   const threadRef = useRef(null)
   const feedRef = useRef(null)
@@ -155,6 +156,7 @@ export function ChatThreadView({
           above={floating}
           replyTo={reply?.to ?? null}
           onCancelReply={reply?.cancel}
+          initialDraft={initialDraft}
         />
       ) : readOnlyHint ? (
         <>
