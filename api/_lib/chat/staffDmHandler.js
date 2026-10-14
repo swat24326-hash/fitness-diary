@@ -1,9 +1,10 @@
 /**
  * Переписка сотрудник ↔ сотрудник: /api/coach (view=dm-thread, op dm-send) и admin-data?action=chat (те же view/op).
- * GET  dm-thread&user_id[&before][&seen=0 — не отмечать прочитанным] → { peer: { id, name, label }, can_write, messages, has_more, marked_read, peer_read_at }
+ * GET  dm-thread&user_id[&before][&seen=0 — не отмечать прочитанным] → { peer: { id, name, label }, can_write, voice_ready, messages, has_more, marked_read, peer_read_at }
  * GET  dm-search&user_id&q → { results } — поиск по диалогу (права — как на чтение)
- * POST { op: 'dm-send', user_id, body | sticker, reply_to? } → { message } (reply_to — ответ с цитатой, только на сообщение этого диалога)
+ * POST { op: 'dm-send', user_id, body | sticker | (audio, sec, wave), reply_to? } → { message } (reply_to — ответ с цитатой, только на сообщение этого диалога)
  * POST { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
+ * POST { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id } → { audio, mime } | { done, text? } (chatVoiceHandler.js)
  * Текст сообщений в лог не пишем.
  * Тренер, связанный с управляющим (linkedStaffStore), переписывается с коллегами от учётки управляющего.
  */
@@ -42,6 +43,8 @@ import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatRe
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
 import { sendStaffDmPush } from './staffDmPushJob.js'
+import { answerChatVoice, chatVoiceBlocked, storeChatVoice } from './chatVoiceHandler.js'
+import { chatVoiceStorageMode } from './chatVoiceStorage.js'
 import {
   countRecentDmMessages,
   ensureDmThread,
@@ -112,6 +115,7 @@ export function sendStaffDmThread(authCtx, res, peerId, before, seen) {
         label: person ? LINKED_ROLE_LABEL_RU : staffRoleLabelRu(peer.role),
       },
       can_write: (await dmWriteAccess(db, viewer, peer)).ok,
+      voice_ready: chatVoiceStorageMode() != null,
     }
     if (!thread) {
       sendJson(res, 200, { ...meta, messages: [], has_more: false, marked_read: false, peer_read_at: null })
@@ -159,19 +163,29 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
       sendJson(res, access.status, { error: access.error })
       return
     }
-    const checked = resolveChatOutgoing({ body: input?.body, sticker: input?.sticker })
-    if (!checked.ok) {
-      sendJson(res, 400, { error: checked.error })
+    const checked = resolveChatOutgoing({ body: input?.body, sticker: input?.sticker, audio: input?.audio, sec: input?.sec, wave: input?.wave, once: input?.once })
+    const refused = checked.ok ? chatVoiceBlocked(checked) : checked
+    if (refused) {
+      sendJson(res, refused.status ?? 400, { error: refused.error })
       return
     }
     const thread = await ensureDmThread(db, staffDmPair(viewer.id, peer.id), viewer.club_id || peer.club_id)
     const clientMsgId = normalizeClientMsgId(input?.client_msg_id)
     const earlier = await loadDmMessageByClientMsgId(db, thread.id, clientMsgId)
+    let voice = null
     if (!earlier) {
       const recent = await countRecentDmMessages(db, thread.id, viewer.id, chatSendWindowStart(), CHAT_SEND_PER_MINUTE)
       if (isChatSendLimited(recent)) {
         sendJson(res, 429, { error: CHAT_SEND_LIMIT_RU })
         return
+      }
+      if (checked.voice) {
+        const put = await storeChatVoice(checked.voice, { side: 'staff', authorId: viewer.id, msgId: clientMsgId })
+        if (!put.ok) {
+          sendJson(res, put.status, { error: put.error })
+          return
+        }
+        voice = put.voice
       }
     }
     const target = earlier ? null : await loadReplyTarget(db, 'dm', thread.id, input?.reply_to)
@@ -183,6 +197,7 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
           sticker: checked.sticker,
           clientMsgId,
           replyTo: target?.id ?? null,
+          voice,
         })
     const quoted = await loadReplyTargets(db, 'dm', thread.id, [message])
     const toView = (m) => buildStaffDmMessageView(m, viewer.id)
@@ -193,7 +208,7 @@ export function sendStaffDmMessage(authCtx, res, peerId, input) {
       return
     }
     const authorName = await displayNameOf(db, { id: viewer.id, name: ctx.profile?.name })
-    sendStaffDmPush(db, { recipientId: peer.id, authorId: viewer.id, authorName, body: checked.body }).catch((e) =>
+    sendStaffDmPush(db, { recipientId: peer.id, authorId: viewer.id, authorName, body: checked.body, silent: input?.silent === true }).catch((e) =>
       console.warn('[staff-dm-push]', e?.message || e),
     )
     sendJson(res, 200, { message: view })
@@ -221,6 +236,26 @@ export function sendStaffDmSearch(authCtx, res, peerId, q) {
     const found = thread ? await searchThreadMessages(db, 'dm', thread.id, checked.q) : []
     const peerName = await displayNameOf(db, peer)
     sendJson(res, 200, { results: found.map((m) => buildChatSearchHit(buildStaffDmMessageView(m, viewer.id), checked.q, peerName)) })
+  })
+}
+
+/** Звук или расшифровка голосового из переписки с коллегой: права — как на чтение диалога. @param {'audio'|'text'} want */
+export function sendStaffDmVoice(authCtx, res, peerId, messageId, want) {
+  return withDmTable(res, async () => {
+    const ctx = await staffDmCtx(authCtx)
+    const db = ctx.supabaseAdmin
+    const viewer = viewerOf(ctx)
+    const peer = await loadPeer(ctx, res, peerId)
+    if (!peer) return
+    const thread = await loadDmThread(db, staffDmPair(viewer.id, peer.id))
+    if (!canReadStaffDm(viewer, peer, Boolean(thread))) {
+      sendJson(res, 403, { error: STAFF_DM_NO_ACCESS_RU })
+      return
+    }
+    const out = await answerChatVoice(db, 'staff_dm_messages', thread?.id ?? null, messageId, want, `u:${String(ctx.user?.id ?? viewer.id)}`, {
+      userId: viewer.id,
+    })
+    sendJson(res, out.status, out.body)
   })
 }
 

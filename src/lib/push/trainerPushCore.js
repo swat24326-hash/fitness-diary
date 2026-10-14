@@ -142,12 +142,13 @@ export function normalizePushUnsubscribePayload(body) {
 }
 
 /**
- * @param {{ title?: string, body?: string, url?: string, tag?: string }} opts
+ * @param {{ title?: string, body?: string, url?: string, tag?: string, silent?: boolean }} opts
+ * silent — уведомление без звука и вибрации («Отправить без звука» в переписке)
  */
 export function buildDispatchPushPayload(opts = {}) {
   const title = String(opts.title ?? 'Новое задание').trim().slice(0, 120) || 'Новое задание'
   const body = String(opts.body ?? 'Откройте Планёрку в приложении').trim().slice(0, 240)
   const url = String(opts.url ?? '/trainer?inbox=1').trim() || '/trainer?inbox=1'
   const tag = String(opts.tag ?? 'iskra-dispatch').trim() || 'iskra-dispatch'
-  return { title, body, url, tag }
+  return { title, body, url, tag, ...(opts.silent === true ? { silent: true } : {}) }
 }

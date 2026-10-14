@@ -1,10 +1,10 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
-import { dictateCoachChat, fetchCoachChatThread, reactCoachChatMessage, searchCoachChat, sendCoachChatMessage } from '../../lib/coach/coachApiClient.js'
+import { coachChatVoice, fetchCoachChatThread, reactCoachChatMessage, searchCoachChat, sendCoachChatMessage } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
 import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
 import { chatStaffReadOnlyRu } from '../../lib/chat/chatUiCore.js'
@@ -24,7 +24,8 @@ export function CoachChatPage() {
   const send = useCallback((outgoing) => sendCoachChatMessage(clientId, outgoing, kind), [clientId, kind])
   const react = useCallback((messageId, emoji) => reactCoachChatMessage(clientId, messageId, emoji, kind), [clientId, kind])
   const search = useCallback((q) => searchCoachChat(clientId, q, kind), [clientId, kind])
-  const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search, dictate: dictateCoachChat })
+  const voice = useMemo(() => coachChatVoice(clientId, kind), [clientId, kind])
+  const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search, voice })
   const meta = chat.meta
   const complaint = kind === 'supervisor'
 
@@ -56,7 +57,7 @@ export function CoachChatPage() {
           onReact={chat.react}
           reply={chat.reply}
           search={chat.search}
-          dictate={chat.dictate}
+          voice={chat.voice}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

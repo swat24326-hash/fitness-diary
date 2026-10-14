@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { listExercises, resolveClubDisplayName } from '../../lib/dataAccess'
 import { formatClientName } from '../../lib/clientNameFormat.js'
@@ -18,10 +18,13 @@ import { sendHomeworkDraft } from '../../lib/homework/homeworkShareCore.js'
 import { HomeworkPlanDisplay } from '../../components/trainer/HomeworkPlanDisplay.jsx'
 import { buildHomeworkAppSnapshot } from '../../lib/homework/homeworkAppSendCore.js'
 import { useClientPlanSend } from './useClientPlanSend.js'
+import { HomeworkAutoSection } from './HomeworkAutoSection.jsx'
+import { skipHomeworkAutoSunday } from '../../lib/homework/auto/homeworkAutoService.js'
 
 const MODES = {
   presets: 'presets',
   builder: 'builder',
+  auto: 'auto',
 }
 
 export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued }) {
@@ -131,6 +134,16 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
     setMode(MODES.presets)
   }
 
+  /** Отправили предпросмотр воскресной недели сами — автоматическое в это воскресенье не уходит. */
+  const skipAutoAfterManualSend = async () => {
+    if (!draft?.auto_sunday) return
+    try {
+      await skipHomeworkAutoSunday({ client, userId: user?.id, sundayIso: draft.auto_sunday })
+    } catch {
+      /* пропуск авто-ДЗ не должен ломать отправку */
+    }
+  }
+
   const onSend = async (channel = 'max') => {
     if (readOnly) return
     setBusy(true)
@@ -153,6 +166,7 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
         return
       }
       setStatusMsg(res.statusText || 'Готово')
+      await skipAutoAfterManualSend()
       try {
         await onHomeworkIssued?.()
       } catch {
@@ -169,6 +183,7 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
       return snap.ok ? snap : { ok: false, message: 'Добавьте упражнения' }
     })
     if (!sent) return
+    await skipAutoAfterManualSend()
     try {
       await onHomeworkIssued?.()
     } catch {
@@ -184,7 +199,7 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
         <div>
           <p className="homework-hero__eyebrow">Домашнее задание</p>
           <h2 className="homework-hero__title">{clientName || 'Клиент'}</h2>
-          <p className="muted homework-hero__sub">Шаблон или конструктор → карточка → Max или другой мессенджер.</p>
+          <p className="muted homework-hero__sub">Шаблон, конструктор или авто → в приложение клиента или в мессенджер.</p>
         </div>
         {draftCount > 0 ? <span className="homework-hero__badge">{draftCount} упр.</span> : null}
       </header>
@@ -210,7 +225,27 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
             <Plus size={16} aria-hidden />
             Собрать сам
           </button>
+          <button
+            type="button"
+            role="tab"
+            className={`homework-main-tabs__item${mode === MODES.auto ? ' homework-main-tabs__item--active' : ''}`}
+            aria-selected={mode === MODES.auto}
+            onClick={() => setMode(MODES.auto)}
+          >
+            <Sparkles size={16} aria-hidden />
+            Авто
+          </button>
         </div>
+      ) : null}
+
+      {!readOnly && mode === MODES.auto ? (
+        <HomeworkAutoSection
+          client={client}
+          onDraft={(next, msg) => {
+            setDraft(next)
+            setStatusMsg(msg || 'Неделя подобрана — проверьте нормы и отправьте')
+          }}
+        />
       ) : null}
 
       {!readOnly && mode === MODES.presets ? (

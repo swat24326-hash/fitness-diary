@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Download, Share, Smartphone } from 'lucide-react'
+import { Download, Smartphone } from 'lucide-react'
+import { InstallSteps } from '../../components/install/InstallSteps.jsx'
 
 const TITLE = 'Значок на экран «Домой»'
 
-/** Шаг установки — строка как у тренера: шаги iPhone раскрываются по «Как?», на экране остаётся место под абонемент. */
+/** Шаг установки — строка как у тренера: шаги раскрываются по «Как?», на экране остаётся место под абонемент. */
 export function ClientInstallHint({ name, installer, onDone }) {
   const [open, setOpen] = useState(false)
   const canPrompt = installer.mode === 'prompt'
@@ -33,15 +34,7 @@ export function ClientInstallHint({ name, installer, onDone }) {
           Готово
         </button>
       </div>
-      {open && !canPrompt ? (
-        <ol className="client-install__steps">
-          <li>
-            Нажмите <Share size={16} aria-label="Поделиться" /> внизу экрана
-          </li>
-          <li>Выберите «На экран „Домой“»</li>
-          <li>Откройте значок «{name}»</li>
-        </ol>
-      ) : null}
+      {open && !canPrompt ? <InstallSteps mode={installer.mode} name={name} className="client-install__steps" /> : null}
     </section>
   )
 }

@@ -38,7 +38,16 @@ export function ClientHomeworkView({ item }) {
                   <span className="client-plan__num" aria-hidden>
                     {n}
                   </span>
-                  <span className="client-plan__name">{ex.name}</span>
+                  <span className="client-plan__name">
+                    {ex.name}
+                    {ex.how || ex.tip ? (
+                      <details className="client-plan__how">
+                        <summary>Как делать</summary>
+                        {ex.how ? <p>{ex.how}</p> : null}
+                        {ex.tip ? <p className="client-plan__tip">{ex.tip}</p> : null}
+                      </details>
+                    ) : null}
+                  </span>
                   <span className="client-plan__chip">
                     {ex.sets} × {ex.reps || '—'}
                     {ex.rest_sec > 0 ? <small> · отдых {ex.rest_sec} с</small> : null}

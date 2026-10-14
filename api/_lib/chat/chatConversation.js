@@ -19,6 +19,8 @@ import { sendChatPush } from './chatPushJob.js'
 import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
+import { answerChatVoice, chatVoiceBlocked, storeChatVoice } from './chatVoiceHandler.js'
+import { chatVoiceStorageMode } from './chatVoiceStorage.js'
 import {
   countRecentChatMessages,
   ensureChatThread,
@@ -40,7 +42,8 @@ function isIsoCursor(v) {
  */
 export async function openChatThread(db, { client, kind, side, reactor, before, markRead = true }) {
   const thread = await loadChatThread(db, client.id, kind)
-  if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null }
+  const voice_ready = chatVoiceStorageMode() != null
+  if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null, voice_ready }
   const page = await loadChatMessages(db, thread.id, isIsoCursor(before) ? before : null)
   const marked =
     markRead && !before && isChatUnreadFor(side, thread) && (await markChatRead(db, thread, side, page.messages.at(-1)?.created_at))
@@ -61,6 +64,7 @@ export async function openChatThread(db, { client, kind, side, reactor, before, 
     has_more: page.has_more,
     marked_read: marked,
     peer_read_at: chatPeerReadAt(side, thread),
+    voice_ready,
   }
 }
 
@@ -87,6 +91,16 @@ export async function reactChatMessage(db, { client, kind, reactor, messageId, e
   return setMessageReaction(db, 'chat', { threadId: thread.id, messageId, reactor, emoji, clientNames: clientNameMap(client) })
 }
 
+/**
+ * Звук или расшифровка голосового из диалога клиента (доступ на чтение уже проверен).
+ * @param {'audio'|'text'} want
+ * @param {'client'|'staff'} side кто слушает; mark=false — смотрит не ответственный: «прослушано» не ставим
+ */
+export async function chatVoiceOf(db, { client, kind, messageId, want, who, side, mark = true }) {
+  const thread = await loadChatThread(db, client.id, kind)
+  return answerChatVoice(db, 'chat_messages', thread?.id ?? null, messageId, want, who, { side, mark })
+}
+
 /** «Кто поставил» у реакции клиента — его имя. */
 function clientNameMap(client) {
   return new Map([[String(client.id), String(client.name ?? '').trim()]])
@@ -99,17 +113,26 @@ function peerNameOf(side, client) {
 
 /**
  * replyTo — id сообщения этого диалога, на которое отвечают (не из диалога — отправим без цитаты).
+ * voice — { audio, sec, wave } голосового (chatVoiceCore); тогда body и sticker не нужны. silent — push без звука.
  * @returns {Promise<{ status: number, body: object }>}
  */
-export async function sendChatMessage(db, { client, kind, side, userId, body, sticker, clientMsgId, replyTo }) {
-  const checked = resolveChatOutgoing({ body, sticker })
-  if (!checked.ok) return { status: 400, body: { error: checked.error } }
+export async function sendChatMessage(db, { client, kind, side, userId, body, sticker, voice, clientMsgId, replyTo, silent = false }) {
+  const checked = resolveChatOutgoing({ body, sticker, ...voice })
+  if (!checked.ok) return { status: checked.status ?? 400, body: { error: checked.error } }
+  const blocked = chatVoiceBlocked(checked)
+  if (blocked) return { status: blocked.status, body: { error: blocked.error } }
   const thread = await ensureChatThread(db, client, kind)
   const msgId = normalizeClientMsgId(clientMsgId)
   const earlier = await loadChatMessageByClientMsgId(db, thread.id, msgId)
+  let stored = null
   if (!earlier) {
     const recent = await countRecentChatMessages(db, thread.id, { side, userId }, chatSendWindowStart(), CHAT_SEND_PER_MINUTE)
     if (isChatSendLimited(recent)) return { status: 429, body: { error: CHAT_SEND_LIMIT_RU } }
+    if (checked.voice) {
+      const put = await storeChatVoice(checked.voice, { side, authorId: side === 'client' ? client.id : userId, msgId })
+      if (!put.ok) return { status: put.status, body: { error: put.error } }
+      stored = put.voice
+    }
   }
   const target = earlier ? null : await loadReplyTarget(db, 'chat', thread.id, replyTo)
   const { message, duplicate } = earlier
@@ -121,13 +144,15 @@ export async function sendChatMessage(db, { client, kind, side, userId, body, st
         sticker: checked.sticker,
         clientMsgId: msgId,
         replyTo: target?.id ?? null,
+        voice: stored,
       })
   const quoted = await loadReplyTargets(db, 'chat', thread.id, [message])
   const names = await loadStaffNames(db, [message.author_user_id ?? (side === 'staff' ? userId : null), ...[...quoted.values()].map((m) => m.author_user_id)])
   const toView = (m) => buildChatMessageView(m, side, names)
   const view = { ...toView(message), reply: chatReplyQuoteFor(message, quoted, toView, peerNameOf(side, client)), reactions: [] }
   if (duplicate) return { status: 200, body: { message: view } }
-  sendChatPush(db, { kind, authorSide: side, client, authorUserId: userId, authorName: view.author_name, body: checked.body }).catch((e) =>
+  const push = { kind, authorSide: side, client, authorUserId: userId, authorName: view.author_name, body: checked.body, silent: silent === true }
+  sendChatPush(db, push).catch((e) =>
     console.warn('[chat-push]', e?.message || e),
   )
   return { status: 200, body: { message: view } }

@@ -35,7 +35,8 @@ export function chatPushBlocker(configured = isWebPushConfigured()) {
 }
 
 /**
- * @param {{ kind: string, authorSide: 'client'|'staff', clientId: string, clientName: string, authorName: string, body: string }} p
+ * @param {{ kind: string, authorSide: 'client'|'staff', clientId: string, clientName: string, authorName: string, body: string, silent?: boolean }} p
+ * silent — «Отправить без звука»: уведомление придёт тихо
  */
 export function buildChatPushPayload(p) {
   const toStaff = p.authorSide === 'client'
@@ -47,6 +48,7 @@ export function buildChatPushPayload(p) {
     body: chatPreview(p.body, CHAT_PUSH_PREVIEW_MAX),
     url: toStaff ? `/messages/chat/${p.clientId}/${p.kind}` : `/me/chat/${p.kind}`,
     tag: `chat-${p.clientId}-${p.kind}`,
+    ...(p.silent ? { silent: true } : {}),
   }
 }
 
@@ -64,7 +66,7 @@ async function staffRecipients(db, audience, excludeUserId) {
 }
 
 /** Фоном после ответа API: ошибки только в лог, сообщение не откатываем. */
-export async function sendChatPush(db, { kind, authorSide, client, authorUserId, authorName, body }, send = sendWebPushToRow) {
+export async function sendChatPush(db, { kind, authorSide, client, authorUserId, authorName, body, silent = false }, send = sendWebPushToRow) {
   if (chatPushBlocker()) return { sent: 0, expired: 0 }
   const audience = chatPushAudience(kind, authorSide, client)
   if (!audience) return { sent: 0, expired: 0 }
@@ -75,7 +77,7 @@ export async function sendChatPush(db, { kind, authorSide, client, authorUserId,
   const subs = staff
     ? await staffPushSubscriptions(db, recipients.map((r) => String(r.user_id)), author)
     : await loadSubscriptions(db, false, recipients)
-  const payload = buildChatPushPayload({ kind, authorSide, clientId: String(client.id), clientName: client.name, authorName, body })
+  const payload = buildChatPushPayload({ kind, authorSide, clientId: String(client.id), clientName: client.name, authorName, body, silent })
   const expired = []
   let sent = 0
   for (const s of subs) {

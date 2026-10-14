@@ -75,8 +75,16 @@ export function reactCoachChatMessage(clientId, messageId, emoji, kind = 'traine
 /** Поиск по диалогу. @returns {Promise<{ results: object[] }>} */
 export const searchCoachChat = (clientId, q, kind = 'trainer') => coachRequest({ view: 'chat-search', client_id: clientId, kind, q })
 export const searchCoachDm = (userId, q) => coachRequest({ view: 'dm-search', user_id: userId, q })
-/** Голос в текст для поля ввода. @returns {Promise<{ text: string }>} */
-export const dictateCoachChat = (audio) => coachRequest({}, { op: 'chat-dictate', audio })
+/** Голосовые: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done). */
+export function coachChatVoice(clientId, kind = 'trainer') {
+  const call = (op) => (messageId) => coachRequest({}, { op, client_id: clientId, kind, message_id: messageId })
+  return { audio: call('chat-voice-audio'), text: call('chat-voice-text') }
+}
+
+export function coachDmVoice(userId) {
+  const call = (op) => (messageId) => coachRequest({}, { op, user_id: userId, message_id: messageId })
+  return { audio: call('dm-voice-audio'), text: call('dm-voice-text') }
+}
 
 export function reactCoachDmMessage(userId, messageId, emoji) {
   return coachRequest({}, { op: 'dm-react', user_id: userId, message_id: messageId, emoji })

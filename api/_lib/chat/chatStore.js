@@ -14,7 +14,8 @@ export const CHAT_THREAD_FIELDS =
   'id, club_id, client_id, kind, last_message_at, last_author, last_preview, client_read_at, staff_read_at, client_unread, staff_unread, ' +
   'last_reaction_at, last_reaction_emoji, last_reaction_by, client_reaction_seen_at, staff_reaction_seen_at'
 const THREAD_FIELDS = CHAT_THREAD_FIELDS
-export const CHAT_MESSAGE_FIELDS = 'id, body, sticker, created_at, author_side, author_user_id, reply_to'
+export const CHAT_MESSAGE_FIELDS =
+  'id, body, sticker, created_at, author_side, author_user_id, reply_to, voice_key, voice_sec, voice_wave, voice_text, voice_played_at, voice_once'
 const MESSAGE_FIELDS = CHAT_MESSAGE_FIELDS
 
 export function isMissingChatTable(e) {
@@ -118,12 +119,18 @@ export async function countRecentChatMessages(db, threadId, { side, userId }, si
   return (await rows(q.limit(limit))).length
 }
 
+/** Колонки голосового (миграции 20261020120000, 20261022120000); voice — { key, sec, wave, once } после загрузки в хранилище. */
+export function voiceColumns(voice) {
+  if (!voice) return {}
+  return { voice_key: voice.key, voice_sec: voice.sec, voice_wave: voice.wave, ...(voice.once ? { voice_once: true } : {}) }
+}
+
 /**
  * Счётчики, «последнее сообщение» и превью диалога обновляет триггер базы (миграция 20261016120000).
  * duplicate — повтор с тем же client_msg_id (гонка двух повторов): сообщение уже было, push не шлём.
  * @returns {Promise<{ message: object, duplicate: boolean }>}
  */
-export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null, clientMsgId = null, replyTo = null }) {
+export async function insertChatMessage(db, thread, client, { side, userId, body, sticker = null, clientMsgId = null, replyTo = null, voice = null }) {
   const { data, error } = await db
     .from('chat_messages')
     .insert({
@@ -135,6 +142,7 @@ export async function insertChatMessage(db, thread, client, { side, userId, body
       sticker,
       ...(clientMsgId ? { client_msg_id: clientMsgId } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
+      ...voiceColumns(voice),
     })
     .select(MESSAGE_FIELDS)
     .single()

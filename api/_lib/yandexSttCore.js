@@ -7,13 +7,13 @@ export const YANDEX_STT_START_URL = 'https://stt.api.cloud.yandex.net/stt/v3/rec
 export const YANDEX_STT_RESULT_URL = 'https://stt.api.cloud.yandex.net/stt/v3/getRecognition'
 export const YANDEX_OPERATION_URL = 'https://operation.api.cloud.yandex.net/operations'
 
-/** @param {string} base64 PCM 16 кГц, 16 бит, моно @param {number} rate */
-export function buildYandexSttRequest(base64, rate) {
+/** @param {string} base64 MP3 голосового (до 5 минут — асинхронное распознавание берёт до 4 часов) */
+export function buildYandexSttRequest(base64) {
   return {
     content: base64,
     recognitionModel: {
       model: 'general',
-      audioFormat: { rawAudio: { audioEncoding: 'LINEAR16_PCM', sampleRateHertz: String(rate), audioChannelCount: '1' } },
+      audioFormat: { containerAudio: { containerAudioType: 'MP3' } },
       textNormalization: { textNormalization: 'TEXT_NORMALIZATION_ENABLED', profanityFilter: false, literatureText: true },
       languageRestriction: { restrictionType: 'WHITELIST', languageCode: ['ru-RU'] },
     },

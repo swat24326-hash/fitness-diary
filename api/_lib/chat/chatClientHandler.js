@@ -1,16 +1,17 @@
 /**
  * Переписка клиента через /api/client-me (токен клиента, только свои диалоги).
- * POST { action: 'chat-list' } | { action: 'chat-thread', kind, before?, seen? } (отмечает прочитанным; seen=0 — нет) | { action: 'chat-send', kind, body, reply_to? }
+ * POST { action: 'chat-list' } | { action: 'chat-thread', kind, before?, seen? } (отмечает прочитанным; seen=0 — нет)
+ *      | { action: 'chat-send', kind, body | sticker | (audio, sec, wave), reply_to? } — audio — голосовое (base64 MP3)
  *      | { action: 'chat-react', kind, message_id, emoji|null } → { message_id, reactions }
  *      | { action: 'chat-search', kind, q } → { results } — поиск по своему диалогу
- *      | { action: 'chat-dictate', audio } → { text } — голос в текст для поля ввода (chatDictateHandler.js)
+ *      | { action: 'chat-voice-audio', kind, message_id } → { audio, mime } — звук голосового (сутки, потом 410)
+ *      | { action: 'chat-voice-text', kind, message_id } → { done, text? } — расшифровка «→ Аа» (chatVoiceHandler.js)
  */
 import { sendJson } from '../adminSupabase.js'
 import { chatKindLabelRu, chatUnreadCount, clientChatAttention, clientChatKinds, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
-import { openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
-import { dictateChatAudio } from './chatDictateHandler.js'
+import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { isMissingChatTable, loadClientThreads, loadStaffNames } from './chatStore.js'
 
 const UNAVAILABLE_RU = 'Сообщения пока недоступны — попробуйте позже'
@@ -54,11 +55,6 @@ export async function handleClientChatPost(db, ctx, body, res) {
       sendJson(res, 200, await listThreads(db, client))
       return
     }
-    if (body.action === 'chat-dictate') {
-      const out = await dictateChatAudio(`c:${client.id}`, body.audio)
-      sendJson(res, out.status, out.body)
-      return
-    }
     if (!clientChatKinds(client).includes(kind)) {
       sendJson(res, 404, { error: kind === 'trainer' ? 'Тренер пока не назначен' : 'Диалог не найден' })
       return
@@ -85,9 +81,17 @@ export async function handleClientChatPost(db, ctx, body, res) {
         side: 'client',
         body: body.body,
         sticker: body.sticker,
+        voice: { audio: body.audio, sec: body.sec, wave: body.wave, once: body.once },
         clientMsgId: body.client_msg_id,
         replyTo: body.reply_to,
+        silent: body.silent === true,
       })
+      sendJson(res, out.status, out.body)
+      return
+    }
+    if (body.action === 'chat-voice-audio' || body.action === 'chat-voice-text') {
+      const want = body.action === 'chat-voice-text' ? 'text' : 'audio'
+      const out = await chatVoiceOf(db, { client, kind, messageId: body.message_id, want, who: `c:${client.id}`, side: 'client' })
       sendJson(res, out.status, out.body)
       return
     }

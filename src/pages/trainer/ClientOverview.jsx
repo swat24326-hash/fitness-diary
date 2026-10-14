@@ -19,6 +19,9 @@ import {
 } from '../../lib/clientWeightCore'
 import { getHealthFilledAt, getHealthSex } from '../../lib/healthCardCore'
 import { ClientWeightChart } from '../../components/ClientWeightChart'
+import { HealthScreeningSection } from '../../components/health/HealthScreeningSection.jsx'
+import { HealthLegacyNotes } from '../../components/health/HealthLegacyNotes.jsx'
+import { HealthGoalField } from '../../components/health/HealthGoalField.jsx'
 import {
   listWeightEntries,
   importWeightsFromAllTrainings,
@@ -233,7 +236,7 @@ export function ClientOverview({
         initial_weight_kg: healthForm.initial_weight_kg,
         sex: healthForm.sex || null,
         health_filled_at: healthForm.health_filled_at || null,
-        goal: healthForm.goal || null,
+        goal: String(healthForm.goal ?? '').trim() || null,
         diseases: healthForm.diseases || null,
         contraindications: healthForm.contraindications || null,
         medications: healthForm.medications || null,
@@ -556,19 +559,11 @@ export function ClientOverview({
               <p>
                 <span className="muted">Цель:</span> {healthForm.goal || '—'}
               </p>
-              <p>
-                <span className="muted">Заболевания:</span> {healthForm.diseases || '—'}
-              </p>
-              <p>
-                <span className="muted">Противопоказания:</span> {healthForm.contraindications || '—'}
-              </p>
-              <p>
-                <span className="muted">Препараты:</span> {healthForm.medications || '—'}
-              </p>
               <p className="health-mini__details-wide">
                 <span className="muted">Заметки:</span> {healthForm.notes || '—'}
               </p>
             </div>
+            <HealthLegacyNotes health={healthForm} />
           </div>
         ) : (
           <form onSubmit={saveHealth} className="grid health-form">
@@ -632,27 +627,8 @@ export function ClientOverview({
               </div>
               <BmiScaleBar bmi={bmi} />
             </div>
-            <div className="field">
-              <label className="label">Цель</label>
-              <textarea
-                className="textarea"
-                value={healthForm.goal}
-                onChange={(e) => setHealthForm((f) => ({ ...f, goal: stripDirectionControls(e.target.value) }))}
-                placeholder="Напр. Снижение веса, набор массы, улучшить выносливость..."
-              />
-            </div>
-            <div className="field">
-              <label className="label">Заболевания</label>
-              <textarea className="textarea" value={healthForm.diseases} onChange={(e) => setHealthForm((f) => ({ ...f, diseases: stripDirectionControls(e.target.value) }))} />
-            </div>
-            <div className="field">
-              <label className="label">Противопоказания</label>
-              <textarea className="textarea" value={healthForm.contraindications} onChange={(e) => setHealthForm((f) => ({ ...f, contraindications: stripDirectionControls(e.target.value) }))} />
-            </div>
-            <div className="field">
-              <label className="label">Препараты</label>
-              <textarea className="textarea" value={healthForm.medications} onChange={(e) => setHealthForm((f) => ({ ...f, medications: stripDirectionControls(e.target.value) }))} />
-            </div>
+            <HealthGoalField value={healthForm.goal} onChange={(goal) => setHealthForm((f) => ({ ...f, goal }))} />
+            <HealthLegacyNotes health={healthForm} />
             <div className="field">
               <label className="label">Заметки</label>
               <textarea className="textarea" value={healthForm.notes} onChange={(e) => setHealthForm((f) => ({ ...f, notes: stripDirectionControls(e.target.value) }))} />
@@ -666,6 +642,10 @@ export function ClientOverview({
         )}
         </section>
       )}
+
+      {(section === 'all' || section === 'health') && client?.id ? (
+        <HealthScreeningSection client={client} sex={getHealthSex(health)} readOnly={readOnly} />
+      ) : null}
 
       {(section === 'all' || section === 'health') && (
         <section className="card">

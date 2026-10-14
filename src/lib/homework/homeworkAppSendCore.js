@@ -11,7 +11,14 @@ export function buildHomeworkAppSnapshot(draft) {
     comment: draft?.comment,
     blocks: (draft?.blocks ?? []).map((b) => ({
       label: b?.label,
-      exercises: (b?.exercises ?? []).map((ex) => ({ name: ex?.name, sets: ex?.sets, reps: ex?.reps, rest_sec: ex?.rest_sec })),
+      exercises: (b?.exercises ?? []).map((ex) => ({
+        name: ex?.name,
+        sets: ex?.sets,
+        reps: ex?.reps,
+        rest_sec: ex?.rest_sec,
+        how: ex?.how,
+        tip: ex?.tip,
+      })),
     })),
   })
   return payload ? { ok: true, payload } : { ok: false, error: 'empty_draft' }

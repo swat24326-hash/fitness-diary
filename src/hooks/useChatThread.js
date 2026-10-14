@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { nextChatOutgoingId } from '../lib/chat/chatDeliveryCore.js'
 import { mergeChatMessages } from '../lib/chat/chatMessageCore.js'
 import { CHAT_REACTION_OFFLINE_RU, patchChatReactions, toggleChatReaction } from '../lib/chat/chatReactionCore.js'
@@ -17,10 +17,15 @@ export const CHAT_OFFLINE_RU = 'Нет сети — сообщение не от
  * Пока экран открыт и виден — свежие сообщения раз в 10 с и сразу при приходе push.
  * Читает историю выше — опрос без отметки «прочитано» (seen=false); дошёл до низа — перечитываем с отметкой.
  * react(messageId, emoji|null) — реакция на сообщение; на экране сразу, ответ сервера уточняет.
- * search(q) — поиск по диалогу на сервере ({ results }); dictate(audio) — голос в текст ({ text }); отдаём как есть в ChatThreadView.
- * @param {{ key: string, side: 'client' | 'staff', load: (before?: string, opts?: { seen: boolean }) => Promise<{ messages: object[], has_more: boolean }>, send: (outgoing: { body: string } | { sticker: string }) => Promise<{ message: object }>, react?: (messageId: string, emoji: string|null) => Promise<{ reactions: object[] }> }} p
+ * search(q) — поиск по диалогу на сервере ({ results }); voice — звук ({ audio }) и текст ({ done, text }) голосового
+ * по id сообщения; наружу + record — сервер готов принять голосовое (voice_ready), peerName — подпись в мини-плеере,
+ * draftKey — черновик голосового этого диалога.
+ * @param {{ key: string, side: 'client' | 'staff', load: (before?: string, opts?: { seen: boolean }) => Promise<{ messages: object[], has_more: boolean }>,
+ *   send: (outgoing: { body: string } | { sticker: string } | { audio: string, sec: number, wave: number[] }) => Promise<{ message: object }>,
+ *   react?: (messageId: string, emoji: string|null) => Promise<{ reactions: object[] }>,
+ *   voice?: { audio: (messageId: string) => Promise<object>, text: (messageId: string) => Promise<object> } }} p
  */
-export function useChatThread({ key, side, load, send, react, search, dictate }) {
+export function useChatThread({ key, side, load, send, react, search, voice }) {
   const [state, setState] = useState({ messages: null, meta: null, hasMore: false, status: 'loading', error: '', errorStatus: null })
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
@@ -111,7 +116,7 @@ export function useChatThread({ key, side, load, send, react, search, dictate })
   }, [state.messages])
 
   /**
-   * @param {string | { sticker: string }} input текст из поля или стикер
+   * @param {string | { sticker: string } | { audio: string, sec: number, wave: number[] }} input текст, стикер или голосовое
    * @returns {Promise<boolean>} true — отправлено, поле можно очистить
    */
   const submit = useCallback(async (input) => {
@@ -192,6 +197,13 @@ export function useChatThread({ key, side, load, send, react, search, dictate })
     }
   }, [])
 
+  const voiceReady = Boolean(state.meta?.voice_ready)
+  const peerName = state.meta?.client?.name || state.meta?.peer?.name || state.meta?.name || ''
+  const voiceApi = useMemo(
+    () => (voice ? { ...voice, record: voiceReady, peerName, draftKey: key } : undefined),
+    [voice, voiceReady, peerName, key],
+  )
+
   return {
     ...state,
     reload: () => refresh(false),
@@ -200,7 +212,7 @@ export function useChatThread({ key, side, load, send, react, search, dictate })
     react: react ? reactTo : undefined,
     reply: { to: replyTo, start: startReply, cancel: cancelReply, find: findMessage },
     search,
-    dictate,
+    voice: voiceApi,
     sending,
     sendError,
     onAtBottom,

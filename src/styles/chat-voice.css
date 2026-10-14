@@ -1,0 +1,595 @@
+/* Голосовые, как в Telegram: запись в поле ввода (держать / без рук / прослушать) и пузырь с волной в ленте. */
+
+/* Пока идёт запись, поле и смайлики прячутся, но не размонтируются — курсор и высота поля сохраняются. */
+.chat-compose__pill > [hidden] {
+  display: none;
+}
+
+/* Отступ справа — колонка кнопок записи (■ / 🎤 / «1» над «Отправить»): подсказка их не закрывает. */
+.chat-compose__hint {
+  margin: 0 52px 0 0;
+  justify-self: end;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+/* ——— Запись ——— */
+
+.chat-voice-rec {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 14px 0 16px;
+  user-select: none;
+}
+
+.chat-voice-rec__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: chat-voice-blink 1s ease-in-out infinite;
+}
+
+.chat-voice-rec__time {
+  flex: none;
+  min-width: 2.6em;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-voice-rec__time.is-ending {
+  color: var(--warning, #fbbf24);
+}
+
+.chat-voice-rec__slide {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.chat-voice-rec__wave {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  min-width: 0;
+  height: 28px;
+  overflow: hidden;
+}
+
+.chat-voice-rec__wave i {
+  flex: none;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-bright, var(--accent));
+  transform-origin: center;
+  transition: transform 0.09s linear;
+}
+
+.chat-voice-rec__cancel {
+  flex: none;
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat-voice-rec--review {
+  padding-left: 0;
+}
+
+.chat-voice-rec__trash {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.chat-voice-rec__play {
+  width: 34px;
+  height: 34px;
+}
+
+/* Обрезка: ручки по краям волны, вырезанное — бледное. */
+.chat-voice-trim {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.chat-voice-trim .chat-voice__wave {
+  width: 100%;
+}
+
+.chat-voice-trim__handle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 16px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.chat-voice-trim__handle::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 14px;
+  margin: -7px 0 0 -1.5px;
+  border-radius: 2px;
+  background: var(--accent-bright, var(--accent));
+  content: '';
+}
+
+.chat-voice-trim__handle--start {
+  margin-left: -8px;
+}
+
+.chat-voice-trim__handle--end {
+  margin-right: -8px;
+}
+
+.chat-voice-trim__handle[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* ——— Кнопка справа ——— */
+
+.chat-voice-btn {
+  position: relative;
+  flex: none;
+}
+
+.chat-voice-btn__mic {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.chat-voice-btn__mic:hover,
+.chat-voice-btn__mic:focus-visible {
+  color: var(--accent-bright, var(--accent));
+  outline: none;
+}
+
+/* Держим — кнопка крупнее и «дышит» громкостью голоса. */
+.chat-voice-btn__mic.is-holding {
+  background: linear-gradient(165deg, var(--accent-bright), var(--accent) 45%, var(--accent-dim));
+  box-shadow: 0 0 0 calc(6px + var(--voice-level, 0) * 18px) color-mix(in srgb, var(--accent) 22%, transparent);
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  transform: scale(1.35);
+  transition:
+    box-shadow 0.09s linear,
+    transform 0.15s var(--ease-out, ease);
+}
+
+.chat-voice-btn__lock,
+.chat-voice-btn__stop,
+.chat-voice-btn__once {
+  position: absolute;
+  bottom: calc(100% + 18px);
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  margin-left: -19px;
+  border: 1px solid var(--border);
+  border-radius: 19px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+
+.chat-voice-btn__lock {
+  padding: 8px 0 4px;
+  pointer-events: none;
+  animation: chat-voice-rise 0.2s var(--ease-out, ease);
+}
+
+.chat-voice-btn__stop {
+  bottom: calc(100% + 10px);
+  height: 38px;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.chat-voice-btn__resume {
+  color: var(--accent-bright, var(--accent));
+}
+
+.chat-voice-send {
+  position: relative;
+  display: inline-flex;
+}
+
+.chat-voice-send__menu {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: calc(100% + 8px);
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  animation: chat-voice-rise 0.15s var(--ease-out, ease);
+}
+
+.chat-voice-send__menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chat-voice-send__menu button:hover,
+.chat-voice-send__menu button:focus-visible {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  outline: none;
+}
+
+/* ——— Пузырь в ленте ——— */
+
+.chat-msg--voice .chat-msg__body {
+  white-space: normal;
+}
+
+.chat-voice {
+  display: grid;
+  gap: 4px;
+  min-width: min(240px, 62vw);
+}
+
+.chat-voice__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-voice__play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  cursor: pointer;
+}
+
+.chat-voice--expired .chat-voice__play {
+  background: color-mix(in srgb, var(--text-muted) 25%, transparent);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.chat-voice__track {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chat-voice__wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.chat-voice__wave:disabled {
+  cursor: default;
+}
+
+.chat-voice__wave span {
+  flex: 1;
+  min-width: 2px;
+  max-width: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+}
+
+.chat-voice__wave span.is-played {
+  background: var(--accent-bright, var(--accent));
+}
+
+.chat-voice__under {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.chat-voice__time {
+  flex: none;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-voice__chip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  padding: 1px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-bright, var(--accent));
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-voice__chip:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.chat-voice__gone {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.chat-voice__text {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+}
+
+.chat-voice__text.is-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Синяя точка, как в Telegram: собеседник ещё не слушал (у своего — вы ждёте, у чужого — вы не слушали). */
+.chat-voice__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-bright, var(--accent));
+}
+
+.chat-voice__wave span.is-cut {
+  opacity: 0.25;
+}
+
+/* ——— Одноразовое «1» ——— */
+
+.chat-voice__play {
+  position: relative;
+}
+
+.chat-voice__once {
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.chat-voice__once--badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 2px solid var(--bg-card);
+  border-radius: 50%;
+  background: var(--accent-bright, var(--accent));
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  font-size: 0.62rem;
+}
+
+.chat-voice__once-hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chat-voice__gone .chat-voice__dot {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.chat-voice-btn__once {
+  bottom: calc(100% + 56px);
+  height: 38px;
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.chat-voice-btn__once.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+}
+
+/* ——— Мини-плеер ——— */
+
+.chat-thread:has(> .chat-voice-mini) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.chat-voice-mini {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 6px 4px 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+}
+
+/* Вне диалога — снизу, как тосты приложения: сверху шапка с вкладками тренера, её закрывать нельзя. */
+.chat-voice-mini--floating {
+  position: fixed;
+  z-index: 60;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  left: 50%;
+  width: min(420px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+.chat-voice-mini__play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  cursor: pointer;
+}
+
+.chat-voice-mini__info {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-voice-mini__title {
+  overflow: hidden;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-voice-mini__time {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-voice-mini__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chat-voice-mini__bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent-bright, var(--accent));
+  transform-origin: left;
+  pointer-events: none;
+}
+
+.chat-voice__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+
+.chat-voice__spin {
+  animation: chat-voice-spin 0.9s linear infinite;
+}
+
+@keyframes chat-voice-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes chat-voice-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes chat-voice-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-voice-rec__dot,
+  .chat-voice-btn__lock,
+  .chat-voice__spin {
+    animation: none;
+  }
+
+  .chat-voice-rec__wave i,
+  .chat-voice-btn__mic.is-holding {
+    transition: none;
+  }
+}

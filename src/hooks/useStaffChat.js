@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CHAT_FOLDER_CLIENTS } from '../lib/chat/chatContactsCore.js'
 import {
-  dictateStaffChat,
   fetchStaffChatContacts,
   fetchStaffChatThread,
   fetchStaffChats,
@@ -12,6 +11,8 @@ import {
   searchStaffDm,
   sendStaffChatMessage,
   sendStaffDmMessage,
+  staffChatVoice,
+  staffDmVoice,
 } from '../lib/chat/staffChatApiClient.js'
 import { useChatThread } from './useChatThread.js'
 
@@ -47,7 +48,8 @@ export function useStaffDmThread(userId) {
   const send = useCallback((outgoing) => sendStaffDmMessage(userId, outgoing), [userId])
   const react = useCallback((messageId, emoji) => reactStaffDmMessage(userId, messageId, emoji), [userId])
   const search = useCallback((q) => searchStaffDm(userId, q), [userId])
-  return useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search, dictate: dictateStaffChat })
+  const voice = useMemo(() => staffDmVoice(userId), [userId])
+  return useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search, voice })
 }
 
 /** Лента диалога с клиентом. */
@@ -56,5 +58,6 @@ export function useStaffChatThread(clientId, kind) {
   const send = useCallback((outgoing) => sendStaffChatMessage(clientId, kind, outgoing), [clientId, kind])
   const react = useCallback((messageId, emoji) => reactStaffChatMessage(clientId, kind, messageId, emoji), [clientId, kind])
   const search = useCallback((q) => searchStaffChat(clientId, kind, q), [clientId, kind])
-  return useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search, dictate: dictateStaffChat })
+  const voice = useMemo(() => staffChatVoice(clientId, kind), [clientId, kind])
+  return useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search, voice })
 }

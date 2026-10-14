@@ -22,10 +22,15 @@ function newUuid() {
  * (сервер мог сохранить, а ответ потерялся); другое сообщение или диалог — новый.
  * @param {{ key: string, sig: string, id: string } | null} prev номер неудачной отправки
  * @param {string} key диалог
- * @param {{ body?: string, sticker?: string }} outgoing
+ * @param {{ body?: string, sticker?: string, audio?: string }} outgoing
  */
 export function nextChatOutgoingId(prev, key, outgoing) {
-  const sig = outgoing?.sticker ? `s:${outgoing.sticker}` : `t:${String(outgoing?.body ?? '')}`
+  const audio = typeof outgoing?.audio === 'string' ? outgoing.audio : ''
+  const sig = audio
+    ? `v:${audio.length}:${audio.slice(-64)}`
+    : outgoing?.sticker
+      ? `s:${outgoing.sticker}`
+      : `t:${String(outgoing?.body ?? '')}`
   if (prev && prev.key === key && prev.sig === sig) return prev
   return { key, sig, id: newUuid() }
 }

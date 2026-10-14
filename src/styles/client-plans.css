@@ -110,6 +110,31 @@
   font-size: 0.8rem;
 }
 
+.client-plan__row:has(.client-plan__how[open]) {
+  align-items: flex-start;
+}
+
+.client-plan__how summary {
+  width: fit-content;
+  min-height: 32px;
+  padding: 6px 0;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.client-plan__how p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.client-plan__how .client-plan__tip {
+  color: var(--text-muted);
+}
+
 .client-plan__chip {
   flex: none;
   font-weight: 600;

@@ -124,6 +124,18 @@ async function runAndroidManifest(browser, c) {
     await page.getByRole('button', { name: 'Войти' }).click()
     await reaches(slot10(page))
     c.ok(JSON.stringify(await manifests()) === JSON.stringify([clubManifest]), 'Android: после входа manifest клуба — значок назовётся как клуб')
+    const banner = page.getByRole('region', { name: 'Значок на экран «Домой»' })
+    c.ok(await reaches(banner), 'Android: подсказка про значок есть и без окна браузера (Яндекс, Samsung)')
+    await banner.getByRole('button', { name: 'Как?' }).click()
+    c.ok(await reaches(banner.getByText('«Установить приложение» или «Добавить на главный экран»')), 'Android: шаги через меню браузера')
+    await page.evaluate(() => {
+      const e = new Event('beforeinstallprompt', { cancelable: true })
+      e.prompt = () => {}
+      e.userChoice = Promise.resolve({ outcome: 'dismissed' })
+      globalThis.dispatchEvent(e)
+    })
+    c.ok(await reaches(banner.getByRole('button', { name: 'Установить' })), 'Android: Chrome готов — кнопка «Установить»')
+    await screenshot(page, 'coach-install-android')
     await page.route('**/src/main.jsx*', (route) => route.abort())
     await page.reload()
     c.ok(JSON.stringify(await manifests()) === JSON.stringify([clubManifest]), 'Android: manifest клуба при загрузке, ещё до приложения')

@@ -19,6 +19,9 @@ import {
 } from '../../src/lib/trainer/trainerPushClubBindingCore.js'
 import { assertChallengeClub } from '../../src/lib/challengePushClubCore.js'
 import { assertClientPlanPush } from '../../src/lib/clientPlans/clientPlanCore.js'
+import { assertHomeworkAutoPush } from '../../src/lib/homework/auto/homeworkAutoScheduleCore.js'
+import { assertHealthScreeningPush } from '../../src/lib/health/healthScreeningCore.js'
+import { assertHomeworkLibraryPush } from '../../src/lib/homework/library/homeworkLibraryOverridesCore.js'
 import { isTransientDbError, logDbError } from './dbErrorPublicCore.js'
 
 const UUID_RE =
@@ -476,12 +479,19 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
   'client_hall_lifecycle',
   'trainer_schedule_entries',
   'client_plans',
+  'homework_auto',
+  'health_screenings',
+  'homework_library',
 ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
   }
 
-  if (table_name === 'client_plans') {
+  if (table_name === 'homework_library') {
+    return assertHomeworkLibraryPush({ op, isAdmin, userId: user.id, payload, remoteId: remote_id })
+  }
+
+  if (table_name === 'client_plans' || table_name === 'homework_auto' || table_name === 'health_screenings') {
     try {
       let client = null
       if (isUuid(payload.client_id)) {
@@ -492,6 +502,12 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
           .maybeSingle()
         if (res.error) throw res.error
         client = res.data
+      }
+      if (table_name === 'homework_auto') {
+        return assertHomeworkAutoPush({ op, isAdmin, isTrainer, userId: user.id, payload, remoteId: remote_id, client })
+      }
+      if (table_name === 'health_screenings') {
+        return assertHealthScreeningPush({ op, isAdmin, isTrainer, userId: user.id, payload, remoteId: remote_id, client })
       }
       return assertClientPlanPush({ op, isAdmin, isTrainer, userId: user.id, payload, client })
     } catch (e) {

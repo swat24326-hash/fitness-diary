@@ -85,6 +85,7 @@
 | UUID на http://IP | `src/lib/safeRandomUuid.js`, `src/lib/installSafeRandomUuid.js` (первый импорт `src/main.jsx`) |
 | Вход API | `api/auth-sign-in.js`, `api/_lib/authLoginResolveCore.js` |
 | Клиент входа | `src/lib/authSignInService.js`, `src/lib/authLoginResolveCore.js` |
+| Окно «Установить» | `src/lib/pwa/installPromptStore.js` (ловится в `main.jsx`), `src/hooks/useInstallPrompt.js`, режим подсказки `src/lib/client/clientInstallCore.js`; verify `scripts/verify-client-app-branding.mjs` |
 | SW / обновление | `src/lib/appLifecycle.js`, `src/lib/appUpdateApplyService.js`, `src/lib/appBuildInfo.js` |
 | Verify | `scripts/verify-auth-sign-in-fallback.mjs`, `scripts/verify-auth-sign-in-fast-path.mjs`, `scripts/verify-auth-session-recover.mjs` |
 | Docs | [PWA.md](./PWA.md), [RUNBOOK.md](./RUNBOOK.md) §4, INCIDENTS **E** |

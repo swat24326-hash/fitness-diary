@@ -108,6 +108,9 @@ async function cacheTrainerPull(
     client_hall_lifecycle,
     trainer_schedule_entries,
     client_plans,
+    homework_auto,
+    health_screenings,
+    homework_library,
     club_id,
     outreach_templates,
   },
@@ -157,6 +160,15 @@ async function cacheTrainerPull(
       await putStoreUnlessPendingSync('client_plans', row, pending)
     } catch {
       /* store ещё не создан до reload */
+    }
+  }
+  for (const [store, list] of [['homework_auto', homework_auto], ['health_screenings', health_screenings], ['homework_library', homework_library]]) {
+    for (const row of list ?? []) {
+      try {
+        await putStoreUnlessPendingSync(store, row, pending)
+      } catch {
+        /* store ещё не создан до reload */
+      }
     }
   }
   for (const row of trainer_schedule_entries ?? []) {

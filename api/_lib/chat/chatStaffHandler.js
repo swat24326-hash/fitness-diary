@@ -6,10 +6,11 @@
  * GET  view=dm-thread&user_id / POST { op: 'dm-send', user_id } — переписка сотрудников (staffDmHandler.js)
  * GET  view=thread&client_id&kind[&before][&seen=0] → { client, kind, can_write, messages, has_more } (отмечает прочитанным; seen=0 — нет)
  * GET  view=search&client_id&kind&q | view=dm-search&user_id&q → { results: [{ id, created_at, who, snippet }] } — поиск по диалогу, новые сверху
- * POST { op: 'send', client_id, kind, body } → { message }
+ * POST { op: 'send', client_id, kind, body | sticker | (audio, sec, wave) } → { message } (audio — голосовое, base64 MP3)
  * POST { op: 'react', client_id, kind, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } → { message_id, reactions }
  *      (реакцию ставит тот, кто может писать в диалог)
- * POST { op: 'dictate', audio } → { text } — голос в текст для поля ввода (chatDictateHandler.js); всем, у кого есть переписка
+ * POST { op: 'voice-audio' | 'voice-text', client_id, kind, message_id } | { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id }
+ *      → { audio, mime } | { done, text? } — звук голосового (сутки) и расшифровка «→ Аа»; права — как на чтение диалога
  * Тренер, связанный с управляющим (linkedStaffStore), ведёт «Жалобы и предложения» (kind supervisor) от учётки управляющего.
  */
 import { sendJson } from '../adminSupabase.js'
@@ -28,11 +29,9 @@ import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
-import { staffDmRoleOf } from '../../../src/lib/chat/staffDmAccessCore.js'
-import { openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
-import { dictateChatAudio } from './chatDictateHandler.js'
+import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
-import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, staffDmAttention } from './staffDmHandler.js'
+import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice, staffDmAttention } from './staffDmHandler.js'
 import { isMissingChatTable, loadChatClient, loadClientsByIds, loadStaffThreads } from './chatStore.js'
 import { linkedComplaintThreads, linkedSupervisorCtx } from './linkedStaffStore.js'
 
@@ -147,23 +146,35 @@ export async function handleStaffChatPost(ctx, res, body) {
   const op = String(body?.op ?? '')
   if (op === 'dm-send') return sendStaffDmMessage(ctx, res, body?.user_id, body)
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body?.user_id, body)
-  if (op === 'dictate') {
-    if (!chatStaffRole(ctx) && !staffDmRoleOf(ctx.profile?.role)) return sendJson(res, 403, { error: CHAT_NO_ACCESS_RU })
-    const out = await dictateChatAudio(`u:${ctx.user?.id ?? ''}`, body?.audio)
-    return sendJson(res, out.status, out.body)
+  if (op === 'dm-voice-audio' || op === 'dm-voice-text') {
+    return sendStaffDmVoice(ctx, res, body?.user_id, body?.message_id, op === 'dm-voice-text' ? 'text' : 'audio')
   }
   const scope = scopeOf(ctx, res)
   if (!scope) return
-  if (op !== 'send' && op !== 'react') {
+  const voiceWant = op === 'voice-audio' ? 'audio' : op === 'voice-text' ? 'text' : null
+  if (op !== 'send' && op !== 'react' && !voiceWant) {
     sendJson(res, 400, { error: 'Неизвестное действие' })
     return
   }
   const kind = String(body?.kind ?? '')
   try {
-    const found = await resolveClient(ctx, res, body?.client_id, kind, true)
+    const found = await resolveClient(ctx, res, body?.client_id, kind, !voiceWant)
     if (!found) return
     const { client, actor } = found
     const userId = String(actor.user?.id ?? scope.userId)
+    if (voiceWant) {
+      const out = await chatVoiceOf(ctx.supabaseAdmin, {
+        client,
+        kind,
+        messageId: body?.message_id,
+        want: voiceWant,
+        who: `u:${scope.userId}`,
+        side: 'staff',
+        mark: staffMarksChatRead(scope.role),
+      })
+      sendJson(res, out.status, out.body)
+      return
+    }
     if (op === 'react') {
       const reactor = chatReactorKey('staff', userId)
       const out = await reactChatMessage(ctx.supabaseAdmin, { client, kind, reactor, messageId: body?.message_id, emoji: body?.emoji })
@@ -177,8 +188,10 @@ export async function handleStaffChatPost(ctx, res, body) {
       userId,
       body: body?.body,
       sticker: body?.sticker,
+      voice: { audio: body?.audio, sec: body?.sec, wave: body?.wave, once: body?.once },
       clientMsgId: body?.client_msg_id,
       replyTo: body?.reply_to,
+      silent: body?.silent === true,
     })
     sendJson(res, out.status, out.body)
   } catch (e) {

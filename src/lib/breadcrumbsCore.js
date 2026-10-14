@@ -38,6 +38,7 @@ export const STRUCTURE_TAB_LABELS = {
   loyalty: 'Лояльность',
   'nutrition-products': 'Питание',
   'homework-presets': 'ДЗ',
+  'homework-library': 'Библиотека ДЗ',
   exercises: 'Упражнения',
   'max-messages': 'Max и SMS',
   'coach-quality': 'Качество ведения',

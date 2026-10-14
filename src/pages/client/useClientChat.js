@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  dictateClientChat,
+  clientChatVoice,
   fetchClientChatThread,
   fetchClientChats,
   reactClientChatMessage,
@@ -33,5 +33,6 @@ export function useClientChatThread(kind) {
   const send = useCallback((outgoing) => sendClientChatMessage(kind, outgoing), [kind])
   const react = useCallback((messageId, emoji) => reactClientChatMessage(kind, messageId, emoji), [kind])
   const search = useCallback((q) => searchClientChat(kind, q), [kind])
-  return useChatThread({ key: kind, side: 'client', load, send, react, search, dictate: dictateClientChat })
+  const voice = useMemo(() => clientChatVoice(kind), [kind])
+  return useChatThread({ key: kind, side: 'client', load, send, react, search, voice })
 }

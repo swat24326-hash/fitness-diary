@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { ChevronDown, Settings, Smartphone } from 'lucide-react'
 import { HeaderPushSwitch } from './HeaderPushSwitch.jsx'
 import { HeaderChatSoundSwitch } from './HeaderChatSoundSwitch.jsx'
+import { HeaderInstallItem } from './HeaderInstallItem.jsx'
 
 /** «Настройки» в бургере: служебные пункты свёрнуты, чтобы меню не разрасталось. */
 export function HeaderSettingsMenu({ attention = false, defaultOpen = false, children }) {
@@ -45,6 +46,7 @@ export function HeaderStaffSettingsItems({ showPush, showChatSound, showPhoneQr,
           QR для телефона
         </button>
       ) : null}
+      <HeaderInstallItem />
     </>
   )
 }

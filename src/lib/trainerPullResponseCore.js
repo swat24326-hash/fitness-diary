@@ -17,6 +17,9 @@
  *   client_hall_lifecycle: object[],
  *   trainer_schedule_entries: object[],
  *   client_plans: object[],
+ *   homework_auto: object[],
+ *   health_screenings: object[],
+ *   homework_library: object[],
  *   club_id: string|null,
  *   outreach_templates: unknown,
  *   trainings_truncated: boolean,
@@ -43,6 +46,9 @@ export function normalizeTrainerPullPayload(data) {
     client_hall_lifecycle: Array.isArray(d.client_hall_lifecycle) ? d.client_hall_lifecycle : [],
     trainer_schedule_entries: Array.isArray(d.trainer_schedule_entries) ? d.trainer_schedule_entries : [],
     client_plans: Array.isArray(d.client_plans) ? d.client_plans : [],
+    homework_auto: Array.isArray(d.homework_auto) ? d.homework_auto : [],
+    health_screenings: Array.isArray(d.health_screenings) ? d.health_screenings : [],
+    homework_library: Array.isArray(d.homework_library) ? d.homework_library : [],
     club_id: d.club_id != null && String(d.club_id).trim() ? String(d.club_id).trim() : null,
     outreach_templates: Object.prototype.hasOwnProperty.call(d, 'outreach_templates')
       ? d.outreach_templates

@@ -19,6 +19,7 @@ import {
   SCHEDULE_PULL_DAYS_FORWARD,
 } from '../src/lib/trainer/trainerScheduleCore.js'
 import { isTransientDbError, logDbError, pgErrorPublic } from './_lib/dbErrorPublicCore.js'
+import { loadHomeworkLibraryRows } from './_lib/homeworkLibrary/homeworkLibraryRows.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -394,6 +395,31 @@ async function handler(req, res) {
     }
   }
 
+  /** Строки «одна на клиента» (авто-ДЗ, анкета здоровья); нет таблицы до миграции — пустой список. */
+  async function pullPerClientRows(table) {
+    const out = []
+    for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
+      const chunk = clientIds.slice(i, i + IN_CHUNK)
+      if (!chunk.length) continue
+      try {
+        const { data, error } = await supabaseAdmin.from(table).select('*').in('client_id', chunk)
+        if (!error) out.push(...(data ?? []))
+        else noteBusy(error)
+      } catch (e) {
+        noteBusy(e)
+      }
+    }
+    return out
+  }
+  const homework_auto = await pullPerClientRows('homework_auto')
+  const health_screenings = await pullPerClientRows('health_screenings')
+  let homework_library = []
+  try {
+    homework_library = await loadHomeworkLibraryRows(supabaseAdmin)
+  } catch (e) {
+    noteBusy(e)
+  }
+
   let trainer_schedule_entries = []
   try {
     const todayMsk = todayInTimeZoneIso()
@@ -433,6 +459,9 @@ async function handler(req, res) {
     client_hall_lifecycle,
     trainer_schedule_entries,
     client_plans,
+    homework_auto,
+    health_screenings,
+    homework_library,
     club_id: trainerClubId || null,
     outreach_templates,
     trainings_truncated: trainingsTruncated,
@@ -453,6 +482,9 @@ async function handler(req, res) {
       sale_clips: sale_clips.length,
       trainer_schedule_entries: trainer_schedule_entries.length,
       client_plans: client_plans.length,
+      homework_auto: homework_auto.length,
+      health_screenings: health_screenings.length,
+      homework_library: homework_library.length,
     },
     schedule_pull_window: {
       day_from: resolveTrainerSchedulePullWindow(todayInTimeZoneIso()).dayFrom,

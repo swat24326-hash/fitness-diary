@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useInstallPrompt } from '../../hooks/useInstallPrompt.js'
 import { clientInstallMode } from '../../lib/client/clientInstallCore.js'
 
 function isStandalone() {
@@ -6,41 +6,16 @@ function isStandalone() {
 }
 
 /**
- * Установка на телефон. Событие beforeinstallprompt браузер шлёт один раз за загрузку —
+ * Установка на телефон. Окно браузера ловится при старте приложения (installPromptStore) —
  * хук живёт в ClientAppContext, чтобы кнопка работала с любого экрана /me.
- * @returns {{ mode: 'none'|'prompt'|'ios', install: () => Promise<boolean>, installed: boolean }}
+ * @returns {{ mode: 'none'|'prompt'|'ios'|'android', install: () => Promise<boolean>, installed: boolean }}
  */
 export function useClientInstall() {
-  const [promptEvent, setPromptEvent] = useState(null)
-  const [installed, setInstalled] = useState(isStandalone)
-
-  useEffect(() => {
-    const onPrompt = (e) => {
-      e.preventDefault()
-      setPromptEvent(e)
-    }
-    const onInstalled = () => setInstalled(true)
-    window.addEventListener('beforeinstallprompt', onPrompt)
-    window.addEventListener('appinstalled', onInstalled)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt)
-      window.removeEventListener('appinstalled', onInstalled)
-    }
-  }, [])
-
-  const install = useCallback(async () => {
-    if (!promptEvent) return false
-    promptEvent.prompt()
-    const { outcome } = await promptEvent.userChoice
-    setPromptEvent(null)
-    if (outcome !== 'accepted') return false
-    setInstalled(true)
-    return true
-  }, [promptEvent])
-
+  const { hasPrompt, installedNow, install } = useInstallPrompt()
+  const installed = installedNow || isStandalone()
   const mode = clientInstallMode({
     standalone: installed,
-    hasPrompt: !!promptEvent,
+    hasPrompt,
     ua: navigator.userAgent,
     maxTouchPoints: navigator.maxTouchPoints,
   })

@@ -25,8 +25,7 @@ export function HomeworkPlanDisplay({
       <section className="card homework-preview homework-preview--empty" aria-live="polite">
         <p className="homework-preview__empty-title">Почти готово</p>
         <p className="muted homework-preview__empty-text">
-          Выберите шаблон сверху — или откройте конструктор и добавьте упражнения. Затем отправьте в Max или другой
-          мессенджер.
+          Выберите шаблон, соберите в конструкторе или подберите во вкладке «Авто». Затем отправьте клиенту.
         </p>
       </section>
     )

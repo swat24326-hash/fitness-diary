@@ -44,7 +44,7 @@ export function StaffDmPane({ userId, backTo, back = null, onSent }) {
           onReact={chat.react}
           reply={chat.reply}
           search={chat.search}
-          dictate={chat.dictate}
+          voice={chat.voice}
           messages={chat.messages}
           hasMore={chat.hasMore}
           onLoadOlder={() => void chat.loadOlder()}

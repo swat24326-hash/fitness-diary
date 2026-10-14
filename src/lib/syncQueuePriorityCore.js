@@ -19,6 +19,9 @@ export const SYNC_TABLE_PRIORITY = Object.freeze({
   body_measurements: 50,
   client_weight_entries: 55,
   client_plans: 57,
+  homework_auto: 58,
+  health_screenings: 41,
+  homework_library: 18,
   challenges: 60,
   exercises: 70,
 })

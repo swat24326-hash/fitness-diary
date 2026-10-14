@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Dumbbell, Lock, User } from 'lucide-react'
 import { AppWelcomeSplash } from '../components/AppWelcomeSplash'
 import { useAuth } from '../context/AuthContext'
+import { useInstallPrompt } from '../hooks/useInstallPrompt.js'
 import { isPwaUpdateInFlight } from '../lib/appUpdateInFlightSession.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../lib/authLoginResolveCore'
 import { getSupabaseSetupMessage } from '../lib/supabase'
@@ -14,29 +15,8 @@ export function Login() {
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
-  const [showInstallButton, setShowInstallButton] = useState(false)
+  const { hasPrompt, install } = useInstallPrompt()
   const setupMessage = getSupabaseSetupMessage()
-
-  useEffect(() => {
-    const onBip = (e) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      setShowInstallButton(true)
-    }
-    window.addEventListener('beforeinstallprompt', onBip)
-    return () => window.removeEventListener('beforeinstallprompt', onBip)
-  }, [])
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    if (outcome === 'accepted') {
-      setShowInstallButton(false)
-    }
-    setDeferredPrompt(null)
-  }
 
   if (isPwaUpdateInFlight() && (loading || !user)) {
     return <AppWelcomeSplash displayName="Обновляем приложение…" />
@@ -130,8 +110,8 @@ export function Login() {
             {signingIn ? '…' : loading ? '…' : 'Войти'}
           </button>
         </form>
-        {showInstallButton && (
-          <button type="button" onClick={handleInstall} className="install-btn">
+        {hasPrompt && (
+          <button type="button" onClick={() => void install()} className="install-btn">
             Установить приложение
           </button>
         )}

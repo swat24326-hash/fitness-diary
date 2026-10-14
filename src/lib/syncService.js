@@ -61,6 +61,9 @@ const AUTO_PUSH_TABLES = new Set([
   'client_hall_lifecycle',
   'trainer_schedule_entries',
   'client_plans',
+  'homework_auto',
+  'health_screenings',
+  'homework_library',
 ])
 
 export function initConnectivityListeners() {

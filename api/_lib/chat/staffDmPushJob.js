@@ -11,10 +11,10 @@ import { chatPushBlocker, staffPushSubscriptions } from './chatPushJob.js'
  * Фоном после ответа API: ошибки только в лог, сообщение не откатываем. Круглосуточно — как переписка с клиентом.
  * Получатель-управляющий со связанной тренерской учёткой получит push и на планшет / телефон тренера.
  */
-export async function sendStaffDmPush(db, { recipientId, authorId, authorName, body }, send = sendWebPushToRow) {
+export async function sendStaffDmPush(db, { recipientId, authorId, authorName, body, silent = false }, send = sendWebPushToRow) {
   if (chatPushBlocker()) return { sent: 0, expired: 0 }
   const subs = await staffPushSubscriptions(db, [String(recipientId)], String(authorId))
-  const payload = buildStaffDmPushPayload({ authorId: String(authorId), authorName, body })
+  const payload = buildStaffDmPushPayload({ authorId: String(authorId), authorName, body, silent })
   const expired = []
   let sent = 0
   for (const s of subs) {

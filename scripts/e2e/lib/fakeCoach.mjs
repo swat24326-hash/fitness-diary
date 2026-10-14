@@ -112,13 +112,17 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       }
       if (COACH_SCHEDULE_WRITE_OPS.includes(req.body?.op)) return scheduleWrite(user, req.body)
       if (req.body?.op === 'client-invite') return clientInvite(user, req.body.client_id)
-      const { message_id, emoji, reply_to } = req.body ?? {}
-      if (req.body?.op === 'dm-send') return staff({}, { op: 'dm-send', user_id: req.body.user_id, body: req.body.body, sticker: req.body.sticker, reply_to })
-      if (req.body?.op === 'dm-react') return staff({}, { op: 'dm-react', user_id: req.body.user_id, message_id, emoji })
-      if (req.body?.op === 'chat-dictate') return staff({}, { op: 'dictate', audio: req.body.audio })
-      if (req.body?.op === 'chat-react') return staff({}, { op: 'react', client_id: req.body.client_id, kind: coachKind(req.body.kind), message_id, emoji })
-      if (req.body?.op !== 'chat-send') return { status: 400, json: { error: 'Неизвестное действие' } }
-      return staff({}, { client_id: req.body.client_id, kind: coachKind(req.body.kind), body: req.body.body, sticker: req.body.sticker, reply_to })
+      const { message_id, emoji, reply_to, audio, sec, wave, once, silent } = req.body ?? {}
+      const op = req.body?.op
+      if (op === 'dm-send') return staff({}, { op: 'dm-send', user_id: req.body.user_id, body: req.body.body, sticker: req.body.sticker, audio, sec, wave, once, reply_to, silent })
+      if (op === 'dm-react') return staff({}, { op: 'dm-react', user_id: req.body.user_id, message_id, emoji })
+      if (op === 'dm-voice-audio' || op === 'dm-voice-text') return staff({}, { op, user_id: req.body.user_id, message_id })
+      if (op === 'chat-voice-audio' || op === 'chat-voice-text') {
+        return staff({}, { op: op.slice('chat-'.length), client_id: req.body.client_id, kind: coachKind(req.body.kind), message_id })
+      }
+      if (op === 'chat-react') return staff({}, { op: 'react', client_id: req.body.client_id, kind: coachKind(req.body.kind), message_id, emoji })
+      if (op !== 'chat-send') return { status: 400, json: { error: 'Неизвестное действие' } }
+      return staff({}, { client_id: req.body.client_id, kind: coachKind(req.body.kind), body: req.body.body, sticker: req.body.sticker, audio, sec, wave, once, reply_to, silent })
     }
     const view = q.get('view') ?? 'me'
     if (view === 'me') {

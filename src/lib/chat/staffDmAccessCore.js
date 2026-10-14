@@ -6,6 +6,7 @@ import { normalizeStaffRole } from '../admin/adminRoleCore.js'
 import { USERS_ADMIN_ROLES, USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../userRoleConstants.js'
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_COLLEAGUES } from './chatContactsCore.js'
 import { CHAT_PUSH_PREVIEW_MAX, chatPreview } from './chatMessageCore.js'
+import { buildVoiceView } from './chatVoiceCore.js'
 
 export const STAFF_DM_SELF_RU = 'Нельзя написать самому себе'
 export const STAFF_DM_NO_PEER_RU = 'Сотрудник не найден'
@@ -128,6 +129,7 @@ export function buildStaffDmMessageView(m, userId) {
     id: String(m.id),
     body: m.body,
     sticker: m.sticker ?? null,
+    voice: buildVoiceView(m),
     created_at: m.created_at,
     side: mine ? 'staff' : 'client',
     mine,
@@ -136,12 +138,13 @@ export function buildStaffDmMessageView(m, userId) {
 }
 
 /** Push собеседнику: адрес планшета, телефон тренера сам переведёт в /coach/dm (pushTargetUrlCore). */
-export function buildStaffDmPushPayload({ authorId, authorName, body }) {
+export function buildStaffDmPushPayload({ authorId, authorName, body, silent = false }) {
   return {
     title: String(authorName || 'Сотрудник клуба').trim(),
     body: chatPreview(body, CHAT_PUSH_PREVIEW_MAX),
     url: `/messages/dm/${authorId}`,
     tag: `dm-${authorId}`,
+    ...(silent ? { silent: true } : {}),
   }
 }
 

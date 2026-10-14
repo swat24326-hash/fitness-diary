@@ -6,12 +6,12 @@ import { chronological } from '../../../src/lib/chat/chatMessageCore.js'
 import { USERS_ADMIN_ROLES, USERS_SALES_MANAGER_ROLES, USERS_SUPERVISOR_ROLES, USERS_TRAINER_ROLES } from '../../../src/lib/userRoleConstants.js'
 import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
-import { CHAT_PAGE } from './chatStore.js'
+import { CHAT_PAGE, voiceColumns } from './chatStore.js'
 
 const THREAD_FIELDS =
   'id, club_id, user_lo, user_hi, last_message_at, last_author, last_preview, lo_read_at, hi_read_at, lo_unread, hi_unread, ' +
   'last_reaction_at, last_reaction_emoji, last_reaction_by, lo_reaction_seen_at, hi_reaction_seen_at'
-export const DM_MESSAGE_FIELDS = 'id, body, sticker, created_at, author_user_id, reply_to'
+export const DM_MESSAGE_FIELDS = 'id, body, sticker, created_at, author_user_id, reply_to, voice_key, voice_sec, voice_wave, voice_text, voice_played_at, voice_once'
 const MESSAGE_FIELDS = DM_MESSAGE_FIELDS
 const USER_FIELDS = 'id, name, role, club_id, is_active'
 const DM_ROLES = [...USERS_TRAINER_ROLES, ...USERS_SALES_MANAGER_ROLES, ...USERS_SUPERVISOR_ROLES, ...USERS_ADMIN_ROLES]
@@ -116,7 +116,7 @@ export async function countRecentDmMessages(db, threadId, authorId, since, limit
  * duplicate — повтор с тем же client_msg_id (гонка двух повторов): сообщение уже было, push не шлём.
  * @returns {Promise<{ message: object, duplicate: boolean }>}
  */
-export async function insertDmMessage(db, thread, { authorId, body, sticker = null, clientMsgId = null, replyTo = null }) {
+export async function insertDmMessage(db, thread, { authorId, body, sticker = null, clientMsgId = null, replyTo = null, voice = null }) {
   const { data, error } = await db
     .from('staff_dm_messages')
     .insert({
@@ -126,6 +126,7 @@ export async function insertDmMessage(db, thread, { authorId, body, sticker = nu
       sticker,
       ...(clientMsgId ? { client_msg_id: clientMsgId } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
+      ...voiceColumns(voice),
     })
     .select(MESSAGE_FIELDS)
     .single()

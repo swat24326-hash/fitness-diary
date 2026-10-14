@@ -4,6 +4,7 @@ import { Calendar, Activity, Bluetooth, Info, Save, UserCircle } from 'lucide-re
 import { CloseButton } from '../../components/CloseButton'
 import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
+import { TrainingHealthBadges } from '../../components/health/TrainingHealthBadges.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { getHealthCard, getLocalClient, listClubsLocal, listMemberships, listTrainingsForClient, LOCAL_DATA_CHANGED } from '../../lib/dataAccess'
 import { clampIsoDateToToday, formatDateRu, isIsoDateAfterToday, todayLocalIso } from '../../lib/dateRu'
@@ -2193,6 +2194,7 @@ export function TrainingPage() {
         <div className="trainer-path-head__left training-page-head-title__left">
           <h1 className="trainer-path-head__title training-page-head-name">{title}</h1>
           {contra ? <ContraindicationsToggle text={contra} size="sm" mode="modal" /> : null}
+          {clientKey ? <TrainingHealthBadges clientId={clientKey} /> : null}
         </div>
         <div className="training-page-head-title__right">
           {!isAdmin && clientKey && !isTrainingStatusCompleted(meta.status) ? (

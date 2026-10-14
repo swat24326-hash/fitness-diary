@@ -10,6 +10,7 @@ supabase/.temp
 .vercel
 vercel-deploy-log.txt
 qa-screenshots/
+homework-library.csv
 .cursor/hooks/.state/
 .env*
 .local/

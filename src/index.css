@@ -39,6 +39,9 @@
 @import './styles/client-me-spark.css';
 @import './styles/client-trainings.css';
 @import './styles/client-plans.css';
+@import './styles/homework-auto.css';
+@import './styles/health-screening.css';
+@import './styles/homework-library-admin.css';
 @import './styles/client-segments.css';
 @import './styles/client-inbox.css';
 @import './styles/admin-inbox.css';
@@ -12071,7 +12074,7 @@ tr:last-child td {
 .homework-preview__field .input-sm,
 .homework-preview__meta-inputs .input-sm {
   width: 76px;
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .homework-preview__chip {
@@ -12110,14 +12113,38 @@ tr:last-child td {
   position: sticky;
   bottom: 10px;
   z-index: 2;
-  padding-top: 4px;
+  padding: 10px;
+  margin-inline: -10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 12px);
+  background: var(--bg);
+  box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.45);
 }
 
 .homework-preview__send-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
   width: 100%;
+}
+
+.homework-preview__meta-inputs .btn-icon-square,
+.homework-preview__head-right .btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (min-width: 700px) {
+  .homework-preview__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 16px;
+  }
+
+  .homework-preview__row > :not(.homework-preview__name):not(.homework-preview__meta-inputs):not(.homework-preview__chip) {
+    grid-column: 1 / -1;
+  }
 }
 
 .homework-preview__send {

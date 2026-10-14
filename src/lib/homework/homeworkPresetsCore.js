@@ -16,13 +16,18 @@ export function normalizeHomeworkExerciseItem(raw) {
   const name = String(r.name ?? '').trim().slice(0, 120)
   if (!name) return null
   const catalogId = String(r.catalog_exercise_id ?? r.exerciseId ?? '').trim() || null
-  return {
+  const item = {
     catalog_exercise_id: catalogId,
     name,
     sets: clampInt(r.sets, 2, 1, 20),
     reps: String(r.reps ?? '10').trim().slice(0, 40) || '10',
     rest_sec: clampInt(r.rest_sec ?? r.restSec, 30, 0, 600),
   }
+  const how = String(r.how ?? '').trim().slice(0, 220)
+  const tip = String(r.tip ?? '').trim().slice(0, 240)
+  if (how) item.how = how
+  if (tip) item.tip = tip
+  return item
 }
 
 /** @param {unknown} raw */

@@ -134,6 +134,9 @@ function trainerPull(state, user) {
     client_hall_lifecycle: [],
     trainer_schedule_entries: (state.trainer_schedule_entries ?? []).filter((r) => r.trainer_id === user.id),
     client_plans: byClient(state.client_plans ?? []).map(({ payload: _p, ...mark }) => mark),
+    homework_auto: byClient(state.homework_auto ?? []),
+    health_screenings: byClient(state.health_screenings ?? []),
+    homework_library: state.homework_library ?? [],
     outreach_templates: null,
   }
 }
@@ -230,6 +233,9 @@ export function createFakeBackend(seed) {
     if (path === '/api/admin-data' && backend.adminData) {
       const res = backend.adminData(req, user)
       if (res) return res
+    }
+    if (path === '/api/admin-data' && searchParams.get('action') === 'homework-library') {
+      return { status: 200, json: { rows: state.homework_library ?? [] } }
     }
     if (path === '/api/admin-data' && searchParams.get('action') === 'exercises') {
       return { status: 200, json: { exercises: state.exercises, count: state.exercises.length } }

@@ -88,8 +88,11 @@ const maxRetries = maxRetriesMatch ? Number(maxRetriesMatch[1]) : 0
 ok(maxRetries >= 8, `sync queue max retries (${maxRetries})`)
 
 const localDbSrc = readFileSync(join(root, 'src/lib/localDb.js'), 'utf8')
-ok(/DB_VERSION\s*=\s*20/.test(localDbSrc), 'indexeddb version 20 with client_plans')
+ok(/DB_VERSION\s*=\s*23/.test(localDbSrc), 'indexeddb version 23 with homework_library')
+ok(localDbSrc.includes("createObjectStore('health_screenings'"), 'indexeddb health_screenings store')
+ok(localDbSrc.includes("createObjectStore('homework_library'"), 'indexeddb homework_library store')
 ok(localDbSrc.includes("createObjectStore('client_plans'"), 'indexeddb client_plans store')
+ok(localDbSrc.includes("createObjectStore('homework_auto'"), 'indexeddb homework_auto store')
 ok(localDbSrc.includes('sale_clips'), 'indexeddb sale_clips store')
 ok(localDbSrc.includes('loyalty_glance'), 'indexeddb loyalty_glance store')
 ok(localDbSrc.includes('client_hall_lifecycle'), 'indexeddb client_hall_lifecycle store')

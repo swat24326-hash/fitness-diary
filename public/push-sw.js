@@ -24,6 +24,7 @@ self.addEventListener('push', (event) => {
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-96.png',
         tag,
+        silent: data.silent === true,
         data: { url },
       }),
       /* Открытое приложение сразу обновляет числа и ленту — не ждёт опроса (pushReceivedSignal.js). */

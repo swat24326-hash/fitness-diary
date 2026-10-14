@@ -1,0 +1,173 @@
+/* Админка → Структура → «Библиотека ДЗ»: список упражнений авто-ДЗ и форма правки. */
+
+.hwlib.card {
+  display: grid;
+  gap: 12px;
+}
+
+.hwlib__title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.hwlib__count {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.hwlib__actions {
+  gap: 8px;
+}
+
+.hwlib__hint,
+.hwlib__msg {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.hwlib__msg {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.hwlib__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.hwlib__search {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.hwlib__filters .select {
+  flex: 0 1 240px;
+  width: auto;
+}
+
+.hwlib-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hwlib__table td {
+  vertical-align: middle;
+}
+
+.hwlib__name {
+  font-weight: 600;
+}
+
+.hwlib__status {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hwlib__status--edited {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  color: var(--warning);
+}
+
+.hwlib__status--custom {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+}
+
+.hwlib__status--removed {
+  color: var(--text-muted);
+}
+
+.hwlib__row--removed td {
+  color: var(--text-muted);
+}
+
+.hwlib__row-actions {
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.hwlib__empty {
+  margin: 12px 0 0;
+  text-align: center;
+}
+
+/* Форма */
+.modal-panel.hwlib-form {
+  display: grid;
+  gap: 14px;
+  width: min(640px, 100%);
+  max-height: min(90vh, 900px);
+  overflow-y: auto;
+}
+
+.hwlib-form__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hwlib-form__head .section-title {
+  margin: 0;
+}
+
+.hwlib-form__field {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.hwlib-form__field .label {
+  margin: 0;
+}
+
+.hwlib-form__label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hwlib-form__count {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.hwlib-form__count--over {
+  color: var(--danger);
+}
+
+.hwlib-form__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.hwlib-form__dumbbells {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.hwlib-form__actions {
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

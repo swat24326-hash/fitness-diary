@@ -4,7 +4,7 @@ import { resolveQueueItemAfterPushAck } from './syncQueueAckCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 20
+const DB_VERSION = 23
 
 /** @type {Promise<import('idb').IDBPDatabase> | null} */
 let dbPromise = null
@@ -189,6 +189,26 @@ function upgradeFitnessDb(db, oldVersion, _newVersion, transaction) {
       plans.createIndex('by_client_id', 'client_id', { unique: false })
     }
   }
+
+  if (oldVersion < 21) {
+    if (!db.objectStoreNames.contains('homework_auto')) {
+      const auto = db.createObjectStore('homework_auto', { keyPath: 'id' })
+      auto.createIndex('by_client_id', 'client_id', { unique: false })
+    }
+  }
+
+  if (oldVersion < 22) {
+    if (!db.objectStoreNames.contains('health_screenings')) {
+      const scr = db.createObjectStore('health_screenings', { keyPath: 'id' })
+      scr.createIndex('by_client_id', 'client_id', { unique: false })
+    }
+  }
+
+  if (oldVersion < 23) {
+    if (!db.objectStoreNames.contains('homework_library')) {
+      db.createObjectStore('homework_library', { keyPath: 'id' })
+    }
+  }
 }
 
 function openFitnessDb() {
@@ -329,6 +349,9 @@ export async function buildPendingSyncKeysByTable() {
     client_hall_lifecycle: new Set(),
     trainer_schedule_entries: new Set(),
     client_plans: new Set(),
+    homework_auto: new Set(),
+    health_screenings: new Set(),
+    homework_library: new Set(),
   }
   for (const item of queue) {
     const op = item.operation
@@ -434,6 +457,8 @@ export async function removeClientFromLocalCacheOnly(clientId) {
   await deleteAllByIndexKey('body_measurements', 'by_client_id', cid)
   await deleteAllByIndexKey('client_weight_entries', 'by_client_id', cid)
   await deleteAllByIndexKey('client_plans', 'by_client_id', cid)
+  await deleteAllByIndexKey('homework_auto', 'by_client_id', cid)
+  await deleteAllByIndexKey('health_screenings', 'by_client_id', cid)
   try {
     await db.delete('health_cards', cid)
   } catch {

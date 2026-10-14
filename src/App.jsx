@@ -9,6 +9,7 @@ import { AppHeader } from './components/AppHeader'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { UnknownRouteRedirect } from './components/UnknownRouteRedirect.jsx'
 import { PushOpenNavigator } from './components/PushOpenNavigator.jsx'
+import { ChatVoiceMiniPlayer } from './components/chat/ChatVoiceMiniPlayer.jsx'
 import { AppWelcomeSplash } from './components/AppWelcomeSplash'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
@@ -289,6 +290,7 @@ export default function App() {
       <BrowserRouter>
         <AppPwaOverlays />
         <PushOpenNavigator />
+        <ChatVoiceMiniPlayer />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/me/*" element={<ClientAppRoutes />} />

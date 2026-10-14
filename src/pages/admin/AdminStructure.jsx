@@ -7,6 +7,7 @@ import { AdminSalesManagers } from './AdminSalesManagers'
 import { AdminSupervisors } from './AdminSupervisors'
 import { AdminNutritionProducts } from './AdminNutritionProducts'
 import { AdminHomeworkPresets } from './AdminHomeworkPresets'
+import { AdminHomeworkLibrary } from './AdminHomeworkLibrary.jsx'
 import { AdminMaxOutreach } from './AdminMaxOutreach'
 import { AdminCoachQualitySettings } from './AdminCoachQualitySettings'
 import { AdminClubPlanSettings } from './AdminClubPlanSettings'
@@ -24,6 +25,7 @@ const TAB_IDS = [
   'loyalty',
   'nutrition-products',
   'homework-presets',
+  'homework-library',
   'exercises',
   'max-messages',
   'coach-quality',
@@ -41,6 +43,7 @@ const TABS = [
   { id: 'loyalty', label: 'Лояльность' },
   { id: 'nutrition-products', label: 'Питание' },
   { id: 'homework-presets', label: 'ДЗ' },
+  { id: 'homework-library', label: 'Библиотека ДЗ' },
   { id: 'exercises', label: 'Упражнения' },
   { id: 'max-messages', label: 'Max и SMS' },
   { id: 'coach-quality', label: 'Качество ведения' },
@@ -174,6 +177,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'homework-presets' ? <AdminHomeworkPresets /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-homework-library"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-homework-library"
+          hidden={tab !== 'homework-library'}
+          className="admin-structure__panel"
+        >
+          {tab === 'homework-library' ? <AdminHomeworkLibrary /> : null}
         </div>
         <div
           id="admin-structure-panel-exercises"

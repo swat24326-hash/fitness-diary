@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, MessageCircle, Search } from 'lucide-react'
 import { ChatComposer } from './ChatComposer.jsx'
 import { ChatFeed } from './ChatFeed.jsx'
 import { ChatSearchBar } from './ChatSearchBar.jsx'
+import { ChatVoiceMiniPlayer } from './ChatVoiceMiniPlayer.jsx'
 import { useChatJump } from '../../hooks/useChatJump.js'
 import { useChatSearch } from '../../hooks/useChatSearch.js'
 import { attachChatStickToBottom, chatNewMessageAction, scrollChatToEnd } from '../../lib/chat/chatStickToBottom.js'
@@ -17,10 +18,11 @@ import '../../styles/chat-search.css'
  *   canWrite?: boolean, readOnlyHint?: string, emptyHint: string, placeholder?: string,
  *   onAtBottom?: (atBottom: boolean) => void, onReact?: (messageId: string, emoji: string) => void,
  *   reply?: { to: object|null, start: (message: object) => void, cancel: () => void, find: (id: string) => Promise<boolean> },
- *   search?: (q: string) => Promise<{ results: object[] }>, dictate?: (audio: string) => Promise<{ text: string }>,
+ *   search?: (q: string) => Promise<{ results: object[] }>,
+ *   voice?: { audio: (messageId: string) => Promise<object>, text: (messageId: string) => Promise<object>, record?: boolean },
  * }} props
  * reply — «Ответить» с цитатой (useChatThread().reply); search — поиск по диалогу на сервере (лупа в углу ленты);
- * dictate — голос в текст для поля ввода (🎤)
+ * voice — голосовые: слушать и «→ Аа» в ленте, записывать — 🎤 в поле ввода
  * onAtBottom — внизу ли человек: «прочитано» ставим, только когда новое на экране (useChatThread)
  */
 export function ChatThreadView({
@@ -39,7 +41,7 @@ export function ChatThreadView({
   onReact,
   reply,
   search,
-  dictate,
+  voice,
 }) {
   const threadRef = useRef(null)
   const feedRef = useRef(null)
@@ -108,6 +110,7 @@ export function ChatThreadView({
 
   return (
     <div className="chat-thread" ref={threadRef}>
+      {voice ? <ChatVoiceMiniPlayer inline /> : null}
       <div className="chat-thread__feed" ref={feedRef} aria-live="polite" data-testid="chat-feed">
         {finder.available && !finder.isOpen ? (
           <button type="button" className="chat-thread__search-toggle" aria-label="Поиск по переписке" title="Поиск по переписке" onClick={finder.open}>
@@ -135,6 +138,7 @@ export function ChatThreadView({
           onJump={jumper.jump}
           finding={jumper.finding}
           highlight={finder.isOpen && finder.results?.length ? finder.query : ''}
+          voice={voice}
         />
       </div>
 
@@ -146,7 +150,8 @@ export function ChatThreadView({
           sending={sending}
           sendError={sendError}
           placeholder={placeholder}
-          dictate={dictate}
+          voiceEnabled={Boolean(voice?.record)}
+          voiceDraftKey={voice?.draftKey ?? ''}
           above={floating}
           replyTo={reply?.to ?? null}
           onCancelReply={reply?.cancel}

@@ -6,9 +6,11 @@ import { isSupabaseConfigured } from './lib/supabase'
 import { initAppErrorJournal } from './lib/appErrorJournal'
 import { clearPoisonedSyncQueue, resetSyncQueueOnceAfterDeploy } from './lib/syncService'
 import { armViteChunkReloadOnStaleDeploy } from './lib/viteChunkReload.js'
+import { armInstallPromptCapture } from './lib/pwa/installPromptStore.js'
 
 initAppErrorJournal()
 armViteChunkReloadOnStaleDeploy()
+armInstallPromptCapture()
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/600.css'
 import '@fontsource/inter/700.css'

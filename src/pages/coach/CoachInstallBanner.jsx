@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { Share, Smartphone } from 'lucide-react'
-import { isCoachIos, isCoachStandalone } from '../../lib/coach/coachInstall.js'
+import { Download, Smartphone } from 'lucide-react'
+import { InstallSteps } from '../../components/install/InstallSteps.jsx'
+import { useInstallPrompt } from '../../hooks/useInstallPrompt.js'
+import { clientInstallMode } from '../../lib/client/clientInstallCore.js'
+import { isCoachStandalone } from '../../lib/coach/coachInstall.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { COACH_APP_TITLE } from './CoachShell.jsx'
 import { useCoachHandoff } from './useCoachHandoff.js'
@@ -16,15 +19,22 @@ function readHidden() {
 }
 
 /**
- * iPhone в Safari: как поставить значок «Домой». Пока подсказка на экране, значок унесёт с собой вход.
- * Свёрнута в строку — под ней Ежедневник, сетке часов нужна высота экрана.
+ * Значок «Домой»: Android — окно браузера «Установить» или шаги через меню; iPhone в Safari — шаги «Поделиться»,
+ * и пока подсказка на экране, значок унесёт с собой вход. Свёрнута в строку — под ней Ежедневник.
  */
 export function CoachInstallBanner() {
   const { club } = useCoachApp()
+  const { hasPrompt, installedNow, install } = useInstallPrompt()
   const [hidden, setHidden] = useState(readHidden)
   const [open, setOpen] = useState(false)
-  const show = !hidden && isCoachIos() && !isCoachStandalone()
-  useCoachHandoff({ active: show })
+  const mode = clientInstallMode({
+    standalone: installedNow || isCoachStandalone(),
+    hasPrompt,
+    ua: navigator.userAgent,
+    maxTouchPoints: navigator.maxTouchPoints,
+  })
+  const show = !hidden && mode !== 'none'
+  useCoachHandoff({ active: show && mode === 'ios' })
   if (!show) return null
 
   const hide = () => {
@@ -43,26 +53,32 @@ export function CoachInstallBanner() {
         <h2 className="coach-install__title">
           <Smartphone size={20} aria-hidden /> Значок на экран «Домой»
         </h2>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? 'Свернуть' : 'Как?'}
-        </button>
+        {mode === 'prompt' ? (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={async () => {
+              if (await install()) hide()
+            }}
+          >
+            <Download size={16} aria-hidden /> Установить
+          </button>
+        ) : (
+          <button type="button" className="btn btn-secondary btn-sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+            {open ? 'Свернуть' : 'Как?'}
+          </button>
+        )}
         <button type="button" className="btn btn-ghost btn-sm" onClick={hide}>
           Готово
         </button>
       </div>
-      {open ? (
-        <ol className="coach-install__steps">
-          <li>
-            Нажмите <Share size={16} aria-label="Поделиться" /> внизу экрана
-          </li>
-          <li>Выберите «На экран „Домой“»</li>
-          <li>Откройте значок «{name}» — он войдёт сам</li>
-        </ol>
+      {open && mode !== 'prompt' ? (
+        <InstallSteps
+          mode={mode}
+          name={name}
+          className="coach-install__steps"
+          lastStep={mode === 'ios' ? `Откройте значок «${name}» — он войдёт сам` : `Откройте значок «${name}»`}
+        />
       ) : null}
     </section>
   )

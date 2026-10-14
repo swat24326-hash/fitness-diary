@@ -1,11 +1,12 @@
 import { Check, CheckCheck } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { chatLinkCheck, chatLinkNeedsConfirm } from '../../lib/chat/chatLinkCore.js'
 import { chatTextParts } from '../../lib/chat/chatTextLinksCore.js'
 import { buildChatFeed } from '../../lib/chat/chatFeedCore.js'
 import { splitEmojiText } from '../../lib/chat/chatEmojiNotoCore.js'
 import { CHAT_QUICK_REACTION, myChatReaction } from '../../lib/chat/chatReactionCore.js'
 import { splitChatSearchMatches } from '../../lib/chat/chatSearchCore.js'
+import { setVoiceQueue } from '../../lib/chat/chatVoicePlayback.js'
 import { useChatLongPress } from '../../hooks/useChatLongPress.js'
 import { ChatEmojiAnimated } from './ChatEmojiAnimated.jsx'
 import { ChatEmojiGlyph } from './ChatEmojiGlyph.jsx'
@@ -14,6 +15,7 @@ import { ChatReactionMenu } from './ChatReactionMenu.jsx'
 import { ChatReactions } from './ChatReactions.jsx'
 import { ChatReplyQuote } from './ChatReplyQuote.jsx'
 import { ChatSticker } from './stickers/ChatSticker.jsx'
+import { ChatVoiceBubble } from './ChatVoiceBubble.jsx'
 
 const BURST_MS = 1200
 const TIME_FMT = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' })
@@ -90,16 +92,38 @@ function Meta({ m }) {
  * время и галочки внутри пузыря, крупные смайлики и стикеры без пузыря, реакции под сообщением.
  * onReact — может писать в диалог: долгое нажатие открывает реакции, «Ответить» и «Копировать», двойной тап — 👍,
  * свайп влево — «Ответить» (onReply). Нажали цитату — onJump(исходное, откуда) — useChatJump; finding — ищем его в истории.
- * highlight — запрос поиска: совпадения в тексте подсвечены.
+ * highlight — запрос поиска: совпадения в тексте подсвечены. voice — звук и текст голосовых по id сообщения;
+ * голосовые ленты по порядку — очередь общего плеера: доиграло одно — включается следующее собеседника.
  * @param {{ messages: object[], peerReadAt?: string|null, onReact?: (id: string, emoji: string) => void, onReply?: (message: object) => void,
- *   onJump?: (id: string, fromId: string) => void, finding?: string|null, highlight?: string }} props
+ *   onJump?: (id: string, fromId: string) => void, finding?: string|null, highlight?: string,
+ *   voice?: { audio: (id: string) => Promise<object>, text: (id: string) => Promise<object>, peerName?: string } | null }} props
  */
-export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, finding = null, highlight = '' }) {
+export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, finding = null, highlight = '', voice = null }) {
   const [link, setLink] = useState(null)
   const [menu, setMenu] = useState(null)
   const [burst, setBurst] = useState(null)
   const closeLink = useCallback(() => setLink(null), [])
   const closeMenu = useCallback(() => setMenu(null), [])
+  const tracks = useMemo(() => {
+    const out = new Map()
+    if (!voice) return out
+    for (const m of messages) {
+      if (!m.voice) continue
+      out.set(String(m.id), {
+        key: String(m.id),
+        sec: m.voice.sec,
+        mine: Boolean(m.mine),
+        expired: Boolean(m.voice.expired),
+        once: Boolean(m.voice.once),
+        title: m.mine ? 'Вы' : m.author_name || voice.peerName || 'Голосовое',
+        load: () => voice.audio(m.id),
+      })
+    }
+    return out
+  }, [messages, voice])
+  useEffect(() => {
+    if (tracks.size) setVoiceQueue([...tracks.values()])
+  }, [tracks])
 
   useEffect(() => {
     if (!burst) return undefined
@@ -122,7 +146,7 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
         id: item.id,
         rect: el.getBoundingClientRect(),
         mine: item.mine,
-        text: item.sticker ? '' : String(item.body ?? ''),
+        text: item.voice ? (item.voice.text ?? '') : item.sticker ? '' : String(item.body ?? ''),
         current: myChatReaction(item.reactions),
         message: item,
       }),
@@ -144,6 +168,7 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
       item.groupEnd && 'chat-msg--end',
       item.big && 'chat-msg--big',
       item.sticker && 'chat-msg--sticker',
+      item.voice && voice && 'chat-msg--voice',
       onReact && 'chat-msg--pressable',
       menu?.id === item.id && 'is-pressed',
     ]
@@ -160,6 +185,8 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
           ) : null}
           {item.sticker ? (
             <ChatSticker id={item.sticker} />
+          ) : item.voice && voice ? (
+            <ChatVoiceBubble track={tracks.get(String(item.id))} voice={item.voice} loadText={() => voice.text(item.id)} />
           ) : item.big ? (
             <BigEmoji body={item.body} />
           ) : (

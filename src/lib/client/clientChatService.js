@@ -23,9 +23,10 @@ export function searchClientChat(kind, q) {
   return postClientMe({ action: 'chat-search', kind, q })
 }
 
-/** Голос в текст для поля ввода. @returns {Promise<{ text: string }>} */
-export function dictateClientChat(audio) {
-  return postClientMe({ action: 'chat-dictate', audio })
+/** Голосовые своего диалога: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done). */
+export function clientChatVoice(kind) {
+  const call = (action) => (messageId) => postClientMe({ action, kind, message_id: messageId })
+  return { audio: call('chat-voice-audio'), text: call('chat-voice-text') }
 }
 
 export function reactClientChatMessage(kind, messageId, emoji) {

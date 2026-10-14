@@ -1,13 +1,13 @@
 /**
- * Лимит голосового ввода на человека: распознавание платное, а кнопку можно жать скриптом.
+ * Лимит расшифровок голосовых «→ Аа» на человека: распознавание платное, а кнопку можно жать скриптом.
  * Окно в памяти процесса — сервер на ВМ один; при нескольких — вынести в базу.
  */
 
-export const CHAT_DICTATE_LIMIT = 20
-export const CHAT_DICTATE_WINDOW_MS = 10 * 60 * 1000
+export const CHAT_VOICE_TEXT_LIMIT = 20
+export const CHAT_VOICE_TEXT_WINDOW_MS = 10 * 60 * 1000
 
 /** @param {{ limit?: number, windowMs?: number }} [opts] */
-export function createChatDictateLimiter({ limit = CHAT_DICTATE_LIMIT, windowMs = CHAT_DICTATE_WINDOW_MS } = {}) {
+export function createChatVoiceTextLimiter({ limit = CHAT_VOICE_TEXT_LIMIT, windowMs = CHAT_VOICE_TEXT_WINDOW_MS } = {}) {
   /** @type {Map<string, number[]>} */
   const hits = new Map()
   return {

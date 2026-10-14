@@ -33,6 +33,7 @@ import {
   handleDeleteTrainerPost,
 } from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
+import { handleHomeworkLibraryGet } from './_lib/homeworkLibrary/homeworkLibraryHandler.js'
 import { handleTrainerSelfJournalGet } from './_lib/adminData/trainerSelfJournalHandler.js'
 import { handleTrainerScheduleGet } from './_lib/adminData/trainerScheduleHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
@@ -392,6 +393,7 @@ async function handler(req, res) {
     'membership-types',
     'nutrition-products',
     'homework-presets',
+    'homework-library',
     'iskra-dispatch',
     'push-subscription',
     'trainer-self-stats',
@@ -500,6 +502,7 @@ async function handler(req, res) {
     }
     if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
     if (action === 'homework-presets') return handleHomeworkPresets(authCtx, req, res)
+    if (action === 'homework-library') return handleHomeworkLibraryGet(authCtx, res)
   }
 
   if (action === 'sales') {

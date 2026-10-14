@@ -1,0 +1,365 @@
+/* Анкета здоровья: карточка клиента → здоровье; метки — и на экране тренировки. */
+
+.hscr.card {
+  display: grid;
+  gap: 12px;
+}
+
+.hscr__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hscr__icon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.hscr__title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.hscr__title.section-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.hscr__sub,
+.hscr__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.hscr__ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hscr__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+/* Метки итога */
+.hscr-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hscr-badge {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.hscr-badge--danger {
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
+.hscr-badge--warning {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  color: var(--warning);
+}
+
+.hscr-badge--more {
+  color: var(--text-muted);
+}
+
+/* Подтверждение допуска */
+.hscr-clear {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: var(--radius-sm, 12px);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.hscr-clear > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--danger);
+}
+
+.hscr-clear__title {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.hscr-clear__text {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.hscr-clear__btn.btn {
+  border-color: var(--danger);
+}
+
+/* Блоки */
+.hscr__blocks {
+  display: grid;
+  gap: 16px;
+}
+
+.hscr-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 12px);
+}
+
+.hscr-block__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.hscr-block__title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.hscr-block__progress {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hscr-block__progress--done {
+  color: var(--accent);
+}
+
+.hscr-block__note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.hscr-block__allno.btn {
+  justify-self: start;
+}
+
+.hscr-block__list {
+  display: grid;
+}
+
+/* Вопрос */
+.hscr-q {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.hscr-q:last-child {
+  border-bottom: none;
+}
+
+.hscr-q__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hscr-q__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hscr-q__label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.hscr-q__hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.hscr-q__more {
+  display: grid;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--warning) 45%, transparent);
+}
+
+.hscr-q__note.input {
+  min-height: 44px;
+}
+
+/* Нет / Да */
+.hscr-yn {
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.hscr-yn__btn {
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hscr-yn__btn + .hscr-yn__btn {
+  border-left: 1px solid var(--border);
+}
+
+.hscr-yn__btn--no {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.hscr-yn__btn--yes {
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+  color: var(--warning);
+}
+
+.hscr-yn__btn:disabled {
+  cursor: default;
+}
+
+/* Чипы */
+.hscr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hscr-chip {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-muted, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hscr-chip--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.hscr-chip:disabled {
+  cursor: default;
+}
+
+.hscr-zone {
+  display: grid;
+  gap: 6px;
+}
+
+.hscr-zone__label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Быт */
+.hscr-life {
+  display: grid;
+  gap: 12px;
+}
+
+.hscr-life__row {
+  display: grid;
+  gap: 6px;
+}
+
+.hscr-life__equip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hscr__done.btn {
+  justify-self: end;
+  min-width: 200px;
+}
+
+/* Цель в карте здоровья */
+.hscr-goal {
+  display: grid;
+  gap: 8px;
+}
+
+.hscr-goal__detail.input {
+  min-height: 44px;
+}
+
+/* Старые поля карты здоровья — только чтение */
+.hscr-legacy {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm, 12px);
+}
+
+.hscr-legacy__caption {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hscr-legacy__row {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Экран тренировки — метки под именем клиента */
+.trainer-path-head__left.training-page-head-title__left:has(.training-health) {
+  flex-wrap: wrap;
+}
+
+.training-health {
+  display: grid;
+  flex-basis: 100%;
+  gap: 4px;
+}

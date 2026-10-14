@@ -54,7 +54,10 @@ import {
   normalizeChatReaction,
   summarizeChatReactions,
 } from '../../../src/lib/chat/chatReactionCore.js'
-import { checkDictationAudio } from '../../../src/lib/chat/chatDictationCore.js'
+import { randomUUID } from 'node:crypto'
+import { noteVoicePlayed, onceVoiceAnswer, voiceAudioAnswer, voiceTextAnswer } from '../../../api/_lib/chat/chatVoiceHandler.js'
+import { voiceColumns } from '../../../api/_lib/chat/chatStore.js'
+import { CHAT_VOICE_BAD_RU, isMp3Header, voiceOnceRefusal, voiceStorageKey } from '../../../src/lib/chat/chatVoiceCore.js'
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, CHAT_SEARCH_LIMIT, chatTextMatches, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
@@ -76,15 +79,60 @@ function staffCtx(user) {
 export function createFakeChat(state) {
   const chat = {
     threads: [], messages: [], reactions: [], dm: { threads: [], messages: [], pushes: [] },
-    dictation: 'Купите резинку средней жёсткости.',
-    dictated: [],
+    /** Голосовые: звук по ключу (как бакет), voiceReady — хранилище настроено, voiceText — что «распознает» SpeechKit. */
+    voices: new Map(),
+    voiceReady: true,
+    voiceText: 'Купите резинку средней жёсткости.',
+    voiceTextStarts: 0,
+    /** id сообщений, отправленных «без звука» (push у собеседника был бы тихим). */
+    silentSends: [],
   }
-  /** Как chatDictateHandler: тот же разбор звука, вместо SpeechKit — chat.dictation. */
-  const dictate = (audio) => {
-    const check = checkDictationAudio(audio)
-    if (!check.ok) return { status: check.status, json: { error: check.error } }
-    chat.dictated.push(check.bytes)
-    return { status: 200, json: { text: chat.dictation } }
+  /** Как storeChatVoice: только MP3, файл под ключом автора. */
+  function storeVoice(checked) {
+    if (!checked.voice) return { ok: true, columns: {} }
+    if (!chat.voiceReady) return { ok: false, status: 503, error: 'Голосовые пока недоступны' }
+    const bytes = Buffer.from(checked.voice.audio, 'base64')
+    if (!isMp3Header(bytes)) return { ok: false, status: 400, error: CHAT_VOICE_BAD_RU }
+    const key = voiceStorageKey('client', randomUUID(), randomUUID())
+    chat.voices.set(key, bytes)
+    return { ok: true, columns: voiceColumns({ key, sec: checked.voice.sec, wave: checked.voice.wave, once: checked.voice.once }) }
+  }
+  /**
+   * Как answerChatVoice: тот же код ответа, вместо бакета — chat.voices, вместо SpeechKit — chat.voiceText со второго опроса.
+   * Звук отдан собеседнику автора — «прослушано» (listener — как на сервере).
+   */
+  function voiceOf(messages, thread, messageId, want, who, listener) {
+    const message = thread && messages.find((m) => m.id === messageId && m.thread_id === thread.id)
+    const answer = (out) => ({ status: out.status, json: out.body })
+    const get = async (key) => chat.voices.get(key) ?? null
+    const refused = voiceOnceRefusal(message, listener, want)
+    if (refused) return Promise.resolve({ status: refused.status, json: { error: refused.error } })
+    if (want === 'audio') {
+      return voiceAudioAnswer(message ?? null, get).then(async (out) => {
+        if (out.status !== 200) return answer(out)
+        if (message.voice_once === true) {
+          return answer(
+            await onceVoiceAnswer(out, async () => {
+              if (message.voice_played_at) return false
+              Object.assign(message, { voice_played_at: new Date().toISOString(), voice_key: null })
+              return true
+            }),
+          )
+        }
+        await noteVoicePlayed(message, listener, async () => (message.voice_played_at = new Date().toISOString()))
+        return answer(out)
+      })
+    }
+    return voiceTextAnswer(message ?? null, who, {
+      save: async (patch) => Object.assign(message, patch),
+      get,
+      start: async () => {
+        chat.voiceTextStarts += 1
+        return { ok: true, id: `op-${chat.voiceTextStarts}` }
+      },
+      poll: async () => ({ ok: true, done: true, text: chat.voiceText }),
+      env: { YANDEX_FOLDER_ID: 'e2e-folder', YANDEX_LLM_API_KEY: 'e2e-key' },
+    }).then(answer)
   }
   const names = () => new Map(state.users.map((u) => [String(u.id), u.name]))
   const threadOf = (clientId, kind) => chat.threads.find((t) => t.client_id === clientId && t.kind === kind)
@@ -98,7 +146,8 @@ export function createFakeChat(state) {
 
   /** chat.pageSize — как CHAT_PAGE на сервере (по умолчанию вся лента одной страницей); before — «Раньше». */
   function page(thread, side, seen = true, reactor = '', before = null) {
-    if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null }
+    const voice_ready = chat.voiceReady
+    if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null, voice_ready }
     const all = chat.messages.filter((m) => m.thread_id === thread.id && (!before || m.created_at < before))
     const size = chat.pageSize ?? Infinity
     const shown = all.slice(-size)
@@ -111,7 +160,7 @@ export function createFakeChat(state) {
     if (chatSeenFromRequest(seen) && chatUnseenReaction(side, thread)) thread[`${side}_reaction_seen_at`] = new Date().toISOString()
     const reactions = chatReactionsByMessage(chat.reactions, reactor, reactorNames())
     const list = shown.map((m) => ({ ...chatView(m, side), reactions: reactions.get(m.id) ?? [] }))
-    return { messages: list, has_more: all.length > shown.length, marked_read: marked, peer_read_at: chatPeerReadAt(side, thread) }
+    return { messages: list, has_more: all.length > shown.length, marked_read: marked, peer_read_at: chatPeerReadAt(side, thread), voice_ready }
   }
 
   /** reactor → имя, как chatReactionStore. */
@@ -169,15 +218,18 @@ export function createFakeChat(state) {
 
   function send(client, kind, side, userId, input) {
     const checked = resolveChatOutgoing(input)
-    if (!checked.ok) return { status: 400, json: { error: checked.error } }
+    if (!checked.ok) return { status: checked.status ?? 400, json: { error: checked.error } }
+    const stored = storeVoice(checked)
+    if (!stored.ok) return { status: stored.status, json: { error: stored.error } }
     let thread = threadOf(client.id, kind)
     if (!thread) {
       thread = { id: `th-${chat.threads.length + 1}`, client_id: client.id, club_id: client.club_id, kind, client_unread: 0, staff_unread: 0 }
       chat.threads.push(thread)
     }
     const at = new Date(Date.now() + chat.messages.length).toISOString()
-    const m = { id: `m-${chat.messages.length + 1}`, thread_id: thread.id, author_side: side, author_user_id: userId ?? null, body: checked.body, sticker: checked.sticker, created_at: at, reply_to: replyIn(chat.messages, thread, input?.reply_to) }
+    const m = { id: `m-${chat.messages.length + 1}`, thread_id: thread.id, author_side: side, author_user_id: userId ?? null, body: checked.body, sticker: checked.sticker, created_at: at, reply_to: replyIn(chat.messages, thread, input?.reply_to), ...stored.columns }
     chat.messages.push(m)
+    if (input?.silent === true) chat.silentSends.push(m.id)
     const peerUnread = side === 'client' ? 'staff_unread' : 'client_unread'
     Object.assign(thread, {
       last_message_at: at,
@@ -192,7 +244,6 @@ export function createFakeChat(state) {
 
   /** Ветки клиента; null — не чат, пусть ответит основной подменный портал. */
   function client(clientId, body) {
-    if (body?.action === 'chat-dictate') return dictate(body.audio)
     const row = state.clients.find((c) => c.id === clientId)
     const kind = String(body?.kind ?? '')
     if (body.action === 'chat-list') {
@@ -217,6 +268,10 @@ export function createFakeChat(state) {
       return { status: 200, json: { ...page(threadOf(clientId, kind), 'client', body.seen, chatReactorKey('client', clientId), body.before), kind, name } }
     }
     if (body.action === 'chat-send') return send(row, kind, 'client', null, body)
+    if (body.action === 'chat-voice-audio' || body.action === 'chat-voice-text') {
+      const want = body.action === 'chat-voice-text' ? 'text' : 'audio'
+      return voiceOf(chat.messages, threadOf(clientId, kind), body.message_id, want, `c:${clientId}`, { side: 'client' })
+    }
     if (body.action === 'chat-search') {
       const name = kind === 'trainer' ? names().get(String(row.trainer_id)) ?? '' : ''
       return search(chat.messages, threadOf(clientId, kind), body.q, (m) => buildChatMessageView(m, 'client', names()), name)
@@ -314,6 +369,7 @@ export function createFakeChat(state) {
     const meta = {
       peer: { id: peer.id, name: person ?? peer.name, label: person ? LINKED_ROLE_LABEL_RU : staffRoleLabelRu(peer.role) },
       can_write: staffDmWriteAccess(viewer, peer).ok,
+      voice_ready: chat.voiceReady,
     }
     if (!thread) return { status: 200, json: { ...meta, messages: [], has_more: false, marked_read: false, peer_read_at: null } }
     const view = staffDmThreadForViewer(thread, viewer.id)
@@ -338,15 +394,18 @@ export function createFakeChat(state) {
     const access = staffDmWriteAccess(viewer, peer)
     if (!access.ok) return { status: access.status, json: { error: access.error } }
     const checked = resolveChatOutgoing(input)
-    if (!checked.ok) return { status: 400, json: { error: checked.error } }
+    if (!checked.ok) return { status: checked.status ?? 400, json: { error: checked.error } }
+    const stored = storeVoice(checked)
+    if (!stored.ok) return { status: stored.status, json: { error: stored.error } }
     let thread = dmThreadOf(viewer.id, peer.id)
     if (!thread) {
       thread = { id: `dm-${chat.dm.threads.length + 1}`, ...staffDmPair(viewer.id, peer.id), lo_unread: 0, hi_unread: 0 }
       chat.dm.threads.push(thread)
     }
     const at = new Date(Date.now() + chat.dm.messages.length).toISOString()
-    const m = { id: `dmm-${chat.dm.messages.length + 1}`, thread_id: thread.id, author_user_id: viewer.id, body: checked.body, sticker: checked.sticker, created_at: at, reply_to: replyIn(chat.dm.messages, thread, input?.reply_to) }
+    const m = { id: `dmm-${chat.dm.messages.length + 1}`, thread_id: thread.id, author_user_id: viewer.id, body: checked.body, sticker: checked.sticker, created_at: at, reply_to: replyIn(chat.dm.messages, thread, input?.reply_to), ...stored.columns }
     chat.dm.messages.push(m)
+    if (input?.silent === true) chat.silentSends.push(m.id)
     const side = staffDmSideOf(thread, viewer.id)
     const other = side === 'lo' ? 'hi' : 'lo'
     Object.assign(thread, {
@@ -369,7 +428,14 @@ export function createFakeChat(state) {
   function staff(req, user) {
     if (req.searchParams.get('action') !== 'chat') return null
     const ctx = staffCtx(user)
-    if (req.method === 'POST' && req.body?.op === 'dictate') return dictate(req.body.audio)
+    if (req.method === 'POST' && (req.body?.op === 'dm-voice-audio' || req.body?.op === 'dm-voice-text')) {
+      const viewer = dmViewer(dmUser(user))
+      const peer = dmPeer(req.body.user_id)
+      if (!peer) return { status: 404, json: { error: 'Сотрудник не найден' } }
+      const thread = dmThreadOf(viewer.id, peer.id)
+      if (!canReadStaffDm(viewer, peer, Boolean(thread))) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+      return voiceOf(chat.dm.messages, thread, req.body.message_id, req.body.op === 'dm-voice-text' ? 'text' : 'audio', `u:${viewer.id}`, { userId: viewer.id })
+    }
     if (req.method === 'POST' && req.body?.op === 'dm-send') return dmSend(user, req.body.user_id, req.body)
     if (req.method === 'POST' && req.body?.op === 'dm-react') {
       const viewer = dmViewer(dmUser(user))
@@ -391,6 +457,14 @@ export function createFakeChat(state) {
     if (req.method === 'POST') {
       const row = find(req.body?.client_id)
       const actor = actorFor(user, req.body?.kind)
+      const voiceWant = req.body?.op === 'voice-audio' ? 'audio' : req.body?.op === 'voice-text' ? 'text' : null
+      if (voiceWant) {
+        if (!canStaffReadChat(staffCtx(actor), req.body.kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
+        return voiceOf(chat.messages, threadOf(row.id, req.body.kind), req.body.message_id, voiceWant, `u:${user.id}`, {
+          side: 'staff',
+          mark: !ctx.isAdmin,
+        })
+      }
       if (!canStaffWriteChat(staffCtx(actor), req.body?.kind, row)) return { status: 403, json: { error: CHAT_NO_ACCESS_RU } }
       if (req.body?.op === 'react') {
         const reactor = chatReactorKey('staff', actor.id)

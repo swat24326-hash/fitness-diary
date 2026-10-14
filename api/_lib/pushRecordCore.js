@@ -35,6 +35,9 @@ import { isSaleClipMissingLinkFkError, saleClipPushWhenClientMissing } from '../
 import { cancelAwaitingSaleClipsForClient, prepareSaleClipUpdateForPush } from './saleClipClientGone.js'
 import { normalizeClientPlanPushPayload } from '../../src/lib/clientPlans/clientPlanCore.js'
 import { notifyClientPlanSent } from './clientPlans/clientPlanNotify.js'
+import { normalizeHomeworkAutoRow } from '../../src/lib/homework/auto/homeworkAutoScheduleCore.js'
+import { normalizeHealthScreeningRow } from '../../src/lib/health/healthScreeningCore.js'
+import { normalizeHomeworkLibraryRow } from '../../src/lib/homework/library/homeworkLibraryOverridesCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -53,7 +56,25 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'client_hall_lifecycle',
   'trainer_schedule_entries',
   'client_plans',
+  'homework_auto',
+  'health_screenings',
+  'homework_library',
 ])
+
+const CLIENT_ROW_NORMALIZERS = {
+  homework_auto: normalizeHomeworkAutoRow,
+  health_screenings: normalizeHealthScreeningRow,
+  homework_library: normalizeHomeworkLibraryRow,
+}
+
+/** Одна строка на ключ (клиент / упражнение): insert с другого устройства не падает дублем, а обновляет. */
+async function upsertClientRow(supabaseAdmin, table, data) {
+  const prep = CLIENT_ROW_NORMALIZERS[table](data)
+  if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+  const up = await supabaseAdmin.from(table).upsert(prep.data, { onConflict: 'id' })
+  if (up.error) return { ok: false, status: 400, error: publicDbErrorMessage(up.error, 'push') }
+  return { ok: true }
+}
 
 function friendlyExerciseDbError(error, operation) {
   const msg = String(error?.message ?? '')
@@ -397,6 +418,7 @@ export async function executePushRecord(ctx, item) {
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
         payload = prep.data
       }
+      if (CLIENT_ROW_NORMALIZERS[table_name]) return upsertClientRow(supabaseAdmin, table_name, payload)
       let lifeBefore = null
       if (table_name === 'client_hall_lifecycle') {
         const prev = await supabaseAdmin
@@ -480,6 +502,7 @@ export async function executePushRecord(ctx, item) {
 
     if (operation === 'update' && remote_id) {
       let payload = table_name === 'trainings' ? null : data
+      if (CLIENT_ROW_NORMALIZERS[table_name]) return upsertClientRow(supabaseAdmin, table_name, data)
       if (table_name === 'trainings') {
         const prepared = prepareTrainingPushPayload(data, { operation: 'update' })
         if (!prepared) return { ok: false, status: 400, error: 'Некорректная тренировка' }

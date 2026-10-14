@@ -10,6 +10,13 @@ import {
   isClientManifestClubId,
 } from '../api/_lib/clientPortal/clientManifestCore.js'
 import { clientInstallMode, isIosUserAgent } from '../src/lib/client/clientInstallCore.js'
+import {
+  armInstallPromptCapture,
+  hasInstallPrompt,
+  promptInstall,
+  subscribeInstallPrompt,
+  wasAppInstalled,
+} from '../src/lib/pwa/installPromptStore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -45,7 +52,29 @@ ok(isIosUserAgent(IPAD_DESKTOP_UA, 5) && !isIosUserAgent(IPAD_DESKTOP_UA, 0), 'i
 ok(clientInstallMode({ standalone: false, hasPrompt: true, ua: ANDROID }) === 'prompt', 'Android: кнопка «Установить»')
 ok(clientInstallMode({ standalone: false, hasPrompt: false, ua: IPHONE }) === 'ios', 'iPhone: инструкция')
 ok(clientInstallMode({ standalone: true, hasPrompt: true, ua: ANDROID }) === 'none', 'уже установлено — молчим')
-ok(clientInstallMode({ standalone: false, hasPrompt: false, ua: ANDROID }) === 'none', 'нет окна установки — молчим')
+ok(clientInstallMode({ standalone: false, hasPrompt: false, ua: ANDROID }) === 'android', 'Android без окна (Яндекс, Samsung, Chrome ещё не готов) — шаги через меню')
+ok(clientInstallMode({ standalone: true, hasPrompt: false, ua: ANDROID }) === 'none', 'Android со значка — молчим')
+ok(clientInstallMode({ standalone: false, hasPrompt: false, ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/128' }) === 'none', 'компьютер без окна — молчим')
+
+{
+  const handlers = {}
+  const win = { addEventListener: (t, fn) => (handlers[t] = fn) }
+  armInstallPromptCapture(win)
+  let changes = 0
+  const off = subscribeInstallPrompt(() => (changes += 1))
+  ok(!hasInstallPrompt(), 'до сигнала браузера кнопки нет')
+  let prevented = false
+  let prompted = false
+  handlers.beforeinstallprompt({
+    preventDefault: () => (prevented = true),
+    prompt: () => (prompted = true),
+    userChoice: Promise.resolve({ outcome: 'accepted' }),
+  })
+  ok(prevented && hasInstallPrompt() && changes === 1, 'сигнал пойман при старте, до экранов — кнопка появится, когда экран догрузится')
+  ok((await promptInstall()) === true && prompted && !hasInstallPrompt() && wasAppInstalled(), 'установили — окно браузера одноразовое, кнопка гаснет')
+  ok((await promptInstall()) === false, 'второй раз окна нет')
+  off()
+}
 if (failed) {
   console.error(`\nverify-client-app-branding: ${failed} FAIL`)
   process.exit(1)

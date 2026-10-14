@@ -46,12 +46,19 @@ function sanitizeHomework(p) {
     .map((b) => ({
       label: str(b?.label, 60) || 'Основное',
       exercises: list(b?.exercises, 40)
-        .map((ex) => ({
-          name: str(ex?.name, 120),
-          sets: Math.round(num(ex?.sets, 1, 20) ?? 1),
-          reps: str(ex?.reps, 20),
-          rest_sec: Math.round(num(ex?.rest_sec, 0, 600) ?? 0),
-        }))
+        .map((ex) => {
+          const item = {
+            name: str(ex?.name, 120),
+            sets: Math.round(num(ex?.sets, 1, 20) ?? 1),
+            reps: str(ex?.reps, 20),
+            rest_sec: Math.round(num(ex?.rest_sec, 0, 600) ?? 0),
+          }
+          const how = str(ex?.how, 220)
+          const tip = str(ex?.tip, 240)
+          if (how) item.how = how
+          if (tip) item.tip = tip
+          return item
+        })
         .filter((ex) => ex.name),
     }))
     .filter((b) => b.exercises.length)

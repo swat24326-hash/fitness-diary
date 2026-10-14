@@ -7,11 +7,12 @@
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
  *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
  * GET  ?manifest=<club uuid> — без пропуска: manifest с названием клуба (браузер шлёт его без токена).
- * POST { op: 'chat-send', client_id, kind?, body | sticker, reply_to? } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
+ * POST { op: 'chat-send', client_id, kind?, body | sticker | (audio, sec, wave), reply_to? } | { op: 'push-subscribe' | 'push-unsubscribe', ... }
  *      | { op: 'push-prefs', endpoint, schedule_reminders? } — напоминания Ежедневника на этом телефоне
- *      | { op: 'dm-send', user_id, body | sticker, reply_to? } — сообщение коллеге / администрации (reply_to — ответ с цитатой)
+ *      | { op: 'dm-send', user_id, body | sticker | (audio, sec, wave), reply_to? } — сообщение коллеге / администрации (reply_to — ответ с цитатой)
  *      | { op: 'chat-react', client_id, kind?, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } — реакция
- *      | { op: 'chat-dictate', audio } → { text } — голос в текст для поля ввода
+ *      | { op: 'chat-voice-audio' | 'chat-voice-text', client_id, kind?, message_id } | { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id }
+ *        — звук голосового (сутки) и расшифровка «→ Аа»
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
  *      | { op: 'schedule-save' | 'schedule-delete' | 'schedule-copies', ... } — правка Ежедневника
@@ -23,7 +24,7 @@ import { sendJson, setCors } from '../adminSupabase.js'
 import { loadInChunks } from '../batchCore.js'
 import { handleStaffChatGet, handleStaffChatPost } from '../chat/chatStaffHandler.js'
 import { sendChatContacts } from '../chat/chatContactsHandler.js'
-import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread } from '../chat/staffDmHandler.js'
+import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice } from '../chat/staffDmHandler.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
 import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
@@ -124,20 +125,31 @@ async function handlePost(ctx, res, body, store) {
       client_id: body.client_id,
       body: body.body,
       sticker: body.sticker,
+      audio: body.audio,
+      sec: body.sec,
+      wave: body.wave,
+      once: body.once,
       client_msg_id: body.client_msg_id,
       reply_to: body.reply_to,
+      silent: body.silent,
     })
+  }
+  if (op === 'chat-voice-audio' || op === 'chat-voice-text') {
+    const kind = coachChatKind(body.kind)
+    return handleStaffChatPost(ctx, res, { op: op.slice('chat-'.length), kind, client_id: body.client_id, message_id: body.message_id })
+  }
+  if (op === 'dm-voice-audio' || op === 'dm-voice-text') {
+    return sendStaffDmVoice(ctx, res, body.user_id, body.message_id, op === 'dm-voice-text' ? 'text' : 'audio')
   }
   if (op === 'chat-react') {
     const kind = coachChatKind(body.kind)
     return handleStaffChatPost(ctx, res, { op: 'react', kind, client_id: body.client_id, message_id: body.message_id, emoji: body.emoji })
   }
   if (op === 'dm-send') {
-    const { body: text, sticker, client_msg_id, reply_to } = body
-    return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, client_msg_id, reply_to })
+    const { body: text, sticker, audio, sec, wave, once, client_msg_id, reply_to, silent } = body
+    return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, audio, sec, wave, once, client_msg_id, reply_to, silent })
   }
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body.user_id, { message_id: body.message_id, emoji: body.emoji })
-  if (op === 'chat-dictate') return handleStaffChatPost(ctx, res, { op: 'dictate', audio: body.audio })
   if (op === 'client-invite') {
     const out = await issueClientInvite(ctx, { client_id: body.client_id })
     return sendJson(res, out.status, out.body)

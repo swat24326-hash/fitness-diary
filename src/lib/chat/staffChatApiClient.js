@@ -39,12 +39,18 @@ export function searchStaffDm(userId, q) {
   return inboxApiCall('chat', 'GET', { view: 'dm-search', user_id: userId, q })
 }
 
-/** Голос в текст для поля ввода (base64 PCM 16 кГц). @returns {Promise<{ text: string }>} */
-export function dictateStaffChat(audio) {
-  return inboxApiCall('chat', 'POST', {}, { op: 'dictate', audio })
+/** Голосовые диалога с клиентом: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done). */
+export function staffChatVoice(clientId, kind) {
+  const call = (op) => (messageId) => inboxApiCall('chat', 'POST', {}, { op, client_id: clientId, kind, message_id: messageId })
+  return { audio: call('voice-audio'), text: call('voice-text') }
 }
 
-/** @param {{ body: string } | { sticker: string }} outgoing */
+export function staffDmVoice(userId) {
+  const call = (op) => (messageId) => inboxApiCall('chat', 'POST', {}, { op, user_id: userId, message_id: messageId })
+  return { audio: call('dm-voice-audio'), text: call('dm-voice-text') }
+}
+
+/** @param {{ body: string } | { sticker: string } | { audio: string, sec: number, wave: number[] }} outgoing */
 export function sendStaffDmMessage(userId, outgoing) {
   return inboxApiCall('chat', 'POST', {}, { op: 'dm-send', user_id: userId, ...outgoing })
 }

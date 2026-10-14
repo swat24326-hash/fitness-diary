@@ -707,6 +707,15 @@ export async function fetchHomeworkPresetsForClubViaApi(clubId, opts = {}) {
   }
 }
 
+/** GET /api/admin-data?action=homework-library — правки библиотеки ДЗ сети. */
+export async function fetchHomeworkLibraryViaApi() {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии — выйдите и войдите снова.')
+  const { data, routeMissing } = await adminApiGet('/api/admin-data?action=homework-library', token)
+  if (routeMissing) return null
+  return Array.isArray(data.rows) ? data.rows : []
+}
+
 /** GET /api/admin-data?action=exercises-meta — лёгкая проверка «нужен ли pull». */
 export async function fetchExercisesMetaViaApi() {
   const token = await getAccessTokenForAdminApi()
