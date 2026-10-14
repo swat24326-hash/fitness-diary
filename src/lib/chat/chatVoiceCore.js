@@ -6,13 +6,14 @@
  */
 
 export const CHAT_VOICE_RATE = 24000
-export const CHAT_VOICE_KBPS = 48
+/** 48 кбит/с на полосу 24 кГц мало: MP3 «звенит металлом», как из-под воды (Android, 15.10.2026). */
+export const CHAT_VOICE_KBPS = 64
 export const CHAT_VOICE_MAX_SEC = 300
 export const CHAT_VOICE_MIN_SEC = 1
 /** Последние секунды таймер красный. */
 export const CHAT_VOICE_WARN_SEC = 15
-/** 5 минут при 48 кбит/с ≈ 1,8 МБ; запас на заголовки и округления (в base64 — до 3 МБ, под потолком тела 5 МБ). */
-export const CHAT_VOICE_MAX_BYTES = 2_200_000
+/** 5 минут при 64 кбит/с ≈ 2,4 МБ; запас на заголовки и округления (в base64 — до 3,5 МБ, под потолком тела 5 МБ). */
+export const CHAT_VOICE_MAX_BYTES = 2_600_000
 const MIN_BYTES = 400
 export const CHAT_VOICE_BARS = 48
 export const CHAT_VOICE_TTL_MS = 24 * 60 * 60 * 1000

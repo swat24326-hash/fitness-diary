@@ -7,6 +7,7 @@
 import {
   CHAT_VOICE_BARS,
   CHAT_VOICE_EXPIRED_RU,
+  CHAT_VOICE_KBPS,
   CHAT_VOICE_MAX_BYTES,
   CHAT_VOICE_MAX_SEC,
   CHAT_VOICE_SHORT_RU,
@@ -112,7 +113,8 @@ console.log('Загрузка')
 ok(checkVoiceUpload(upload()).ok, 'MP3 7 с — берём')
 ok(checkVoiceUpload(upload({ sec: 0.3 })).error === CHAT_VOICE_SHORT_RU, 'короче секунды — «слишком коротко»')
 ok(checkVoiceUpload(upload({ sec: CHAT_VOICE_MAX_SEC + 5 })).status === 413, 'дольше 5 минут — 413')
-ok(checkVoiceUpload(upload({ audio: b64(mp3Bytes(CHAT_VOICE_MAX_BYTES + 10)) })).status === 413, 'больше 2,2 МБ — 413')
+ok(checkVoiceUpload(upload({ audio: b64(mp3Bytes(CHAT_VOICE_MAX_BYTES + 10)) })).status === 413, 'больше 2,6 МБ — 413')
+ok((CHAT_VOICE_MAX_SEC * CHAT_VOICE_KBPS * 1000) / 8 < CHAT_VOICE_MAX_BYTES && (CHAT_VOICE_MAX_BYTES * 4) / 3 < 4_500_000, '5 минут влезают в лимит, а в base64 — под потолок тела 5 МБ')
 ok(checkVoiceUpload(upload({ audio: 'не base64!' })).status === 400, 'мусор — 400')
 ok(checkVoiceUpload(upload({ audio: b64(new Uint8Array(30)) })).error === CHAT_VOICE_SHORT_RU, 'пара байт — «слишком коротко»')
 ok(checkVoiceUpload(upload({ wave: [1] })).status === 400, 'без волны — 400')

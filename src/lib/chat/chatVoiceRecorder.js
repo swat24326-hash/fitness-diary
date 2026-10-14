@@ -44,8 +44,9 @@ function concat(parts) {
 
 /**
  * Звук до кодировщика: гул ниже 80 Гц (бас музыки в зале, стук телефона) — прочь; верх выше ~10 кГц — прочь, чтобы
- * пересчёт в 24 кГц не дал «песка»; мягкий компрессор — тихий голос громче, громкий не хрипит (прибавку громкости
- * компрессор Web Audio делает сам, ~+10 дБ при этих настройках; своя сверху — уже перегруз).
+ * пересчёт в 24 кГц не дал «песка»; мягкий компрессор 2:1 — тихий голос чуть громче, громкий не хрипит. Прибавку
+ * громкости компрессор Web Audio делает сам (~+5 дБ здесь); жёстче (4:1, ~+10 дБ) — вытягивал следы шумоподавления
+ * телефона в «металл».
  * Автогромкость браузера выключена: она «плавает», а этот уровень ровный на всю запись.
  */
 function voiceChain(ctx) {
@@ -54,11 +55,11 @@ function voiceChain(ctx) {
   const lowpass = [0, 1].map(() => Object.assign(ctx.createBiquadFilter(), { type: 'lowpass' }))
   lowpass.forEach((f) => (f.frequency.value = 10_500))
   const comp = ctx.createDynamicsCompressor()
-  comp.threshold.value = -24
-  comp.knee.value = 10
-  comp.ratio.value = 4
-  comp.attack.value = 0.005
-  comp.release.value = 0.25
+  comp.threshold.value = -18
+  comp.knee.value = 12
+  comp.ratio.value = 2
+  comp.attack.value = 0.02
+  comp.release.value = 0.3
   const nodes = [highpass, ...lowpass, comp]
   nodes.reduce((a, b) => a.connect(b))
   return { input: highpass, output: comp, nodes }
