@@ -168,7 +168,7 @@ async function trainerReadsAndMutes(c, page, backend, chat) {
   const before = chat.state.group.pushes.length
   chat.staff({ method: 'POST', searchParams: new URLSearchParams({ action: 'chat' }), body: { op: 'group-send', body: QUIET } }, sup)
   c.ok(!chat.state.group.pushes.slice(before).some((p) => p.to === TRAINER_ID), 'без звука: push тренеру не уходит')
-  await page.getByRole('link', { name: 'Все диалоги' }).click()
+  await page.getByRole('link', { name: 'К списку' }).click()
   await pushNow(page)
   await page.getByTestId('chat-folders').getByRole('button', { name: /^Коллеги/ }).click()
   c.ok(await reaches(page.getByTestId('group-row').getByLabel('Без звука')), 'в строке — значок «без звука»')

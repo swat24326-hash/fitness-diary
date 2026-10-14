@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { MessageCircle } from 'lucide-react'
+import { ChatHeadBar } from '../../components/chat/ChatHeadBar.jsx'
+import { MessengerBack } from '../../components/chat/MessengerLayout.jsx'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
@@ -22,6 +24,7 @@ export function CoachDmPage() {
   const voice = useMemo(() => coachDmVoice(userId), [userId])
   const chat = useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search, voice })
   const peer = chat.meta?.peer
+  const [searchHost, setSearchHost] = useState(null)
 
   useEffect(() => {
     if ((chat.status === 'error' || chat.sendError) && !hasCoachSession()) onSessionGone(chat.error || chat.sendError)
@@ -30,11 +33,14 @@ export function CoachDmPage() {
   return (
     <CoachShell
       tabs={false}
-      title={peer?.name || 'Сотрудник'}
-      actions={
-        <Link to="/coach/chats" className="btn btn-ghost btn-icon-square btn-touch" aria-label="Все диалоги" title="Все диалоги">
-          <ArrowLeft size={20} aria-hidden />
-        </Link>
+      bar={
+        <ChatHeadBar
+          back={<MessengerBack to="/coach/chats" />}
+          icon={MessageCircle}
+          title={peer?.name || 'Сотрудник'}
+          subtitle={peer?.label || ''}
+          searchHostRef={setSearchHost}
+        />
       }
     >
       {!chat.messages ? (
@@ -61,6 +67,7 @@ export function CoachDmPage() {
           readOnlyHint={STAFF_DM_READ_ONLY_RU}
           emptyHint={`Сообщений пока нет. ${peer?.label ? `${peer.label} увидит` : 'Собеседник увидит'} ваше сообщение в приложении клуба.`}
           placeholder="Сообщение"
+          searchHost={searchHost}
         />
       )}
     </CoachShell>

@@ -1,8 +1,9 @@
 /**
- * Фото и PDF в переписке (клиент, сотрудник, телефон тренера, чат клуба): положить файл, отдать его сутки.
+ * Фото, PDF и видеокружки в переписке (клиент, сотрудник, телефон тренера, чат клуба): положить файл, отдать его сутки.
  * Доступ к диалогу уже проверил вызывающий handler. Содержимое и имена файлов в лог не пишем — только коды ошибок.
  */
 import { randomUUID } from 'node:crypto'
+import { sendJson } from '../adminSupabase.js'
 import {
   CHAT_ATTACH_BAD_RU,
   CHAT_ATTACH_FAILED_RU,
@@ -25,7 +26,7 @@ const fail = (status, error) => ({ ok: false, status, error })
  * @param {{ side: 'client' | 'staff', authorId: string, msgId: string | null }} who
  */
 export async function storeChatAttach(attach, { side, authorId, msgId }, put = putVoice) {
-  const bytes = Buffer.from(attach.data, 'base64')
+  const bytes = attach.kind === 'video' ? Buffer.from(attach.buffer) : Buffer.from(attach.data, 'base64')
   const mime = checkAttachBytes(attach.kind, bytes)
   if (!mime) return fail(400, CHAT_ATTACH_BAD_RU)
   const key = attachStorageKey(side, authorId, msgId || randomUUID(), mime)
@@ -36,8 +37,8 @@ export async function storeChatAttach(attach, { side, authorId, msgId }, put = p
     console.warn('[chat-attach]', e?.message || e)
     return fail(502, CHAT_ATTACH_FAILED_RU)
   }
-  const { kind, name, w, h, caption } = attach
-  return { ok: true, attach: { kind, key, mime, bytes: bytes.length, name, w, h, caption } }
+  const { kind, name, w, h, caption, sec } = attach
+  return { ok: true, attach: { kind, key, mime, bytes: bytes.length, name, w, h, caption, sec: sec ?? null } }
 }
 
 /**
@@ -69,7 +70,21 @@ export async function attachFileAnswer(message, get = getVoice) {
     return { status: 502, body: { error: CHAT_ATTACH_LOAD_FAILED_RU } }
   }
   if (!bytes) return expired
+  if (message.attach_kind === 'video') return { status: 200, body: { mime: message.attach_mime }, file: bytes }
   return { status: 200, body: { data: bytes.toString('base64'), mime: message.attach_mime, name: message.attach_name ?? null } }
+}
+
+/** Ответ «дай файл / звук»: видео — байтами (до 10 МБ, без base64), остальное — JSON. */
+export function sendChatFileAnswer(res, out) {
+  if (!out.file) {
+    sendJson(res, out.status, out.body)
+    return
+  }
+  res.statusCode = out.status
+  res.setHeader('Content-Type', out.body.mime)
+  res.setHeader('Content-Length', String(out.file.length))
+  res.setHeader('Cache-Control', 'private, no-store')
+  res.end(out.file)
 }
 
 /** @param {'chat_messages' | 'staff_dm_messages' | 'staff_group_messages'} table */

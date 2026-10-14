@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { MessageCircle } from 'lucide-react'
+import { ChatHeadBar } from '../../components/chat/ChatHeadBar.jsx'
+import { MessengerBack } from '../../components/chat/MessengerLayout.jsx'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
@@ -28,6 +30,7 @@ export function CoachChatPage() {
   const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search, voice })
   const meta = chat.meta
   const complaint = kind === 'supervisor'
+  const [searchHost, setSearchHost] = useState(null)
 
   // useChatThread отдаёт только текст ошибки; закончившийся вход видно по стёртой сессии.
   useEffect(() => {
@@ -38,11 +41,14 @@ export function CoachChatPage() {
   return (
     <CoachShell
       tabs={false}
-      title={complaint ? `${name} · ${chatKindLabelRu(kind)}` : name}
-      actions={
-        <Link to="/coach/chats" className="btn btn-ghost btn-icon-square btn-touch" aria-label="Все диалоги" title="Все диалоги">
-          <ArrowLeft size={20} aria-hidden />
-        </Link>
+      bar={
+        <ChatHeadBar
+          back={<MessengerBack to="/coach/chats" />}
+          icon={MessageCircle}
+          title={name}
+          subtitle={chatKindLabelRu(kind)}
+          searchHostRef={setSearchHost}
+        />
       }
     >
       {!chat.messages ? (
@@ -73,6 +79,7 @@ export function CoachChatPage() {
               : 'Сообщений пока нет. Клиент увидит ваш ответ в приложении клуба.'
           }
           placeholder={complaint ? 'Ответ от управляющего' : 'Ответ клиенту'}
+          searchHost={searchHost}
         />
       )}
     </CoachShell>

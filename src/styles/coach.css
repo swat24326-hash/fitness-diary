@@ -67,6 +67,16 @@
   min-height: 44px;
 }
 
+/* Диалог: вместо шапки приложения — строка диалога (ChatHeadBar), «←» слева, как в Telegram. */
+.coach-app__top--bar {
+  padding: calc(4px + env(safe-area-inset-top)) 8px 4px;
+}
+
+.coach-app__top--bar > .chat-bar {
+  flex: 1;
+  min-width: 0;
+}
+
 .coach-app__main {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

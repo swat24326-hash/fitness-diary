@@ -14,7 +14,8 @@
  *      | { op: 'chat-react', client_id, kind?, message_id, emoji|null } | { op: 'dm-react', user_id, message_id, emoji|null } — реакция
  *      | { op: 'chat-voice-audio' | 'chat-voice-text', client_id, kind?, message_id } | { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id }
  *      | { op: 'chat-attach', client_id, kind?, message_id } | { op: 'dm-attach', user_id, message_id } → { data, mime, name } — фото / PDF
- *        — звук голосового (сутки) и расшифровка «→ Аа»
+ *        — звук голосового (сутки) и расшифровка «→ Аа»; у видеокружка chat-attach / dm-attach отдают байты
+ *      | бинарный POST video/mp4|webm ?op=chat-send|dm-send|group-send&…&sec — видеокружок (chatVideoHandler.js)
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
  *      | { op: 'schedule-save' | 'schedule-delete' | 'schedule-copies', ... } — правка Ежедневника
@@ -28,6 +29,7 @@ import { handleStaffChatGet, handleStaffChatPost } from '../chat/chatStaffHandle
 import { sendChatContacts } from '../chat/chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice } from '../chat/staffDmHandler.js'
 import { handleStaffGroupGet, handleStaffGroupPost } from '../chat/staffGroupRoutes.js'
+import { VIDEO_OPS_COACH, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
 import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
@@ -195,6 +197,6 @@ export function createCoachHandler(auth = requireCoachUser, store = coachStore) 
     const ctx = await auth(req, res)
     if (!ctx) return
     if (req.method === 'GET') return handleGet(ctx, req, res, store)
-    return handlePost(ctx, res, parseBody(req.body), store)
+    return handlePost(ctx, res, isVideoUpload(req) ? videoSendBody(req, VIDEO_OPS_COACH) : parseBody(req.body), store)
   }
 }

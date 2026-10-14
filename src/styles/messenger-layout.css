@@ -257,3 +257,14 @@
 .msgr--phone .msgr__back {
   display: inline-flex;
 }
+
+/* Открыт диалог на телефоне — как в Telegram: шапки приложения нет, сверху только шапка диалога (useChatSolo).
+   Вернулся к списку — шапка снова на месте. Отступ под строку состояния iPhone раньше давала шапка приложения. */
+html[data-chat-solo] .app-chrome-top,
+html[data-chat-solo] .breadcrumbs-shell {
+  display: none;
+}
+
+html[data-chat-solo] .app-main {
+  padding-top: calc(6px + env(safe-area-inset-top, 0px));
+}

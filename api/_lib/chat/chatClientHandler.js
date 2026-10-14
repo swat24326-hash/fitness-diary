@@ -8,11 +8,13 @@
  *      | { action: 'chat-voice-text', kind, message_id } → { done, text? } — расшифровка «→ Аа» (chatVoiceHandler.js)
  *      | { action: 'chat-attach', kind, message_id } → { data, mime, name } — фото / PDF (сутки, потом 410; chatAttachHandler.js)
  *      в chat-send — attach { kind: 'photo'|'file', data (base64), name?, w?, h? }, body — подпись
+ * Видеокружок — бинарный POST ?op=chat-send&kind&sec (chatVideoHandler.js); chat-attach у видео отдаёт байты.
  */
 import { sendJson } from '../adminSupabase.js'
 import { chatKindLabelRu, chatUnreadCount, clientChatAttention, clientChatKinds, isChatUnreadFor } from '../../../src/lib/chat/chatAccessCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
+import { sendChatFileAnswer } from './chatAttachHandler.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { isMissingChatTable, loadClientThreads, loadStaffNames } from './chatStore.js'
 
@@ -95,7 +97,7 @@ export async function handleClientChatPost(db, ctx, body, res) {
     if (body.action === 'chat-voice-audio' || body.action === 'chat-voice-text' || body.action === 'chat-attach') {
       const want = body.action === 'chat-voice-text' ? 'text' : body.action === 'chat-attach' ? 'file' : 'audio'
       const out = await chatVoiceOf(db, { client, kind, messageId: body.message_id, want, who: `c:${client.id}`, side: 'client' })
-      sendJson(res, out.status, out.body)
+      sendChatFileAnswer(res, out)
       return
     }
     if (body.action === 'chat-search') {

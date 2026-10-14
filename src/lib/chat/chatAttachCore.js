@@ -4,6 +4,7 @@
  * Без React, браузера и базы — общее для сервера и экрана, проверяется verify-chat-attach.mjs.
  */
 import { CHAT_VOICE_TTL_MS } from './chatVoiceCore.js'
+import { checkVideoUpload, chatVideoLabel, sniffVideoMime } from './chatVideoCore.js'
 
 /** Тело запроса — JSON до 5 МБ, base64 раздувает на треть: 3,5 МБ файла ≈ 4,7 МБ запроса. */
 export const CHAT_FILE_MAX_BYTES = 3_500_000
@@ -23,15 +24,17 @@ export const CHAT_ATTACH_GONE_RU = 'Вложение не найдено'
 export const CHAT_ATTACH_CAPTION_LONG_RU = `Подпись длиннее ${CHAT_CAPTION_MAX} символов — сократите её`
 export const CHAT_ATTACH_TTL_HINT_RU = 'Фото и файлы хранятся сутки'
 
-/** @param {'photo'|'file'} kind */
+/** @param {'photo'|'file'|'video'} kind */
 export function chatAttachExpiredRu(kind) {
+  if (kind === 'video') return 'Видео удалено через сутки'
   return kind === 'photo' ? 'Фото удалено через сутки' : 'Файл удалён через сутки'
 }
 
-const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' }
-const KIND_MIMES = { photo: ['image/jpeg', 'image/png', 'image/webp'], file: ['application/pdf'] }
+const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf', 'video/mp4': 'mp4', 'video/webm': 'webm' }
+const ATTACH_KINDS = new Set(['photo', 'file', 'video'])
+const KIND_MIMES = { photo: ['image/jpeg', 'image/png', 'image/webp'], file: ['application/pdf'], video: ['video/mp4', 'video/webm'] }
 
-/** Тип по первым байтам: JPEG, PNG, WebP или PDF; иначе null (HTML, SVG, программы — не принимаем). */
+/** Тип по первым байтам: JPEG, PNG, WebP, PDF, MP4 или WebM; иначе null (HTML, SVG, программы — не принимаем). */
 export function sniffAttachMime(bytes) {
   if (!bytes || bytes.length < 12) return null
   const at = (i, list) => list.every((b, j) => bytes[i + j] === b)
@@ -39,7 +42,7 @@ export function sniffAttachMime(bytes) {
   if (at(0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png'
   if (at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) return 'image/webp'
   if (at(0, [0x25, 0x50, 0x44, 0x46, 0x2d])) return 'application/pdf'
-  return null
+  return sniffVideoMime(bytes)
 }
 
 /** Тип подходит к виду вложения: фото — картинка, файл — только PDF. */
@@ -77,6 +80,11 @@ const side = (v) => {
  *   | { ok: false, status: number, error: string }}
  */
 export function checkAttachUpload(input) {
+  if (input?.kind === 'video') {
+    const video = checkVideoUpload({ bytes: input.buffer, sec: input.sec })
+    if (!video.ok) return video
+    return { ok: true, kind: 'video', buffer: input.buffer, bytes: video.bytes, sec: video.sec, name: null, w: null, h: null }
+  }
   const kind = input?.kind === 'photo' || input?.kind === 'file' ? input.kind : null
   const data = typeof input?.data === 'string' ? input.data : ''
   if (!kind || !data || data.length % 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return { ok: false, status: 400, error: CHAT_ATTACH_BAD_RU }
@@ -107,12 +115,13 @@ export function normalizeAttachCaption(raw) {
 }
 
 /** Текст сообщения: его видят список диалогов, push, поиск и цитата ответа. */
-export function chatAttachLabel(kind, name, caption = '') {
+export function chatAttachLabel(kind, name, caption = '', sec = 0) {
+  if (kind === 'video') return caption ? `${chatVideoLabel(sec)} · ${caption}` : chatVideoLabel(sec)
   if (kind === 'photo') return caption ? `📷 ${caption}` : '📷 Фото'
   return caption ? `📎 ${name} · ${caption}` : `📎 ${name}`
 }
 
-const KEY_RE = /^voice\/att\/[cu]-[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf)$/
+const KEY_RE = /^voice\/att\/[cu]-[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf|mp4|webm)$/
 
 /** Файл в хранилище: под префиксом voice/ — правило бакета удаляет его через сутки, как звук. */
 export function attachStorageKey(authorSide, authorId, msgId, mime) {
@@ -130,7 +139,7 @@ export function isAttachExpired(createdAt, now = Date.now()) {
 
 /** Вложение в сообщении для экрана; ключ хранилища наружу не отдаём. Без вложения — null. */
 export function buildAttachView(m, now = Date.now()) {
-  if (m?.attach_kind !== 'photo' && m?.attach_kind !== 'file') return null
+  if (!ATTACH_KINDS.has(m?.attach_kind)) return null
   return {
     kind: m.attach_kind,
     mime: String(m.attach_mime ?? ''),
@@ -138,6 +147,7 @@ export function buildAttachView(m, now = Date.now()) {
     bytes: Number(m.attach_bytes) || 0,
     w: Number(m.attach_w) || null,
     h: Number(m.attach_h) || null,
+    sec: Number(m.attach_sec) || null,
     caption: typeof m.attach_caption === 'string' ? m.attach_caption : '',
     expired: !m.attach_key || isAttachExpired(m.created_at, now),
   }

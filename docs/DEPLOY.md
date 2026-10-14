@@ -2,7 +2,7 @@
 
 Проект — **одностраничное приложение (React + Vite)** с **PWA**, бэкендом **Supabase** (Postgres + Auth) и **serverless API** в папке `api/` (на проде — **Vercel**). В браузере данные дублируются в **IndexedDB**; без Supabase приложение уходит в «локальный» режим с ограничениями.
 
-> **История (до 01.10.2026).** Прод теперь в РФ: Yandex VM + Managed PostgreSQL, `https://app-core.ru`. Выкладка — `cd /opt/fitness-diary && sudo bash scripts/r3-deploy-vm.sh origin/main` (миграции — `scripts/r2-pg-migrate-vm.sh`); устройство контура — [R3_NIGHT.md](./R3_NIGHT.md), [R3_DOMAIN.md](./R3_DOMAIN.md), новый стенд с нуля — [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md); релиз — [RELEASE.md](./RELEASE.md). Ниже — старый путь Vercel + Supabase: годится для локального демо, на прод не применять.
+> **История (до 01.10.2026).** Прод теперь в РФ: Yandex VM + Managed PostgreSQL, `https://app-core.ru`. Выкладка — `cd /opt/fitness-diary && sudo bash scripts/deploy-vm.sh origin/main` (через тестовый стенд, [RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md) 2c; `r3-deploy-vm.sh` — аварийно без стенда; миграции — `scripts/r2-pg-migrate-vm.sh`, до кода); устройство контура — [R3_NIGHT.md](./R3_NIGHT.md), [R3_DOMAIN.md](./R3_DOMAIN.md), новый стенд с нуля — [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md); релиз — [RELEASE.md](./RELEASE.md). Ниже — старый путь Vercel + Supabase: годится для локального демо, на прод не применять.
 
 ## 1. Что подготовить заранее
 

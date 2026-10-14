@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Keyboard, Send, Smile } from 'lucide-react'
 import { useChatAttachDraft } from '../../hooks/useChatAttachDraft.js'
+import { useChatVideoRecord } from '../../hooks/useChatVideoRecord.js'
 import { useChatVoiceRecord } from '../../hooks/useChatVoiceRecord.js'
 import { CHAT_BODY_MAX, CHAT_PASTE_CUT_RU, chatLengthCounter, chatPasteCut } from '../../lib/chat/chatMessageCore.js'
 import { insertEmoji } from '../../lib/chat/chatEmojiCore.js'
@@ -8,6 +9,7 @@ import { rememberSentEmoji } from '../../lib/chat/chatEmojiUsageStore.js'
 import { ChatAttachButton, ChatAttachDraft } from './ChatAttachDraft.jsx'
 import { ChatEmojiPicker } from './ChatEmojiPicker.jsx'
 import { ChatReplyQuote } from './ChatReplyQuote.jsx'
+import { ChatVideoButton, ChatVideoCircle, ChatVideoPanel } from './ChatVideoRecorder.jsx'
 import { ChatVoiceButton, ChatVoicePanel } from './ChatVoiceRecorder.jsx'
 
 /** На компьютере Enter отправляет (Shift+Enter — перенос), на тач-экране Enter — перенос, как в Telegram. */
@@ -22,6 +24,7 @@ function enterSends() {
  * above — висит над полем и едет вместе с ним над клавиатурой (кнопка «↓ Новые»)
  * replyTo — «Ответ …» над полем (крестик или Esc — onCancelReply); выбрали «Ответить» — фокус в поле, как в Telegram
  * voiceEnabled — поле пустое: вместо «Отправить» 🎤, голосовое как в Telegram (useChatVoiceRecord);
+ * короткое касание 🎤 пальцем — 📹 видеокружок (useChatVideoRecord), ещё раз — обратно;
  * voiceDraftKey — диалог: ушли посреди записи — она ждёт тут черновиком
  * attachEnabled — скрепка: фото / PDF (ещё вставка картинки и перетаскивание файла); текст поля уходит подписью
  * initialDraft — текст в поле при открытии (центр сбоев: «что сказать тренеру»), отправляет человек сам
@@ -44,9 +47,11 @@ export function ChatComposer({
   const [pasteCut, setPasteCut] = useState(false)
   const inputRef = useRef(null)
   const caretRef = useRef(null)
-  const rec = useChatVoiceRecord({ send: onSubmit, enabled: voiceEnabled, draftKey: voiceDraftKey })
+  const vid = useChatVideoRecord({ send: onSubmit, enabled: voiceEnabled })
+  const rec = useChatVoiceRecord({ send: onSubmit, enabled: voiceEnabled, draftKey: voiceDraftKey, onTap: vid.available ? vid.toggleMode : null })
   const att = useChatAttachDraft()
-  const recording = rec.phase !== 'idle'
+  const filming = vid.phase !== 'idle'
+  const recording = rec.phase !== 'idle' || filming
   const hasAttach = Boolean(att.item)
 
   useEffect(() => {
@@ -129,14 +134,14 @@ export function ChatComposer({
           {sendError}
         </p>
       ) : null}
-      {rec.error ? (
+      {rec.error || vid.error ? (
         <p className="chat-compose__error" role="alert" data-testid="chat-voice-error">
-          {rec.error}
+          {rec.error || vid.error}
         </p>
       ) : null}
-      {rec.hint ? (
+      {rec.hint || vid.hint ? (
         <p className="chat-compose__hint" role="status" data-testid="chat-voice-hint">
-          {rec.hint}
+          {vid.hint || rec.hint}
         </p>
       ) : null}
       {pasteCut ? (
@@ -152,9 +157,10 @@ export function ChatComposer({
       {replyTo && onCancelReply ? <ChatReplyQuote quote={replyTo} onCancel={onCancelReply} /> : null}
       {recording ? null : <ChatAttachDraft att={att} />}
       {emojiOpen ? <ChatEmojiPicker onPick={pickEmoji} onSticker={(id) => void sendSticker(id)} sending={sending} /> : null}
+      {filming ? <ChatVideoCircle vid={vid} /> : null}
       <div className="chat-compose__row">
         <div className="chat-compose__pill">
-          {recording ? <ChatVoicePanel rec={rec} /> : null}
+          {filming ? <ChatVideoPanel vid={vid} /> : recording ? <ChatVoicePanel rec={rec} /> : null}
           <button
             type="button"
             hidden={recording}
@@ -183,6 +189,7 @@ export function ChatComposer({
             onChange={(e) => {
               setDraft(e.target.value)
               rec.clearError()
+              vid.clearError()
               if (e.target.value.length < CHAT_BODY_MAX) setPasteCut(false)
             }}
             onPaste={(e) => {
@@ -203,7 +210,7 @@ export function ChatComposer({
           {attachEnabled && !recording ? <ChatAttachButton onPick={(file) => void att.pick(file)} disabled={sending} /> : null}
         </div>
         {showVoice ? (
-          <ChatVoiceButton rec={rec} />
+          filming || (vid.mode === 'video' && rec.phase === 'idle') ? <ChatVideoButton vid={vid} /> : <ChatVoiceButton rec={rec} />
         ) : (
           <button
             type="submit"

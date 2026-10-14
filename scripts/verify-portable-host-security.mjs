@@ -3,7 +3,10 @@
  */
 import { Readable } from 'node:stream'
 import {
+  PORTABLE_BINARY_APIS,
   PORTABLE_MAX_BODY_BYTES_DEFAULT,
+  PORTABLE_MAX_UPLOAD_BYTES_DEFAULT,
+  portableBodyPolicy,
   portableMaxBodyBytes,
   readBodyLimited,
 } from '../api/_lib/portableHostSecurityCore.js'
@@ -23,6 +26,18 @@ ok(PORTABLE_MAX_BODY_BYTES_DEFAULT === 5 * 1024 * 1024, 'по умолчанию
 ok(portableMaxBodyBytes('') === PORTABLE_MAX_BODY_BYTES_DEFAULT, 'пустой env — по умолчанию')
 ok(portableMaxBodyBytes('abc') === PORTABLE_MAX_BODY_BYTES_DEFAULT, 'мусор в env — по умолчанию')
 ok(portableMaxBodyBytes('10485760') === 10485760, 'env задаёт лимит')
+const json = portableBodyPolicy('application/json; charset=utf-8')
+ok(!json.binary && json.limit === PORTABLE_MAX_BODY_BYTES_DEFAULT, 'JSON и Sync — текстом, 5 МБ')
+const mp4 = portableBodyPolicy('video/mp4')
+ok(mp4.binary && mp4.limit === PORTABLE_MAX_UPLOAD_BYTES_DEFAULT, 'видеокружок MP4 — байтами, 10 МБ')
+ok(portableBodyPolicy('Video/WebM; codecs=vp9').binary, 'WebM с кодеком — тоже байтами')
+ok(!portableBodyPolicy('application/octet-stream').binary && !portableBodyPolicy('image/png').binary, 'прочие типы — не байтами, лимит не растёт')
+ok(portableBodyPolicy('video/mp4', { MAX_UPLOAD_BYTES: '2048' }).limit === 2048, 'env MAX_UPLOAD_BYTES задаёт лимит видео')
+ok(portableBodyPolicy('video/mp4', { MAX_UPLOAD_BYTES: 'x' }).limit === PORTABLE_MAX_UPLOAD_BYTES_DEFAULT, 'мусор в env — 10 МБ')
+ok(
+  [...PORTABLE_BINARY_APIS].sort().join() === 'admin-data,client-me,coach',
+  'байты принимают только входные точки переписки (Sync, вход, push — нет)',
+)
 const small = await readBodyLimited(Readable.from([Buffer.from('ab'), Buffer.from('c')]), 10)
 ok(small.ok && small.raw.toString() === 'abc', 'малое тело читается целиком')
 const big = await readBodyLimited(Readable.from([Buffer.alloc(6), Buffer.alloc(6)]), 10)
@@ -55,6 +70,18 @@ try {
   ok(huge.status === 413, `тело > лимита → 413 (было ${huge.status})`)
   const hugeBody = await huge.json().catch(() => ({}))
   ok(/Слишком большой/.test(String(hugeBody.error ?? '')), 'понятная ошибка на русском')
+  const restVideo = await fetch(`${base}/rest/v1/clients`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'video/mp4' },
+    body: Buffer.alloc(PORTABLE_MAX_BODY_BYTES_DEFAULT + 1024),
+  })
+  ok(restVideo.status === 413, `видео-тип мимо /api/* — прежний лимит 5 МБ (было ${restVideo.status})`)
+  const syncVideo = await fetch(`${base}/api/push-records`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'video/mp4' },
+    body: Buffer.alloc(PORTABLE_MAX_BODY_BYTES_DEFAULT + 1024),
+  })
+  ok(syncVideo.status === 413, `видео-тип в /api/push-records — прежний лимит 5 МБ (было ${syncVideo.status})`)
 } finally {
   await new Promise((r) => server.close(r))
 }

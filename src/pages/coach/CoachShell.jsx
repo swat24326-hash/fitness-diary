@@ -45,37 +45,42 @@ function CoachTabs() {
 /**
  * Телефон тренера: шапка, экран, нижние вкладки. tabs=false — вход и диалог (своя навигация).
  * fill — экран ровно в высоту телефона, листается только содержимое (Ежедневник: сетка часов).
+ * bar — вместо шапки приложения своя строка (диалог: ChatHeadBar, как в Telegram).
  */
-export function CoachShell({ children, title = '', actions = null, tabs = true, fill = false }) {
+export function CoachShell({ children, title = '', actions = null, tabs = true, fill = false, bar = null }) {
   const { club, signedIn } = useCoachApp()
   useCoachPushSelfHeal(signedIn)
   const clubTitle = club?.name || COACH_APP_TITLE
   useClientBranding(clubTitle, club?.manifest_url || COACH_MANIFEST)
   return (
     <div className={`coach-app${tabs ? ' coach-app--tabs' : ''}${fill ? ' coach-app--fill' : ''}`}>
-      <header className="coach-app__top">
-        <span className="coach-app__brand">
-          <OsMark size={18} />
-          <span className="coach-app__title">{title || clubTitle}</span>
-        </span>
-        <span className="coach-app__actions">
-          {actions}
-          {tabs ? (
-            <NavLink
-              to="/coach/more"
-              className={({ isActive }) =>
-                `btn btn-ghost btn-icon-square btn-touch coach-app__menu${isActive ? ' is-active' : ''}`
-              }
-              aria-label="Меню"
-              title="Меню"
-            >
-              <Menu size={20} aria-hidden />
-            </NavLink>
-          ) : null}
-        </span>
-      </header>
+      {bar ? <div className="coach-app__top coach-app__top--bar">{bar}</div> : <CoachTop title={title || clubTitle} actions={actions} menu={tabs} />}
       <main className="coach-app__main">{children}</main>
       {tabs ? <CoachTabs /> : null}
     </div>
+  )
+}
+
+function CoachTop({ title, actions, menu }) {
+  return (
+    <header className="coach-app__top">
+      <span className="coach-app__brand">
+        <OsMark size={18} />
+        <span className="coach-app__title">{title}</span>
+      </span>
+      <span className="coach-app__actions">
+        {actions}
+        {menu ? (
+          <NavLink
+            to="/coach/more"
+            className={({ isActive }) => `btn btn-ghost btn-icon-square btn-touch coach-app__menu${isActive ? ' is-active' : ''}`}
+            aria-label="Меню"
+            title="Меню"
+          >
+            <Menu size={20} aria-hidden />
+          </NavLink>
+        ) : null}
+      </span>
+    </header>
   )
 }

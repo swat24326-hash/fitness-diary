@@ -3,6 +3,8 @@
  * Последний удачный ответ /api/client-me храним, чтобы без сети показать данные «на дату».
  */
 import { fetchWithAppTimeout } from '../networkReachability.js'
+import { CHAT_VIDEO_FAILED_RU } from '../chat/chatVideoCore.js'
+import { CHAT_VIDEO_FETCH_MS, readApiBody, videoContentType } from '../chat/chatVideoTransport.js'
 
 const SESSION_KEY = 'fd_client_session_v1'
 const CACHE_KEY = 'fd_client_me_cache_v1'
@@ -68,10 +70,10 @@ export function patchClientMeCache(patch) {
 export const CLIENT_OFFLINE_RU = 'Нет связи с сервером — проверьте интернет'
 
 /** fetch бросает «Failed to fetch» / таймаут — клиенту показываем по-русски. */
-async function request(path, init) {
+async function request(path, init, timeoutMs = FETCH_MS) {
   try {
-    const res = await fetchWithAppTimeout(`${window.location.origin}${path}`, { cache: 'no-store', ...init }, FETCH_MS)
-    const data = await res.json().catch(() => ({}))
+    const res = await fetchWithAppTimeout(`${window.location.origin}${path}`, { cache: 'no-store', ...init }, timeoutMs)
+    const data = await readApiBody(res)
     return { res, data }
   } catch {
     throw new Error(CLIENT_OFFLINE_RU)
@@ -109,12 +111,17 @@ async function validAccessToken() {
   return data.session.access_token
 }
 
-async function clientMeRequest(init = {}, failRu) {
+async function clientMeRequest(init = {}, failRu, { query = null, timeoutMs } = {}) {
   const token = await validAccessToken()
-  const { res, data } = await request('/api/client-me', {
-    ...init,
-    headers: { ...init.headers, Authorization: `Bearer ${token}` },
-  })
+  const qs = query ? `?${new URLSearchParams(query)}` : ''
+  const { res, data } = await request(
+    `/api/client-me${qs}`,
+    {
+      ...init,
+      headers: { ...init.headers, Authorization: `Bearer ${token}` },
+    },
+    timeoutMs,
+  )
   if (res.status === 401) {
     clearClientSession()
     throw new ClientSessionGoneError(data?.error)
@@ -131,10 +138,20 @@ export async function fetchClientMe() {
 }
 
 /** POST /api/client-me { action: 'push-*' | 'handoff' } — напоминания на этот телефон, вход для значка iPhone. */
-export function postClientMe(body) {
+export function postClientMe(body, { timeoutMs } = {}) {
   return clientMeRequest(
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
     'Не получилось — попробуйте ещё раз',
+    { timeoutMs },
+  )
+}
+
+/** Видеокружок: тело — сам файл, куда и сколько секунд — в адресе (chatVideoTransport). */
+export function postClientMeVideo(query, blob) {
+  return clientMeRequest(
+    { method: 'POST', headers: { 'Content-Type': videoContentType(blob) }, body: blob },
+    CHAT_VIDEO_FAILED_RU,
+    { query, timeoutMs: CHAT_VIDEO_FETCH_MS },
   )
 }
 

@@ -31,6 +31,25 @@ export function portableMaxBodyBytes(raw) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : PORTABLE_MAX_BODY_BYTES_DEFAULT
 }
 
+/** Видеокружок в переписке: минута ~5 МБ, с запасом — 10 МБ. Больше лимит только у этих типов, JSON и Sync — прежние 5 МБ. */
+export const PORTABLE_MAX_UPLOAD_BYTES_DEFAULT = 10 * 1024 * 1024
+const BINARY_TYPES = new Set(['video/mp4', 'video/webm'])
+/** Видеокружки шлют только эти входные точки переписки; остальным байты не нужны. */
+export const PORTABLE_BINARY_APIS = new Set(['client-me', 'coach', 'admin-data'])
+
+/**
+ * Как читать тело: видео — байтами (Buffer) со своим лимитом, остальное — текст / JSON.
+ * @param {unknown} contentType
+ * @param {{ MAX_BODY_BYTES?: string, MAX_UPLOAD_BYTES?: string }} [env]
+ * @returns {{ binary: boolean, limit: number }}
+ */
+export function portableBodyPolicy(contentType, env = {}) {
+  const type = String(contentType ?? '').split(';')[0].trim().toLowerCase()
+  if (!BINARY_TYPES.has(type)) return { binary: false, limit: portableMaxBodyBytes(env.MAX_BODY_BYTES) }
+  const n = Number(String(env.MAX_UPLOAD_BYTES ?? '').trim())
+  return { binary: true, limit: Number.isFinite(n) && n > 0 ? Math.floor(n) : PORTABLE_MAX_UPLOAD_BYTES_DEFAULT }
+}
+
 /**
  * @param {AsyncIterable<Buffer>} stream
  * @param {number} limit

@@ -44,7 +44,7 @@ import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatRe
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
 import { sendStaffDmPush } from './staffDmPushJob.js'
-import { answerChatAttach, storeChatOutgoing } from './chatAttachHandler.js'
+import { answerChatAttach, sendChatFileAnswer, storeChatOutgoing } from './chatAttachHandler.js'
 import { answerChatVoice, chatVoiceBlocked } from './chatVoiceHandler.js'
 import { chatVoiceStorageMode } from './chatVoiceStorage.js'
 import {
@@ -267,7 +267,7 @@ export function sendStaffDmVoice(authCtx, res, peerId, messageId, want) {
         : await answerChatVoice(db, 'staff_dm_messages', thread?.id ?? null, messageId, want, `u:${String(ctx.user?.id ?? viewer.id)}`, {
             userId: viewer.id,
           })
-    sendJson(res, out.status, out.body)
+    sendChatFileAnswer(res, out)
   })
 }
 

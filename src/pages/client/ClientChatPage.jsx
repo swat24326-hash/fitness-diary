@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
-import { RefreshCw, WifiOff } from 'lucide-react'
+import { MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
+import { ChatHeadBar } from '../../components/chat/ChatHeadBar.jsx'
+import { MessengerBack } from '../../components/chat/MessengerLayout.jsx'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
-import { isChatKind } from '../../lib/chat/chatAccessCore.js'
-import { chatClientEmptyRu, chatThreadTitleRu } from '../../lib/chat/chatUiCore.js'
+import { chatKindLabelRu, isChatKind } from '../../lib/chat/chatAccessCore.js'
+import { chatClientEmptyRu } from '../../lib/chat/chatUiCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
-import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
+import { ClientPageActions } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientChatThread } from './useClientChat.js'
@@ -14,13 +17,26 @@ import { useClientChatThread } from './useClientChat.js'
 export function ClientChatPage() {
   const { kind = '' } = useParams()
   const chat = useClientChatThread(kind)
+  const [searchHost, setSearchHost] = useState(null)
   if (!hasClientSession()) return <Navigate to="/me" replace />
   if (!isChatKind(kind)) return <Navigate to="/me/inbox" replace />
   const club = readClientMeCache()?.data?.club ?? null
+  const who = String(chat.meta?.name ?? '').trim()
 
   return (
-    <ClientMeShell actions={<ClientPageActions onRefresh={chat.reload} refreshing={chat.status === 'loading'} />} club={club}>
-      <ClientPageTitle title={chatThreadTitleRu(kind, chat.meta?.name)} to="/me/inbox" />
+    <ClientMeShell
+      club={club}
+      bar={
+        <ChatHeadBar
+          back={<MessengerBack to="/me/inbox" />}
+          icon={MessageCircle}
+          title={who || chatKindLabelRu(kind)}
+          subtitle={who ? chatKindLabelRu(kind) : ''}
+          searchHostRef={setSearchHost}
+          actions={<ClientPageActions onRefresh={chat.reload} refreshing={chat.status === 'loading'} />}
+        />
+      }
+    >
       {!chat.messages ? (
         chat.status === 'error' ? (
           <ClientMeStatus icon={WifiOff} title="Не открылось" hint={chat.error}>
@@ -44,6 +60,7 @@ export function ClientChatPage() {
           sending={chat.sending}
           sendError={chat.sendError}
           emptyHint={chatClientEmptyRu(kind)}
+          searchHost={searchHost}
         />
       )}
     </ClientMeShell>

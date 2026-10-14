@@ -108,18 +108,20 @@ export function createFakeChat(state) {
   /** Как storeChatAttach: тип по байтам, файл в chat.voices под ключом voice/att/…. */
   function storeAttach(attach) {
     if (!chat.voiceReady) return { ok: false, status: 503, error: 'Фото и файлы пока недоступны' }
-    const bytes = Buffer.from(attach.data, 'base64')
+    const bytes = attach.kind === 'video' ? Buffer.from(attach.buffer) : Buffer.from(attach.data, 'base64')
     const mime = checkAttachBytes(attach.kind, bytes)
     if (!mime) return { ok: false, status: 400, error: CHAT_ATTACH_BAD_RU }
     const key = attachStorageKey('client', randomUUID(), randomUUID(), mime)
     chat.voices.set(key, bytes)
-    const { kind, name, w, h, caption } = attach
-    return { ok: true, columns: attachColumns({ kind, key, mime, bytes: bytes.length, name, w, h, caption }) }
+    const { kind, name, w, h, caption, sec } = attach
+    return { ok: true, columns: attachColumns({ kind, key, mime, bytes: bytes.length, name, w, h, caption, sec }) }
   }
-  /** Как answerChatAttach: только сообщение этого диалога; сутки — по created_at. */
+  /** Как answerChatAttach + sendChatFileAnswer: только сообщение этого диалога; сутки — по created_at; видео — байтами. */
   function fileOf(messages, thread, messageId) {
     const message = thread && messages.find((m) => m.id === messageId && m.thread_id === thread.id)
-    return attachFileAnswer(message ?? null, async (key) => chat.voices.get(key) ?? null).then((out) => ({ status: out.status, json: out.body }))
+    return attachFileAnswer(message ?? null, async (key) => chat.voices.get(key) ?? null).then((out) =>
+      out.file ? { status: out.status, file: out.file, contentType: out.body.mime } : { status: out.status, json: out.body },
+    )
   }
   /**
    * Как answerChatVoice: тот же код ответа, вместо бакета — chat.voices, вместо SpeechKit — chat.voiceText со второго опроса.

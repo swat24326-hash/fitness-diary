@@ -1,6 +1,6 @@
 /**
  * Скачанные вложения ленты: id сообщения → ссылка на файл в памяти (blob:). Опрос ленты раз в 10 с не качает
- * фото заново; держим последние 30 — старые освобождаем, чтобы длинная переписка не съела память телефона.
+ * фото и кружки заново; держим последние 30 — старые освобождаем, чтобы длинная переписка не съела память телефона.
  */
 const MAX = 30
 /** @type {Map<string, Promise<{ url: string, name: string|null, mime: string }>>} */
@@ -15,7 +15,8 @@ function toBlob(base64, mime) {
 
 /**
  * @param {string} id сообщение
- * @param {(id: string) => Promise<{ data: string, mime: string, name?: string|null }>} load
+ * @param {(id: string) => Promise<{ data: string, mime: string, name?: string|null } | { blob: Blob, mime: string }>} load
+ *   видеокружок приходит байтами (blob), фото и PDF — base64
  */
 export function loadChatAttach(id, load) {
   const key = String(id)
@@ -25,7 +26,11 @@ export function loadChatAttach(id, load) {
     cache.set(key, hit)
     return hit
   }
-  const p = load(key).then((out) => ({ url: URL.createObjectURL(toBlob(out.data, out.mime)), name: out.name ?? null, mime: out.mime }))
+  const p = load(key).then((out) => ({
+    url: URL.createObjectURL(out.blob instanceof Blob ? out.blob : toBlob(out.data, out.mime)),
+    name: out.name ?? null,
+    mime: out.mime,
+  }))
   p.catch(() => cache.get(key) === p && cache.delete(key))
   cache.set(key, p)
   while (cache.size > MAX) {

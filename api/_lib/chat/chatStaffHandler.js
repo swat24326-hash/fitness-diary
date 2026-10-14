@@ -14,6 +14,7 @@
  *      → { audio, mime } | { done, text? } — звук голосового (сутки) и расшифровка «→ Аа»; права — как на чтение диалога
  * POST { op: 'attach', client_id, kind, message_id } | { op: 'dm-attach', user_id, message_id } → { data, mime, name } — фото / PDF (сутки);
  *      в send / dm-send — attach { kind: 'photo'|'file', data (base64), name?, w?, h? }, body — подпись
+ * Видеокружок — бинарный POST ?action=chat&op=send|dm-send|group-send&…&sec (chatVideoHandler.js); attach у видео отдаёт байты.
  * Тренер, связанный с управляющим (linkedStaffStore), ведёт «Жалобы и предложения» (kind supervisor) от учётки управляющего.
  */
 import { sendJson } from '../adminSupabase.js'
@@ -32,6 +33,7 @@ import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
+import { sendChatFileAnswer } from './chatAttachHandler.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice, staffDmAttention } from './staffDmHandler.js'
@@ -179,7 +181,7 @@ export async function handleStaffChatPost(ctx, res, body) {
         side: 'staff',
         mark: staffMarksChatRead(scope.role),
       })
-      sendJson(res, out.status, out.body)
+      sendChatFileAnswer(res, out)
       return
     }
     if (op === 'react') {

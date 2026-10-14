@@ -3,6 +3,7 @@ import { Download, FileText, ImageOff, Loader2, RotateCcw } from 'lucide-react'
 import { chatAttachExpiredRu, formatAttachSize } from '../../lib/chat/chatAttachCore.js'
 import { loadChatAttach, saveChatAttach } from '../../lib/chat/chatAttachCache.js'
 import { ChatPhotoViewer } from './ChatPhotoViewer.jsx'
+import { ChatVideoBubble } from './ChatVideoBubble.jsx'
 import '../../styles/chat-attach.css'
 
 /** Файл качаем, когда пузырь показался на экране (фото выше в истории не тянем зря). */
@@ -98,11 +99,12 @@ function FileBubble({ id, attach, load }) {
 }
 
 /**
- * Вложение в пузыре: фото (тап — на весь экран) или плашка PDF (тап — скачать). Через сутки — «удалено».
+ * Вложение в пузыре: фото (тап — на весь экран), плашка PDF (тап — скачать) или видеокружок. Через сутки — «удалено».
  * @param {{ id: string, attach: { kind: 'photo'|'file', name: string|null, bytes: number, w: number|null, h: number|null, expired: boolean },
  *   load: (id: string) => Promise<{ data: string, mime: string, name?: string|null }> }} props
  */
 export function ChatAttachBubble({ id, attach, load }) {
+  if (attach.kind === 'video') return <ChatVideoBubble id={id} attach={attach} load={load} />
   if (attach.expired) return <Gone kind={attach.kind} />
   return attach.kind === 'photo' ? <PhotoBubble id={id} attach={attach} load={load} /> : <FileBubble id={id} attach={attach} load={load} />
 }

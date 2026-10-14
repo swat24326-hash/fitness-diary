@@ -6,9 +6,9 @@ const HOLD_MS = 500
 /**
  * «Отправить» голосовое; подержать (или правая кнопка мыши) — «Отправить без звука», как в Telegram:
  * у собеседника уведомление придёт тихо.
- * @param {{ sending: boolean, onSend: (opts?: { silent?: boolean }) => void }} props
+ * @param {{ sending: boolean, onSend: (opts?: { silent?: boolean }) => void, label?: string }} props
  */
-export function ChatVoiceSendButton({ sending, onSend }) {
+export function ChatVoiceSendButton({ sending, onSend, label = 'Отправить голосовое' }) {
   const [menu, setMenu] = useState(false)
   const timerRef = useRef(0)
   const heldRef = useRef(false)
@@ -56,7 +56,7 @@ export function ChatVoiceSendButton({ sending, onSend }) {
         key="send"
         type="button"
         className="chat-compose__send is-ready"
-        aria-label="Отправить голосовое"
+        aria-label={label}
         title="Отправить (подержите — без звука)"
         aria-haspopup="menu"
         disabled={sending}

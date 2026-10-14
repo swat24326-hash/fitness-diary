@@ -1,5 +1,5 @@
 /**
- * Голосовые в переписке, как в Telegram. Клиент на iPhone (палец): короткое касание — «Удерживайте»; держит — пишется,
+ * Голосовые в переписке, как в Telegram. Клиент на iPhone (палец): короткое касание — 📹 и обратно; держит — пишется,
  * отпустил — ушло; влево — отмена; вверх — без рук → «Отправить»; запрет микрофона — понятная ошибка.
  * Тренер на планшете (мышь): синие точки непрослушанных; ▶ — доиграло, само включилось следующее; мини-плеер над лентой,
  * снизу на другом экране, ✕; перемотка нажатием и перетаскиванием, скорость, «→ Аа» — текст; клик — без рук → ■ пауза →
@@ -9,7 +9,8 @@
  * Микрофон — подставной тон, бакет и SpeechKit — подменные (fakeChat.mjs), ответы — настоящий chatVoiceHandler.
  */
 import * as lame from '@breezystack/lamejs'
-import { CHAT_VOICE_DENIED_RU, CHAT_VOICE_EXPIRED_RU, CHAT_VOICE_HOLD_RU, CHAT_VOICE_ONCE_ON_RU } from '../../../src/lib/chat/chatVoiceCore.js'
+import { CHAT_VIDEO_MODE_RU } from '../../../src/lib/chat/chatVideoCore.js'
+import { CHAT_VOICE_DENIED_RU, CHAT_VOICE_EXPIRED_RU, CHAT_VOICE_ONCE_ON_RU } from '../../../src/lib/chat/chatVoiceCore.js'
 import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
@@ -84,8 +85,8 @@ async function eventually(check) {
 }
 
 /** Палец на 🎤 — настоящие касания (CDP), как на iPhone: pointerType touch. */
-async function finger(page, cdp) {
-  const box = await page.getByTestId('chat-mic').boundingBox()
+async function finger(page, cdp, testId = 'chat-mic') {
+  const box = await page.getByTestId(testId).boundingBox()
   const x = box.x + box.width / 2
   const y = box.y + box.height / 2
   const at = (dx = 0, dy = 0) => [{ x: x + dx, y: y + dy }]
@@ -120,8 +121,15 @@ async function client(c, context, chat) {
     const tapDown = f.down()
     await wait(80)
     await Promise.all([tapDown, f.up()])
-    c.ok(await reaches(page.getByTestId('chat-voice-hint').getByText(CHAT_VOICE_HOLD_RU)), 'клиент: короткое касание — подсказка «Удерживайте»')
+    c.ok(await reaches(page.getByTestId('chat-voice-hint').getByText(CHAT_VIDEO_MODE_RU)), 'клиент: короткое касание — переключилось на 📹 с подсказкой')
+    c.ok(await reaches(page.getByTestId('chat-video-button')), 'клиент: вместо 🎤 — 📹')
     c.ok(await eventually(async () => (await micOn(page)) === 0), 'клиент: после касания микрофон выключен')
+    f = await finger(page, cdp, 'chat-video-button')
+    await f.down()
+    await wait(80)
+    await f.up()
+    c.ok(await reaches(page.getByTestId('chat-mic')), 'клиент: ещё касание — снова 🎤')
+    c.ok(await eventually(async () => (await micOn(page)) === 0), 'клиент: камера и микрофон не остались включёнными')
 
     const before = voiceCount(chat)
     f = await finger(page, cdp)

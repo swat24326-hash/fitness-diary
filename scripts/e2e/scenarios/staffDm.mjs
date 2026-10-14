@@ -107,6 +107,13 @@ async function trainerWrites(c, page, chat) {
   })
   c.ok(gap >= 0 && gap < 60, `короткий диалог: сообщение у поля ввода, как в Telegram, — без пустоты (зазор ${Math.round(gap)}px)`)
   await screenshot(page, 'staff-dm-coach-short')
+  const bar = await page.evaluate(() => {
+    const top = globalThis.document.querySelector('.coach-app__top')
+    const back = top?.querySelector('a[aria-label="К списку"]')?.getBoundingClientRect()
+    const name = top?.querySelector('.chat-bar__title')?.getBoundingClientRect()
+    return { bars: globalThis.document.querySelectorAll('.coach-app__top').length, backLeft: back && name && back.right <= name.left }
+  })
+  c.ok(bar.bars === 1 && bar.backLeft, 'телефон тренера: в диалоге одна шапка диалога, «←» слева от имени, как в Telegram')
 
   /* iPhone: тянут пальцем без клавиатуры — страница не пружинит, высота не пересчитывается во время жеста (INC-2026-10-14-04). */
   c.ok(
@@ -327,8 +334,7 @@ async function iphoneKeyboardAfterSend(c, browser, backend) {
       panned.composeBottom <= KB + panned.view + 1 && panned.composeBottom >= KB + panned.view - 40 && panned.headTop >= KB - 1,
       `iPhone сдвинул видимую часть к полю ввода — диалог едет за ней, поле над клавиатурой, не «за горизонтом» (низ поля ${Math.round(panned.composeBottom - KB)} от верха видимой части, клавиатура с ${Math.round(panned.view)})`,
     )
-    const chromeTop = await page.evaluate(() => globalThis.document.querySelector('.app-chrome-top')?.getBoundingClientRect().top)
-    c.ok(Math.abs(chromeTop - KB) < 2, `шапка у верха видимой части, не сдвинута дважды (${Math.round(chromeTop - KB)}px)`)
+    c.ok(!(await page.locator('.app-chrome-top').isVisible()), 'iPhone: в открытом диалоге шапки приложения нет — сверху только шапка диалога')
     await screenshot(page, 'staff-dm-iphone-panned')
     await panTo(0)
     await page.waitForTimeout(300)
@@ -464,8 +470,10 @@ async function adminWrites(c, browser, backend, chat) {
     await page.setViewportSize({ width: 700, height: 900 })
     const back = page.getByRole('link', { name: 'К списку' })
     c.ok((await reaches(back)) && !(await rail.isVisible()), 'телефон: открыт диалог — только он и «К списку»')
+    c.ok(!(await page.locator('.app-header').isVisible()), 'телефон: открыт диалог — шапки приложения нет, как в Telegram')
     await back.click()
     c.ok((await reaches(rail)) && !(await page.getByTestId('chat-input').isVisible()), 'телефон: «К списку» — снова клубы и люди')
+    c.ok(await page.locator('.app-header').isVisible(), 'телефон: вернулся к списку — шапка приложения снова на месте')
   } catch (e) {
     await screenshot(page, 'staff-dm-admin-FAIL').catch(() => null)
     c.ok(false, `админ: сценарий прерван: ${e.message.split('\n')[0]}`)
@@ -502,7 +510,7 @@ export async function run(browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await trainerWrites(c, page, chat)
-    await page.getByRole('link', { name: 'Все диалоги' }).click()
+    await page.getByRole('link', { name: 'К списку' }).click()
     const tab = page.getByRole('link', { name: 'Сообщения, новых диалогов: 1' })
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения', exact: true })), 'вкладка «Сообщения» без числа, пока ответа нет')
     await supervisorAnswers(c, browser, backend, chat)

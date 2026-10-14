@@ -4,6 +4,7 @@
  */
 import { DEVICE_ID_HEADER, deviceRequestHeaders } from '../deviceIdentityCore.js'
 import { fetchWithAppTimeout } from '../networkReachability.js'
+import { readApiBody, videoContentType } from '../chat/chatVideoTransport.js'
 
 const SESSION_KEY = 'fd_coach_session_v1'
 const DEVICE_KEY = 'fd_coach_device_id'
@@ -86,10 +87,10 @@ export function clearCoachSession() {
   writeJson(SESSION_KEY, null)
 }
 
-async function request(path, init) {
+async function request(path, init, timeoutMs = FETCH_MS) {
   try {
-    const res = await fetchWithAppTimeout(`${window.location.origin}${path}`, { cache: 'no-store', ...init }, FETCH_MS)
-    const data = await res.json().catch(() => ({}))
+    const res = await fetchWithAppTimeout(`${window.location.origin}${path}`, { cache: 'no-store', ...init }, timeoutMs)
+    const data = await readApiBody(res)
     return { res, data }
   } catch {
     throw new Error(COACH_OFFLINE_RU)
@@ -188,19 +189,25 @@ async function validAccessToken() {
  * GET/POST /api/coach. 401 — вход закончился (отозван телефон, блок, смена пароля); 403 — нет доступа к данным.
  * @param {Record<string, string>} [query]
  * @param {object} [body]
+ * @param {{ raw?: Blob, timeoutMs?: number }} [opts] raw — видеокружок: тело — сам файл (метаданные в query)
  */
-export async function coachRequest(query = {}, body = null) {
+export async function coachRequest(query = {}, body = null, { raw = null, timeoutMs } = {}) {
   const token = await validAccessToken()
   const qs = new URLSearchParams(query).toString()
-  const { res, data } = await request(`/api/coach${qs ? `?${qs}` : ''}`, {
-    method: body ? 'POST' : 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      [DEVICE_ID_HEADER]: coachDeviceId(),
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
+  const post = Boolean(body || raw)
+  const { res, data } = await request(
+    `/api/coach${qs ? `?${qs}` : ''}`,
+    {
+      method: post ? 'POST' : 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        [DEVICE_ID_HEADER]: coachDeviceId(),
+        ...(raw ? { 'Content-Type': videoContentType(raw) } : body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(raw ? { body: raw } : body ? { body: JSON.stringify(body) } : {}),
     },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  })
+    timeoutMs,
+  )
   if (res.status === 401) {
     clearCoachSession()
     throw new CoachSessionGoneError(data?.error)

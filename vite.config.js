@@ -61,6 +61,7 @@ export default defineConfig(({ mode }) => ({
         'icons/icon-192.png',
         'icons/icon-384.png',
         'icons/icon-512.png',
+        'icons/badge-96.png',
         'stickers/art/*.webp',
       ],
       manifest: {

@@ -79,6 +79,7 @@ import { handleInboxAdminGet, handleInboxAdminPost } from './_lib/inbox/inboxAdm
 import { handleStaffInboxGet, handleStaffInboxPost } from './_lib/inbox/inboxStaffHandler.js'
 import { handleSurveyPointsGet, handleSurveyPointsPost } from './_lib/inbox/inboxPointsHandler.js'
 import { handleStaffChatGet, handleStaffChatPost } from './_lib/chat/chatStaffHandler.js'
+import { VIDEO_OPS_STAFF, isVideoUpload, videoSendBody } from './_lib/chat/chatVideoHandler.js'
 import { handleTrainerDeviceSetPost, handleTrainerDevicesGet } from './_lib/trainerDevicesAdmin.js'
 import {
   handleDeviceHealthGet,
@@ -140,7 +141,7 @@ async function handler(req, res) {
       sendJson(res, 405, { error: 'Method not allowed' })
       return
     }
-    const body = parseJsonBody(req)
+    const body = isVideoUpload(req) ? (action === 'chat' ? videoSendBody(req, VIDEO_OPS_STAFF) : null) : parseJsonBody(req)
     if (!body) {
       sendJson(res, 400, { error: 'Invalid JSON' })
       return

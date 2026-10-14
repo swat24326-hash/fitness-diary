@@ -1,5 +1,6 @@
 /** Запросы телефона тренера к /api/coach. Только онлайн — очередь sync и IndexedDB не трогаем. */
 import { chatSeenParam } from '../chat/chatSeenCore.js'
+import { CHAT_VIDEO_FETCH_MS, isVideoOutgoing, videoUploadQuery } from '../chat/chatVideoTransport.js'
 import { buildClientJoinUrl } from '../client/clientJoinUrl.js'
 import { coachRequest } from './coachSession.js'
 
@@ -52,8 +53,14 @@ export function fetchCoachDmThread(userId, before, seen) {
   return coachRequest({ view: 'dm-thread', user_id: userId, ...(before ? { before } : {}), ...chatSeenParam(seen) })
 }
 
-/** @param {{ body: string } | { sticker: string }} outgoing */
+/** Видеокружок — бинарным запросом, куда — в адресе. */
+const sendVideo = (target, outgoing) =>
+  coachRequest(videoUploadQuery(target, outgoing), null, { raw: outgoing.video, timeoutMs: CHAT_VIDEO_FETCH_MS })
+const fileOpts = { timeoutMs: CHAT_VIDEO_FETCH_MS }
+
+/** @param {{ body: string } | { sticker: string } | { video: Blob, sec: number }} outgoing */
 export function sendCoachDmMessage(userId, outgoing) {
+  if (isVideoOutgoing(outgoing)) return sendVideo({ op: 'dm-send', user_id: userId }, outgoing)
   return coachRequest({}, { op: 'dm-send', user_id: userId, ...outgoing })
 }
 
@@ -62,8 +69,9 @@ export function fetchCoachChatThread(clientId, before, kind = 'trainer', seen) {
   return coachRequest({ view: 'chat-thread', client_id: clientId, kind, ...(before ? { before } : {}), ...chatSeenParam(seen) })
 }
 
-/** @param {{ body: string } | { sticker: string }} outgoing */
+/** @param {{ body: string } | { sticker: string } | { video: Blob, sec: number }} outgoing */
 export function sendCoachChatMessage(clientId, outgoing, kind = 'trainer') {
+  if (isVideoOutgoing(outgoing)) return sendVideo({ op: 'chat-send', client_id: clientId, kind }, outgoing)
   return coachRequest({}, { op: 'chat-send', client_id: clientId, kind, ...outgoing })
 }
 
@@ -75,15 +83,15 @@ export function reactCoachChatMessage(clientId, messageId, emoji, kind = 'traine
 /** Поиск по диалогу. @returns {Promise<{ results: object[] }>} */
 export const searchCoachChat = (clientId, q, kind = 'trainer') => coachRequest({ view: 'chat-search', client_id: clientId, kind, q })
 export const searchCoachDm = (userId, q) => coachRequest({ view: 'dm-search', user_id: userId, q })
-/** Голосовые: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done). */
+/** Голосовые: звук ({ audio, mime }, сутки) и «→ Аа» ({ done, text? } — спрашивать, пока не done); file — фото / PDF / кружок. */
 export function coachChatVoice(clientId, kind = 'trainer') {
-  const call = (op) => (messageId) => coachRequest({}, { op, client_id: clientId, kind, message_id: messageId })
-  return { audio: call('chat-voice-audio'), text: call('chat-voice-text'), file: call('chat-attach') }
+  const call = (op, opts) => (messageId) => coachRequest({}, { op, client_id: clientId, kind, message_id: messageId }, opts)
+  return { audio: call('chat-voice-audio'), text: call('chat-voice-text'), file: call('chat-attach', fileOpts) }
 }
 
 export function coachDmVoice(userId) {
-  const call = (op) => (messageId) => coachRequest({}, { op, user_id: userId, message_id: messageId })
-  return { audio: call('dm-voice-audio'), text: call('dm-voice-text'), file: call('dm-attach') }
+  const call = (op, opts) => (messageId) => coachRequest({}, { op, user_id: userId, message_id: messageId }, opts)
+  return { audio: call('dm-voice-audio'), text: call('dm-voice-text'), file: call('dm-attach', fileOpts) }
 }
 
 export function reactCoachDmMessage(userId, messageId, emoji) {
@@ -93,7 +101,7 @@ export function reactCoachDmMessage(userId, messageId, emoji) {
 /** Чат своего клуба (клуб сервер берёт из учётки) — тот же набор вызовов, что staffGroupApi планшета. */
 export const coachGroupApi = Object.freeze({
   load: (before, seen) => coachRequest({ view: 'group-thread', ...(before ? { before } : {}), ...chatSeenParam(seen) }),
-  send: (outgoing) => coachRequest({}, { op: 'group-send', ...outgoing }),
+  send: (outgoing) => (isVideoOutgoing(outgoing) ? sendVideo({ op: 'group-send' }, outgoing) : coachRequest({}, { op: 'group-send', ...outgoing })),
   react: (messageId, emoji) => coachRequest({}, { op: 'group-react', message_id: messageId, emoji }),
   search: (q) => coachRequest({ view: 'group-search', q }),
   mute: (muted) => coachRequest({}, { op: 'group-mute', muted }),
@@ -102,7 +110,7 @@ export const coachGroupApi = Object.freeze({
   voice: Object.freeze({
     audio: (messageId) => coachRequest({}, { op: 'group-voice-audio', message_id: messageId }),
     text: (messageId) => coachRequest({}, { op: 'group-voice-text', message_id: messageId }),
-    file: (messageId) => coachRequest({}, { op: 'group-attach', message_id: messageId }),
+    file: (messageId) => coachRequest({}, { op: 'group-attach', message_id: messageId }, fileOpts),
   }),
 })
 

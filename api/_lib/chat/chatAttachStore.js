@@ -1,10 +1,10 @@
-/** Вложения сообщений в базе (service role): колонки attach_* (миграция 20261029120000) и поиск сообщения в своём диалоге. */
+/** Вложения сообщений в базе (service role): колонки attach_* (миграции 20261029120000, 20261030120000) и поиск сообщения в своём диалоге. */
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 
 /** Поля вложения в выборке ленты — для buildAttachView (ключ наружу не уходит, только признак «файл ещё есть»). */
-export const ATTACH_FIELDS = 'attach_kind, attach_key, attach_mime, attach_bytes, attach_name, attach_w, attach_h, attach_caption'
+export const ATTACH_FIELDS = 'attach_kind, attach_key, attach_mime, attach_bytes, attach_name, attach_w, attach_h, attach_caption, attach_sec'
 
-/** attach — { kind, key, mime, bytes, name, w, h, caption } после загрузки в хранилище. */
+/** attach — { kind, key, mime, bytes, name, w, h, caption, sec? } после загрузки в хранилище; sec — у видео. */
 export function attachColumns(attach) {
   if (!attach) return {}
   return {
@@ -16,6 +16,7 @@ export function attachColumns(attach) {
     attach_w: attach.w,
     attach_h: attach.h,
     attach_caption: attach.caption || null,
+    ...(attach.sec ? { attach_sec: attach.sec } : {}),
   }
 }
 

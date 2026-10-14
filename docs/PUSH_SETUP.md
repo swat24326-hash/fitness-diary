@@ -82,6 +82,7 @@ GET `admin-data?action=push-subscription` доступен ролям `admin`, `
 
 | Слой | Путь |
 |------|------|
+| Значок в строке состояния | `public/icons/badge-96.png` — белый знак на прозрачном фоне (`scripts/generate-icons.mjs`); Android берёт только прозрачность, непрозрачная иконка = белый квадрат |
 | SW handler | `public/push-sw.js` (показ уведомления + сигнал `push-received` открытым окнам → `src/lib/push/pushReceivedSignal.js`; нажатие при открытом приложении — `push-open` окну того же приложения → `src/components/PushOpenNavigator.jsx`) |
 | API | `admin-data?action=push-subscription` |
 | Отправка | `api/_lib/webPushCore.js` (при create dispatch) |

@@ -22,6 +22,7 @@ const ChatAttachBubble = lazy(() => import('./ChatAttachBubble.jsx').then((m) =>
 
 /** Пока кусок грузится — место под фото уже занято, лента не прыгает. */
 function AttachSlot({ attach }) {
+  if (attach.kind === 'video' && !attach.expired) return <span className="chat-video" />
   if (attach.kind !== 'photo' || attach.expired) return <span className="chat-attach-slot" />
   return <span className="chat-attach-photo" style={{ aspectRatio: attach.w && attach.h ? `${attach.w} / ${attach.h}` : '4 / 3' }} />
 }

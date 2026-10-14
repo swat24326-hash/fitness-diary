@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Users } from 'lucide-react'
+import { ChatHeadBar } from '../../components/chat/ChatHeadBar.jsx'
+import { MessengerBack } from '../../components/chat/MessengerLayout.jsx'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { StaffGroupMuteButton, StaffGroupThreadView } from '../../components/chat/StaffGroupThreadView.jsx'
 import { useStaffGroupThread } from '../../hooks/useStaffGroupThread.js'
 import { coachGroupApi } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
-import { STAFF_GROUP_TITLE_RU } from '../../lib/chat/staffGroupCore.js'
+import { STAFF_GROUP_TITLE_RU, staffGroupMembersRu } from '../../lib/chat/staffGroupCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachLoadState } from './CoachStatus.jsx'
@@ -17,6 +18,8 @@ export function CoachGroupPage() {
   const { onSessionGone } = useCoachApp()
   const group = useStaffGroupThread(coachGroupApi, 'coach')
   const { chat, muted, toggleMute, muteError } = group
+  const info = chat.meta?.group
+  const [searchHost, setSearchHost] = useState(null)
 
   useEffect(() => {
     if ((chat.status === 'error' || chat.sendError) && !hasCoachSession()) onSessionGone(chat.error || chat.sendError)
@@ -25,14 +28,15 @@ export function CoachGroupPage() {
   return (
     <CoachShell
       tabs={false}
-      title={chat.meta?.group?.name ? `${STAFF_GROUP_TITLE_RU} · ${chat.meta.group.name}` : STAFF_GROUP_TITLE_RU}
-      actions={
-        <>
-          {chat.meta ? <StaffGroupMuteButton muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
-          <Link to="/coach/chats" className="btn btn-ghost btn-icon-square btn-touch" aria-label="Все диалоги" title="Все диалоги">
-            <ArrowLeft size={20} aria-hidden />
-          </Link>
-        </>
+      bar={
+        <ChatHeadBar
+          back={<MessengerBack to="/coach/chats" />}
+          icon={Users}
+          title={STAFF_GROUP_TITLE_RU}
+          subtitle={info ? `${info.name} · ${staffGroupMembersRu(info.members)}` : ''}
+          searchHostRef={setSearchHost}
+          actions={chat.meta ? <StaffGroupMuteButton muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
+        />
       }
     >
       {!chat.messages ? (
@@ -42,7 +46,7 @@ export function CoachGroupPage() {
           action={<ChatOpenErrorAction errorStatus={chat.errorStatus} onRetry={chat.reload} backTo="/coach/chats" />}
         />
       ) : (
-        <StaffGroupThreadView group={group} />
+        <StaffGroupThreadView group={group} searchHost={searchHost} />
       )}
     </CoachShell>
   )

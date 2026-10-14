@@ -18,6 +18,7 @@ import { handleClientPushPost } from './clientPushHandler.js'
 import { handleClientTraining } from './clientTrainingHandler.js'
 import { handleClientInboxPost, loadClientInboxAttention } from '../inbox/inboxClientHandler.js'
 import { handleClientChatPost, loadClientChatAttention } from '../chat/chatClientHandler.js'
+import { VIDEO_OPS_CLIENT, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
 import { handleClientPlansPost, loadClientPlansSummary } from '../clientPlans/clientPlansClientHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
@@ -65,7 +66,7 @@ export async function clientMeHandler(req, res) {
   if (!ctx) return
   res.setHeader('Cache-Control', 'no-store')
   if (req.method === 'POST') {
-    const body = parseBody(req.body)
+    const body = isVideoUpload(req) ? videoSendBody(req, VIDEO_OPS_CLIENT) : parseBody(req.body)
     if (body?.action === 'handoff') await handleClientHandoff(ctx, res)
     else if (body?.action === 'training') await handleClientTraining(createServiceDataClient(), ctx, body.id, res)
     else if (String(body?.action ?? '').startsWith('inbox-')) await handleClientInboxPost(createServiceDataClient(), ctx, body, res)

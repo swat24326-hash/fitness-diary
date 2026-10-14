@@ -65,7 +65,7 @@ export function resolveChatOutgoing(input) {
     if (!attach.ok) return attach
     const cap = normalizeAttachCaption(input?.body)
     if (!cap.ok) return cap
-    return { ok: true, body: chatAttachLabel(attach.kind, attach.name, cap.caption), sticker: null, voice: null, attach: { ...attach, caption: cap.caption } }
+    return { ok: true, body: chatAttachLabel(attach.kind, attach.name, cap.caption, attach.sec), sticker: null, voice: null, attach: { ...attach, caption: cap.caption } }
   }
   const sticker = input?.sticker
   if (sticker != null && sticker !== '') {

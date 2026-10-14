@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
+import { VIDEO_OPS_CLIENT, VIDEO_OPS_COACH, VIDEO_OPS_STAFF, videoSendBody } from '../../../api/_lib/chat/chatVideoHandler.js'
 
 export const ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 export const PORT = Number(process.env.E2E_PORT || 5199)
@@ -17,6 +18,8 @@ export const SHOT_DIR = join(ROOT, 'qa-screenshots', 'e2e')
 const CLOUD_PATH = /^\/(api|auth\/v1|rest\/v1)(\/|$)/
 const NOTO_RE = /^\/s\/e\/notoemoji\/latest\/([0-9a-f_]+)\/(emoji\.svg|lottie\.json)$/
 const NOTO_TYPE = { 'emoji.svg': 'image/svg+xml', 'lottie.json': 'application/json' }
+/** Видеокружок приходит байтами — тело отправки собираем, как сервер (chatVideoHandler). */
+const VIDEO_OPS = { '/api/client-me': VIDEO_OPS_CLIENT, '/api/coach': VIDEO_OPS_COACH, '/api/admin-data': VIDEO_OPS_STAFF }
 
 function fulfillNoto(route, url) {
   const m = url.origin === 'https://fonts.gstatic.com' ? NOTO_RE.exec(url.pathname) : null
@@ -95,8 +98,11 @@ export async function newE2eContext(browser, backend, opts = {}) {
     if (!CLOUD_PATH.test(url.pathname)) return route.continue()
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204 })
     let body = null
-    const raw = req.postData()
-    if (raw) {
+    const isVideo = String(req.headers()['content-type'] ?? '').startsWith('video/')
+    const raw = isVideo ? null : req.postData()
+    if (isVideo) {
+      body = videoSendBody({ body: req.postDataBuffer(), query: Object.fromEntries(url.searchParams) }, VIDEO_OPS[url.pathname] ?? [])
+    } else if (raw) {
       try {
         body = JSON.parse(raw)
       } catch {
@@ -111,6 +117,7 @@ export async function newE2eContext(browser, backend, opts = {}) {
       body,
     })
     if (!res) return route.abort('internetdisconnected')
+    if (res.file) return route.fulfill({ status: res.status, contentType: res.contentType, body: res.file })
     return route.fulfill({
       status: res.status,
       contentType: 'application/json',

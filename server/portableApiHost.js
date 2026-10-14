@@ -11,8 +11,9 @@ import { handleAuthV1 } from '../api/_lib/authV1Handler.js'
 import { handleRestV1 } from '../api/_lib/restV1Handler.js'
 import {
   PAYLOAD_TOO_LARGE_RU,
+  PORTABLE_BINARY_APIS,
   PORTABLE_SECURITY_HEADERS,
-  portableMaxBodyBytes,
+  portableBodyPolicy,
   readBodyLimited,
 } from '../api/_lib/portableHostSecurityCore.js'
 import {
@@ -74,7 +75,7 @@ class PayloadTooLargeError extends Error {}
  * @param {import('node:http').IncomingMessage} req
  * @returns {Promise<{ method: string, url: string, headers: object, body: unknown, query: Record<string, string | string[]> }>}
  */
-async function normalizeRequest(req) {
+async function normalizeRequest(req, { allowBinary = false } = {}) {
   const host = req.headers.host || 'localhost'
   const rawUrl = req.url || '/'
   const u = new URL(rawUrl, `http://${host}`)
@@ -89,11 +90,14 @@ async function normalizeRequest(req) {
     }
   }
 
-  const read = await readBodyLimited(req, portableMaxBodyBytes(process.env.MAX_BODY_BYTES))
+  const policy = portableBodyPolicy(allowBinary ? req.headers['content-type'] : '', process.env)
+  const read = await readBodyLimited(req, policy.limit)
   if (!read.ok) throw new PayloadTooLargeError()
   const raw = read.raw
   let body = undefined
-  if (raw.length) {
+  if (policy.binary) {
+    body = raw
+  } else if (raw.length) {
     const text = raw.toString('utf8')
     const ct = String(req.headers['content-type'] || '')
     if (ct.includes('application/json') || text.startsWith('{') || text.startsWith('[')) {
@@ -267,7 +271,7 @@ export function createPortableApiHost(opts = {}) {
           res.end(JSON.stringify({ error: `API ${name} не найден` }))
           return
         }
-        const req = await normalizeRequest(rawReq)
+        const req = await normalizeRequest(rawReq, { allowBinary: PORTABLE_BINARY_APIS.has(name) })
         await handler(req, res)
         if (!res.writableEnded && !res.headersSent) {
           res.statusCode = 204

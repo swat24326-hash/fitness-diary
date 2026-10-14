@@ -35,6 +35,20 @@ for (const s of sizes) {
   await sharp(Buffer.from(iconSvg(s))).png().toFile(out)
 }
 
+/** Значок push в строке состояния Android: система берёт только прозрачность, поэтому без фона — иначе белый квадрат. */
+function badgeSvg(size) {
+  const markBox = size * 0.84
+  const m = (size - markBox) / 2
+  const s = markBox / 32
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <g transform="translate(${m} ${m}) scale(${s})" fill="#ffffff" color="#ffffff">${MARK_INNER.replaceAll('currentColor', '#ffffff')}</g>
+</svg>
+`.trim()
+}
+
+await sharp(Buffer.from(badgeSvg(96))).png().toFile(path.join(outDir, 'badge-96.png'))
+
 const master = path.join(brandDir, 'os-icon-1024.png')
 await sharp(Buffer.from(iconSvg(1024))).png().toFile(master)
 

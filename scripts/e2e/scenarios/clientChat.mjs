@@ -116,6 +116,12 @@ async function clientWrites(c, browser, backend, chat) {
     await page.getByRole('link', { name: /^Диалоги/ }).click()
     await trainerRow.click()
     await page.waitForURL(`${ORIGIN}/me/chat/trainer`)
+    c.ok(
+      (await reaches(page.locator('.client-me__top .chat-bar').getByRole('link', { name: 'К списку' }))) &&
+        (await page.locator('.client-me__top').count()) === 1 &&
+        (await page.locator('.client-me__brand').count()) === 0,
+      'диалог: одна шапка диалога со «←» вместо шапки клуба, как в Telegram',
+    )
     await page.getByTestId('chat-input').fill(QUESTION)
     await page.getByTestId('chat-send').click()
     c.ok(await reaches(page.locator('.chat-msg--mine', { hasText: 'Посмотрите резинку' })), 'сообщение клиента в ленте справа')

@@ -43,13 +43,15 @@ const buzz = () => navigator.vibrate?.(15)
 /**
  * Голосовое, как в Telegram. Держишь 🎤 — пишется (holding); отпустил — ушло; влево — отмена; вверх — без рук (locked:
  * «Отмена» · ■ — пауза (review: прослушать, обрезать края, 🎤 — дописать) · «Отправить»). Короткое нажатие пальцем —
- * подсказка «Удерживайте», мышью — сразу без рук (как Telegram Web). На 5:00 запись встаёт на паузу — сама не уходит.
+ * onTap (переключить на 📹, если камера есть), иначе подсказка «Удерживайте»; мышью — сразу без рук (как Telegram Web). На 5:00 запись встаёт на паузу — сама не уходит.
  * Не отправилось — запись остаётся (review). Ушли из диалога — запись ждёт черновиком (draftKey).
  * Долгое нажатие на «Отправить» — «без звука» (finish({ silent: true })). «1» без рук / на паузе — одноразовое (once).
  * @param {{ send: (voice: { audio: string, sec: number, wave: number[], silent?: boolean, once?: boolean }) => Promise<boolean>, enabled: boolean, draftKey?: string }} p
  */
-export function useChatVoiceRecord({ send, enabled, draftKey = '' }) {
+export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null }) {
   const [state, setState] = useState(IDLE)
+  const onTapRef = useRef(onTap)
+  onTapRef.current = onTap
   const recRef = useRef(null)
   const runRef = useRef(0)
   const originRef = useRef(null)
@@ -272,7 +274,8 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '' }) {
       if (o.mouse) setState((s) => ({ ...s, phase: 'locked', dx: 0, dy: 0 }))
       else {
         drop()
-        setState({ ...IDLE, hint: CHAT_VOICE_HOLD_RU })
+        setState(onTapRef.current ? IDLE : { ...IDLE, hint: CHAT_VOICE_HOLD_RU })
+        onTapRef.current?.()
       }
       return
     }

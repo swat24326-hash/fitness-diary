@@ -35,7 +35,7 @@ import { buildStaffGroupPinned, canPinStaffGroup, staffGroupSeenCount } from '..
 import { loadReactionsFor, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
 import { searchThreadMessages } from './chatSearchStore.js'
-import { answerChatAttach, storeChatOutgoing } from './chatAttachHandler.js'
+import { answerChatAttach, sendChatFileAnswer, storeChatOutgoing } from './chatAttachHandler.js'
 import { answerChatVoice, chatVoiceBlocked } from './chatVoiceHandler.js'
 import { chatVoiceStorageMode } from './chatVoiceStorage.js'
 import { loadLinkedStaffView, staffDmCtx } from './linkedStaffStore.js'
@@ -207,7 +207,7 @@ export function sendStaffGroupVoice(authCtx, res, clubId, messageId, want) {
         : await answerChatVoice(scope.db, 'staff_group_messages', threadId, messageId, want, `u:${String(authCtx.user?.id ?? scope.viewer.id)}`, {
             userId: scope.viewer.id,
           })
-    sendJson(res, out.status, out.body)
+    sendChatFileAnswer(res, out)
   })
 }
 

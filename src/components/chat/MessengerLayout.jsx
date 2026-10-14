@@ -3,6 +3,7 @@ import { ArrowLeft, MessageCircle, RefreshCw } from 'lucide-react'
 import { messengerColsStyle } from '../../lib/chat/messengerColumnsCore.js'
 import { useMessengerColumns } from '../../hooks/useMessengerColumns.js'
 import { useMessengerMode } from '../../hooks/useMessengerMode.js'
+import { useChatSolo } from '../../hooks/useChatSolo.js'
 import { MessengerResizeHandle } from './MessengerResizeHandle.jsx'
 import '../../styles/messenger-layout.css'
 
@@ -17,6 +18,7 @@ export function MessengerLayout({ open, head = null, folders, list, thread = nul
   const mode = useMessengerMode(compact)
   const { cols, resize, reset } = useMessengerColumns()
   const monitor = mode === 'monitor'
+  useChatSolo(mode === 'phone' && open && Boolean(thread))
   return (
     <div className={`msgr msgr--${mode}${open ? ' msgr--open' : ''}`} style={monitor ? messengerColsStyle(cols) : undefined}>
       <div className="msgr__side">
