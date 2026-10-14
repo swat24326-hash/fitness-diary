@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bell, BellOff, X } from 'lucide-react'
+import { BellOff, X } from 'lucide-react'
 import { fetchIskraDispatch } from '../../lib/admin/iskraDispatchService.js'
 import { sortActiveDispatchTasks } from '../../lib/admin/iskraDispatchInboxActionsCore.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -124,83 +124,5 @@ export function TrainerPushPrompt({ clubId = '' }) {
         <X size={14} />
       </button>
     </aside>
-  )
-}
-
-/**
- * @param {{ clubId?: string }} props
- */
-export function TrainerPushSettings({ clubId = '' }) {
-  const push = useTrainerPush({ clubId })
-
-  if (!push.supported) {
-    return (
-      <section className="card trainer-push-settings">
-        <h2 className="section-title" style={{ marginBottom: 6 }}>
-          Уведомления
-        </h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Этот браузер не поддерживает push. Новые сообщения и задания — по-прежнему в шапке.
-        </p>
-      </section>
-    )
-  }
-
-  return (
-    <section className="card trainer-push-settings">
-      <h2 className="section-title" style={{ marginBottom: 6 }}>
-        Уведомления
-      </h2>
-      <p className="section-sub" style={{ margin: '0 0 12px' }}>
-        {push.subscribed
-          ? 'Включены на этом устройстве — новые сообщения и задания приходят, когда оно онлайн.'
-          : push.permission === 'denied'
-            ? 'Сейчас выкл (браузер блокирует). Разрешите уведомления для сайта — или смотрите новое в шапке.'
-            : 'Сейчас выкл — новое видно в шапке. Можно включить push на это устройство.'}
-      </p>
-      {push.error ? (
-        <p className="trainer-push-settings__error" role="alert">
-          {push.error}
-        </p>
-      ) : null}
-      <div className="trainer-push-settings__actions">
-        {push.subscribed ? (
-          <>
-            <button type="button" className="btn btn-secondary btn-sm" disabled={push.busy} onClick={() => void push.testPush()}>
-              Проверить
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              disabled={push.busy}
-              onClick={() => void push.reconnect()}
-              title="Сбросить и заново привязать к серверу"
-            >
-              <Bell size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
-              {push.busy ? '…' : 'Переподключить'}
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" disabled={push.busy} onClick={() => void push.unsubscribe()}>
-              <BellOff size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
-              Отключить
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={push.busy || push.permission === 'denied'}
-            onClick={() => void push.subscribe()}
-          >
-            <Bell size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
-            {push.busy ? 'Подключение…' : 'Включить уведомления'}
-          </button>
-        )}
-      </div>
-      {!push.configured ? (
-        <p className="muted" style={{ margin: '10px 0 0', fontSize: 13 }}>
-          Сервер push ещё не настроен — новое видно в шапке при открытии приложения.
-        </p>
-      ) : null}
-    </section>
   )
 }

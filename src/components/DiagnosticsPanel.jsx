@@ -33,7 +33,6 @@ import { checkRemoteBundleStale } from '../lib/appBuildInfo'
 import { pruneRedundantSyncQueue } from '../lib/syncQueueOrphans'
 import { recoverApp } from '../lib/appLifecycle'
 import { useAuth } from '../context/AuthContext'
-import { TrainerPushSettings } from './iskra/TrainerPushPrompt.jsx'
 
 async function copyText(text) {
   if (navigator.clipboard?.writeText) {
@@ -89,9 +88,7 @@ export function DiagnosticsPanel({
   const [bundleProbeBusy, setBundleProbeBusy] = useState(false)
   const [bundleProbe, setBundleProbe] = useState(null)
   const [recoverBusy, setRecoverBusy] = useState(false)
-  const { refreshUserProfile, refreshSessionOnWake, user } = useAuth()
-  const pushClubId = String(context?.clubId && context.clubId !== '—' ? context.clubId : user?.club_id ?? '').trim()
-  const showPlanerkaPush = Boolean(context?.role)
+  const { refreshUserProfile, refreshSessionOnWake } = useAuth()
   const [showAllQueue, setShowAllQueue] = useState(false)
   const [showDetails, setShowDetails] = useState(!simpleMode)
   const [lastSyncReport, setLastSyncReportState] = useState(() => getLastSyncReport())
@@ -361,12 +358,6 @@ export function DiagnosticsPanel({
               </>
             ) : null}
           </p>
-        </div>
-      ) : null}
-
-      {showPlanerkaPush ? (
-        <div className="diagnostics-panel__push">
-          <TrainerPushSettings clubId={pushClubId} />
         </div>
       ) : null}
 

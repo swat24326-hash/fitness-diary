@@ -70,6 +70,8 @@ export function isRecoverableTransientError(row) {
 
   if (source === 'sync' || source === 'pull') {
     if (RECOVERABLE_TEXT.test(text)) return true
+    // Шлюз / «сервер занят»: запись осталась в очереди и ушла повтором (INC-2026-10-14-01).
+    if (status === 502 || status === 503 || status === 504) return true
     // Отклонённые push (403): очередь уже снята — не держать «требует внимания».
     if (source === 'sync' && status === 403) {
       return /нет доступа|не найден|закрепл|администратор|другого клуба|должен быть|нельзя переназначить/i.test(

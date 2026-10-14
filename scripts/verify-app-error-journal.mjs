@@ -88,6 +88,12 @@ assert.ok(isRecoverableTransientError(getAppErrors(1)[0]), 'russian timeout is r
 reportSyncOutcome({ queueCount: 0, hadError: false })
 assert.equal(getAppErrorCount(), 0, 'таймаут cleared after successful sync')
 
+recordSyncError({ status: 502, error: 'HTTP 502', table_name: 'trainings', operation: 'update' })
+assert.ok(isRecoverableTransientError(getAppErrors(1)[0]), '502 is recoverable')
+assert.equal(getPersistentErrorCount(), 0, '502 не держит «требует внимания»')
+reportSyncOutcome({ queueCount: 0, hadError: false })
+assert.equal(getAppErrorCount(), 0, '502 cleared after successful sync')
+
 recordSyncError({ status: 400, error: 'HTTP fail', table_name: 'trainings', operation: 'insert' })
 reportSyncOutcome({ queueCount: 0, hadError: false })
 assert.equal(getPersistentErrorCount(), 1, 'server errors stay after sync ok')
