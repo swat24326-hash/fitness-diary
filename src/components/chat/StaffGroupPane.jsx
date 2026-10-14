@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { RefreshCw, Users, WifiOff } from 'lucide-react'
+import { ChatHeadBar } from './ChatHeadBar.jsx'
 import { ChatOpenErrorAction } from './ChatOpenErrorAction.jsx'
 import { StaffGroupMuteButton, StaffGroupThreadView } from './StaffGroupThreadView.jsx'
 import { useStaffGroupThread } from '../../hooks/useStaffGroupThread.js'
@@ -16,6 +17,7 @@ const announce = () => window.dispatchEvent(new Event(STAFF_INBOX_CHANGED))
  */
 export function StaffGroupPane({ clubId, backTo, back = null, onSent }) {
   const api = useMemo(() => staffGroupApi(clubId), [clubId])
+  const [searchHost, setSearchHost] = useState(null)
   const thread = useStaffGroupThread(api, clubId, () => {
     announce()
     onSent?.()
@@ -29,19 +31,14 @@ export function StaffGroupPane({ clubId, backTo, back = null, onSent }) {
   }
   return (
     <>
-      {back}
-      <header className="chat-head staff-group__head">
-        <h1 className="staff-inbox__title">
-          <Users size={22} aria-hidden />
-          {STAFF_GROUP_TITLE_RU}
-        </h1>
-        {group ? (
-          <small className="muted">
-            {group.name} · {staffGroupMembersRu(group.members)}
-          </small>
-        ) : null}
-        {chat.meta ? <StaffGroupMuteButton muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
-      </header>
+      <ChatHeadBar
+        back={back}
+        icon={Users}
+        title={STAFF_GROUP_TITLE_RU}
+        subtitle={group ? `${group.name} · ${staffGroupMembersRu(group.members)}` : ''}
+        searchHostRef={setSearchHost}
+        actions={chat.meta ? <StaffGroupMuteButton muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
+      />
       {!chat.messages ? (
         <div className="card staff-inbox__status" role="status">
           {chat.status === 'error' ? <WifiOff size={28} aria-hidden /> : <RefreshCw size={28} aria-hidden className="icon-spin" />}
@@ -54,7 +51,7 @@ export function StaffGroupPane({ clubId, backTo, back = null, onSent }) {
           ) : null}
         </div>
       ) : (
-        <StaffGroupThreadView group={thread} onSubmit={submit} />
+        <StaffGroupThreadView group={thread} onSubmit={submit} searchHost={searchHost} />
       )}
     </>
   )

@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
+import { ChatHeadBar } from './ChatHeadBar.jsx'
 import { ChatOpenErrorAction } from './ChatOpenErrorAction.jsx'
 import { ChatThreadView } from './ChatThreadView.jsx'
 import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
@@ -11,6 +13,7 @@ import { useStaffChatThread } from '../../hooks/useStaffChat.js'
  */
 export function StaffChatPane({ clientId, kind, backTo, back = null, onSent }) {
   const chat = useStaffChatThread(clientId, kind)
+  const [searchHost, setSearchHost] = useState(null)
   const meta = chat.meta
   const submit = async (...args) => {
     const sent = await chat.submit(...args)
@@ -19,14 +22,7 @@ export function StaffChatPane({ clientId, kind, backTo, back = null, onSent }) {
   }
   return (
     <>
-      {back}
-      <header className="chat-head">
-        <h1 className="staff-inbox__title">
-          <MessageCircle size={22} aria-hidden />
-          {meta?.client?.name || 'Клиент'}
-        </h1>
-        <small className="muted">{chatKindLabelRu(kind)}</small>
-      </header>
+      <ChatHeadBar back={back} icon={MessageCircle} title={meta?.client?.name || 'Клиент'} subtitle={chatKindLabelRu(kind)} searchHostRef={setSearchHost} />
       {!chat.messages ? (
         <div className="card staff-inbox__status" role="status">
           {chat.status === 'error' ? <WifiOff size={28} aria-hidden /> : <RefreshCw size={28} aria-hidden className="icon-spin" />}
@@ -56,6 +52,7 @@ export function StaffChatPane({ clientId, kind, backTo, back = null, onSent }) {
           readOnlyHint={chatStaffReadOnlyRu(meta)}
           emptyHint="Сообщений пока нет. Клиент увидит ваше сообщение в приложении клуба."
           placeholder="Ответ клиенту"
+          searchHost={searchHost}
         />
       )}
     </>

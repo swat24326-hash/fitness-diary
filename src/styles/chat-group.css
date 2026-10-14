@@ -1,4 +1,4 @@
-/* Чат клуба: строка в списке, шапка с «без звука». Токены — tokens.css, строка — общая .chat-row (chat.css). */
+/* Чат клуба: строка в списке, «без звука» в шапке (ChatHeadBar). Токены — tokens.css, строка — общая .chat-row (chat.css). */
 
 .chat-row__avatar--group {
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent-bright) 70%, var(--text)), var(--accent));
@@ -14,20 +14,6 @@
 .staff-group__muted-icon {
   flex: none;
   color: var(--text-muted);
-}
-
-.staff-group__head {
-  grid-template-columns: 1fr auto;
-  align-items: center;
-}
-
-.staff-group__head > :not(.staff-group__mute) {
-  grid-column: 1;
-}
-
-.staff-group__mute {
-  grid-column: 2;
-  grid-row: 1 / span 2;
 }
 
 .staff-group__mute.is-muted {

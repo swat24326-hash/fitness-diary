@@ -9,9 +9,9 @@ const EMPTY_RU = 'Сообщений пока нет. Напишите — ув�
 /**
  * Лента и поле ввода чата клуба (планшет, админ, телефон тренера). Как в группах Telegram: закреп над лентой,
  * в меню долгого нажатия — «Закрепить» / «Открепить» и у своего сообщения «Прочитали N из M».
- * @param {{ group: ReturnType<typeof import('../../hooks/useStaffGroupThread.js').useStaffGroupThread>, onSubmit?: Function }} props
+ * @param {{ group: ReturnType<typeof import('../../hooks/useStaffGroupThread.js').useStaffGroupThread>, onSubmit?: Function, searchHost?: HTMLElement | null }} props
  */
-export function StaffGroupThreadView({ group, onSubmit }) {
+export function StaffGroupThreadView({ group, onSubmit, searchHost = null }) {
   const { chat, pin, readers } = group
   const [readersOf, setReadersOf] = useState(null)
   const closeReaders = useCallback(() => setReadersOf(null), [])
@@ -57,6 +57,7 @@ export function StaffGroupThreadView({ group, onSubmit }) {
         pinned={pin.pinned}
         onUnpin={pin.canPin ? () => void pin.setPin(null) : undefined}
         menuActions={menuActions}
+        searchHost={searchHost}
       />
       <StaffGroupReadersSheet messageId={readersOf} load={readers} onClose={closeReaders} />
     </>

@@ -1,0 +1,65 @@
+/* Шапка диалога одной строкой (ChatHeadBar.jsx): «←» · значок · название / подпись · лупа и кнопки. */
+
+.chat-head.chat-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+}
+
+.msgr__thread > .chat-head.chat-bar {
+  padding: 4px 6px 4px 8px;
+}
+
+.chat-bar__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.chat-bar__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-bar__title,
+.chat-bar__sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chat-bar__title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.chat-bar__sub {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.chat-bar__actions,
+.chat-bar__slot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.chat-bar__slot:empty {
+  display: none;
+}
+
+.chat-bar .msgr__back {
+  margin-left: -4px;
+}

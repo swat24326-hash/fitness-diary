@@ -61,12 +61,11 @@ export function MessengerPick({ title, hint }) {
   )
 }
 
-/** «К списку» — видна только на телефоне, где список и диалог не помещаются рядом. */
+/** «←» к списку слева в шапке диалога — видна только на телефоне, где список и диалог не помещаются рядом. */
 export function MessengerBack({ to }) {
   return (
-    <Link to={to} className="btn btn-ghost btn-sm msgr__back">
-      <ArrowLeft size={18} aria-hidden />
-      К списку
+    <Link to={to} className="btn btn-ghost btn-icon-square btn-touch msgr__back" aria-label="К списку" title="К списку">
+      <ArrowLeft size={20} aria-hidden />
     </Link>
   )
 }

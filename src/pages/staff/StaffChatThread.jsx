@@ -20,9 +20,8 @@ export function StaffChatThread() {
         kind={kind}
         backTo={back}
         back={
-          <Link to={back} className="btn btn-ghost btn-sm staff-inbox__back">
-            <ArrowLeft size={18} aria-hidden />
-            Карточка клиента
+          <Link to={back} className="btn btn-ghost btn-icon-square btn-touch" aria-label="Карточка клиента" title="Карточка клиента">
+            <ArrowLeft size={20} aria-hidden />
           </Link>
         }
       />

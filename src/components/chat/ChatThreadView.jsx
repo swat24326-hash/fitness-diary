@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronUp, MessageCircle, Search } from 'lucide-react'
 import { ChatComposer } from './ChatComposer.jsx'
 import { ChatFeed } from './ChatFeed.jsx'
@@ -26,6 +27,7 @@ import '../../styles/chat-search.css'
  * voice — голосовые: слушать и «→ Аа» в ленте, записывать — 🎤 в поле ввода
  * onAtBottom — внизу ли человек: «прочитано» ставим, только когда новое на экране (useChatThread)
  * pinned / onUnpin — закреплённое сообщение над лентой (нажатие — к нему); menuActions — пункты в меню долгого нажатия
+ * searchHost — место в шапке (ChatHeadBar) для лупы; без него лупа висит в углу ленты
  */
 export function ChatThreadView({
   messages,
@@ -48,6 +50,7 @@ export function ChatThreadView({
   pinned = null,
   onUnpin,
   menuActions,
+  searchHost = null,
 }) {
   const threadRef = useRef(null)
   const feedRef = useRef(null)
@@ -113,17 +116,25 @@ export function ChatThreadView({
       {backButton}
     </>
   )
+  const searchButton =
+    finder.available && !finder.isOpen ? (
+      <button
+        type="button"
+        className={searchHost ? 'btn btn-ghost btn-icon-square btn-touch' : 'chat-thread__search-toggle'}
+        aria-label="Поиск по переписке"
+        title="Поиск по переписке"
+        onClick={finder.open}
+      >
+        <Search size={18} aria-hidden />
+      </button>
+    ) : null
 
   return (
     <div className="chat-thread" ref={threadRef}>
       {voice ? <ChatVoiceMiniPlayer inline /> : null}
       <ChatPinnedBar pinned={pinned} onOpen={(id) => void jumper.jump(id)} onUnpin={onUnpin} />
       <div className="chat-thread__feed" ref={feedRef} aria-live="polite" data-testid="chat-feed">
-        {finder.available && !finder.isOpen ? (
-          <button type="button" className="chat-thread__search-toggle" aria-label="Поиск по переписке" title="Поиск по переписке" onClick={finder.open}>
-            <Search size={18} aria-hidden />
-          </button>
-        ) : null}
+        {searchHost ? (searchButton ? createPortal(searchButton, searchHost) : null) : searchButton}
         {messages?.length ? <div className="chat-thread__spacer" aria-hidden /> : null}
         {hasMore ? (
           <button type="button" className="chat-thread__older" onClick={onLoadOlder}>

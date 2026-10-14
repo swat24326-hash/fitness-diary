@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
+import { ChatHeadBar } from './ChatHeadBar.jsx'
 import { ChatOpenErrorAction } from './ChatOpenErrorAction.jsx'
 import { ChatThreadView } from './ChatThreadView.jsx'
 import { useStaffDmThread } from '../../hooks/useStaffChat.js'
@@ -7,10 +9,11 @@ import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
 /**
  * Шапка и лента личного диалога сотрудника — отдельной страницей (/messages/dm/:id) и панелью справа у главного админа.
  * @param {{ userId: string, backTo: string, back?: import('react').ReactNode, onSent?: () => void }} props
- *   back — ссылка «назад» над шапкой; onSent — после отправки (обновить список рядом); initialDraft — текст в поле
+ *   back — ссылка «назад» слева в шапке; onSent — после отправки (обновить список рядом); initialDraft — текст в поле
  */
 export function StaffDmPane({ userId, backTo, back = null, onSent, initialDraft = '' }) {
   const chat = useStaffDmThread(userId)
+  const [searchHost, setSearchHost] = useState(null)
   const submit = async (...args) => {
     const sent = await chat.submit(...args)
     if (sent) onSent?.()
@@ -19,14 +22,7 @@ export function StaffDmPane({ userId, backTo, back = null, onSent, initialDraft 
   const peer = chat.meta?.peer
   return (
     <>
-      {back}
-      <header className="chat-head">
-        <h1 className="staff-inbox__title">
-          <MessageCircle size={22} aria-hidden />
-          {peer?.name || 'Сотрудник'}
-        </h1>
-        {peer?.label ? <small className="muted">{peer.label}</small> : null}
-      </header>
+      <ChatHeadBar back={back} icon={MessageCircle} title={peer?.name || 'Сотрудник'} subtitle={peer?.label || ''} searchHostRef={setSearchHost} />
       {!chat.messages ? (
         <div className="card staff-inbox__status" role="status">
           {chat.status === 'error' ? <WifiOff size={28} aria-hidden /> : <RefreshCw size={28} aria-hidden className="icon-spin" />}
@@ -57,6 +53,7 @@ export function StaffDmPane({ userId, backTo, back = null, onSent, initialDraft 
           emptyHint="Сообщений пока нет. Собеседник увидит ваше сообщение в «Сообщениях клуба»."
           placeholder="Сообщение"
           initialDraft={initialDraft}
+          searchHost={searchHost}
         />
       )}
     </>
