@@ -11,6 +11,7 @@ import { UnknownRouteRedirect } from './components/UnknownRouteRedirect.jsx'
 import { PushOpenNavigator } from './components/PushOpenNavigator.jsx'
 import { ChatVoiceMiniPlayer } from './components/chat/ChatVoiceMiniPlayer.jsx'
 import { AppWelcomeSplash } from './components/AppWelcomeSplash'
+import { LocalDbBlockedBanner } from './components/LocalDbBlockedBanner.jsx'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -289,6 +290,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppPwaOverlays />
+        <LocalDbBlockedBanner />
         <PushOpenNavigator />
         <ChatVoiceMiniPlayer />
         <Routes>

@@ -1,6 +1,7 @@
 import { openDB } from 'idb'
 import { cloudPutAllowedOnPull, isPullMergeGuardedStore, shouldApplyCloudRowOnPull, shouldRequeueLocalCompletedOverCloudDraft } from './syncPullGuardCore.js'
 import { resolveQueueItemAfterPushAck } from './syncQueueAckCore.js'
+import { setLocalDbUpgradeBlocked } from './localDbUpgradeWait.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
@@ -214,6 +215,9 @@ function upgradeFitnessDb(db, oldVersion, _newVersion, transaction) {
 function openFitnessDb() {
   return openDB(DB_NAME, DB_VERSION, {
     upgrade: upgradeFitnessDb,
+    blocked() {
+      setLocalDbUpgradeBlocked(true)
+    },
     blocking() {
       void dbPromise?.then((db) => {
         db.close()
@@ -232,10 +236,16 @@ function openFitnessDb() {
  */
 export async function getDb() {
   if (!dbPromise) {
-    dbPromise = openFitnessDb().catch((e) => {
-      dbPromise = null
-      throw e
-    })
+    dbPromise = openFitnessDb().then(
+      (db) => {
+        setLocalDbUpgradeBlocked(false)
+        return db
+      },
+      (e) => {
+        dbPromise = null
+        throw e
+      },
+    )
   }
   return dbPromise
 }

@@ -1,0 +1,11 @@
+/* Баннер: обновление базы на устройстве ждёт другую копию приложения */
+.pwa-updated.local-db-blocked {
+  background: rgba(54, 38, 6, 0.95);
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+.local-db-blocked__icon {
+  color: var(--warning);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
