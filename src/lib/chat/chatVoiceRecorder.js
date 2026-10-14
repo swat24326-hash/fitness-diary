@@ -1,6 +1,7 @@
 /**
  * Запись голосового: сырой звук через Web Audio (MediaRecorder на iPhone пишет mp4, в Chrome — webm,
- * а нужен один формат для всех и для SpeechKit) → 24 кГц → MP3 прямо по ходу записи: 5 минут не копятся в памяти.
+ * а нужен один формат для всех и для SpeechKit) → MP3 на родной частоте микрофона прямо по ходу записи: 5 минут не
+ * копятся в памяти. Микрофон — как у кружков (chatVideoRecorder.js), без своей обработки звука.
  * Кодировщик грузится при первой записи. На паузе и после остановки микрофон гаснет; «дописать» включает его снова
  * и продолжает тот же MP3.
  */
@@ -8,11 +9,11 @@ import {
   CHAT_VOICE_DENIED_RU,
   CHAT_VOICE_KBPS,
   CHAT_VOICE_NO_MIC_RU,
-  CHAT_VOICE_RATE,
   chatVoiceLevel,
   compressVoiceWave,
   createPcmResampler,
   pcm16Samples,
+  voiceMp3Rate,
 } from './chatVoiceCore.js'
 
 export function isChatVoiceSupported() {
@@ -43,34 +44,15 @@ function concat(parts) {
 }
 
 /**
- * Звук до кодировщика: гул ниже 80 Гц (бас музыки в зале, стук телефона) — прочь; верх выше ~10 кГц — прочь, чтобы
- * пересчёт в 24 кГц не дал «песка»; мягкий компрессор 2:1 — тихий голос чуть громче, громкий не хрипит. Прибавку
- * громкости компрессор Web Audio делает сам (~+5 дБ здесь); жёстче (4:1, ~+10 дБ) — вытягивал следы шумоподавления
- * телефона в «металл».
- * Автогромкость браузера выключена: она «плавает», а этот уровень ровный на всю запись.
+ * Микрофон → куски звука в onData(samples); rate — частота записи (первое включение берёт частоту микрофона,
+ * «дописать» — частоту уже начатого MP3). Настройки — как у кружков: системное шумо- и эхоподавление, без автогромкости.
+ * Свои фильтры и компрессор убраны 15.10.2026: на Android голос звучал «металлом».
  */
-function voiceChain(ctx) {
-  const highpass = Object.assign(ctx.createBiquadFilter(), { type: 'highpass' })
-  highpass.frequency.value = 80
-  const lowpass = [0, 1].map(() => Object.assign(ctx.createBiquadFilter(), { type: 'lowpass' }))
-  lowpass.forEach((f) => (f.frequency.value = 10_500))
-  const comp = ctx.createDynamicsCompressor()
-  comp.threshold.value = -18
-  comp.knee.value = 12
-  comp.ratio.value = 2
-  comp.attack.value = 0.02
-  comp.release.value = 0.3
-  const nodes = [highpass, ...lowpass, comp]
-  nodes.reduce((a, b) => a.connect(b))
-  return { input: highpass, output: comp, nodes }
-}
-
-/** Микрофон → куски звука 24 кГц в onData(samples); close — выключить микрофон. */
-async function openMic(onData) {
+async function openMic(onData, rate = null) {
   let stream
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: false },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
     })
   } catch (e) {
     throw new Error(micErrorRu(e))
@@ -78,22 +60,21 @@ async function openMic(onData) {
   const Ctx = window.AudioContext || window.webkitAudioContext
   const ctx = new Ctx()
   if (ctx.state === 'suspended') await ctx.resume().catch(() => {})
+  const outRate = rate ?? voiceMp3Rate(ctx.sampleRate)
+  const resample = createPcmResampler(ctx.sampleRate, outRate)
   const source = ctx.createMediaStreamSource(stream)
-  const chain = voiceChain(ctx)
-  const resample = createPcmResampler(ctx.sampleRate)
   const proc = ctx.createScriptProcessor(4096, 1, 1)
   const mute = ctx.createGain()
   mute.gain.value = 0
   proc.onaudioprocess = (ev) => onData(resample(ev.inputBuffer.getChannelData(0)))
-  source.connect(chain.input)
-  chain.output.connect(proc)
+  source.connect(proc)
   proc.connect(mute)
   mute.connect(ctx.destination)
   return {
+    rate: outRate,
     close() {
       proc.onaudioprocess = null
       source.disconnect()
-      chain.nodes.forEach((n) => n.disconnect())
       proc.disconnect()
       mute.disconnect()
       stream.getTracks().forEach((t) => t.stop())
@@ -131,8 +112,9 @@ export async function startChatVoice({ onLevel } = {}) {
     else backlog.push(pcm)
   }
   let mic = await openMic(onData)
+  const { rate } = mic
   const ready = lamePromise.then((lame) => {
-    encoder = new lame.Mp3Encoder(1, CHAT_VOICE_RATE, CHAT_VOICE_KBPS)
+    encoder = new lame.Mp3Encoder(1, rate, CHAT_VOICE_KBPS)
     backlog.forEach(encode)
     backlog = []
   })
@@ -145,7 +127,7 @@ export async function startChatVoice({ onLevel } = {}) {
   }
   const current = async () => {
     await ready
-    return { audio: toBase64(concat(parts)), seconds: samples / CHAT_VOICE_RATE, wave: compressVoiceWave(levels) }
+    return { audio: toBase64(concat(parts)), seconds: samples / rate, wave: compressVoiceWave(levels) }
   }
 
   return {
@@ -162,13 +144,13 @@ export async function startChatVoice({ onLevel } = {}) {
     /** Дописать — вызывать из нажатия; микрофон запретили — ошибка с понятным текстом. */
     async resume() {
       if (closed || mic) return
-      const next = await openMic(onData)
+      const next = await openMic(onData, rate)
       if (closed) next.close()
       else mic = next
     },
     /** Записанное на сейчас — прослушать на паузе (без хвоста кодировщика: доли секунды, на отправке их добавит stop). */
     snapshot: current,
-    seconds: () => samples / CHAT_VOICE_RATE,
+    seconds: () => samples / rate,
     cancel() {
       closed = true
       micOff()

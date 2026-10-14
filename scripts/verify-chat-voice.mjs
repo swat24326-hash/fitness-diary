@@ -21,6 +21,7 @@ import {
   checkVoiceUpload,
   compressVoiceWave,
   createPcmResampler,
+  voiceMp3Rate,
   formatVoiceTime,
   isMp3Header,
   isVoiceEnding,
@@ -35,6 +36,7 @@ import {
   voiceSeekRatio,
   voiceStorageKey,
 } from '../src/lib/chat/chatVoiceCore.js'
+import { PORTABLE_MAX_BODY_BYTES_DEFAULT } from '../api/_lib/portableHostSecurityCore.js'
 import { resolveChatOutgoing } from '../src/lib/chat/chatStickerCore.js'
 import { nextChatOutgoingId } from '../src/lib/chat/chatDeliveryCore.js'
 import { buildChatMessageView } from '../src/lib/chat/chatMessageCore.js'
@@ -63,28 +65,31 @@ const wave = Array.from({ length: CHAT_VOICE_BARS }, (_, i) => i)
 const upload = (over = {}) => ({ audio: b64(mp3Bytes()), sec: 7, wave, ...over })
 
 console.log('Звук и волна')
+ok(voiceMp3Rate(48000) === 48000 && voiceMp3Rate(44100) === 44100 && voiceMp3Rate(16000) === 16000, 'пишем на родной частоте микрофона (48 / 44,1 / гарнитура 16 кГц)')
+ok(voiceMp3Rate(96000) === 48000 && voiceMp3Rate(undefined) === 48000, 'частоты, которой нет в MP3, — 48 кГц')
+ok(createPcmResampler(48000, 48000)(Float32Array.from([0.1, 0.2])).join() === Float32Array.from([0.1, 0.2]).join(), 'частота та же — звук без изменений')
 /** Секунда звука кусками по 4096, как отдаёт микрофон. */
-const inChunks = (rate, fn, size = 4096) => {
-  const resample = createPcmResampler(rate)
+const inChunks = (rate, out, fn, size = 4096) => {
+  const resample = createPcmResampler(rate, out)
   const parts = []
   for (let at = 0; at < rate; at += size) parts.push(resample(Float32Array.from({ length: Math.min(size, rate - at) }, (_, i) => fn(at + i, rate))))
   return Float32Array.from(parts.flatMap((p) => [...p]))
 }
 const flat = () => 0.5
 const tone = (i, rate) => Math.sin((2 * Math.PI * 440 * i) / rate)
-for (const rate of [48000, 44100, 16000]) {
-  const out = inChunks(rate, flat)
-  ok(Math.abs(out.length - 24000) <= 1 && out.every((v) => Math.abs(v - 0.5) < 1e-6), `${rate / 1000} кГц → 24 кГц: секунда остаётся секундой, уровень тот же`)
+for (const [from, to] of [[96000, 48000], [16000, 44100]]) {
+  const out = inChunks(from, to, flat)
+  /* Хвост куска (меньше одного входного отсчёта) ждёт следующий кусок — между чем интерполировать. */
+  ok(Math.abs(out.length - to) <= Math.ceil(to / from) + 1 && out.every((v) => Math.abs(v - 0.5) < 1e-6), `${from / 1000} → ${to / 1000} кГц: секунда остаётся секундой, уровень тот же`)
 }
-const whole = createPcmResampler(44100)(Float32Array.from({ length: 44100 }, (_, i) => tone(i, 44100)))
-const parts = inChunks(44100, tone)
+const whole = createPcmResampler(96000, 48000)(Float32Array.from({ length: 96000 }, (_, i) => tone(i, 96000)))
+const parts = inChunks(96000, 48000, tone)
 ok(
   whole.length === parts.length && parts.every((v, i) => Math.abs(v - whole[i]) < 1e-6),
-  '44,1 кГц (iPhone) кусками — то же, что целиком: на стыках нет щелчков и сдвига',
+  'пересчёт кусками — то же, что целиком: на стыках нет щелчков и сдвига',
 )
-ok(Math.abs(parts[12000] - Math.sin((2 * Math.PI * 440 * 12000) / 24000)) < 0.01, 'тон 440 Гц после пересчёта на своём месте')
-ok(createPcmResampler(24000)(Float32Array.from([0.1, 0.2])).join() === Float32Array.from([0.1, 0.2]).join(), 'микрофон уже 24 кГц — без изменений')
-ok(createPcmResampler(48000)(null).length === 0, 'пусто — пусто, без падения')
+ok(Math.abs(parts[24000] - Math.sin((2 * Math.PI * 440 * 24000) / 48000)) < 0.01, 'тон 440 Гц после пересчёта на своём месте')
+ok(createPcmResampler(48000, 44100)(null).length === 0, 'пусто — пусто, без падения')
 const pcm = pcm16Samples(Float32Array.from([1, -1, 0, 2]))
 ok(pcm[0] === 32767 && pcm[1] === -32768 && pcm[3] === 32767, '16 бит: край шкалы, перегруз обрезается')
 ok(chatVoiceLevel(new Float32Array(100)) === 0 && chatVoiceLevel(new Float32Array(100).fill(0.05)) > 0.3, 'тишина — 0, тихая речь заметна')
@@ -113,8 +118,12 @@ console.log('Загрузка')
 ok(checkVoiceUpload(upload()).ok, 'MP3 7 с — берём')
 ok(checkVoiceUpload(upload({ sec: 0.3 })).error === CHAT_VOICE_SHORT_RU, 'короче секунды — «слишком коротко»')
 ok(checkVoiceUpload(upload({ sec: CHAT_VOICE_MAX_SEC + 5 })).status === 413, 'дольше 5 минут — 413')
-ok(checkVoiceUpload(upload({ audio: b64(mp3Bytes(CHAT_VOICE_MAX_BYTES + 10)) })).status === 413, 'больше 2,6 МБ — 413')
-ok((CHAT_VOICE_MAX_SEC * CHAT_VOICE_KBPS * 1000) / 8 < CHAT_VOICE_MAX_BYTES && (CHAT_VOICE_MAX_BYTES * 4) / 3 < 4_500_000, '5 минут влезают в лимит, а в base64 — под потолок тела 5 МБ')
+ok(checkVoiceUpload(upload({ audio: b64(mp3Bytes(CHAT_VOICE_MAX_BYTES + 10)) })).status === 413, 'больше 3,7 МБ — 413')
+ok(CHAT_VOICE_KBPS === 96, '96 кбит/с — как звук кружка')
+ok(
+  (CHAT_VOICE_MAX_SEC * CHAT_VOICE_KBPS * 1000) / 8 < CHAT_VOICE_MAX_BYTES && (CHAT_VOICE_MAX_BYTES * 4) / 3 + 20_000 < PORTABLE_MAX_BODY_BYTES_DEFAULT,
+  '5 минут влезают в лимит, а в base64 с волной — под потолок тела запроса',
+)
 ok(checkVoiceUpload(upload({ audio: 'не base64!' })).status === 400, 'мусор — 400')
 ok(checkVoiceUpload(upload({ audio: b64(new Uint8Array(30)) })).error === CHAT_VOICE_SHORT_RU, 'пара байт — «слишком коротко»')
 ok(checkVoiceUpload(upload({ wave: [1] })).status === 400, 'без волны — 400')
