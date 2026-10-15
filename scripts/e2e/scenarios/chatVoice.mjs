@@ -107,7 +107,7 @@ async function client(c, context, chat) {
   await fakeMic(page)
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     await page.goto(`${ORIGIN}/me/chat/trainer`)
     c.ok(await reaches(page.getByTestId('chat-mic')), 'клиент: поле пустое — справа 🎤 вместо «Отправить»')
     c.ok(await reaches(page.getByText(new RegExp(CHAT_VOICE_EXPIRED_RU))), 'клиент: голосовое старше суток — «удалено», длительность осталась')

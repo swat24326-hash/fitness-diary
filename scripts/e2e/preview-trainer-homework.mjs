@@ -63,7 +63,7 @@ const phone = await newE2eContext(browser, backend, {
 })
 const client = await phone.newPage()
 await client.goto(`${ORIGIN}/me/join#t=${INVITE}`, { waitUntil: 'domcontentloaded', timeout: 90_000 })
-await client.waitForURL(`${ORIGIN}/me`, { timeout: 60_000 }).catch(() => null)
+await client.waitForURL(`${ORIGIN}/me/`, { timeout: 60_000 }).catch(() => null)
 
 console.log(`Планшет тренера: ${ORIGIN}/trainer/clients/${CLIENT_ID}?tab=homework (вкладка «Авто»)`)
 console.log(`Телефон клиентки: ${ORIGIN}/me — ДЗ от ${lastSunday.split('-').reverse().slice(0, 2).join('.')}`)

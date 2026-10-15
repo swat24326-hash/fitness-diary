@@ -7,7 +7,10 @@ import { initAppErrorJournal } from './lib/appErrorJournal'
 import { clearPoisonedSyncQueue, resetSyncQueueOnceAfterDeploy } from './lib/syncService'
 import { armViteChunkReloadOnStaleDeploy } from './lib/viteChunkReload.js'
 import { armInstallPromptCapture } from './lib/pwa/installPromptStore.js'
+import { appHomeCanonicalUrl } from './lib/pwa/appHomePath.js'
 
+const appHome = appHomeCanonicalUrl(window.location)
+if (appHome) window.history.replaceState(window.history.state, '', appHome)
 initAppErrorJournal()
 armViteChunkReloadOnStaleDeploy()
 armInstallPromptCapture()

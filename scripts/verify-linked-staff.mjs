@@ -84,7 +84,7 @@ ok(chatFolderLabelRu(CHAT_FOLDER_COMPLAINTS, 'trainer') === 'Жалобы и п�
 const UUID = '0b3c1f6e-1d2a-4c3b-8e5f-9a7b6c5d4e3f'
 ok(coachPushUrl(`/messages/chat/${UUID}/supervisor`) === `/coach/chat/${UUID}/supervisor`, 'push жалобы → диалог на телефоне тренера')
 ok(coachPushUrl(`/messages/chat/${UUID}/trainer`) === `/coach/chat/${UUID}`, 'push «Тренер» — как раньше')
-ok(coachPushUrl(`/messages/chat/${UUID}/sales`) === '/coach', 'диалог менеджера на телефон тренера не ведёт')
+ok(coachPushUrl(`/messages/chat/${UUID}/sales`) === '/coach/', 'диалог менеджера на телефон тренера не ведёт')
 const contacts = buildThreadContacts(
   [{ client_id: 'c1', last_message_at: '2026-10-12T10:00:00Z', last_author: 'client', last_preview: 'Душ', staff_read_at: null }],
   new Map([['c1', { name: 'Гостева Мария' }]]),

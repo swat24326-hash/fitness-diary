@@ -74,7 +74,7 @@ export async function run(browser) {
     /* Ссылка из QR открывается заново, а не сменой хеша на той же странице. */
     await page.goto('about:blank')
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     c.ok(!page.url().includes(INVITE), 'токен ссылки убран из адресной строки')
     c.ok(await membershipShows(page, /6\s*из 8/), 'главная: абонемент «6 из 8» осталось')
     c.ok(

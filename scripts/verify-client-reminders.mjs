@@ -77,7 +77,7 @@ const plan = planClientReminders({
 ok(plan.length === 2, 'c1 и c2 в 18:00; дубль слота, послезавтра, уже отправленное и без подписки — мимо')
 const p1 = plan.find((p) => p.clientId === 'c1')
 ok(p1?.rows.length === 2, 'два телефона клиента — оба получают')
-ok(p1?.payload.title === 'FIT-CITY' && p1?.payload.url === '/me', 'заголовок — клуб, клик открывает /me')
+ok(p1?.payload.title === 'FIT-CITY' && p1?.payload.url === '/me/', 'заголовок — клуб, клик открывает /me/')
 ok(p1?.payload.body === 'Завтра в 18:00 — тренировка с Анной', 'тело — время и тренер')
 ok(!JSON.stringify(plan).includes('секрет'), 'заметка слота не уходит в push')
 

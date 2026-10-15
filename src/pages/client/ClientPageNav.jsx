@@ -2,12 +2,13 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { logoutClient, readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientMenu, ClientMenuItems } from './ClientMenu.jsx'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function useClientMenuProps() {
   const navigate = useNavigate()
   return {
     clientName: readClientMeCache()?.data?.client?.name || '',
-    onLogout: () => void logoutClient().then(() => navigate('/me', { replace: true })),
+    onLogout: () => void logoutClient().then(() => navigate(CLIENT_HOME, { replace: true })),
   }
 }
 
@@ -28,7 +29,7 @@ export function ClientPageMenuItems({ onRefresh = null, refreshing = false }) {
 }
 
 /** Заголовок вложенного экрана: «Назад» слева от названия — одно место на всех экранах. Экран-вкладка — back={false}. */
-export function ClientPageTitle({ title, to = '/me', back = true }) {
+export function ClientPageTitle({ title, to = CLIENT_HOME, back = true }) {
   const navigate = useNavigate()
   return (
     <div className="client-page-title">

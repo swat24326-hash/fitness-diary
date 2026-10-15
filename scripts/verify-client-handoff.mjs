@@ -146,7 +146,7 @@ try {
   // --- Клиент: адрес, manifest, запуск значка ---
   ok(handoffTokenFromSearch(`?h=${TOKEN}`) === TOKEN, 'токен из адреса')
   ok(handoffTokenFromSearch('?h=bad') === '' && handoffTokenFromSearch('') === '', 'мусор в адресе — пусто')
-  ok(clientHandoffPageUrl(TOKEN) === `/me?h=${TOKEN}` && clientHandoffPageUrl('') === '/me', 'адрес для «На экран Домой»')
+  ok(clientHandoffPageUrl(TOKEN) === `/me/?h=${TOKEN}` && clientHandoffPageUrl('') === '/me/', 'адрес для «На экран Домой»')
   const mu = `/api/client-me?manifest=${CLUB}`
   ok(withHandoffManifest(mu, TOKEN) === `${mu}&h=${TOKEN}`, 'manifest клуба с входом')
   ok(withHandoffManifest(mu, '') === mu && withHandoffManifest(null, TOKEN) === null, 'без токена / без клуба — как было')

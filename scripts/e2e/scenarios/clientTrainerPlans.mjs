@@ -34,7 +34,7 @@ async function clientOpensTask(c, browser, backend) {
   const page = await context.newPage()
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     const tab = page.getByRole('link', { name: 'Задание и питание от тренера, новое' })
     c.ok(await reaches(tab), 'клиент: внизу вкладка «От тренера» с точкой «Новое»')
     await screenshot(page, 'client-plans-home')

@@ -54,7 +54,7 @@ function wireBackend() {
 
 async function openHome(page) {
   await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-  await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+  await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
   const spark = page.locator('.client-me-spark')
   await spark.waitFor({ timeout: 10_000 })
   await spark.scrollIntoViewIfNeeded()

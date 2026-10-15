@@ -1,5 +1,5 @@
 /**
- * Вход значка на iPhone (без React). Safari кладёт одноразовое приглашение в адрес /me?h=… и в manifest;
+ * Вход значка на iPhone (без React). Safari кладёт одноразовое приглашение в адрес /me/?h=… и в manifest;
  * значок открывается с ним, своей сессии у него нет — гасим приглашение через /me/join.
  * Сервер: api/_lib/clientPortal/clientHandoffCore.js.
  */
@@ -13,7 +13,7 @@ export function handoffTokenFromSearch(search) {
 
 /** Адрес страницы в Safari, который iPhone запомнит для значка. */
 export function clientHandoffPageUrl(token) {
-  return TOKEN.test(String(token ?? '')) ? `/me?h=${token}` : '/me'
+  return TOKEN.test(String(token ?? '')) ? `/me/?h=${token}` : '/me/'
 }
 
 /** @returns {string | null} manifest клуба с входом значка; без manifest клуба — null. */

@@ -98,7 +98,7 @@ async function clientWrites(c, browser, backend, chat) {
   await spySounds(page)
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     await page.goto(`${ORIGIN}/me/inbox`)
     const trainerRow = page.getByRole('link', { name: /^Тренер · / })
     c.ok(await reaches(trainerRow), '«Сообщения»: диалог с тренером на месте')
@@ -274,7 +274,7 @@ async function clientReads(c, browser, backend, chat) {
   const page = await context.newPage()
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения: новых 1' })), 'клиент: на вкладке «Сообщения» /me — 1 новое')
     await page.goto(`${ORIGIN}/me/inbox`)
     const trainerRow = page.getByRole('link', { name: /^Тренер · / })

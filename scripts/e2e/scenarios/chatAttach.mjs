@@ -95,7 +95,7 @@ async function client(c, context, chat) {
   const page = await context.newPage()
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     await page.goto(`${ORIGIN}/me/chat/trainer`)
     c.ok(await reaches(page.getByTestId('chat-attach-button')), 'клиент: в поле ввода есть скрепка')
     c.ok(await reaches(page.getByTestId('chat-attach-gone')), 'клиент: фото старше суток — «удалено через сутки»')

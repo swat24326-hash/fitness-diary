@@ -3,6 +3,7 @@
  * Текст — только время и тренер: его видно на заблокированном экране.
  */
 import { CLUB_OPS_TIMEZONE } from '../../../src/lib/dateRu.js'
+import { CLIENT_HOME } from '../../../src/lib/pwa/appHomePath.js'
 
 export const CLIENT_REMINDER_FROM_MIN = 19 * 60
 export const CLIENT_QUIET_FROM_MIN = 22 * 60
@@ -111,7 +112,7 @@ export function planClientReminders({ tomorrow, entries, subscriptions, sentKeys
             startMinutes: entry.start_minutes,
             trainerName: trainerNames.get(String(entry.trainer_id)),
           }),
-          url: '/me',
+          url: CLIENT_HOME,
           tag: `client-reminder-${tomorrow}-${Number(entry.start_minutes)}`,
         },
       })

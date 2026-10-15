@@ -5,6 +5,7 @@ import { hasClientSession, readClientMeCache } from '../../lib/client/clientSess
 import { useClientApp } from './ClientAppContext.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 const REMINDER_HINT = {
   install_first: 'На iPhone напоминания работают только в приложении со значка на экране «Домой». Установите его через меню.',
@@ -16,7 +17,7 @@ const REMINDER_HINT = {
 export function ClientSettingsPage() {
   const { push } = useClientApp()
   const sound = useChatSoundSetting('client')
-  if (!hasClientSession()) return <Navigate to="/me" replace />
+  if (!hasClientSession()) return <Navigate to={CLIENT_HOME} replace />
   const cached = readClientMeCache()
   const club = cached?.data?.club ?? null
   const on = push.mode === 'on'

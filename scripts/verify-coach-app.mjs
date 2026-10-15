@@ -9,6 +9,7 @@ import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
 import { PUSH_APP_COACH, coachPushUrl, pushUrlForApp, staffPushTestUrl } from '../src/lib/push/pushTargetUrlCore.js'
 import { webPushSendOptions } from '../src/lib/push/webPushDelivery.js'
 import { buildCoachJoinUrl, coachQrTokenFromHash } from '../src/lib/coach/coachJoinLink.js'
+import { CLIENT_HOME, COACH_HOME, appHomeCanonicalUrl } from '../src/lib/pwa/appHomePath.js'
 import { buildCoachClub, buildCoachManifest, coachManifestUrl } from '../api/_lib/coach/coachManifestCore.js'
 import { createCoachHandler } from '../api/_lib/coach/coachHandler.js'
 import { newInviteToken } from '../api/_lib/clientPortal/clientAuthCore.js'
@@ -30,14 +31,21 @@ const chatPayload = buildChatPushPayload({ kind: 'trainer', authorSide: 'client'
 ok(coachPushUrl(chatPayload.url) === `/coach/chat/${CLIENT}`, 'сообщение клиента → диалог на телефоне')
 ok(pushUrlForApp(chatPayload.url, 'staff') === chatPayload.url, 'планшет получает прежний адрес')
 ok(pushUrlForApp(chatPayload.url, undefined) === chatPayload.url, 'подписка без пометки (клиент, старая строка) — адрес не меняется')
-ok(coachPushUrl('/trainer?inbox=1') === '/coach', 'задание Планёрки → «Сегодня» на телефоне, не планшетный экран')
-ok(coachPushUrl('/messages') === '/coach', 'рассылка клуба → «Сегодня»')
-ok(coachPushUrl(`/messages/chat/${CLIENT}/sales`) === '/coach', 'диалог менеджера на телефон тренера не ведёт')
+ok(coachPushUrl('/trainer?inbox=1') === '/coach/', 'задание Планёрки → «Сегодня» на телефоне, не планшетный экран')
+ok(coachPushUrl('/messages') === '/coach/', 'рассылка клуба → «Сегодня»')
+ok(coachPushUrl(`/messages/chat/${CLIENT}/sales`) === '/coach/', 'диалог менеджера на телефон тренера не ведёт')
 ok(coachPushUrl(`/messages/chat/${CLIENT}/trainer/../../admin`) === `/coach/chat/${CLIENT}`, 'адрес собирается из id, хвост не протаскивается')
-ok(coachPushUrl('') === '/coach' && coachPushUrl(null) === '/coach', 'пустой адрес → /coach')
+ok(coachPushUrl('') === '/coach/' && coachPushUrl(null) === '/coach/', 'пустой адрес → /coach')
 ok(coachPushUrl(`/messages/dm/${CLIENT}`) === `/coach/dm/${CLIENT}`, 'личное сообщение сотрудника → диалог на телефоне')
 ok(coachPushUrl(`/messages/dm/${CLIENT}/../../admin`) === `/coach/dm/${CLIENT}`, 'личное: хвост адреса не протаскивается')
-ok(coachPushUrl('/messages/dm/not-a-uuid') === '/coach', 'личное: кривой id → /coach')
+ok(coachPushUrl('/messages/dm/not-a-uuid') === '/coach/', 'личное: кривой id → /coach')
+// --- Ежедневник со слэшем: значок iPhone, поставленный с /coach/clients, видит /coach/ своим (INC-2026-10-15-04) ---
+ok(COACH_HOME === '/coach/', 'Ежедневник — /coach/')
+ok(appHomeCanonicalUrl({ pathname: '/coach', search: '?h=abc', hash: '#x' }) === '/coach/?h=abc#x', '/coach → /coach/ с вход-токеном и #')
+ok(appHomeCanonicalUrl({ pathname: '/coach/' }) === null, '/coach/ уже правильный')
+ok(appHomeCanonicalUrl({ pathname: '/coach/chats' }) === null && appHomeCanonicalUrl({ pathname: '/coaching' }) === null, 'другие адреса не трогаем')
+ok(CLIENT_HOME === '/me/' && appHomeCanonicalUrl({ pathname: '/me', search: '?h=abc' }) === '/me/?h=abc', 'клиент: /me → /me/ с вход-токеном')
+ok(appHomeCanonicalUrl({ pathname: '/me/chat/trainer' }) === null && appHomeCanonicalUrl({ pathname: '/messages' }) === null, 'клиент: вложенные и рабочие адреса не трогаем')
 ok(staffPushTestUrl({ isAdmin: true }) === '/messages', '«Проверить» у админа → «Сообщения» (пуши ему — о переписке)')
 ok(staffPushTestUrl({ isSupervisor: true }) === '/messages', '«Проверить» у управляющего → «Сообщения», не экран тренера')
 ok(staffPushTestUrl({ isSalesManager: true }) === '/sales/club-tasks?inbox=1', '«Проверить» у продаж → входящие Планёрки')

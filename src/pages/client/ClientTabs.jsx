@@ -3,6 +3,7 @@ import { ClipboardList, House, ListChecks, MessageCircle } from 'lucide-react'
 import { inboxBadgeText, inboxButtonLabelRu } from '../../lib/client/clientInboxUiCore.js'
 import { CLIENT_PLAN_ROUTES, clientPlanFresh, clientPlanTabTarget } from '../../lib/client/clientPlanUiCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 const PLAN_PATHS = Object.values(CLIENT_PLAN_ROUTES)
 
@@ -44,7 +45,7 @@ export function ClientTabs({ attention }) {
   const fresh = clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition')
   return (
     <nav className="coach-tabs" aria-label="Разделы">
-      <Tab to="/me" end icon={House} label="Главная" />
+      <Tab to={CLIENT_HOME} end icon={House} label="Главная" />
       <Tab to="/me/trainings" icon={ListChecks} label="Тренировки" />
       <Tab
         to={clientPlanTabTarget(cached?.plans)}

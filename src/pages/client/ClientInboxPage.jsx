@@ -10,6 +10,7 @@ import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { ClientSegments } from './ClientSegments.jsx'
 import { useClientChats } from './useClientChat.js'
 import { useClientInbox } from './useClientInbox.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function NewsSection({ items, points, status, error }) {
   const pointsLine = inboxPointsLineRu(points)
@@ -49,7 +50,7 @@ export function ClientInboxPage() {
   const inbox = useClientInbox()
   const chats = useClientChats()
   const [params] = useSearchParams()
-  if (!hasClientSession() || inbox.status === 'signed_out' || chats.status === 'signed_out') return <Navigate to="/me" replace />
+  if (!hasClientSession() || inbox.status === 'signed_out' || chats.status === 'signed_out') return <Navigate to={CLIENT_HOME} replace />
   const cached = readClientMeCache()?.data
   const chatAttention = Number(cached?.chat_attention) || 0
   const inboxAttention = Number(cached?.inbox_attention) || 0

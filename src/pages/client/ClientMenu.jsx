@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { LogOut, Menu, RefreshCw, Settings, Smartphone, User } from 'lucide-react'
 import { useClientApp } from './ClientAppContext.jsx'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function navClass({ isActive }) {
   return `app-header__menu-item${isActive ? ' client-menu__item--active' : ''}`
@@ -76,7 +77,7 @@ export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, r
           className="app-header__menu-item"
           onClick={() => {
             close()
-            navigate('/me')
+            navigate(CLIENT_HOME)
             onboarding.show('install')
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }}

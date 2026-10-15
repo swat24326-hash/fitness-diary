@@ -9,6 +9,7 @@ import { clientAttention } from './ClientTabs.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientMe } from './useClientMe.js'
 import { useClientTraining } from './useClientTraining.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function TrainingRow({ row, index, view }) {
   const content = (
@@ -46,7 +47,7 @@ function TrainingRow({ row, index, view }) {
 export function ClientTrainingsPage() {
   const { data, status } = useClientMe()
   const view = useClientTraining()
-  if (status === 'signed_out') return <Navigate to="/me" replace />
+  if (status === 'signed_out') return <Navigate to={CLIENT_HOME} replace />
   const cards = data ? membershipTrainingsCards(data.memberships) : null
 
   return (

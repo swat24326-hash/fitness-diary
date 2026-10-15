@@ -5,6 +5,7 @@ import { RefreshCw, TriangleAlert, WifiOff } from 'lucide-react'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientApp } from './ClientAppContext.jsx'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function tokenFromHash() {
   const params = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
@@ -27,7 +28,7 @@ export function ClientJoinPage() {
     redeemClientInvite(token)
       .then(() => {
         startOnboarding()
-        navigate('/me', { replace: true })
+        navigate(CLIENT_HOME, { replace: true })
       })
       .catch((e) => setError(e?.message || 'Не удалось войти'))
       .finally(() => setBusy(false))
@@ -40,7 +41,7 @@ export function ClientJoinPage() {
     redeem()
   }, [token, redeem])
 
-  if (!token) return <Navigate to="/me" replace />
+  if (!token) return <Navigate to={CLIENT_HOME} replace />
 
   return (
     <ClientMeShell>
@@ -51,7 +52,7 @@ export function ClientJoinPage() {
               Повторить
             </button>
           ) : hasClientSession() ? (
-            <button type="button" className="btn btn-primary btn-touch" onClick={() => navigate('/me', { replace: true })}>
+            <button type="button" className="btn btn-primary btn-touch" onClick={() => navigate(CLIENT_HOME, { replace: true })}>
               Открыть мои данные
             </button>
           ) : null}

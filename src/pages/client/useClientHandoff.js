@@ -7,6 +7,7 @@ import {
   reusableHandoff,
 } from '../../lib/client/clientHandoffCore.js'
 import { hasClientSession, postClientMe } from '../../lib/client/clientSession.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 const SAVED_KEY = 'fd_client_handoff'
 
@@ -33,7 +34,7 @@ export function useClientHandoff({ active }) {
     const apply = (t) => {
       if (cancelled) return
       setToken(t)
-      if (window.location.pathname === '/me') window.history.replaceState(window.history.state, '', clientHandoffPageUrl(t))
+      if (window.location.pathname === CLIENT_HOME) window.history.replaceState(window.history.state, '', clientHandoffPageUrl(t))
     }
     const saved = reusableHandoff(readSaved())
     if (saved) apply(saved)
@@ -68,6 +69,6 @@ export function useClientHandoffLaunch({ standalone }) {
     const token = handoffTokenFromSearch(window.location.search)
     const action = handoffLaunchAction({ standalone, hasSession: hasClientSession(), token })
     if (action === 'redeem') navigate(`/me/join#t=${token}`, { replace: true })
-    else if (action === 'strip') window.history.replaceState(window.history.state, '', '/me')
+    else if (action === 'strip') window.history.replaceState(window.history.state, '', CLIENT_HOME)
   }, [standalone, navigate])
 }

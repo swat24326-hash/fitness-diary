@@ -40,7 +40,7 @@ const p1 = buildScheduleReminderPayload({ entry: withClients, nowMinutes: H(9, 4
 ok(p1.title === 'Через 12 мин · 10:00', `заголовок: время и сколько осталось (${p1.title})`)
 ok(p1.body === 'Тренировка: Анна, Олег', `текст: категория и клиенты (${p1.body})`)
 ok(p1.tag === 'schedule-reminder-e1' && p1.url === '/trainer/calendar', 'тег по записи, ссылка в Ежедневник')
-ok(pushUrlForApp(p1.url, 'coach') === '/coach', 'на телефоне открывается Ежедневник приложения тренера')
+ok(pushUrlForApp(p1.url, 'coach') === '/coach/', 'на телефоне открывается Ежедневник приложения тренера')
 const note = buildScheduleReminderPayload({ entry: { id: 'e2', start_minutes: H(13, 30), client_ids: [], kind: 'work', title: 'Планёрка' }, nowMinutes: H(13, 15) })
 ok(note.body === 'Работа: Планёрка' && note.title.endsWith('13:30'), 'заметка: категория и заголовок')
 const empty = buildScheduleReminderPayload({ entry: { id: 'e3', start_minutes: H(8), client_ids: [], title: '' }, nowMinutes: H(7, 50) })

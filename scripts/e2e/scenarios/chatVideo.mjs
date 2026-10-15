@@ -144,7 +144,7 @@ async function client(c, context, chat) {
   await fakeCamera(page)
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me`, { timeout: 15_000 })
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     await page.goto(`${ORIGIN}/me/chat/trainer`)
     c.ok(await reaches(page.getByTestId('chat-mic')), 'клиент: поле пустое — справа 🎤')
     c.ok(await reaches(page.getByTestId('chat-video-gone').getByText(new RegExp(CHAT_VIDEO_EXPIRED_RU))), 'клиент: кружок старше суток — «удалено»')

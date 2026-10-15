@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { handoffLaunchAction, handoffTokenFromSearch } from '../../lib/client/clientHandoffCore.js'
+import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
 import { isCoachStandalone } from '../../lib/coach/coachInstall.js'
 import { COACH_JOIN_PATH, coachQrTokenFromHash } from '../../lib/coach/coachJoinLink.js'
 import { hasCoachSession, readSavedCoachQr, saveCoachQr } from '../../lib/coach/coachSession.js'
@@ -28,7 +29,7 @@ function takeLaunch() {
   if (pathname.replace(/\/$/, '') === COACH_JOIN_PATH) {
     const token = coachQrTokenFromHash(hash)
     if (token && !hasCoachSession()) saveCoachQr(token)
-    window.history.replaceState(null, '', '/coach')
+    window.history.replaceState(null, '', COACH_HOME)
   }
   const h = handoffTokenFromSearch(search)
   if (h) {
@@ -55,7 +56,7 @@ function CoachRoutes() {
   return (
     <Routes>
       <Route index element={<CoachCalendarPage />} />
-      <Route path="calendar" element={<Navigate to="/coach" replace />} />
+      <Route path="calendar" element={<Navigate to={COACH_HOME} replace />} />
       <Route path="chats" element={<CoachChatsPage />} />
       <Route path="chat/:clientId" element={<CoachChatPage />} />
       <Route path="chat/:clientId/:kind" element={<CoachChatPage />} />
@@ -63,7 +64,7 @@ function CoachRoutes() {
       <Route path="group" element={<CoachGroupPage />} />
       <Route path="clients" element={<CoachClientsPage />} />
       <Route path="more" element={<CoachMorePage />} />
-      <Route path="*" element={<Navigate to="/coach" replace />} />
+      <Route path="*" element={<Navigate to={COACH_HOME} replace />} />
     </Routes>
   )
 }

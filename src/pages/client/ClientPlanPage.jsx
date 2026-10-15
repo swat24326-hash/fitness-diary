@@ -8,6 +8,7 @@ import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { ClientPlanSwitch } from './ClientPlanSwitch.jsx'
 import { ClientHomeworkView, ClientNutritionView } from './ClientPlanViews.jsx'
 import { useClientPlans } from './useClientPlans.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function History({ items, currentId, openingId, onOpen }) {
   if (items.length < 2) return null
@@ -43,7 +44,7 @@ function History({ items, currentId, openingId, onOpen }) {
 /** Вкладка «От тренера»: /me/task и /me/nutrition — последнее сверху, ниже прошлые. Без сети — последнее открытое. */
 export function ClientPlanPage({ kind }) {
   const plans = useClientPlans(kind)
-  if (plans.status === 'signed_out') return <Navigate to="/me" replace />
+  if (plans.status === 'signed_out') return <Navigate to={CLIENT_HOME} replace />
   const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
   return (

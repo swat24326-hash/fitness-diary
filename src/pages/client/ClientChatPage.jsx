@@ -12,13 +12,14 @@ import { ClientPageMenuItems } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientChatThread } from './useClientChat.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 /** /me/chat/:kind — переписка с тренером, менеджером по продажам или управляющим. */
 export function ClientChatPage() {
   const { kind = '' } = useParams()
   const chat = useClientChatThread(kind)
   const [searchHost, setSearchHost] = useState(null)
-  if (!hasClientSession()) return <Navigate to="/me" replace />
+  if (!hasClientSession()) return <Navigate to={CLIENT_HOME} replace />
   if (!isChatKind(kind)) return <Navigate to="/me/inbox" replace />
   const club = readClientMeCache()?.data?.club ?? null
   const who = String(chat.meta?.name ?? '').trim()

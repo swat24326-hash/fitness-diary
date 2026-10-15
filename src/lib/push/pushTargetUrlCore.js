@@ -4,6 +4,8 @@
  * «Жалобы и предложения» (kind supervisor) — телефон тренера, связанного с управляющим (linkedStaffCore).
  * Чат клуба (/messages?group=<клуб>) — на телефоне тренера всегда чат своего клуба: /coach/group.
  */
+import { COACH_HOME } from '../pwa/appHomePath.js'
+
 export const PUSH_APP_STAFF = 'staff'
 export const PUSH_APP_COACH = 'coach'
 
@@ -19,7 +21,7 @@ export function coachPushUrl(url) {
     return chat[2].toLowerCase() === 'supervisor' ? `/coach/chat/${id}/supervisor` : `/coach/chat/${id}`
   }
   const dm = STAFF_DM.exec(String(url ?? ''))
-  return dm ? `/coach/dm/${dm[1].toLowerCase()}` : '/coach'
+  return dm ? `/coach/dm/${dm[1].toLowerCase()}` : COACH_HOME
 }
 
 /**

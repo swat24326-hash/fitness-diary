@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { CalendarDays, Menu, MessageCircle, Users } from 'lucide-react'
 import { OsMark } from '../../components/brand/OsMark.jsx'
 import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
+import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
 import { useClientBranding } from '../client/useClientBranding.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { useCoachAttention } from './useCoachAttention.js'
@@ -11,7 +12,7 @@ export const COACH_APP_TITLE = APP_BRAND_COACH_TITLE
 const COACH_MANIFEST = '/manifest-coach.json'
 
 const TABS = [
-  { to: '/coach', end: true, icon: CalendarDays, label: 'Ежедневник' },
+  { to: COACH_HOME, end: true, icon: CalendarDays, label: 'Ежедневник' },
   { to: '/coach/chats', icon: MessageCircle, label: 'Сообщения', attention: true },
   { to: '/coach/clients', icon: Users, label: 'Клиенты' },
 ]

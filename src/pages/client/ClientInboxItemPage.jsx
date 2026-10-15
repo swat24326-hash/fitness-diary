@@ -8,12 +8,13 @@ import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { InboxSurveyForm } from '../../components/inbox/InboxSurveyForm.jsx'
 import { useClientInboxItem } from './useClientInbox.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 /** /me/inbox/:id — объявление целиком или опрос (форма → «Спасибо»). */
 export function ClientInboxItemPage() {
   const { id = '' } = useParams()
   const { item, status, error, reload, answer, sending, sendError } = useClientInboxItem(id)
-  if (!hasClientSession() || status === 'signed_out') return <Navigate to="/me" replace />
+  if (!hasClientSession() || status === 'signed_out') return <Navigate to={CLIENT_HOME} replace />
   const club = readClientMeCache()?.data?.club ?? null
   const actions = <ClientPageActions />
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { handoffTokenFromSearch, reusableHandoff } from '../../lib/client/clientHandoffCore.js'
 import { requestCoachHandoff } from '../../lib/coach/coachApiClient.js'
+import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
 
 const SAVED_KEY = 'fd_coach_handoff'
 
@@ -13,7 +14,7 @@ function readSaved() {
 }
 
 /**
- * iPhone, Safari, подсказка установки на экране: одноразовый вход для значка — в адрес /coach?h=…,
+ * iPhone, Safari, подсказка установки на экране: одноразовый вход для значка — в адрес /coach/?h=…,
  * его iPhone запомнит при «На экран Домой». Подсказку скрыли — убираем из адреса: скопированная ссылка
  * не впускает чужого. Без сети — значок откроется со входом по паролю или QR, как раньше.
  */
@@ -22,8 +23,8 @@ export function useCoachHandoff({ active }) {
     if (!active) return undefined
     let cancelled = false
     const apply = (token) => {
-      if (cancelled || window.location.pathname !== '/coach') return
-      window.history.replaceState(window.history.state, '', `/coach?h=${token}`)
+      if (cancelled || window.location.pathname !== COACH_HOME) return
+      window.history.replaceState(window.history.state, '', `${COACH_HOME}?h=${token}`)
     }
     const saved = reusableHandoff(readSaved())
     if (saved) apply(saved)

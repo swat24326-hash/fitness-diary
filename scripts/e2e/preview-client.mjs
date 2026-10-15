@@ -84,7 +84,7 @@ const context = await newE2eContext(browser, backend, {
 })
 const page = await context.newPage()
 await page.goto(`${ORIGIN}/me/join#t=${INVITE}`, { waitUntil: 'domcontentloaded', timeout: 90_000 })
-await page.waitForURL(`${ORIGIN}/me`, { timeout: 60_000 })
+await page.waitForURL(`${ORIGIN}/me/`, { timeout: 60_000 })
 console.log(`Приложение клиента открыто: ${ORIGIN}/me (тестовые данные). Закройте окно, чтобы выйти.`)
 
 browser.on('disconnected', () => {
