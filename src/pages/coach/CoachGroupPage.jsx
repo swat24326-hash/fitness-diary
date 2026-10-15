@@ -11,12 +11,15 @@ import { STAFF_GROUP_TITLE_RU, staffGroupMembersRu } from '../../lib/chat/staffG
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachLoadState } from './CoachStatus.jsx'
+import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import '../../styles/chat-group.css'
+
+const GROUP_CACHE = screenCacheKey('coach', 'group')
 
 /** /coach/group — чат своего клуба на телефоне тренера; сюда же ведёт push о сообщении в чате клуба. */
 export function CoachGroupPage() {
   const { onSessionGone } = useCoachApp()
-  const group = useStaffGroupThread(coachGroupApi, 'coach')
+  const group = useStaffGroupThread(coachGroupApi, 'coach', undefined, GROUP_CACHE)
   const { chat, muted, toggleMute, muteError } = group
   const info = chat.meta?.group
   const [searchHost, setSearchHost] = useState(null)

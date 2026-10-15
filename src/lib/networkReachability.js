@@ -53,6 +53,11 @@ export function isCloudReachable() {
   return Date.now() - cloudCheckedAt < 45_000
 }
 
+/** Последний запрос к серверу приложения дошёл (без 45-секундной поблажки isCloudReachable) — плашка «Соединение…». */
+export function isCloudConfirmed() {
+  return isBrowserOnline() && cloudReachable
+}
+
 export function noteAppNetworkResponse(response) {
   if (response && isHttpResponseReachable(response.status)) {
     cloudReachable = true

@@ -1,4 +1,4 @@
-import { Check, CheckCheck } from 'lucide-react'
+import { Check, CheckCheck, Clock } from 'lucide-react'
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { chatLinkCheck, chatLinkNeedsConfirm } from '../../lib/chat/chatLinkCore.js'
 import { chatTextParts } from '../../lib/chat/chatTextLinksCore.js'
@@ -90,7 +90,9 @@ function Meta({ m }) {
     <span className="chat-msg__meta">
       <time dateTime={m.created_at}>{Number.isNaN(at.getTime()) ? '' : TIME_FMT.format(at)}</time>
       {m.mine ? (
-        m.read ? (
+        m.pending ? (
+          <Clock size={13} aria-label="Ждёт сети" className="chat-msg__tick is-pending" data-testid="chat-msg-pending" />
+        ) : m.read ? (
           <CheckCheck size={15} aria-label="Прочитано" className="chat-msg__tick is-read" />
         ) : (
           <Check size={15} aria-label="Доставлено" className="chat-msg__tick" />
@@ -184,13 +186,14 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
       item.sticker && 'chat-msg--sticker',
       item.voice && voice && 'chat-msg--voice',
       item.attach && voice?.file && `chat-msg--attach chat-msg--${item.attach.kind}`,
-      onReact && 'chat-msg--pressable',
+      onReact && !item.pending && 'chat-msg--pressable',
+      item.pending && 'chat-msg--pending',
       menu?.id === item.id && 'is-pressed',
     ]
       .filter(Boolean)
       .join(' ')
     return (
-      <div key={item.id} className={cls} data-msg-id={item.id} {...(onReact ? press(item) : {})}>
+      <div key={item.id} className={cls} data-msg-id={item.id} {...(onReact && !item.pending ? press(item) : {})}>
         {!item.mine && item.author_name && item.groupStart && !item.big ? (
           <span className="chat-msg__author">{item.author_name}</span>
         ) : null}
@@ -223,7 +226,7 @@ export function ChatFeed({ messages, peerReadAt, onReact, onReply, onJump, findi
         <ChatReactions
           messageId={item.id}
           reactions={item.reactions}
-          onReact={onReact ? react : undefined}
+          onReact={onReact && !item.pending ? react : undefined}
           burst={burst?.id === String(item.id) ? burst.emoji : null}
         />
       </div>

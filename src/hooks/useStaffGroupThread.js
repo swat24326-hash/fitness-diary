@@ -4,13 +4,13 @@ import { useStaffGroupPin } from './useStaffGroupPin.js'
 
 /**
  * Лента чата клуба + «без звука» + закреп. api — staffGroupApi(clubId) планшета или coachGroupApi телефона (стабильный объект).
- * onMuteChange — после смены «без звука» (обновить число на конверте).
+ * onMuteChange — после смены «без звука» (обновить число на конверте). cacheKey — кэш ленты (только телефон тренера).
  * @param {{ load: Function, send: Function, react: Function, search: Function, mute: (muted: boolean) => Promise<object>,
  *   pin: Function, readers: Function, voice: object }} api
  */
-export function useStaffGroupThread(api, key, onMuteChange) {
+export function useStaffGroupThread(api, key, onMuteChange, cacheKey = '') {
   const load = useCallback((before, opts) => api.load(before, opts?.seen), [api])
-  const chat = useChatThread({ key: `group:${key}`, side: 'staff', load, send: api.send, react: api.react, search: api.search, voice: api.voice })
+  const chat = useChatThread({ key: `group:${key}`, side: 'staff', cacheKey, load, send: api.send, react: api.react, search: api.search, voice: api.voice })
   const pin = useStaffGroupPin(api, chat.meta)
   const [mutedLocal, setMutedLocal] = useState(null)
   const [muteError, setMuteError] = useState('')

@@ -10,6 +10,7 @@ import { coachChatVoice, fetchCoachChatThread, reactCoachChatMessage, searchCoac
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
 import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
 import { chatStaffReadOnlyRu } from '../../lib/chat/chatUiCore.js'
+import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachLoadState } from './CoachStatus.jsx'
@@ -27,7 +28,8 @@ export function CoachChatPage() {
   const react = useCallback((messageId, emoji) => reactCoachChatMessage(clientId, messageId, emoji, kind), [clientId, kind])
   const search = useCallback((q) => searchCoachChat(clientId, q, kind), [clientId, kind])
   const voice = useMemo(() => coachChatVoice(clientId, kind), [clientId, kind])
-  const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search, voice })
+  const cacheKey = screenCacheKey('coach', 'chat', `${clientId}:${kind}`)
+  const chat = useChatThread({ key: `${clientId}:${kind}`, side: 'staff', cacheKey, load, send, react, search, voice })
   const meta = chat.meta
   const complaint = kind === 'supervisor'
   const [searchHost, setSearchHost] = useState(null)

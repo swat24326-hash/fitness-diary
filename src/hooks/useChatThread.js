@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { nextChatOutgoingId } from '../lib/chat/chatDeliveryCore.js'
 import { mergeChatMessages } from '../lib/chat/chatMessageCore.js'
+import { CHAT_OUTBOX_FULL_RU, CHAT_OUTBOX_MAX, chatOutboxEligible, chatOutboxEntry, chatSendRetryable, withChatOutbox } from '../lib/chat/chatOutboxCore.js'
 import { CHAT_REACTION_OFFLINE_RU, patchChatReactions, toggleChatReaction } from '../lib/chat/chatReactionCore.js'
 import { CHAT_REPLY_NOT_FOUND_RU, buildChatReplyQuote, loadChatHistoryUntil } from '../lib/chat/chatReplyCore.js'
 import { chatSeenNeedsRefresh } from '../lib/chat/chatSeenCore.js'
@@ -8,6 +9,8 @@ import { countNewPeerMessages } from '../lib/chat/chatSoundCore.js'
 import { armChatSound, playChatSound } from '../lib/chat/chatSoundPlayer.js'
 import { isAppOnline } from '../lib/networkReachability.js'
 import { onPushReceived } from '../lib/push/pushReceivedSignal.js'
+import { useChatOutbox } from './useChatOutbox.js'
+import { chatThreadInitialState, useChatThreadCache } from './useChatThreadCache.js'
 
 const POLL_MS = 10_000
 export const CHAT_OFFLINE_RU = 'Нет сети — сообщение не отправлено'
@@ -20,13 +23,19 @@ export const CHAT_OFFLINE_RU = 'Нет сети — сообщение не от
  * search(q) — поиск по диалогу на сервере ({ results }); voice — звук ({ audio }) и текст ({ done, text }) голосового
  * по id сообщения; наружу + record — сервер готов принять голосовое (voice_ready), peerName — подпись в мини-плеере,
  * draftKey — черновик голосового этого диалога.
- * @param {{ key: string, side: 'client' | 'staff', load: (before?: string, opts?: { seen: boolean }) => Promise<{ messages: object[], has_more: boolean }>,
+ * cacheKey — кэш экрана (screenCacheKey; клиент и телефон тренера): открыли — сразу сохранённая лента,
+ * первый ответ сервера её заменяет (удалённое на сервере не «зависает»), дальше — склейка как обычно.
+ * Текст и стикер без сети (или сеть оборвалась при отправке) — в ленте с часиками, уходят сами (useChatOutbox).
+ * @param {{ key: string, side: 'client' | 'staff', cacheKey?: string, load: (before?: string, opts?: { seen: boolean }) => Promise<{ messages: object[], has_more: boolean }>,
  *   send: (outgoing: { body: string } | { sticker: string } | { audio: string, sec: number, wave: number[] }) => Promise<{ message: object }>,
  *   react?: (messageId: string, emoji: string|null) => Promise<{ reactions: object[] }>,
  *   voice?: { audio: (messageId: string) => Promise<object>, text: (messageId: string) => Promise<object> } }} p
  */
-export function useChatThread({ key, side, load, send, react, search, voice }) {
-  const [state, setState] = useState({ messages: null, meta: null, hasMore: false, status: 'loading', error: '', errorStatus: null })
+export function useChatThread({ key, side, cacheKey = '', load, send, react, search, voice }) {
+  const [state, setState] = useState(() => chatThreadInitialState(cacheKey))
+  const freshRef = useRef(false)
+  const cacheKeyRef = useRef(cacheKey)
+  cacheKeyRef.current = cacheKey
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
   const [replyTo, setReplyTo] = useState(null)
@@ -57,10 +66,12 @@ export function useChatThread({ key, side, load, send, react, search, voice }) {
       .then(({ messages, has_more, ...meta }) => {
         if (keyRef.current !== forKey) return
         if (quiet && countNewPeerMessages(messagesRef.current, messages) > 0) playChatSound('incoming', side)
+        const first = !freshRef.current
+        freshRef.current = true
         setState((s) => ({
-          messages: mergeChatMessages(s.messages, messages),
+          messages: first ? mergeChatMessages(null, messages) : mergeChatMessages(s.messages, messages),
           meta,
-          hasMore: s.messages ? s.hasMore : has_more,
+          hasMore: s.messages && !first ? s.hasMore : has_more,
           status: 'ready',
           error: '',
           errorStatus: null,
@@ -88,8 +99,9 @@ export function useChatThread({ key, side, load, send, react, search, voice }) {
   useEffect(() => {
     messagesRef.current = null
     seenRef.current = true
+    freshRef.current = false
     setReplyTo(null)
-    setState({ messages: null, meta: null, hasMore: false, status: 'loading', error: '', errorStatus: null })
+    setState(chatThreadInitialState(cacheKeyRef.current))
     void refresh(false)
     const tick = () => document.visibilityState === 'visible' && isAppOnline() && void refresh(true)
     const t = window.setInterval(tick, POLL_MS)
@@ -101,6 +113,15 @@ export function useChatThread({ key, side, load, send, react, search, voice }) {
       offPush()
     }
   }, [key, refresh])
+
+  useChatThreadCache({ cacheKey, key, keyRef, freshRef, state, setState })
+
+  const onOutboxSent = useCallback((message, forKey) => {
+    if (keyRef.current === forKey) setState((s) => ({ ...s, messages: mergeChatMessages(s.messages, [message]) }))
+  }, [])
+  const outbox = useChatOutbox({ key, cacheKey, sendRef, onSent: onOutboxSent, onRejected: setSendError })
+  const outboxRef = useRef(outbox)
+  outboxRef.current = outbox
 
   const loadOlder = useCallback(async () => {
     const first = state.messages?.[0]
@@ -120,18 +141,32 @@ export function useChatThread({ key, side, load, send, react, search, voice }) {
    * @returns {Promise<boolean>} true — отправлено, поле можно очистить
    */
   const submit = useCallback(async (input) => {
-    if (!isAppOnline()) {
+    const outgoing = typeof input === 'string' ? { body: input } : input
+    const queueable = chatOutboxEligible(outgoing)
+    if (!isAppOnline() && !queueable) {
       setSendError(CHAT_OFFLINE_RU)
       return false
     }
-    setSending(true)
-    setSendError('')
     const forKey = keyRef.current
     const quote = replyRef.current
-    const outgoing = typeof input === 'string' ? { body: input } : input
     pendingRef.current = nextChatOutgoingId(pendingRef.current, forKey, outgoing)
+    const payload = { ...outgoing, client_msg_id: pendingRef.current.id, ...(quote ? { reply_to: quote.id } : {}) }
+    const park = () => {
+      if (outboxRef.current.list.length >= CHAT_OUTBOX_MAX) {
+        setSendError(CHAT_OUTBOX_FULL_RU)
+        return false
+      }
+      pendingRef.current = null
+      outboxRef.current.enqueue(chatOutboxEntry(payload, quote))
+      setSendError('')
+      setReplyTo((r) => (r === quote ? null : r))
+      return true
+    }
+    if (queueable && (!isAppOnline() || outboxRef.current.list.length)) return park()
+    setSending(true)
+    setSendError('')
     try {
-      const { message } = await sendRef.current({ ...outgoing, client_msg_id: pendingRef.current.id, ...(quote ? { reply_to: quote.id } : {}) })
+      const { message } = await sendRef.current(payload)
       pendingRef.current = null
       if (keyRef.current === forKey) {
         setState((s) => ({ ...s, messages: mergeChatMessages(s.messages, [message]) }))
@@ -140,6 +175,7 @@ export function useChatThread({ key, side, load, send, react, search, voice }) {
       playChatSound('send', side)
       return true
     } catch (e) {
+      if (queueable && chatSendRetryable(e) && keyRef.current === forKey) return park()
       setSendError(e?.message || CHAT_OFFLINE_RU)
       return false
     } finally {
@@ -204,8 +240,11 @@ export function useChatThread({ key, side, load, send, react, search, voice }) {
     [voice, voiceReady, peerName, key],
   )
 
+  const shown = useMemo(() => withChatOutbox(state.messages, outbox.list, side), [state.messages, outbox.list, side])
+
   return {
     ...state,
+    messages: shown,
     reload: () => refresh(false),
     loadOlder,
     submit,

@@ -1,0 +1,52 @@
+/* Плашка связи (NetStatusBar): парит под шапкой, вёрстку и поле ввода не трогает, касания проходят насквозь. */
+.net-bar {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 64px);
+  left: 50%;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: net-bar-in 0.2s ease-out;
+}
+
+.net-bar.net-bar--offline {
+  color: var(--warning);
+}
+
+.net-bar__spin {
+  animation: net-bar-spin 1s linear infinite;
+}
+
+@keyframes net-bar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+@keyframes net-bar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .net-bar,
+  .net-bar__spin {
+    animation: none;
+  }
+}

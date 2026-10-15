@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { CalendarDays, Menu, MessageCircle, Users } from 'lucide-react'
 import { OsMark } from '../../components/brand/OsMark.jsx'
+import { NetStatusBar } from '../../components/net/NetStatusBar.jsx'
 import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
 import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
 import { useClientBranding } from '../client/useClientBranding.js'
@@ -58,6 +59,7 @@ export function CoachShell({ children, title = '', actions = null, tabs = true, 
       {bar ? <div className="coach-app__top coach-app__top--bar">{bar}</div> : <CoachTop title={title || clubTitle} actions={actions} menu={tabs} />}
       <main className="coach-app__main">{children}</main>
       {tabs ? <CoachTabs /> : null}
+      {signedIn ? <NetStatusBar /> : null}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { useChatThread } from '../../hooks/useChatThread.js'
 import { coachDmVoice, fetchCoachDmThread, reactCoachDmMessage, searchCoachDm, sendCoachDmMessage } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
 import { STAFF_DM_READ_ONLY_RU } from '../../lib/chat/chatUiCore.js'
+import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachLoadState } from './CoachStatus.jsx'
@@ -22,7 +23,8 @@ export function CoachDmPage() {
   const react = useCallback((messageId, emoji) => reactCoachDmMessage(userId, messageId, emoji), [userId])
   const search = useCallback((q) => searchCoachDm(userId, q), [userId])
   const voice = useMemo(() => coachDmVoice(userId), [userId])
-  const chat = useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search, voice })
+  const cacheKey = screenCacheKey('coach', 'dm', userId)
+  const chat = useChatThread({ key: `dm:${userId}`, side: 'staff', cacheKey, load, send, react, search, voice })
   const peer = chat.meta?.peer
   const [searchHost, setSearchHost] = useState(null)
 

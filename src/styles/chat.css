@@ -197,6 +197,11 @@ html[data-chat-fit] body {
   color: var(--accent-bright, var(--accent));
 }
 
+/* Ждёт сети — часики, пузырь чуть бледнее, пока не уйдёт. */
+.chat-msg--pending .chat-msg__body {
+  opacity: 0.75;
+}
+
 /* Сообщение из 1–3 смайликов — крупно и без пузыря. */
 .chat-msg.chat-msg--big {
   padding: 0;

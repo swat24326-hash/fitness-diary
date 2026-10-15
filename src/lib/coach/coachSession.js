@@ -1,10 +1,12 @@
 /**
  * Сессия телефона тренера (/coach): отдельно от планшета — свои ключи localStorage, свой номер устройства
- * (coach-…), свой пропуск. Данных клуба на телефоне не храним: нет сети — нет данных.
+ * (coach-…), свой пропуск. На телефоне — только короткий кэш экранов (screenCache: последние сообщения,
+ * 7 дней, стирается при выходе); тренировок и карточек клиентов нет.
  */
 import { DEVICE_ID_HEADER, deviceRequestHeaders } from '../deviceIdentityCore.js'
 import { fetchWithAppTimeout } from '../networkReachability.js'
 import { readApiBody, videoContentType } from '../chat/chatVideoTransport.js'
+import { clearScreenCacheApp, registerScreenCacheGuard } from '../screenCache/screenCacheStore.js'
 
 const SESSION_KEY = 'fd_coach_session_v1'
 const DEVICE_KEY = 'fd_coach_device_id'
@@ -13,7 +15,7 @@ const CLUB_KEY = 'fd_coach_club_v1'
 const COACH_DEVICE_RE = /^coach-[A-Za-z0-9-]{10,58}$/
 const FETCH_MS = 15_000
 
-export const COACH_OFFLINE_RU = 'Нет сети — данные на телефоне не хранятся'
+export const COACH_OFFLINE_RU = 'Нет связи с сервером — проверьте интернет'
 
 export class CoachSessionGoneError extends Error {}
 export class CoachPendingError extends Error {}
@@ -85,7 +87,10 @@ function saveSession(session) {
 
 export function clearCoachSession() {
   writeJson(SESSION_KEY, null)
+  void clearScreenCacheApp('coach')
 }
+
+registerScreenCacheGuard('coach', hasCoachSession)
 
 async function request(path, init, timeoutMs = FETCH_MS) {
   try {
@@ -193,8 +198,9 @@ async function validAccessToken() {
  */
 export async function coachRequest(query = {}, body = null, { raw = null, timeoutMs } = {}) {
   const token = await validAccessToken()
-  const qs = new URLSearchParams(query).toString()
   const post = Boolean(body || raw)
+  const label = !raw && typeof body?.op === 'string' && body.op ? { t: body.op } : {}
+  const qs = new URLSearchParams({ ...query, ...label }).toString()
   const { res, data } = await request(
     `/api/coach${qs ? `?${qs}` : ''}`,
     {

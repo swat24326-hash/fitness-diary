@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchCoachScheduleRange } from '../../lib/coach/coachApiClient.js'
 import { CoachSessionGoneError } from '../../lib/coach/coachSession.js'
+import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
+import { peekScreenCache, readScreenCache, writeScreenCache } from '../../lib/screenCache/screenCacheStore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 
 const EMPTY = { entries: [], clientNameById: {}, trainingById: {}, clients: [] }
 
 /**
- * Ежедневник телефона за окно from–to: только с сервера. При смене окна старые записи видны до ответа,
- * поздний ответ прошлого окна не затирает новый. Вернулись в приложение — тихо подтягивает правки планшета
- * (без крутилки; нет сети — остаётся то, что на экране).
+ * Ежедневник телефона за окно from–to. Окно уже открывали — сразу сохранённое на телефоне (кэш экранов),
+ * затем сервер. Нет кэша окна — старые записи видны до ответа, поздний ответ прошлого окна не затирает новый.
+ * Сеть не ответила: есть данные этого окна — status 'stale' (экран остаётся), нет — ошибка, а не чужая неделя.
+ * Вернулись в приложение — тихо подтягивает правки планшета.
  */
 export function useCoachScheduleData(from, to) {
   const { onSessionGone } = useCoachApp()
-  const [state, setState] = useState({ data: EMPTY, status: 'loading', error: '' })
+  const cacheKey = screenCacheKey('coach', 'schedule', `${from}_${to}`)
+  const [state, setState] = useState(() => {
+    const hit = peekScreenCache(cacheKey)
+    return { data: hit ?? EMPTY, dataKey: hit ? cacheKey : '', status: 'loading', error: '' }
+  })
   const seqRef = useRef(0)
 
   const load = useCallback(
@@ -22,21 +29,33 @@ export function useCoachScheduleData(from, to) {
       return fetchCoachScheduleRange(from, to)
         .then((data) => {
           if (seq !== seqRef.current) return
-          setState({ data: { ...EMPTY, ...data }, status: 'ready', error: '' })
+          setState({ data: { ...EMPTY, ...data }, dataKey: cacheKey, status: 'ready', error: '' })
+          void writeScreenCache(cacheKey, data)
         })
         .catch((e) => {
           if (seq !== seqRef.current) return
           if (e instanceof CoachSessionGoneError) onSessionGone(e.message)
-          else if (!quiet) setState((s) => ({ ...s, status: 'error', error: e?.message || 'Не загрузилось' }))
+          else if (!quiet) {
+            const error = e?.message || 'Не загрузилось'
+            setState((s) => ({ ...s, status: s.dataKey === cacheKey ? 'stale' : 'error', error }))
+          }
         })
     },
-    [from, to, onSessionGone],
+    [from, to, cacheKey, onSessionGone],
   )
   const reload = useCallback(() => load(false), [load])
 
   useEffect(() => {
+    const seq = seqRef.current + 1
+    const hit = peekScreenCache(cacheKey)
+    if (hit) setState((s) => ({ ...s, data: { ...EMPTY, ...hit }, dataKey: cacheKey }))
+    else
+      void readScreenCache(cacheKey).then((data) => {
+        if (data == null || seqRef.current !== seq) return
+        setState((s) => (s.status === 'ready' ? s : { ...s, data: { ...EMPTY, ...data }, dataKey: cacheKey, status: s.status === 'error' ? 'stale' : s.status }))
+      })
     void load(false)
-  }, [load])
+  }, [cacheKey, load])
 
   useEffect(() => {
     const onVisible = () => {

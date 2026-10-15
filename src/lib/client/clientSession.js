@@ -5,6 +5,7 @@
 import { fetchWithAppTimeout } from '../networkReachability.js'
 import { CHAT_VIDEO_FAILED_RU } from '../chat/chatVideoCore.js'
 import { CHAT_VIDEO_FETCH_MS, readApiBody, videoContentType } from '../chat/chatVideoTransport.js'
+import { clearScreenCacheApp, registerScreenCacheGuard } from '../screenCache/screenCacheStore.js'
 
 const SESSION_KEY = 'fd_client_session_v1'
 const CACHE_KEY = 'fd_client_me_cache_v1'
@@ -53,7 +54,10 @@ export function clearClientSession() {
   writeJson(SESSION_KEY, null)
   writeJson(CACHE_KEY, null)
   writeJson(CLIENT_PLANS_CACHE_KEY, null)
+  void clearScreenCacheApp('client')
 }
+
+registerScreenCacheGuard('client', hasClientSession)
 
 export function readClientMeCache() {
   return readJson(CACHE_KEY)
@@ -68,6 +72,11 @@ export function patchClientMeCache(patch) {
 }
 
 export const CLIENT_OFFLINE_RU = 'Нет связи с сервером — проверьте интернет'
+
+/** Метка операции в адресе — только для журнала скорости API на сервере ([api-timing]); сервер её не читает. */
+function timingQuery(action) {
+  return typeof action === 'string' && action ? { t: action } : null
+}
 
 /** fetch бросает «Failed to fetch» / таймаут — клиенту показываем по-русски. */
 async function request(path, init, timeoutMs = FETCH_MS) {
@@ -142,7 +151,7 @@ export function postClientMe(body, { timeoutMs } = {}) {
   return clientMeRequest(
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
     'Не получилось — попробуйте ещё раз',
-    { timeoutMs },
+    { timeoutMs, query: timingQuery(body?.action) },
   )
 }
 

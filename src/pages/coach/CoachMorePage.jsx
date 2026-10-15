@@ -4,20 +4,23 @@ import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
 import { fetchCoachMe } from '../../lib/coach/coachApiClient.js'
 import { coachRequest } from '../../lib/coach/coachSession.js'
 import { avatarApiOver } from '../../lib/profile/avatarApi.js'
+import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachMenuPushSwitch } from './CoachMenuPushSwitch.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { useCoachLoad } from './useCoachLoad.js'
 
 const coachAvatarApi = avatarApiOver((body) => coachRequest({}, body))
+const ME_CACHE = screenCacheKey('coach', 'me')
 
 /**
  * «Меню» (три полоски в шапке) — как бургер планшета: сверху своё фото и имя — «Мой профиль» (фото и настройки:
- * уведомления, звуки, обновить), ниже «Выйти». Данных клуба на телефоне нет — ни перезагрузка, ни выход ничего не теряют.
+ * уведомления, звуки, обновить), ниже «Выйти». На телефоне только кэш экранов (стирается при выходе) —
+ * ни перезагрузка, ни выход ничего не теряют.
  */
 export function CoachMorePage() {
   const { signOut } = useCoachApp()
-  const me = useCoachLoad(fetchCoachMe)
+  const me = useCoachLoad(fetchCoachMe, { cacheKey: ME_CACHE })
 
   return (
     <CoachShell title="Меню">

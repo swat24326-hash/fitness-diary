@@ -12,7 +12,15 @@ const TIMED_PATHS = new Set([
   '/api/get-client',
   '/api/list-clients',
   '/api/list-memberships',
+  '/api/client-me',
+  '/api/coach',
 ])
+/** Приложение клиента и телефон тренера: операция из query (`t` — метка от клиента для POST, у телефона ещё `op` / `view`). */
+const LABEL_PARAMS = {
+  '/api/admin-data': ['action'],
+  '/api/client-me': ['t', 'op'],
+  '/api/coach': ['t', 'op', 'view'],
+}
 const ACTION_RE = /^[a-z0-9_-]{1,40}$/i
 const LINE_RE = /\[api-timing\] (\S+) (\S+) (\d{3}) (\d+)ms (\d+)KB/
 
@@ -24,8 +32,10 @@ export function shouldLogPortableTiming(pathname, status) {
 
 /** @param {string} pathname @param {string} search  `?action=club-stats&…` */
 export function timingRouteLabel(pathname, search) {
-  if (pathname !== '/api/admin-data') return pathname
-  const action = new URLSearchParams(String(search ?? '')).get('action') ?? ''
+  const names = LABEL_PARAMS[pathname]
+  if (!names) return pathname
+  const params = new URLSearchParams(String(search ?? ''))
+  const action = names.map((n) => params.get(n) ?? '').find(Boolean) ?? ''
   return ACTION_RE.test(action) ? `${pathname}:${action}` : pathname
 }
 

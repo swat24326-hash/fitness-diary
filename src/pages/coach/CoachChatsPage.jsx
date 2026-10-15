@@ -8,10 +8,12 @@ import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx
 import { useSavedChatFolder } from '../../hooks/useSavedChatFolder.js'
 import { createCoachClientInvite, fetchCoachContacts } from '../../lib/coach/coachApiClient.js'
 import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
+import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachLoadState, CoachStatus } from './CoachStatus.jsx'
 import { useCoachLoad } from './useCoachLoad.js'
 
+const CONTACTS_CACHE = screenCacheKey('coach', 'contacts')
 const clientHref = (c) => `/coach/chat/${c.id}`
 const complaintHref = (c) => `/coach/chat/${c.id}/supervisor`
 const staffHref = (c) => `/coach/dm/${c.id}`
@@ -22,7 +24,7 @@ const staffHref = (c) => `/coach/dm/${c.id}`
  * диалог открывается своей страницей /coach/chat|dm/:id.
  */
 export function CoachChatsPage() {
-  const { data, status, error, reload } = useCoachLoad(fetchCoachContacts, { refreshOnReturn: true })
+  const { data, status, error, reload } = useCoachLoad(fetchCoachContacts, { refreshOnReturn: true, cacheKey: CONTACTS_CACHE })
   const [inviting, setInviting] = useState(null)
   const [saved, pick] = useSavedChatFolder()
   const folders = data?.folders ?? null

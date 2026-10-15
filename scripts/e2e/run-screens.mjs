@@ -34,8 +34,9 @@ import * as localDbBlocked from './scenarios/localDbUpgradeBlocked.mjs'
 import * as deviceHealth from './scenarios/deviceHealth.mjs'
 import * as staffHeader from './scenarios/staffHeader.mjs'
 import * as profileAvatar from './scenarios/profileAvatar.mjs'
+import * as screenCache from './scenarios/screenCacheOffline.mjs'
 
-const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, chatAttach, chatVideo, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, linkedStaff, settingsMenu, profileAvatar]
+const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, chatAttach, chatVideo, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, linkedStaff, settingsMenu, profileAvatar, screenCache]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

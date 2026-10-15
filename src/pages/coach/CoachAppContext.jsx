@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { fetchCoachMe } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession, readCoachClub, saveCoachClub, signOutCoach } from '../../lib/coach/coachSession.js'
+import { purgeScreenCache } from '../../lib/screenCache/screenCacheStore.js'
 
 const CoachAppContext = createContext(null)
 
@@ -9,6 +10,8 @@ export function CoachAppProvider({ children }) {
   const [signedIn, setSignedIn] = useState(hasCoachSession)
   const [notice, setNotice] = useState('')
   const [club, setClub] = useState(readCoachClub)
+
+  useEffect(() => void purgeScreenCache(), [])
 
   useEffect(() => {
     if (!signedIn) return undefined

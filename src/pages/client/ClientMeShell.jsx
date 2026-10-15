@@ -1,3 +1,4 @@
+import { NetStatusBar } from '../../components/net/NetStatusBar.jsx'
 import { APP_BRAND_NAME } from '../../lib/appBrand.js'
 import { withHandoffManifest } from '../../lib/client/clientHandoffCore.js'
 import { useClientApp } from './ClientAppContext.jsx'
@@ -25,6 +26,7 @@ export function ClientMeShell({ children, actions = null, club = null, tabs = fa
       )}
       <main className="client-me__main">{children}</main>
       {tabs ? <ClientTabs attention={attention} /> : null}
+      <NetStatusBar />
     </div>
   )
 }
