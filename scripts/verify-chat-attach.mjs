@@ -2,6 +2,7 @@
  * Фото и PDF в переписке: тип по первым байтам (HTML/SVG — нет), лимиты размера, имя файла, подпись,
  * текст сообщения «📷 / 📎», ключ хранилища под правилом бакета, сутки хранения, вид для экрана,
  * обработчики: загрузка (не тот тип — 400), отдача (сутки → 410), хранилище не настроено — 503.
+ * Стикер с клавиатуры: PNG / WebP до 512 px, ключ chat-sticker/ (не удаляется), не стареет.
  * node scripts/verify-chat-attach.mjs
  */
 import {
@@ -12,6 +13,7 @@ import {
   CHAT_CAPTION_MAX,
   CHAT_FILE_MAX_BYTES,
   CHAT_PHOTO_MAX_BYTES,
+  CHAT_STICKER_IMG_MAX_BYTES,
   attachStorageKey,
   buildAttachView,
   chatAttachLabel,
@@ -157,6 +159,28 @@ ok(old.status === 410 && old.body.error === 'Фото удалено через 
 const gone = await attachFileAnswer({ ...msg, attach_kind: 'file', attach_key: `voice/att/c-${UUID_A}/${UUID_A}.pdf` }, get)
 ok(gone.status === 410 && gone.body.error === 'Файл удалён через сутки', 'бакет уже удалил — 410')
 ok((await attachFileAnswer(null, get)).status === 404, 'не вложение / чужой диалог — 404')
+
+console.log('Стикер с клавиатуры (картинка с прозрачностью)')
+const sticker = (over = {}) => ({ kind: 'sticker', data: b64(WEBP), w: 512, h: 480, ...over })
+const st = checkAttachUpload(sticker())
+ok(st.ok && st.kind === 'sticker' && st.w === 512 && st.name === null, 'стикер: размеры есть, имени нет')
+ok(checkAttachUpload(sticker({ w: 513 })).ok === false, 'стикер больше 512 px — отказ (телефон ужимает)')
+ok(checkAttachUpload(sticker({ data: b64(withHead([0x52, 0x49, 0x46, 0x46], CHAT_STICKER_IMG_MAX_BYTES + 3)) })).status === 413, 'стикер больше 600 КБ — 413')
+ok(checkAttachBytes('sticker', PNG) === 'image/png' && checkAttachBytes('sticker', WEBP) === 'image/webp', 'стикер: PNG и WebP — да')
+ok(checkAttachBytes('sticker', JPEG) === null && checkAttachBytes('sticker', SVG) === null, 'стикер: JPEG (без прозрачности) и SVG — нет')
+ok(chatAttachLabel('sticker', null, '') === '🖼 Стикер' && chatAttachLabel('sticker', null, 'ок') === '🖼 Стикер · ок', 'в списке и push — «🖼 Стикер»')
+ok(resolveChatOutgoing({ attach: sticker() }).body === '🖼 Стикер', 'отправка стикера: body для списка')
+const stKey = attachStorageKey('client', UUID_A, UUID_B, 'image/webp', 'sticker')
+ok(stKey === `chat-sticker/c-${UUID_A}/${UUID_B}.webp` && isAttachStorageKey(stKey), 'ключ стикера — chat-sticker/, вне правила удаления voice/')
+ok(!isAttachStorageKey(`chat-sticker/c-${UUID_A}/${UUID_B}.jpg`) && !isAttachStorageKey('chat-sticker/../x.png'), 'чужой ключ стикера — нет')
+ok(!isAttachExpired('2020-01-01T00:00:00Z', now, 'sticker') && isAttachExpired('2020-01-01T00:00:00Z', now, 'photo'), 'стикер не стареет, фото — да')
+const stSaved = await storeChatAttach({ ...st, caption: '' }, { side: 'client', authorId: UUID_A, msgId: UUID_B }, put)
+ok(stSaved.ok && stSaved.attach.key.startsWith('chat-sticker/') && stSaved.attach.mime === 'image/webp', 'стикер лёг в хранилище под chat-sticker/')
+const stRow = { id: 'm3', body: '🖼 Стикер', created_at: '2026-01-01T00:00:00Z', author_side: 'client', ...attachColumns(stSaved.attach) }
+ok(buildAttachView(stRow, now).kind === 'sticker' && !buildAttachView(stRow, now).expired, 'старый стикер в ленте — не «удалено»')
+const stOld = await attachFileAnswer(stRow, get)
+ok(stOld.status === 200 && stOld.body.mime === 'image/webp', 'стикер полугодовой давности отдаётся')
+ok((await attachFileAnswer({ ...stRow, attach_key: `voice/att/c-${UUID_A}/${UUID_B}.png` }, get)).status === 410, 'стикер, файла которого нет в хранилище, — 410')
 
 if (failed) {
   console.error(`\nverify-chat-attach: ${failed} проверок не прошло`)

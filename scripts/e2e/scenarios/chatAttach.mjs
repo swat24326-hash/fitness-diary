@@ -1,6 +1,7 @@
 /**
  * Фото и PDF в переписке. Клиент на iPhone: скрепка → фото → превью над полем, подпись → ушло JPEG-ом (ужато на телефоне);
- * PDF — плашкой с именем; .txt — понятная ошибка; фото старше суток — «удалено».
+ * PDF — плашкой с именем; .txt — понятная ошибка; фото старше суток — «удалено»;
+ * вставил прозрачную картинку (стикер с клавиатуры) — ушла стикером, в ленте без пузыря.
  * Тренер на планшете: видит фото клиента, тап — на весь экран, Esc — закрыл; PDF — скачался с тем же именем; отправил фото без подписи.
  * Бакет — подменный (fakeChat.mjs), ответы — настоящий chatAttachHandler.
  */
@@ -51,6 +52,25 @@ async function cameraPng(page) {
     return c.toDataURL('image/png').split(',')[1]
   })
   return Buffer.from(b64, 'base64')
+}
+
+/** Стикер с клавиатуры через «Копировать → Вставить»: PNG 600×600 с прозрачным фоном — вставка в поле ввода. */
+async function pasteTransparentPng(page) {
+  await page.getByTestId('chat-input').evaluate(async (el) => {
+    const c = globalThis.document.createElement('canvas')
+    c.width = 600
+    c.height = 600
+    const ctx = c.getContext('2d')
+    ctx.fillStyle = '#f5b301'
+    ctx.beginPath()
+    ctx.arc(300, 300, 220, 0, Math.PI * 2)
+    ctx.fill()
+    const blob = await new Promise((r) => c.toBlob(r, 'image/png'))
+    const dt = new globalThis.DataTransfer()
+    dt.items.add(new globalThis.File([blob], 'sticker.png', { type: 'image/png' }))
+    el.focus()
+    el.dispatchEvent(new globalThis.ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+  })
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -107,6 +127,18 @@ async function client(c, context, chat) {
     const pdf = chat.state.messages.at(-1)
     c.ok(pdf.attach_kind === 'file' && pdf.attach_mime === 'application/pdf' && pdf.body === '📎 План питания.pdf', 'клиент: на сервере PDF с именем')
     c.ok(await reaches(page.locator('.chat-msg--mine').getByTestId('chat-attach-file').getByText('План питания.pdf')), 'клиент: PDF в ленте плашкой')
+
+    await pasteTransparentPng(page)
+    c.ok(await reaches(page.getByTestId('chat-attach-draft').getByText('Стикер', { exact: true })), 'клиент: вставил прозрачную картинку — над полем «Стикер»')
+    await page.getByTestId('chat-send').click()
+    c.ok(await eventually(() => attachCount(chat) === before + 3), 'клиент: стикер ушёл')
+    const st = chat.state.messages.at(-1)
+    c.ok(st.attach_kind === 'sticker' && /^image\/(webp|png)$/.test(st.attach_mime) && st.attach_w === 512, 'клиент: на сервере стикер WebP / PNG, ужатый до 512 px')
+    c.ok(st.body === '🖼 Стикер' && String(st.attach_key).startsWith('chat-sticker/'), 'клиент: в списке «🖼 Стикер», файл вне автоудаления')
+    const stickerMsg = page.locator('.chat-msg--mine.chat-msg--sticker')
+    c.ok(await reaches(stickerMsg.getByTestId('chat-attach-sticker').locator('img')), 'клиент: стикер в ленте')
+    const bg = await stickerMsg.last().evaluate((el) => globalThis.getComputedStyle(el).backgroundColor)
+    c.ok(bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent', 'клиент: стикер без пузыря')
     await screenshot(page, 'client-chat-attach-sent')
   } catch (e) {
     await screenshot(page, 'client-chat-attach-FAIL').catch(() => null)
@@ -125,6 +157,7 @@ async function trainer(c, browser, backend, chat) {
     await page.getByTestId('chat-contacts').getByRole('link', { name: new RegExp(CLIENT_NAME) }).click()
     const peerPhoto = page.locator('.chat-msg:not(.chat-msg--mine)').getByTestId('chat-attach-photo').locator('img')
     c.ok(await reaches(peerPhoto.last()), 'тренер: видит фото клиента')
+    c.ok(await reaches(page.locator('.chat-msg:not(.chat-msg--mine)').getByTestId('chat-attach-sticker').locator('img').last()), 'тренер: видит стикер клиента')
     await screenshot(page, 'staff-chat-attach-feed')
 
     await peerPhoto.last().click()

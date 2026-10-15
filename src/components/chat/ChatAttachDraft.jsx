@@ -45,6 +45,8 @@ export function ChatAttachDraft({ att }) {
         <span className="chat-attach-draft__thumb is-busy" aria-label="Готовим файл">
           <Loader2 size={20} className="chat-attach-spin" aria-hidden />
         </span>
+      ) : item.kind === 'sticker' ? (
+        <img className="chat-attach-draft__thumb is-sticker" src={item.previewUrl} alt="Стикер к отправке" />
       ) : item.kind === 'photo' ? (
         <img className="chat-attach-draft__thumb" src={item.previewUrl} alt="Фото к отправке" />
       ) : (
@@ -53,8 +55,14 @@ export function ChatAttachDraft({ att }) {
         </span>
       )}
       <span className="chat-attach-draft__text">
-        <strong>{att.busy ? 'Готовим файл…' : item.kind === 'photo' ? 'Фото' : item.name}</strong>
-        <span>{att.busy ? CHAT_ATTACH_TTL_HINT_RU : `${formatAttachSize(item.bytes)} · ${CHAT_ATTACH_TTL_HINT_RU.toLowerCase()}`}</span>
+        <strong>{att.busy ? 'Готовим файл…' : item.kind === 'sticker' ? 'Стикер' : item.kind === 'photo' ? 'Фото' : item.name}</strong>
+        <span>
+          {att.busy
+            ? CHAT_ATTACH_TTL_HINT_RU
+            : item.kind === 'sticker'
+              ? `${formatAttachSize(item.bytes)} · хранится всегда`
+              : `${formatAttachSize(item.bytes)} · ${CHAT_ATTACH_TTL_HINT_RU.toLowerCase()}`}
+        </span>
       </span>
       <button type="button" className="chat-attach-draft__close" aria-label="Убрать вложение" title="Убрать" onClick={att.clear}>
         <X size={18} aria-hidden />

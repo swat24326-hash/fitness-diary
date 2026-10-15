@@ -103,6 +103,65 @@
   margin: 4px 6px 2px;
 }
 
+/* Стикер с клавиатуры — без пузыря, как крупный смайлик; подпись и время — на своих плашках поверх узора. */
+.chat-msg.chat-msg--attach.chat-msg--sticker {
+  padding: 0;
+  background: transparent;
+}
+
+.chat-msg--attach.chat-msg--sticker::before {
+  display: none;
+}
+
+.chat-msg--attach.chat-msg--sticker .chat-attach-caption,
+.chat-msg--attach.chat-msg--sticker .chat-msg__meta {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.chat-msg--attach.chat-msg--sticker .chat-msg__meta {
+  float: none;
+  display: flex;
+  margin: 2px 0 0 auto;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+.chat-attach-sticker {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(160px, 42vw);
+  max-height: 200px;
+  color: var(--text-muted);
+}
+
+.chat-attach-sticker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.chat-attach-sticker > .chat-attach-spin {
+  position: absolute;
+}
+
+.chat-attach-sticker > .chat-attach-photo__error {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.chat-attach-draft__thumb.is-sticker {
+  object-fit: contain;
+  background: transparent;
+}
+
 .chat-attach-photo {
   position: relative;
   display: grid;

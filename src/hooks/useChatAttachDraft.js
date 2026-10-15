@@ -6,7 +6,7 @@ const loadPrepare = () => import('../lib/chat/chatAttachPrepare.js')
 /** Что уходит на сервер: без превью и размера (их сервер считает сам). */
 function chatAttachPayload(item) {
   if (item.kind === 'file') return { kind: 'file', data: item.data, name: item.name }
-  return { kind: 'photo', data: item.data, w: item.w, h: item.h }
+  return { kind: item.kind, data: item.data, w: item.w, h: item.h }
 }
 
 /**

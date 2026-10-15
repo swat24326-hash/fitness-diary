@@ -1,5 +1,7 @@
 /**
  * Вложения в переписке: фото и PDF. Живут сутки, как звук голосовых (тот же бакет, префикс voice/att/ под правилом удаления).
+ * Стикер (картинка с прозрачностью — со своей клавиатуры через «Копировать → Вставить», PNG / WebP до 512 px) хранится
+ * навсегда: префикс chat-sticker/ правило бакета не трогает.
  * Фото телефон ужимает сам (chatAttachPrepare.js), сервер проверяет тип по первым байтам, а не по имени.
  * Без React, браузера и базы — общее для сервера и экрана, проверяется verify-chat-attach.mjs.
  */
@@ -10,6 +12,8 @@ import { checkVideoUpload, chatVideoLabel, sniffVideoMime } from './chatVideoCor
 export const CHAT_FILE_MAX_BYTES = 3_500_000
 export const CHAT_PHOTO_MAX_BYTES = 1_500_000
 export const CHAT_PHOTO_MAX_SIDE = 1600
+export const CHAT_STICKER_IMG_MAX_SIDE = 512
+export const CHAT_STICKER_IMG_MAX_BYTES = 600_000
 export const CHAT_CAPTION_MAX = 1000
 const NAME_MAX = 80
 const MIN_BYTES = 100
@@ -24,15 +28,21 @@ export const CHAT_ATTACH_GONE_RU = 'Вложение не найдено'
 export const CHAT_ATTACH_CAPTION_LONG_RU = `Подпись длиннее ${CHAT_CAPTION_MAX} символов — сократите её`
 export const CHAT_ATTACH_TTL_HINT_RU = 'Фото и файлы хранятся сутки'
 
-/** @param {'photo'|'file'|'video'} kind */
+/** @param {'photo'|'file'|'video'|'sticker'} kind */
 export function chatAttachExpiredRu(kind) {
   if (kind === 'video') return 'Видео удалено через сутки'
+  if (kind === 'sticker') return 'Стикер не найден'
   return kind === 'photo' ? 'Фото удалено через сутки' : 'Файл удалён через сутки'
 }
 
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf', 'video/mp4': 'mp4', 'video/webm': 'webm' }
-const ATTACH_KINDS = new Set(['photo', 'file', 'video'])
-const KIND_MIMES = { photo: ['image/jpeg', 'image/png', 'image/webp'], file: ['application/pdf'], video: ['video/mp4', 'video/webm'] }
+const ATTACH_KINDS = new Set(['photo', 'file', 'video', 'sticker'])
+const KIND_MIMES = {
+  photo: ['image/jpeg', 'image/png', 'image/webp'],
+  file: ['application/pdf'],
+  video: ['video/mp4', 'video/webm'],
+  sticker: ['image/png', 'image/webp'],
+}
 
 /** Тип по первым байтам: JPEG, PNG, WebP, PDF, MP4 или WebM; иначе null (HTML, SVG, программы — не принимаем). */
 export function sniffAttachMime(bytes) {
@@ -85,16 +95,18 @@ export function checkAttachUpload(input) {
     if (!video.ok) return video
     return { ok: true, kind: 'video', buffer: input.buffer, bytes: video.bytes, sec: video.sec, name: null, w: null, h: null }
   }
-  const kind = input?.kind === 'photo' || input?.kind === 'file' ? input.kind : null
+  const kind = ['photo', 'file', 'sticker'].includes(input?.kind) ? input.kind : null
   const data = typeof input?.data === 'string' ? input.data : ''
   if (!kind || !data || data.length % 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return { ok: false, status: 400, error: CHAT_ATTACH_BAD_RU }
   const bytes = base64Bytes(data)
   if (bytes < MIN_BYTES) return { ok: false, status: 400, error: CHAT_ATTACH_BAD_RU }
-  if (bytes > (kind === 'photo' ? CHAT_PHOTO_MAX_BYTES : CHAT_FILE_MAX_BYTES)) return { ok: false, status: 413, error: CHAT_ATTACH_BIG_RU }
+  const max = { photo: CHAT_PHOTO_MAX_BYTES, file: CHAT_FILE_MAX_BYTES, sticker: CHAT_STICKER_IMG_MAX_BYTES }[kind]
+  if (bytes > max) return { ok: false, status: 413, error: CHAT_ATTACH_BIG_RU }
   if (kind === 'file') return { ok: true, kind, data, bytes, name: cleanAttachName(input?.name), w: null, h: null }
   const w = side(input?.w)
   const h = side(input?.h)
   if (!w || !h) return { ok: false, status: 400, error: CHAT_ATTACH_PHOTO_BAD_RU }
+  if (kind === 'sticker' && Math.max(w, h) > CHAT_STICKER_IMG_MAX_SIDE) return { ok: false, status: 400, error: CHAT_ATTACH_PHOTO_BAD_RU }
   return { ok: true, kind, data, bytes, name: null, w, h }
 }
 
@@ -118,21 +130,30 @@ export function normalizeAttachCaption(raw) {
 export function chatAttachLabel(kind, name, caption = '', sec = 0) {
   if (kind === 'video') return caption ? `${chatVideoLabel(sec)} · ${caption}` : chatVideoLabel(sec)
   if (kind === 'photo') return caption ? `📷 ${caption}` : '📷 Фото'
+  if (kind === 'sticker') return caption ? `🖼 Стикер · ${caption}` : '🖼 Стикер'
   return caption ? `📎 ${name} · ${caption}` : `📎 ${name}`
 }
 
 const KEY_RE = /^voice\/att\/[cu]-[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf|mp4|webm)$/
+const STICKER_KEY_RE = /^chat-sticker\/[cu]-[0-9a-f-]{36}\/[0-9a-f-]{36}\.(png|webp)$/
 
-/** Файл в хранилище: под префиксом voice/ — правило бакета удаляет его через сутки, как звук. */
-export function attachStorageKey(authorSide, authorId, msgId, mime) {
-  return `voice/att/${authorSide === 'client' ? 'c' : 'u'}-${String(authorId).toLowerCase()}/${String(msgId).toLowerCase()}.${EXT[mime] ?? 'bin'}`
+/**
+ * Файл в хранилище: под префиксом voice/ — правило бакета удаляет его через сутки, как звук.
+ * Стикер — под chat-sticker/, без удаления.
+ */
+export function attachStorageKey(authorSide, authorId, msgId, mime, kind = 'photo') {
+  const prefix = kind === 'sticker' ? 'chat-sticker' : 'voice/att'
+  return `${prefix}/${authorSide === 'client' ? 'c' : 'u'}-${String(authorId).toLowerCase()}/${String(msgId).toLowerCase()}.${EXT[mime] ?? 'bin'}`
 }
 
 export function isAttachStorageKey(key) {
-  return KEY_RE.test(String(key ?? ''))
+  const k = String(key ?? '')
+  return KEY_RE.test(k) || STICKER_KEY_RE.test(k)
 }
 
-export function isAttachExpired(createdAt, now = Date.now()) {
+/** Вложение старше суток; стикер не стареет. */
+export function isAttachExpired(createdAt, now = Date.now(), kind = 'photo') {
+  if (kind === 'sticker') return false
   const at = Date.parse(String(createdAt ?? ''))
   return !Number.isFinite(at) || now - at >= CHAT_VOICE_TTL_MS
 }
@@ -149,7 +170,7 @@ export function buildAttachView(m, now = Date.now()) {
     h: Number(m.attach_h) || null,
     sec: Number(m.attach_sec) || null,
     caption: typeof m.attach_caption === 'string' ? m.attach_caption : '',
-    expired: !m.attach_key || isAttachExpired(m.created_at, now),
+    expired: !m.attach_key || isAttachExpired(m.created_at, now, m.attach_kind),
   }
 }
 

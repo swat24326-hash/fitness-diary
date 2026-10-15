@@ -115,7 +115,7 @@ export function createFakeChat(state) {
     const bytes = attach.kind === 'video' ? Buffer.from(attach.buffer) : Buffer.from(attach.data, 'base64')
     const mime = checkAttachBytes(attach.kind, bytes)
     if (!mime) return { ok: false, status: 400, error: CHAT_ATTACH_BAD_RU }
-    const key = attachStorageKey('client', randomUUID(), randomUUID(), mime)
+    const key = attachStorageKey('client', randomUUID(), randomUUID(), mime, attach.kind)
     chat.voices.set(key, bytes)
     const { kind, name, w, h, caption, sec } = attach
     return { ok: true, columns: attachColumns({ kind, key, mime, bytes: bytes.length, name, w, h, caption, sec }) }

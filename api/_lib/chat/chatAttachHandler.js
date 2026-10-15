@@ -1,5 +1,6 @@
 /**
- * Фото, PDF и видеокружки в переписке (клиент, сотрудник, телефон тренера, чат клуба): положить файл, отдать его сутки.
+ * Фото, PDF, видеокружки и стикеры в переписке (клиент, сотрудник, телефон тренера, чат клуба): положить файл,
+ * отдать его сутки (стикер — всегда).
  * Доступ к диалогу уже проверил вызывающий handler. Содержимое и имена файлов в лог не пишем — только коды ошибок.
  */
 import { randomUUID } from 'node:crypto'
@@ -29,7 +30,7 @@ export async function storeChatAttach(attach, { side, authorId, msgId }, put = p
   const bytes = attach.kind === 'video' ? Buffer.from(attach.buffer) : Buffer.from(attach.data, 'base64')
   const mime = checkAttachBytes(attach.kind, bytes)
   if (!mime) return fail(400, CHAT_ATTACH_BAD_RU)
-  const key = attachStorageKey(side, authorId, msgId || randomUUID(), mime)
+  const key = attachStorageKey(side, authorId, msgId || randomUUID(), mime, attach.kind)
   if (!isAttachStorageKey(key)) return fail(400, CHAT_ATTACH_BAD_RU)
   try {
     await put(key, bytes, mime)
@@ -61,7 +62,7 @@ export async function storeChatOutgoing(checked, who) {
 export async function attachFileAnswer(message, get = getVoice) {
   if (!message?.attach_kind) return { status: 404, body: { error: CHAT_ATTACH_GONE_RU } }
   const expired = { status: 410, body: { error: chatAttachExpiredRu(message.attach_kind) } }
-  if (!isAttachStorageKey(message.attach_key) || isAttachExpired(message.created_at)) return expired
+  if (!isAttachStorageKey(message.attach_key) || isAttachExpired(message.created_at, Date.now(), message.attach_kind)) return expired
   let bytes
   try {
     bytes = await get(message.attach_key)

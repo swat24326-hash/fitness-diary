@@ -44,7 +44,7 @@ function useAttachFile(id, load, auto) {
 function Gone({ kind }) {
   return (
     <div className="chat-attach-gone" data-testid="chat-attach-gone">
-      {kind === 'photo' ? <ImageOff size={18} aria-hidden /> : <FileText size={18} aria-hidden />}
+      {kind === 'photo' || kind === 'sticker' ? <ImageOff size={18} aria-hidden /> : <FileText size={18} aria-hidden />}
       <span>{chatAttachExpiredRu(kind)}</span>
     </div>
   )
@@ -79,6 +79,28 @@ function PhotoBubble({ id, attach, load }) {
   )
 }
 
+/** Стикер с клавиатуры: картинка без рамки и фона, как наши стикеры; на весь экран не открываем. */
+function StickerBubble({ id, attach, load }) {
+  const f = useAttachFile(id, load, true)
+  return (
+    <span
+      ref={f.ref}
+      className="chat-attach-sticker"
+      style={{ aspectRatio: attach.w && attach.h ? `${attach.w} / ${attach.h}` : '1 / 1' }}
+      data-testid="chat-attach-sticker"
+    >
+      {f.file ? <img src={f.file.url} alt="Стикер" draggable={false} /> : null}
+      {f.status === 'loading' || f.status === 'idle' ? <Loader2 size={22} className="chat-attach-spin" aria-hidden /> : null}
+      {f.status === 'error' ? (
+        <button type="button" className="chat-attach-photo__error" onClick={() => void f.fetchFile()}>
+          <RotateCcw size={18} aria-hidden />
+          {f.error}
+        </button>
+      ) : null}
+    </span>
+  )
+}
+
 function FileBubble({ id, attach, load }) {
   const f = useAttachFile(id, load, false)
   const busy = f.status === 'loading'
@@ -99,12 +121,14 @@ function FileBubble({ id, attach, load }) {
 }
 
 /**
- * Вложение в пузыре: фото (тап — на весь экран), плашка PDF (тап — скачать) или видеокружок. Через сутки — «удалено».
- * @param {{ id: string, attach: { kind: 'photo'|'file', name: string|null, bytes: number, w: number|null, h: number|null, expired: boolean },
+ * Вложение в пузыре: фото (тап — на весь экран), плашка PDF (тап — скачать), видеокружок или стикер. Через сутки — «удалено»
+ * (стикер — нет).
+ * @param {{ id: string, attach: { kind: 'photo'|'file'|'sticker', name: string|null, bytes: number, w: number|null, h: number|null, expired: boolean },
  *   load: (id: string) => Promise<{ data: string, mime: string, name?: string|null }> }} props
  */
 export function ChatAttachBubble({ id, attach, load }) {
   if (attach.kind === 'video') return <ChatVideoBubble id={id} attach={attach} load={load} />
   if (attach.expired) return <Gone kind={attach.kind} />
+  if (attach.kind === 'sticker') return <StickerBubble id={id} attach={attach} load={load} />
   return attach.kind === 'photo' ? <PhotoBubble id={id} attach={attach} load={load} /> : <FileBubble id={id} attach={attach} load={load} />
 }
