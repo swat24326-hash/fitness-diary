@@ -31,6 +31,7 @@ export function ClientChatPage() {
         <ChatHeadBar
           back={<MessengerBack to="/me/inbox" />}
           icon={MessageCircle}
+          photo={chat.meta?.photo}
           title={who || chatKindLabelRu(kind)}
           subtitle={who ? chatKindLabelRu(kind) : ''}
           searchHostRef={setSearchHost}

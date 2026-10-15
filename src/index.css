@@ -475,35 +475,6 @@ button {
   color: var(--accent-bright);
 }
 
-.app-header__menu-user {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.app-header__menu-user-icon {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--text-muted);
-}
-
-.app-header__menu-user-text {
-  min-width: 0;
-  font-size: 0.85rem;
-  line-height: 1.35;
-  color: var(--text-muted);
-  word-break: break-word;
-}
-
-.app-header__menu-user-name {
-  color: var(--text);
-  font-weight: 600;
-}
-
 .app-header__menu-item {
   display: flex;
   align-items: center;

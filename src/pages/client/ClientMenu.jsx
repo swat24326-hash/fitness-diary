@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, RefreshCw, Settings, Smartphone, User } from 'lucide-react'
+import { LogOut, Menu, RefreshCw, Settings, Smartphone } from 'lucide-react'
+import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
+import { postClientMe } from '../../lib/client/clientSession.js'
+import { avatarApiOver } from '../../lib/profile/avatarApi.js'
 import { useClientApp } from './ClientAppContext.jsx'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
+
+const clientAvatarApi = avatarApiOver(postClientMe)
 
 function navClass({ isActive }) {
   return `app-header__menu-item${isActive ? ' client-menu__item--active' : ''}`
@@ -61,12 +66,7 @@ export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, r
   const { installer, onboarding } = useClientApp()
   return (
     <>
-      {clientName ? (
-        <div className="app-header__menu-item client-menu__who">
-          <User size={18} aria-hidden />
-          {clientName}
-        </div>
-      ) : null}
+      {clientName ? <ProfileMenuUser name={clientName} api={clientAvatarApi} cacheKey="client" /> : null}
       <NavLink to="/me/settings" className={navClass} onClick={close}>
         <Settings size={18} aria-hidden />
         Настройки

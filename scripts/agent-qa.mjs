@@ -122,6 +122,7 @@ run('chat voice (голосовые сообщения)', 'node', ['scripts/veri
 run('chat voice player (подряд, обрезка, прослушано, без звука)', 'node', ['scripts/verify-chat-voice-player.mjs'])
 run('chat attach (фото и PDF: тип по байтам, лимиты, сутки)', 'node', ['scripts/verify-chat-attach.mjs'])
 run('chat video (кружки: MP4/WebM, 60 с, бинарная загрузка и отдача)', 'node', ['scripts/verify-chat-video.mjs'])
+run('profile avatar (фото профиля: свой ключ, обрезка, смена и удаление)', 'node', ['scripts/verify-profile-avatar.mjs'])
 run('stand load test', 'node', ['scripts/verify-load-test.mjs'])
 run('client app branding', 'node', ['scripts/verify-client-app-branding.mjs'])
 run('sync auth stuck + api log', 'node', ['scripts/verify-sync-auth-stuck.mjs'])

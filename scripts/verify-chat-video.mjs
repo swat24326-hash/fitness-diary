@@ -112,7 +112,8 @@ const put = async (k, bytes, mime) => saved.set(k, { bytes, mime })
 const goodVideo = { ...checkAttachUpload({ kind: 'video', buffer: WEBM, sec: 9 }), caption: '' }
 const stored = await storeChatAttach(goodVideo, { side: 'client', authorId: UUID_A, msgId: UUID_B }, put)
 ok(stored.ok && stored.attach.mime === 'video/webm' && stored.attach.sec === 9 && stored.attach.key.endsWith('.webm'), 'WebM лёг в хранилище с длительностью')
-const msg = { ...row, attach_key: stored.attach.key, attach_mime: 'video/webm' }
+// attachFileAnswer сверяет сутки с настоящими часами — «свежее» сообщение от них, а не от фиксированного now
+const msg = { ...row, created_at: new Date(Date.now() - 1000).toISOString(), attach_key: stored.attach.key, attach_mime: 'video/webm' }
 const get = async (k) => saved.get(k)?.bytes ?? null
 const fresh = await attachFileAnswer(msg, get)
 ok(fresh.status === 200 && Buffer.isBuffer(fresh.file) && fresh.file.equals(WEBM) && fresh.body.mime === 'video/webm' && !fresh.body.data, 'видео отдаётся байтами, без base64')

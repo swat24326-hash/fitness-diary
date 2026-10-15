@@ -150,7 +150,8 @@ ok(none.ok && none.voice === null && none.attach === null, 'текст — в х
 ok(chatVoiceBlocked({ attach: goodPhoto }, {})?.status === 503 && chatVoiceBlocked({ attach: goodPhoto }, {}).error === CHAT_ATTACH_UNAVAILABLE_RU, 'хранилище не настроено — 503 «Фото и файлы пока недоступны»')
 ok(chatVoiceBlocked({ attach: goodPhoto }, { CHAT_VOICE_STORAGE: 'memory' }) === null, 'хранилище есть — можно')
 
-const msg = { ...row, attach_key: stored.attach.key }
+// attachFileAnswer сверяет сутки с настоящими часами — «свежее» сообщение от них, а не от фиксированного now
+const msg = { ...row, created_at: new Date(Date.now() - 1000).toISOString(), attach_key: stored.attach.key }
 const get = async (k) => saved.get(k)?.bytes ?? null
 const fresh = await attachFileAnswer(msg, get)
 ok(fresh.status === 200 && fresh.body.mime === 'image/jpeg' && fresh.body.data === b64(JPEG), 'файл отдаётся base64 с типом')

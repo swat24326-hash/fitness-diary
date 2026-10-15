@@ -22,7 +22,7 @@ export function StaffDmPane({ userId, backTo, back = null, onSent, initialDraft 
   const peer = chat.meta?.peer
   return (
     <>
-      <ChatHeadBar back={back} icon={MessageCircle} title={peer?.name || 'Сотрудник'} subtitle={peer?.label || ''} searchHostRef={setSearchHost} />
+      <ChatHeadBar back={back} icon={MessageCircle} photo={peer?.photo} title={peer?.name || 'Сотрудник'} subtitle={peer?.label || ''} searchHostRef={setSearchHost} />
       {!chat.messages ? (
         <div className="card staff-inbox__status" role="status">
           {chat.status === 'error' ? <WifiOff size={28} aria-hidden /> : <RefreshCw size={28} aria-hidden className="icon-spin" />}

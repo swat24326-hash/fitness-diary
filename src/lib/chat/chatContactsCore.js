@@ -4,6 +4,7 @@
  */
 import { chatUnreadCount, isChatUnreadFor } from './chatAccessCore.js'
 import { chatUnseenReaction } from './chatReactionCore.js'
+import { avatarPhotoUrl } from '../profile/avatarCore.js'
 
 export const CHAT_FOLDER_CLIENTS = 'clients'
 export const CHAT_FOLDER_COLLEAGUES = 'colleagues'
@@ -51,6 +52,7 @@ export function buildClientContacts({ clients, liveClientIds, threads }) {
     return {
       id,
       name: String(c.name ?? '').trim(),
+      photo: avatarPhotoUrl(c.avatar_key, 'client', id),
       has_app: live.has(id) || summary.unread,
       has_thread: byClient.has(id),
       ...summary,
@@ -66,7 +68,8 @@ export function buildClientContacts({ clients, liveClientIds, threads }) {
 export function buildThreadContacts(threads, clients) {
   return (threads ?? []).map((t) => {
     const id = String(t.client_id)
-    return { id, name: String(clients.get(id)?.name ?? '').trim(), has_app: true, has_thread: true, ...threadSummary(t) }
+    const c = clients.get(id)
+    return { id, name: String(c?.name ?? '').trim(), photo: avatarPhotoUrl(c?.avatar_key, 'client', id), has_app: true, has_thread: true, ...threadSummary(t) }
   })
 }
 

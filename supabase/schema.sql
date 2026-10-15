@@ -32,6 +32,7 @@ CREATE TABLE users (
   uses_tablet BOOLEAN NOT NULL DEFAULT true,
   club_id UUID REFERENCES clubs (id) ON DELETE SET NULL,
   linked_user_id UUID REFERENCES users (id) ON DELETE SET NULL,
+  avatar_key TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -49,6 +50,7 @@ CREATE TABLE clients (
   card_number TEXT,
   outreach_name TEXT,
   max_chat_url TEXT,
+  avatar_key TEXT,
   trainer_id UUID REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
   archived_at TIMESTAMPTZ,

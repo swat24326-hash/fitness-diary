@@ -25,7 +25,7 @@ const PHOTO_STEPS = [
   [1024, 0.6],
 ]
 
-function readBase64(blob) {
+export function readBase64(blob) {
   return new Promise((resolve, reject) => {
     const r = new FileReader()
     r.onload = () => resolve(String(r.result).split(',')[1] ?? '')
@@ -34,7 +34,8 @@ function readBase64(blob) {
   })
 }
 
-async function decodeImage(file) {
+/** Файл → картинка с учётом поворота снимка (общая и для фото профиля, avatarPrepare.js). */
+export async function decodeImage(file) {
   if (typeof createImageBitmap === 'function') {
     try {
       return await createImageBitmap(file, { imageOrientation: 'from-image' })

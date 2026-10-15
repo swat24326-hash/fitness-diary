@@ -4,10 +4,12 @@ import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
-import { AlertTriangle, BarChart3, CalendarDays, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, CalendarDays, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, UserCircle, Building2 } from 'lucide-react'
 import { HeaderSettingsMenu, HeaderStaffSettingsItems } from './header/HeaderSettingsMenu.jsx'
 import { HeaderSettingsModals } from './header/HeaderSettingsModals.jsx'
 import { HeaderClubSwitcher } from './header/HeaderClubSwitcher.jsx'
+import { ProfileMenuUser } from './profile/ProfileMenuUser.jsx'
+import { staffAvatarApi } from '../lib/profile/staffAvatarApi.js'
 import { useAdminClubContext } from './header/useAdminClubContext.js'
 import { IskraOrb } from './iskra/IskraOrb.jsx'
 import { productBrandDocumentTitle } from '../lib/productBrand.js'
@@ -533,6 +535,14 @@ export function AppHeader() {
         </button>
         {menuOpen && (
           <div id="app-header-account-menu" className="app-header__dropdown" role="region" aria-label="Аккаунт и синхронизация">
+            <ProfileMenuUser name={user?.name ?? user?.email ?? ''} api={staffAvatarApi} cacheKey={`u:${user?.id ?? ''}`}>
+              {!supabaseReady || (!isAdmin && !online) ? (
+                <>
+                  <br />
+                  {!supabaseReady ? 'локально' : 'офлайн'}
+                </>
+              ) : null}
+            </ProfileMenuUser>
             <div className="app-header__menu-nav" aria-label="Разделы">
               {isAdmin ? (
                 <>
@@ -614,16 +624,6 @@ export function AppHeader() {
               )}
             </div>
             <HeaderSettingsMenu attention={needsAttention || updatePending}>
-              <div className="app-header__menu-user">
-                <User size={16} aria-hidden className="app-header__menu-user-icon" />
-                <div className="app-header__menu-user-text">
-                  <span className="app-header__menu-user-name">
-                    {user?.name ?? user?.email ?? '—'}
-                    {!supabaseReady && ' · локально'}
-                    {!isAdmin && !online && ' · офлайн'}
-                  </span>
-                </div>
-              </div>
               {supabaseReady ? (
                 <button
                   type="button"

@@ -1,5 +1,6 @@
 /**
  * Звук голосовых и вложения (фото, PDF — voice/att/): бакет Object Storage CHAT_VOICE_BUCKET, префикс voice/ удаляет правило бакета через сутки.
+ * Стикеры (chat-sticker/) и фото профиля (avatar/) правило не трогает.
  * Доступ — токен сервисного аккаунта ВМ (как у копий базы, scripts/pg-backup-upload-vm.sh), без статических ключей.
  * CHAT_VOICE_STORAGE=memory — в памяти процесса (локально и в автотестах экрана).
  */
@@ -46,4 +47,18 @@ export async function getVoice(key) {
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`voice_get_http_${res.status}`)
   return Buffer.from(await res.arrayBuffer())
+}
+
+/** Удалить файл (старое фото профиля); уже нет — не ошибка. */
+export async function deleteVoice(key) {
+  if (chatVoiceStorageMode() === 'memory') {
+    memory.delete(key)
+    return
+  }
+  const res = await fetch(objectUrl(key), {
+    method: 'DELETE',
+    headers: { 'X-YaCloud-SubjectToken': await metadataIamToken() },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  })
+  if (!res.ok && res.status !== 404) throw new Error(`voice_delete_http_${res.status}`)
 }

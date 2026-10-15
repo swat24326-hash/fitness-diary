@@ -48,6 +48,7 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite, selectedId 
               kind={c.role || kind}
               title={c.club_name ? `${c.name || 'Без имени'} · ${c.club_name}` : c.name || 'Без имени'}
               avatar={c.name}
+              photo={c.photo}
               preview={previewOf(c)}
               unread={c.unread}
               unreadCount={c.unread_count}

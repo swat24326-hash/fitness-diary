@@ -160,11 +160,15 @@ function friendlyClientsDbError(error) {
   return publicDbErrorMessage(error, 'push')
 }
 
-/** clients/memberships в проде без колонки updated_at */
+/**
+ * clients в проде без колонки updated_at. avatar_key ставит только сам клиент (/api/client-me):
+ * копия строки на планшете могла устареть и затёрла бы новое фото.
+ */
 function stripUnknownClientFields(payload) {
   if (!payload || typeof payload !== 'object') return payload
   const next = { ...payload }
   delete next.updated_at
+  delete next.avatar_key
   return next
 }
 

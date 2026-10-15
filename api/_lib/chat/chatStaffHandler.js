@@ -33,6 +33,7 @@ import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
+import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
 import { sendChatFileAnswer } from './chatAttachHandler.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
@@ -71,6 +72,7 @@ async function listThreads(ctx, scope) {
     out.push({
       client_id: String(t.client_id),
       client_name: client.name ?? '',
+      client_photo: avatarPhotoUrl(client.avatar_key, 'client', client.id),
       kind: t.kind,
       label: chatKindLabelRu(t.kind),
       last_preview: t.last_preview ?? '',
@@ -136,7 +138,13 @@ export async function handleStaffChatGet(ctx, req, res) {
       markRead: staffMarksChatRead(scope.role) && chatSeenFromRequest(req.query?.seen),
     })
     sendJson(res, 200, {
-      client: { id: String(client.id), name: client.name ?? '', archived: Boolean(client.archived_at), archived_at: client.archived_at ?? null },
+      client: {
+        id: String(client.id),
+        name: client.name ?? '',
+        photo: avatarPhotoUrl(client.avatar_key, 'client', client.id),
+        archived: Boolean(client.archived_at),
+        archived_at: client.archived_at ?? null,
+      },
       kind,
       label: chatKindLabelRu(kind),
       can_write: canStaffWriteChat(actor, kind, client),

@@ -19,7 +19,7 @@
 
 После ответа `push-record(s)` по успешным строкам `trainings` (завершённая, не «Списание») сервер **фоном** проверяет автоопросы «после 10-й тренировки» (`api/_lib/inbox/inboxMilestoneJob.js`): ответ тренеру не ждёт, сбой — только в лог, очередь не трогает. [INBOX.md](./INBOX.md)
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path. За 15 мин: 10 неудач на «логин + IP», 30 на логин со всех IP (кроме IP, с которого по логину уже входили), 100 на IP → **429** + `Retry-After` («Подождите N мин.») — `authRateLimitCore.js`. IP — правый адрес `X-Forwarded-For` от Caddy на localhost (Caddy перезаписывает заголовок), иначе адрес сокета. |
-| `/api/me-profile` | Профиль текущего пользователя |
+| `/api/me-profile` | Профиль текущего пользователя. POST `action: avatar-get` / `avatar-set` (`data` — base64 JPEG/PNG/WebP до 200 КБ) / `avatar-delete` → `{ photo, ready }` — своё фото профиля (те же действия: `/api/coach` `op: avatar-*`, `/api/client-me` `action: avatar-*`). GET `?avatar=<ключ>` без входа — файл фото (ключ случайный, выдают только списки переписки; кэш `private, immutable`) — [CHAT.md](./CHAT.md) «Фото профиля» |
 | `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба) |
 | `/api/list-trainers` | Список тренеров (admin / trainer; sales_manager — только свой клуб) |
 | `/api/get-client` | Один клиент (admin / trainer свои / sales_manager своего клуба). Query: `client_id`, опционально `scope=full\|glance` (glance — клиент + абоны, без дневника; desk ТЗ/АЗ и lite-ПЗ без планшета) |

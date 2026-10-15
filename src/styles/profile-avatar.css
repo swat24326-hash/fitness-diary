@@ -1,0 +1,171 @@
+/* Фото профиля: картинка в круглых аватарках (строки чата, шапка диалога), строка «кто вошёл» в меню,
+   окно «Мой профиль» с обрезкой в круг (ProfilePhotoSheet / AvatarCropper). Токены — tokens.css. */
+
+.avatar-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  user-select: none;
+}
+
+/* Окно открывается из меню (.app-header__dropdown, z 220) — должно быть над ним, но под тостами (1200) */
+.modal-overlay.profile-photo-overlay {
+  z-index: 400;
+}
+
+/* Строка «кто вошёл» сверху меню — нажимается, открывает «Мой профиль» */
+.profile-menu-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-menu-user:hover,
+.profile-menu-user:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.profile-menu-user__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--accent-bright), var(--accent-dim));
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.profile-menu-user__text {
+  min-width: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.profile-menu-user__name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Окно «Мой профиль» */
+.profile-photo {
+  max-width: 420px;
+}
+
+.profile-photo__hero {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 12px 0 4px;
+  text-align: center;
+}
+
+.profile-photo__circle {
+  display: grid;
+  place-items: center;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, var(--accent-bright), var(--accent-dim));
+  color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  font-size: 2.6rem;
+  font-weight: 700;
+}
+
+.profile-photo__name {
+  font-size: 1.1rem;
+}
+
+.profile-photo__actions {
+  justify-content: center;
+}
+
+.profile-photo__remove {
+  color: var(--danger);
+}
+
+.profile-photo__note {
+  margin: 12px 0 0;
+  text-align: center;
+}
+
+.profile-photo__error {
+  margin: 10px 0 0;
+  color: var(--danger);
+  text-align: center;
+  font-size: 0.88rem;
+}
+
+/* Обрезка: квадрат, фото двигается пальцем, вокруг круга — затемнение */
+.avatar-crop {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.avatar-crop__stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  touch-action: none;
+  cursor: grab;
+}
+
+.avatar-crop__stage:active {
+  cursor: grabbing;
+}
+
+.avatar-crop__img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.avatar-crop__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.55);
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+.avatar-crop__zoom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 280px;
+  color: var(--text-muted);
+}
+
+.avatar-crop__zoom input {
+  flex: 1;
+  min-height: 44px;
+  accent-color: var(--accent);
+}
+
+.avatar-crop__actions {
+  justify-content: center;
+}

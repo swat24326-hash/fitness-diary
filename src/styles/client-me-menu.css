@@ -127,17 +127,6 @@
   text-decoration: none;
 }
 
-.client-menu__who,
-.client-menu__who:hover {
-  cursor: default;
-  border-color: transparent;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.client-menu__who > svg {
-  color: var(--text-muted);
-}
-
 .client-menu__item--active {
   color: var(--accent-bright);
 }

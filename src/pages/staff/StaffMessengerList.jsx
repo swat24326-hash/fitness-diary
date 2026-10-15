@@ -53,6 +53,7 @@ export function StaffMessengerList({ folder, chats, inbox, open, href }) {
       title: t.kind === 'trainer' ? t.client_name : `${t.client_name} · ${t.label}`,
       preview: chatThreadPreviewRu(t, 'staff'),
       avatar: t.client_name,
+      photo: t.client_photo,
       unread: t.unread,
       unreadCount: t.unread_count,
       at: t.last_message_at,

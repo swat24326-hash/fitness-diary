@@ -4,6 +4,7 @@
  *   h — вход значка на iPhone: попадает в start_url, в базе не проверяется (это делает /api/client-auth).
  * POST /api/client-me { action: 'push-*' } — напоминания о тренировке на этот телефон (clientPushHandler.js).
  * POST /api/client-me { action: 'handoff' } — одноразовый вход для значка на iPhone (clientHandoffHandler.js).
+ * POST /api/client-me { action: 'avatar-get' | 'avatar-set' (data — base64 JPEG) | 'avatar-delete' } — своё фото профиля (../profile/avatarHandler.js).
  * POST /api/client-me { action: 'training', id } — одна своя тренировка для окна просмотра (clientTrainingHandler.js).
  * POST /api/client-me { action: 'inbox-list' | 'inbox-item' | 'inbox-answer' } — «Входящие» (../inbox/inboxClientHandler.js).
  * POST /api/client-me { action: 'chat-list' | 'chat-thread' | 'chat-send' } — переписка с тренером и клубом (../chat/chatClientHandler.js).
@@ -20,6 +21,7 @@ import { handleClientInboxPost, loadClientInboxAttention } from '../inbox/inboxC
 import { handleClientChatPost, loadClientChatAttention } from '../chat/chatClientHandler.js'
 import { VIDEO_OPS_CLIENT, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
 import { handleClientPlansPost, loadClientPlansSummary } from '../clientPlans/clientPlansClientHandler.js'
+import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
 
@@ -68,6 +70,7 @@ export async function clientMeHandler(req, res) {
   if (req.method === 'POST') {
     const body = isVideoUpload(req) ? videoSendBody(req, VIDEO_OPS_CLIENT) : parseBody(req.body)
     if (body?.action === 'handoff') await handleClientHandoff(ctx, res)
+    else if (isAvatarAction(body?.action)) await sendAvatarOp(res, createServiceDataClient(), { table: 'clients', side: 'client', id: ctx.clientId }, body.action, body)
     else if (body?.action === 'training') await handleClientTraining(createServiceDataClient(), ctx, body.id, res)
     else if (String(body?.action ?? '').startsWith('inbox-')) await handleClientInboxPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('chat-')) await handleClientChatPost(createServiceDataClient(), ctx, body, res)

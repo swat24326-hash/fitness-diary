@@ -79,6 +79,22 @@ export async function fetchMyProfileViaApi() {
   return { profile: data.profile ?? null, error: null }
 }
 
+/** POST /api/me-profile { action: 'avatar-*' } — своё фото профиля. Ошибка — Error с русским текстом. */
+export async function postMyProfile(body) {
+  const token = await getSessionAccessToken()
+  if (!token) throw new Error('Войдите заново')
+  const res = await fetchWithAppTimeout(`${origin()}/api/me-profile`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: JSON.stringify(body),
+  })
+  const data = await parseJson(res)
+  if (!res.ok) throw new Error(data?.error ? String(data.error) : `Ошибка ${res.status}`)
+  return data
+}
+
 /** @returns {Promise<{ trainer: object | null, error: Error | null, usedApi: boolean }>} */
 export async function updateTrainerClubViaApi(trainerId, clubId) {
   const token = await getAccessTokenForAdminApi()

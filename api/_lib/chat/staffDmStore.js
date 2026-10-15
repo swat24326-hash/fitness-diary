@@ -15,7 +15,7 @@ const THREAD_FIELDS =
 export const DM_MESSAGE_FIELDS =
   'id, body, sticker, created_at, author_user_id, reply_to, voice_key, voice_sec, voice_wave, voice_text, voice_played_at, voice_once, ' + ATTACH_FIELDS
 const MESSAGE_FIELDS = DM_MESSAGE_FIELDS
-const USER_FIELDS = 'id, name, role, club_id, is_active'
+const USER_FIELDS = 'id, name, role, club_id, is_active, avatar_key'
 const DM_ROLES = [...USERS_TRAINER_ROLES, ...USERS_SALES_MANAGER_ROLES, ...USERS_SUPERVISOR_ROLES, ...USERS_ADMIN_ROLES]
 
 export function isMissingDmTable(e) {

@@ -22,7 +22,7 @@ export function StaffChatPane({ clientId, kind, backTo, back = null, onSent }) {
   }
   return (
     <>
-      <ChatHeadBar back={back} icon={MessageCircle} title={meta?.client?.name || 'Клиент'} subtitle={chatKindLabelRu(kind)} searchHostRef={setSearchHost} />
+      <ChatHeadBar back={back} icon={MessageCircle} photo={meta?.client?.photo} title={meta?.client?.name || 'Клиент'} subtitle={chatKindLabelRu(kind)} searchHostRef={setSearchHost} />
       {!chat.messages ? (
         <div className="card staff-inbox__status" role="status">
           {chat.status === 'error' ? <WifiOff size={28} aria-hidden /> : <RefreshCw size={28} aria-hidden className="icon-spin" />}

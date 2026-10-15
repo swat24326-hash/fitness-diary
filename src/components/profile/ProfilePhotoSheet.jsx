@@ -1,0 +1,105 @@
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Camera, Trash2 } from 'lucide-react'
+import { ModalHeader } from '../ModalHeader.jsx'
+import { chatInitials } from '../../lib/chat/chatUiCore.js'
+import { AVATAR_UNAVAILABLE_RU } from '../../lib/profile/avatarCore.js'
+import { encodeAvatar, openAvatarImage } from '../../lib/profile/avatarPrepare.js'
+import { AvatarCropper } from './AvatarCropper.jsx'
+import { AvatarPhoto } from './AvatarPhoto.jsx'
+
+function release(image) {
+  if (!image) return
+  URL.revokeObjectURL(image.url)
+  image.img.close?.()
+}
+
+/**
+ * «Мой профиль», как в Telegram: крупное фото (или инициалы), «Выбрать фото» → обрезка в круг → «Готово», «Удалить фото».
+ * Портал в body: шапка и меню с position:fixed / blur запирали бы окно в своей рамке. mousedown не выпускаем —
+ * иначе меню под окном закрылось бы вместе с ним.
+ * @param {{ open: boolean, onClose: () => void, name: string, avatar: ReturnType<typeof import('../../hooks/useMyAvatar.js').useMyAvatar> }} props
+ */
+export function ProfilePhotoSheet({ open, onClose, name, avatar }) {
+  const titleId = useId()
+  const fileRef = useRef(null)
+  const [image, setImage] = useState(null)
+
+  useEffect(() => () => release(image), [image])
+
+  if (!open || typeof document === 'undefined') return null
+  const { busy, error } = avatar
+  const close = () => {
+    if (busy) return
+    setImage(null)
+    avatar.setError('')
+    onClose()
+  }
+
+  const pick = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    avatar.setError('')
+    try {
+      setImage(await openAvatarImage(file))
+    } catch (err) {
+      avatar.setError(err.message)
+    }
+  }
+
+  const done = async (crop) => {
+    let data
+    try {
+      data = await encodeAvatar(image.img, crop)
+    } catch (err) {
+      avatar.setError(err.message)
+      return
+    }
+    if (await avatar.save(data)) setImage(null)
+  }
+
+  return createPortal(
+    <div className="modal-overlay profile-photo-overlay" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={close} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal-panel profile-photo" onClick={(e) => e.stopPropagation()} data-testid="profile-photo-sheet">
+        <ModalHeader titleId={titleId} title="Мой профиль" onClose={close} closeDisabled={busy} />
+        {image ? (
+          <AvatarCropper image={image} busy={busy} onCancel={() => setImage(null)} onDone={(crop) => void done(crop)} />
+        ) : (
+          <>
+            <div className="profile-photo__hero">
+              <span className="profile-photo__circle" aria-hidden>
+                <AvatarPhoto src={avatar.photo} fallback={chatInitials(name) || '?'} />
+              </span>
+              <strong className="profile-photo__name">{name || 'Без имени'}</strong>
+              <small className="muted">Фото видят в переписке клуба</small>
+            </div>
+            {avatar.ready ? (
+              <div className="row td-modal-actions profile-photo__actions">
+                <button type="button" className="btn btn-primary btn-touch" disabled={busy} onClick={() => fileRef.current?.click()}>
+                  <Camera size={18} aria-hidden />
+                  {avatar.photo ? 'Сменить фото' : 'Выбрать фото'}
+                </button>
+                {avatar.photo ? (
+                  <button type="button" className="btn btn-ghost btn-touch profile-photo__remove" disabled={busy} onClick={() => void avatar.remove()}>
+                    <Trash2 size={18} aria-hidden />
+                    Удалить
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <p className="muted profile-photo__note">{AVATAR_UNAVAILABLE_RU}</p>
+            )}
+          </>
+        )}
+        {error ? (
+          <p className="profile-photo__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void pick(e)} data-testid="profile-photo-input" />
+      </div>
+    </div>,
+    document.body,
+  )
+}

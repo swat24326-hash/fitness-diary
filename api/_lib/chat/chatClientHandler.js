@@ -16,7 +16,7 @@ import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatRe
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { sendChatFileAnswer } from './chatAttachHandler.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
-import { isMissingChatTable, loadClientThreads, loadStaffNames } from './chatStore.js'
+import { isMissingChatTable, loadClientThreads, loadStaffCards } from './chatStore.js'
 
 const UNAVAILABLE_RU = 'Сообщения пока недоступны — попробуйте позже'
 
@@ -32,14 +32,14 @@ export async function loadClientChatAttention(db, client) {
 
 async function listThreads(db, client) {
   const byKind = new Map((await loadClientThreads(db, client.id)).map((t) => [t.kind, t]))
-  const names = await loadStaffNames(db, [client.trainer_id])
-  const trainerName = names.get(String(client.trainer_id ?? '')) ?? ''
+  const trainer = (await loadStaffCards(db, [client.trainer_id])).get(String(client.trainer_id ?? ''))
   const threads = clientChatKinds(client).map((kind) => {
     const t = byKind.get(kind)
     return {
       kind,
       label: chatKindLabelRu(kind),
-      name: kind === 'trainer' ? trainerName : '',
+      name: kind === 'trainer' ? (trainer?.name ?? '') : '',
+      photo: kind === 'trainer' ? (trainer?.photo ?? null) : null,
       last_preview: t?.last_preview ?? '',
       last_message_at: t?.last_message_at ?? null,
       last_author: t?.last_author ?? null,
@@ -64,7 +64,7 @@ export async function handleClientChatPost(db, ctx, body, res) {
       return
     }
     if (body.action === 'chat-thread') {
-      const [page, names] = await Promise.all([
+      const [page, cards] = await Promise.all([
         openChatThread(db, {
           client,
           kind,
@@ -73,9 +73,10 @@ export async function handleClientChatPost(db, ctx, body, res) {
           before: body.before,
           markRead: chatSeenFromRequest(body.seen),
         }),
-        kind === 'trainer' ? loadStaffNames(db, [client.trainer_id]) : new Map(),
+        kind === 'trainer' ? loadStaffCards(db, [client.trainer_id]) : new Map(),
       ])
-      sendJson(res, 200, { ...page, kind, name: names.get(String(client.trainer_id ?? '')) ?? '' })
+      const trainer = cards.get(String(client.trainer_id ?? ''))
+      sendJson(res, 200, { ...page, kind, name: trainer?.name ?? '', photo: trainer?.photo ?? null })
       return
     }
     if (body.action === 'chat-send') {

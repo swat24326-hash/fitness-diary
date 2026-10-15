@@ -18,6 +18,7 @@
  *      | бинарный POST video/mp4|webm ?op=chat-send|dm-send|group-send&…&sec — видеокружок (chatVideoHandler.js)
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
+ *      | { op: 'avatar-get' | 'avatar-set' (data — base64 JPEG) | 'avatar-delete' } — своё фото профиля (../profile/avatarHandler.js)
  *      | { op: 'schedule-save' | 'schedule-delete' | 'schedule-copies', ... } — правка Ежедневника
  * Переписка — те же обработчики, что у планшета (handleStaffChat*), только диалоги «Тренер» своих клиентов.
  */
@@ -31,6 +32,7 @@ import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDm
 import { handleStaffGroupGet, handleStaffGroupPost } from '../chat/staffGroupRoutes.js'
 import { VIDEO_OPS_COACH, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
+import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { rows } from '../inbox/inboxStore.js'
 import { handlePushSubscriptionPost, pushServerStatus } from '../pushSubscriptionHandler.js'
 import { COACH_SCHEDULE_FIELDS, buildCoachMe, buildCoachSchedule, coachScheduleDays } from './coachViewCore.js'
@@ -122,6 +124,7 @@ async function handleGet(ctx, req, res, store) {
 async function handlePost(ctx, res, body, store) {
   const op = String(body.op ?? '')
   if (op === 'handoff') return issueCoachHandoff(ctx, res, store)
+  if (isAvatarAction(op)) return sendAvatarOp(res, ctx.supabaseAdmin, { table: 'users', side: 'staff', id: String(ctx.user.id) }, op, body)
   if (COACH_SCHEDULE_WRITE_OPS.includes(op)) return handleCoachScheduleWrite(ctx, res, op, body)
   if (op === 'chat-send') {
     const kind = coachChatKind(body.kind)
