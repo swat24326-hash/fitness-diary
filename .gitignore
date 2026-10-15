@@ -15,3 +15,6 @@ homework-library.csv
 .env*
 .local/
 bridge/
+
+qa-local.log
+my-qa-local.log
