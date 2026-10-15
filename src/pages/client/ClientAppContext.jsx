@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { hasClientSession } from '../../lib/client/clientSession.js'
-import { purgeScreenCache } from '../../lib/screenCache/screenCacheStore.js'
+import { bootScreenCache } from '../../lib/screenCache/screenCacheStore.js'
 import { useClientHandoff, useClientHandoffLaunch } from './useClientHandoff.js'
 import { useClientInstall } from './useClientInstall.js'
 import { useClientOnboarding } from './useClientOnboarding.js'
@@ -13,7 +13,9 @@ const ClientAppContext = createContext(null)
 export function ClientAppProvider({ children }) {
   useLocation() // после /me/join сессия появляется — перечитать hasClientSession при смене экрана
   const signedIn = hasClientSession()
-  useEffect(() => void purgeScreenCache(), [])
+  useEffect(() => {
+    void bootScreenCache('client', hasClientSession)
+  }, [])
   const installer = useClientInstall()
   useClientHandoffLaunch({ standalone: installer.installed })
   const push = useClientPush({ active: signedIn, standalone: installer.installed })

@@ -165,7 +165,7 @@ export async function renderNutritionPlanPng(plan, meta = {}) {
         }
       : null
     y = drawTableCard(ctx, {
-      title: meal.label ?? '',
+      title: meal.dishLabel ? `${meal.label ?? ''} · ${meal.dishLabel}` : (meal.label ?? ''),
       cols: MEAL_COLS,
       rows,
       footer,

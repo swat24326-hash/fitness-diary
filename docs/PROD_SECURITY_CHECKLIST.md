@@ -1,6 +1,6 @@
 # Чеклист безопасности прода (РФ-контур, app-core.ru)
 
-**Актуально:** 2026-10-07  
+**Актуально:** 2026-10-16  
 **Кому:** разработчику / агенту после деплоя, который трогал вход, push, API или сервер; перед подключением нового клуба; раз в квартал.  
 **Контур:** ВМ Yandex Cloud (`/opt/fitness-diary`, сервис `os-hybrid` за Caddy) + Managed PG, свой Auth. Как устроено — [R3_NIGHT.md](./R3_NIGHT.md); решения и история аудитов — [STRATEGY §5.7](./STRATEGY_SCALE_AND_RU_HOSTING.md). Старый [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) — до выключения Supabase в R4.
 
@@ -16,6 +16,7 @@
 | Новая таблица без RLS | `verify-rls-coverage` | ✅ |
 | Заголовки и боевая CSP | `verify-portable-host-security` | ✅ |
 | Приложение клиента: токен клиента ≠ токен сотрудника, одноразовая ссылка, лимит по IP, белые списки ответа | `verify-client-auth`, `verify-client-me-whitelist` | ✅ |
+| Телефон тренера / клиент: кэш экранов без телефонов и карт; стирается при выходе / без сессии; окно «Выйти» предупреждает | `verify-screen-cache` | ✅ 16.10 |
 
 Всё входит в `npm run qa:local`.
 

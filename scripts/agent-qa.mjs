@@ -383,6 +383,7 @@ run('trainer clients browse filters', 'node', ['scripts/verify-trainer-clients-b
 run('admin clients az direction filter', 'node', ['scripts/verify-admin-clients-az-direction-filter.mjs'])
 run('admin clients archive hall', 'node', ['scripts/verify-admin-clients-archive-hall.mjs'])
 run('nutrition plan', 'node', ['scripts/verify-nutrition-plan.mjs'])
+run('nutrition dishes', 'node', ['scripts/verify-nutrition-dishes.mjs'])
 run('nutrition meal pairing', 'node', ['scripts/verify-nutrition-meal-pairing.mjs'])
 run('nutrition referents', 'node', ['scripts/verify-nutrition-referents.mjs'])
 run('nutrition plan history', 'node', ['scripts/verify-nutrition-plan-history.mjs'])

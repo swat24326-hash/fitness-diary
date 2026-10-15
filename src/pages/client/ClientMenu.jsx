@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Menu, RefreshCw, Smartphone } from 'lucide-react'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
+import { SignOutWarnDialog } from '../../components/screenCache/SignOutWarnDialog.jsx'
 import { postClientMe } from '../../lib/client/clientSession.js'
 import { avatarApiOver } from '../../lib/profile/avatarApi.js'
 import { useClientApp } from './ClientAppContext.jsx'
@@ -61,6 +62,19 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
 export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, refreshing = false, close = () => {} }) {
   const navigate = useNavigate()
   const { installer, onboarding } = useClientApp()
+  const [warnOpen, setWarnOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const confirmLogout = () => {
+    setBusy(true)
+    try {
+      onLogout()
+    } finally {
+      setBusy(false)
+      setWarnOpen(false)
+    }
+  }
+
   return (
     <>
       {clientName ? (
@@ -100,12 +114,19 @@ export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, r
         className="app-header__menu-item app-header__menu-item--danger"
         onClick={() => {
           close()
-          if (window.confirm('Выйти? Войти снова можно будет только по новой ссылке из клуба.')) onLogout()
+          setWarnOpen(true)
         }}
       >
         <LogOut size={18} aria-hidden />
         Выйти
       </button>
+      <SignOutWarnDialog
+        app="client"
+        open={warnOpen}
+        busy={busy}
+        onCancel={() => !busy && setWarnOpen(false)}
+        onConfirm={confirmLogout}
+      />
     </>
   )
 }

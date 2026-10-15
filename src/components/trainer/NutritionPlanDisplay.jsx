@@ -144,7 +144,10 @@ export function NutritionPlanDisplay({
         <div className="nutrition-day-table">
           {displayPlan.dayPlan.map((meal) => (
             <article key={meal.slot} className="nutrition-meal-block">
-              <h3 className="nutrition-meal-title">{meal.label}</h3>
+              <h3 className="nutrition-meal-title">
+                {meal.label}
+                {meal.dishLabel ? ` · ${meal.dishLabel}` : ''}
+              </h3>
               <NutritionTableBlock
                 rows={meal.items.map((item) => mapMealItem(meal, item))}
                 footer={{

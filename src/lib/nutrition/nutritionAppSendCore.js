@@ -21,7 +21,7 @@ export function buildNutritionAppSnapshot(plan, { health = null, planUnsaved = f
     totals: plan.totals,
     disclaimer: plan.disclaimer,
     meals: (plan.dayPlan ?? []).map((meal) => ({
-      label: meal?.label,
+      label: meal?.dishLabel ? `${meal.label} · ${meal.dishLabel}` : meal?.label,
       subtotal: meal?.subtotal,
       items: (meal?.items ?? []).map((it) => ({
         label: it?.label,

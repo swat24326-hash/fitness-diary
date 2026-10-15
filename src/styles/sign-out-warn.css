@@ -1,0 +1,42 @@
+/* Окно перед «Выйти»: кэш экранов на телефоне сотрётся */
+.sign-out-warn {
+  max-width: 22rem;
+  width: min(22rem, calc(100vw - 2rem));
+  padding: var(--space-4, 1.25rem);
+}
+
+.sign-out-warn__title {
+  margin: 0;
+}
+
+.sign-out-warn__body {
+  margin: 0.75rem 0 0;
+  line-height: 1.45;
+}
+
+.sign-out-warn__actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.sign-out-warn__actions .btn {
+  min-height: 44px;
+  min-width: 7rem;
+}
+
+.sign-out-warn__confirm {
+  background: var(--danger, #f87171);
+  color: #111;
+  border: none;
+}
+
+.sign-out-warn__confirm:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.sign-out-warn__confirm:disabled {
+  opacity: 0.7;
+}

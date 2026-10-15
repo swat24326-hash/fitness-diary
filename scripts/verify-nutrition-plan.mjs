@@ -63,6 +63,7 @@ ok(roundGrams(47) === 45 || roundGrams(47) === 50, 'round grams to 5')
 
 const built = buildNutritionPlan(health, survey)
 ok(built.ok, `plan builds: ${built.errors?.join('; ') ?? ''}`)
+ok(built.plan?.version === 3, 'plan version 3 dishes')
 ok(built.plan?.dayPlan?.length === 4, 'day plan 4 meals')
 ok(built.plan?.totals?.kcal > 0, 'totals kcal')
 const target = built.plan?.kcalTarget ?? 0
@@ -72,6 +73,7 @@ ok(built.plan?.basis?.weightKg === 75, 'plan stores basis weight')
 for (const meal of built.plan?.dayPlan ?? []) {
   ok(meal.items.length >= 2, `${meal.label} has items`)
   ok(meal.subtotal.kcal > 0, `${meal.label} subtotal`)
+  ok(Boolean(meal.dishLabel), `${meal.label} has dish label`)
 }
 
 process.exit(failed > 0 ? 1 : 0)

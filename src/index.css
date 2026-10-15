@@ -58,6 +58,7 @@
 @import './styles/coach.css';
 @import './styles/coach-schedule.css';
 @import './styles/coach-clients.css';
+@import './styles/sign-out-warn.css';
 @import './styles/survey-points.css';
 
 *,

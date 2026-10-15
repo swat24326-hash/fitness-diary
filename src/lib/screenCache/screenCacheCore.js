@@ -3,11 +3,16 @@
  * последнее сохранённое, затем свежее с сервера. Решение владельца 15.10.2026: на телефоне только последние
  * сообщения диалога, стирается при выходе и через 7 дней. Медиа (звук, фото, видео) лента не несёт —
  * они грузятся отдельно по нажатию и в кэш не попадают.
+ *
+ * Телефоны и карты клиентов в кэш «Клиенты» не кладём (16.10.2026): онлайн — с сервера, «Позвонить»
+ * работает; без сети / после отзыва устройства номера на телефоне не остаются.
  */
 export const SCREEN_CACHE_APPS = Object.freeze(['client', 'coach'])
 export const SCREEN_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 export const SCREEN_CACHE_MAX_ENTRIES = 40
 export const CHAT_CACHE_MESSAGES = 60
+/** Ключ списка клиентов на телефоне тренера — совпадает с `screenCacheKey('coach', 'clients')`. */
+export const COACH_CLIENTS_CACHE_KEY = 'coach:clients'
 
 /**
  * @param {string} app 'client' | 'coach'
@@ -18,6 +23,31 @@ export const CHAT_CACHE_MESSAGES = 60
 export function screenCacheKey(app, screen, id = '') {
   if (!SCREEN_CACHE_APPS.includes(app) || !screen) return ''
   return id ? `${app}:${screen}:${id}` : `${app}:${screen}`
+}
+
+/** Приложение из ключа (`coach:clients` → `coach`). */
+export function screenCacheAppOf(key) {
+  return String(key || '').split(':')[0]
+}
+
+/**
+ * Перед записью на диск: убрать с телефона то, что опасно при потере устройства.
+ * Экран «Клиенты» без сети остаётся (имена, абоны), «Позвонить» — после ответа сервера.
+ * @param {string} key
+ * @param {unknown} data
+ */
+export function sanitizeScreenCachePayload(key, data) {
+  if (!key || data == null || typeof data !== 'object') return data
+  if (key !== COACH_CLIENTS_CACHE_KEY || !Array.isArray(/** @type {{ clients?: unknown }} */ (data).clients)) {
+    return data
+  }
+  const row = /** @type {{ clients: object[], [k: string]: unknown }} */ (data)
+  return {
+    ...row,
+    clients: row.clients.map((c) =>
+      c && typeof c === 'object' ? { ...c, phone: '', card_number: '', max_chat_url: '' } : c,
+    ),
+  }
 }
 
 /** @param {{ savedAt?: number } | null | undefined} entry @param {number} now */

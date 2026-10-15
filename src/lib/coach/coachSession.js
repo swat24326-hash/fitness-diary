@@ -86,8 +86,9 @@ function saveSession(session) {
 }
 
 export function clearCoachSession() {
-  writeJson(SESSION_KEY, null)
+  // Сначала память кэша (sync), потом токен — иначе мгновенный peek мог отдать ПДн на миг.
   void clearScreenCacheApp('coach')
+  writeJson(SESSION_KEY, null)
 }
 
 registerScreenCacheGuard('coach', hasCoachSession)

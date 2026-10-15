@@ -1,5 +1,12 @@
 import { openDB } from 'idb'
-import { SCREEN_CACHE_APPS, isScreenCacheFresh, screenCacheEvictKeys, screenCacheSignature } from './screenCacheCore.js'
+import {
+  SCREEN_CACHE_APPS,
+  isScreenCacheFresh,
+  sanitizeScreenCachePayload,
+  screenCacheAppOf,
+  screenCacheEvictKeys,
+  screenCacheSignature,
+} from './screenCacheCore.js'
 
 /**
  * Хранилище кэша экранов: своя база IndexedDB (не `fitness-diary` планшета — очередь Sync не задеваем)
@@ -29,7 +36,9 @@ function db() {
   return dbPromise
 }
 
-const appOf = (key) => String(key).split(':')[0]
+function sessionAllows(app) {
+  return !guards[app] || guards[app]()
+}
 
 /**
  * Писать только при живой сессии: ответ, пришедший уже после выхода, не должен вернуть данные на телефон.
@@ -39,21 +48,22 @@ export function registerScreenCacheGuard(app, hasSession) {
   guards[app] = hasSession
 }
 
-/** Мгновенно, без IndexedDB: то, что уже показывали в этой вкладке. @param {string} key */
+/** Мгновенно, без IndexedDB: то, что уже показывали в этой вкладке. Без сессии — null. @param {string} key */
 export function peekScreenCache(key) {
-  const hit = key ? memory.get(key) : null
+  if (!key || !sessionAllows(screenCacheAppOf(key))) return null
+  const hit = memory.get(key)
   return hit && isScreenCacheFresh(hit, Date.now()) ? hit.data : null
 }
 
 /** @param {string} key @returns {Promise<unknown | null>} */
 export async function readScreenCache(key) {
-  if (!key) return null
+  if (!key || !sessionAllows(screenCacheAppOf(key))) return null
   const hot = peekScreenCache(key)
   if (hot != null) return hot
   try {
     const row = await (await db()).get(STORE, key)
     if (!row || !isScreenCacheFresh(row, Date.now())) return null
-    if (guards[row.app] && !guards[row.app]()) return null
+    if (!sessionAllows(row.app)) return null
     memory.set(key, row)
     return row.data
   } catch {
@@ -63,11 +73,12 @@ export async function readScreenCache(key) {
 
 /** @param {string} key @param {unknown} data */
 export async function writeScreenCache(key, data) {
-  const app = appOf(key)
-  if (!key || data == null || (guards[app] && !guards[app]())) return
+  const app = screenCacheAppOf(key)
+  const safe = sanitizeScreenCachePayload(key, data)
+  if (!key || safe == null || !sessionAllows(app)) return
   const prev = memory.get(key)
-  if (prev && isScreenCacheFresh(prev, Date.now()) && screenCacheSignature(prev.data) === screenCacheSignature(data)) return
-  const row = { key, app, savedAt: Date.now(), data }
+  if (prev && isScreenCacheFresh(prev, Date.now()) && screenCacheSignature(prev.data) === screenCacheSignature(safe)) return
+  const row = { key, app, savedAt: Date.now(), data: safe }
   memory.set(key, row)
   try {
     const d = await db()
@@ -85,7 +96,7 @@ export async function writeScreenCache(key, data) {
 
 /** Выход из приложения: стереть всё этого приложения. @param {'client' | 'coach'} app */
 export async function clearScreenCacheApp(app) {
-  for (const k of [...memory.keys()]) if (appOf(k) === app) memory.delete(k)
+  for (const k of [...memory.keys()]) if (screenCacheAppOf(k) === app) memory.delete(k)
   try {
     const d = await db()
     const keys = await d.getAllKeysFromIndex(STORE, 'app', app)
@@ -107,4 +118,15 @@ export async function purgeScreenCache() {
   } catch {
     /* без кэша */
   }
+}
+
+/**
+ * Старт оболочки /me или /coach: без сессии — стереть кэш приложения (потерянный телефон / старый вход);
+ * с сессией — только просроченное.
+ * @param {'client' | 'coach'} app
+ * @param {() => boolean} hasSession
+ */
+export async function bootScreenCache(app, hasSession) {
+  if (!hasSession()) await clearScreenCacheApp(app)
+  else await purgeScreenCache()
 }

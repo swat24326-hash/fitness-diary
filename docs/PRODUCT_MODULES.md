@@ -7,7 +7,7 @@
 | **ПНК** | ✅ прод | `src/lib/pnk/`, `components/pnk/`, `api/_lib/adminData/pnkHandlers.js` | [PNK_FUNNEL.md](./PNK_FUNNEL.md) |
 | **Продажи** | ✅ прод | `src/lib/admin/sales*`, `AdminSales`, salesHandlers | [SALES_MANAGER.md](./SALES_MANAGER.md) |
 | **Оплаты (домен платежа)** | 📋 ТЗ; **⏸ код после РФ (R3+)** | — (импорт Excel = мост) | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md), [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md), [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md), [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) §4 |
-| **Питание** | ✅ в карточке | `src/lib/nutrition/*`, store `nutrition_products` | вкладка «Питание»; push в allowlist |
+| **Питание** | ✅ в карточке; сборка **v3 блюдами** (фаза 1) | `nutritionDishTemplatesCore`, `nutritionDishBuildCore`, `nutritionPlanBuilder` | вкладка «Питание»; push в allowlist; verify `verify-nutrition-dishes` |
 | **ДЗ (домашние)** | ✅ в карточке | `src/lib/homework/*`, store `homework_presets` | вкладка «ДЗ»; push в allowlist |
 | **Ежедневник тренера** | ✅ MVP | `src/lib/trainer/trainerSchedule*`, `/trainer/calendar` | [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md); sync + pull |
 | **Max / outreach / call-центр** | Max ✅; SMS/звонок MVP; цель КЦ — VISION §2.4 | `outreach_log`, фильтры тренера, `club-sms`, `club_call_log` | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md), [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md), [PRODUCT_VISION.md](./PRODUCT_VISION.md) §2.4 |

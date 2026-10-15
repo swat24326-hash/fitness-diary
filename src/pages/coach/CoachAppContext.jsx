@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { fetchCoachMe } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession, readCoachClub, saveCoachClub, signOutCoach } from '../../lib/coach/coachSession.js'
-import { purgeScreenCache } from '../../lib/screenCache/screenCacheStore.js'
+import { bootScreenCache, clearScreenCacheApp } from '../../lib/screenCache/screenCacheStore.js'
 
 const CoachAppContext = createContext(null)
 
@@ -11,7 +11,9 @@ export function CoachAppProvider({ children }) {
   const [notice, setNotice] = useState('')
   const [club, setClub] = useState(readCoachClub)
 
-  useEffect(() => void purgeScreenCache(), [])
+  useEffect(() => {
+    void bootScreenCache('coach', hasCoachSession)
+  }, [])
 
   useEffect(() => {
     if (!signedIn) return undefined
@@ -34,6 +36,7 @@ export function CoachAppProvider({ children }) {
   }, [])
 
   const onSessionGone = useCallback((message) => {
+    void clearScreenCacheApp('coach')
     setNotice(message || 'Вход закончился — войдите снова')
     setSignedIn(false)
   }, [])

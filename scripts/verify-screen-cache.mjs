@@ -1,19 +1,23 @@
 /**
  * Кэш экранов приложения клиента и телефона тренера (как в Telegram): ключи, срок 7 дней, лимит записей,
- * обрезка ленты до последних сообщений, стирание при выходе.
+ * обрезка ленты, стирание при выходе, без телефонов/карт в кэше «Клиенты», окно «Выйти».
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
   CHAT_CACHE_MESSAGES,
+  COACH_CLIENTS_CACHE_KEY,
   SCREEN_CACHE_MAX_ENTRIES,
   SCREEN_CACHE_TTL_MS,
   chatCacheSnapshot,
   isScreenCacheFresh,
+  sanitizeScreenCachePayload,
+  screenCacheAppOf,
   screenCacheEvictKeys,
   screenCacheKey,
   screenCacheSignature,
 } from '../src/lib/screenCache/screenCacheCore.js'
+import { SIGN_OUT_WARN, signOutWarnCopy } from '../src/lib/screenCache/signOutWarnCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -31,6 +35,8 @@ const DAY = 24 * 60 * 60 * 1000
 console.log('ключи')
 ok(screenCacheKey('client', 'chat', 'trainer') === 'client:chat:trainer', 'клиент: диалог')
 ok(screenCacheKey('coach', 'contacts') === 'coach:contacts', 'тренер: экран без id')
+ok(COACH_CLIENTS_CACHE_KEY === screenCacheKey('coach', 'clients'), 'ключ клиентов тренера')
+ok(screenCacheAppOf('coach:clients') === 'coach', 'приложение из ключа')
 ok(screenCacheKey('staff', 'chat', 'x') === '', 'планшет зала кэш не получает')
 ok(screenCacheKey('coach', '') === '', 'без экрана — без кэша')
 
@@ -60,17 +66,39 @@ ok(chatCacheSnapshot(null, false, null) === null, 'нет ленты — неч�
 ok(screenCacheSignature(snap) === screenCacheSignature(chatCacheSnapshot(msgs, false, { voice_ready: true })), 'одинаковая лента — тот же отпечаток')
 ok(screenCacheSignature(snap) !== screenCacheSignature(chatCacheSnapshot([...msgs, { id: 'new' }], false, null)), 'новое сообщение — другой отпечаток')
 
+console.log('ПДн в кэше клиентов')
+const rawClients = {
+  today: '2026-10-16',
+  clients: [{ id: 'c1', name: 'Анна', phone: '+7900', card_number: '42', max_chat_url: 'https://max', memberships: [] }],
+}
+const safe = sanitizeScreenCachePayload(COACH_CLIENTS_CACHE_KEY, rawClients)
+ok(safe.clients[0].phone === '' && safe.clients[0].card_number === '' && safe.clients[0].max_chat_url === '', 'телефон и карта не на диске')
+ok(safe.clients[0].name === 'Анна' && Array.isArray(safe.clients[0].memberships), 'имя и абоны остаются')
+ok(sanitizeScreenCachePayload('coach:chats', rawClients) === rawClients, 'другие экраны не режем')
+ok(rawClients.clients[0].phone === '+7900', 'исходный ответ сервера не портим')
+
+console.log('окно выхода')
+ok(signOutWarnCopy('coach').body.includes('сотрутся') && signOutWarnCopy('client').body.includes('новой ссылке'), 'тексты предупреждения')
+ok(SIGN_OUT_WARN.coach.confirm === 'Выйти' && SIGN_OUT_WARN.client.cancel === 'Остаться', 'кнопки понятные')
+
 console.log('wiring')
 const client = src('src/lib/client/clientSession.js')
 const coach = src('src/lib/coach/coachSession.js')
 ok(/clearScreenCacheApp\('client'\)/.test(client), 'выход клиента стирает кэш')
 ok(/clearScreenCacheApp\('coach'\)/.test(coach), 'выход тренера стирает кэш')
+ok(/clearScreenCacheApp\('coach'\)[\s\S]*writeJson\(SESSION_KEY/.test(coach), 'кэш тренера стирается до снятия токена')
+ok(/clearScreenCacheApp\('client'\)[\s\S]*writeJson\(SESSION_KEY/.test(client), 'кэш клиента стирается до снятия токена')
 ok(/registerScreenCacheGuard\('client', hasClientSession\)/.test(client), 'после выхода клиента кэш не пишется')
 ok(/registerScreenCacheGuard\('coach', hasCoachSession\)/.test(coach), 'после выхода тренера кэш не пишется')
 const store = src('src/lib/screenCache/screenCacheStore.js')
 ok(/'fd-screen-cache'/.test(store) && !/fitness-diary'/.test(store), 'своя база, не база планшета с очередью Sync')
-ok(/purgeScreenCache/.test(src('src/pages/client/ClientAppContext.jsx')), 'клиент: просроченное чистится при старте')
-ok(/purgeScreenCache/.test(src('src/pages/coach/CoachAppContext.jsx')), 'тренер: просроченное чистится при старте')
+ok(/sanitizeScreenCachePayload/.test(store), 'запись проходит через очистку ПДн')
+ok(/sessionAllows/.test(store) && /peekScreenCache/.test(store), 'peek без сессии пустой')
+ok(/bootScreenCache/.test(src('src/pages/client/ClientAppContext.jsx')), 'клиент: старт без сессии стирает кэш')
+ok(/bootScreenCache/.test(src('src/pages/coach/CoachAppContext.jsx')), 'тренер: старт без сессии стирает кэш')
+ok(/SignOutWarnDialog/.test(src('src/pages/coach/CoachMorePage.jsx')), 'тренер: окно перед выходом')
+ok(/SignOutWarnDialog/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: окно перед выходом')
+ok(!/window\.confirm\(/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: не системный confirm')
 ok(!/cache:/.test(src('src/hooks/useStaffChat.js')), 'планшет зала (useStaffChat) без кэша экранов')
 
 if (failed) {

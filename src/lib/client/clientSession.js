@@ -51,10 +51,10 @@ function saveSession(session) {
 }
 
 export function clearClientSession() {
+  void clearScreenCacheApp('client')
   writeJson(SESSION_KEY, null)
   writeJson(CACHE_KEY, null)
   writeJson(CLIENT_PLANS_CACHE_KEY, null)
-  void clearScreenCacheApp('client')
 }
 
 registerScreenCacheGuard('client', hasClientSession)
