@@ -84,6 +84,8 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         importScripts: ['/push-sw.js'],
         navigateFallback: '/index.html',
+        /* Проверочные страницы для живого телефона (public/probe/) — не подменять приложением. */
+        navigateFallbackDenylist: [/^\/probe\//],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           /* Supabase (PostgREST / Auth) — не регистрировать в SW: иначе при сбое сети Workbox

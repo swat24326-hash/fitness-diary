@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Проверка: стикеры с клавиатуры</title>
+<!--
+  Разведка для фичи «стикеры с клавиатуры» (docs/CHAT.md): что iPhone / Android реально присылают
+  в простое поле (textarea) и в «богатое» (contenteditable). Ничего не отправляет и не хранит —
+  только показывает на экране и даёт скопировать отчёт.
+-->
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px 14px 40px; background: #0a0a0a; color: #eee; font: 15px/1.4 system-ui, -apple-system, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  p { margin: 6px 0; color: #aaa; }
+  label { display: block; margin: 16px 0 6px; font-weight: 600; }
+  .field { min-height: 52px; padding: 10px 12px; border: 1px solid #2f5d47; border-radius: 14px; background: #141a17; color: #eee; font: inherit; width: 100%; box-sizing: border-box; }
+  .field img, .field picture { max-width: 96px; max-height: 96px; vertical-align: middle; }
+  .row { display: flex; gap: 8px; margin-top: 16px; }
+  button { flex: 1; min-height: 44px; border: 0; border-radius: 12px; background: #1f8a5b; color: #fff; font: inherit; font-weight: 600; }
+  button.ghost { background: #222; }
+  #log { margin-top: 16px; padding: 10px; border-radius: 12px; background: #111; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; word-break: break-all; }
+  #shots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  #shots figure { margin: 0; padding: 6px; border-radius: 10px; background: repeating-conic-gradient(#333 0 25%, #222 0 50%) 0 0 / 16px 16px; }
+  #shots img { display: block; max-width: 120px; max-height: 120px; }
+  #shots figcaption { font-size: 11px; color: #ccc; margin-top: 4px; max-width: 120px; }
+</style>
+</head>
+<body>
+<h1>Стикеры с клавиатуры — проверка</h1>
+<p>Откройте клавиатуру в каждом поле, перейдите к смайликам → стикеры (на iPhone — Memoji, свои стикеры, Genmoji; на Android — стикеры Gboard или Samsung) и нажмите на стикер. Потом «Скопировать отчёт» и пришлите текст в чат.</p>
+<p>Ничего никуда не отправляется — только на этом экране.</p>
+
+<label for="plain">1. Простое поле (как сейчас в чате)</label>
+<textarea id="plain" class="field" rows="2" placeholder="Сообщение"></textarea>
+
+<label for="rich">2. «Богатое» поле (кандидат для чата)</label>
+<div id="rich" class="field" contenteditable="true" role="textbox" aria-multiline="true"></div>
+
+<div id="shots"></div>
+
+<div class="row">
+  <button type="button" id="copy">Скопировать отчёт</button>
+  <button type="button" id="clear" class="ghost">Очистить</button>
+</div>
+<div id="log"></div>
+
+<script>
+(() => {
+  const logEl = document.getElementById('log')
+  const shots = document.getElementById('shots')
+  const lines = []
+  const seen = new WeakSet()
+  const log = (s) => { lines.push(s); logEl.textContent = lines.join('\n') }
+  const kb = (n) => `${Math.round(n / 1024)} КБ`
+
+  log(`UA: ${navigator.userAgent}`)
+  log(`standalone: ${matchMedia('(display-mode: standalone)').matches}`)
+
+  function describeTransfer(dt) {
+    if (!dt) return 'нет'
+    const types = [...(dt.types || [])].join(', ') || '—'
+    const files = [...(dt.files || [])].map((f) => `${f.type || '?'} ${kb(f.size)}`).join('; ') || '—'
+    return `types=[${types}] files=[${files}]`
+  }
+
+  function showFile(blob, note) {
+    const fig = document.createElement('figure')
+    const img = document.createElement('img')
+    img.src = URL.createObjectURL(blob)
+    img.onload = () => { log(`  картинка ${note}: ${img.naturalWidth}×${img.naturalHeight}`) }
+    img.onerror = () => { log(`  картинка ${note}: браузер не смог показать`) }
+    const cap = document.createElement('figcaption')
+    cap.textContent = `${note} · ${blob.type || '?'} · ${kb(blob.size)}`
+    fig.append(img, cap)
+    shots.append(fig)
+  }
+
+  async function inspectNode(node, where) {
+    if (seen.has(node)) return
+    seen.add(node)
+    const tag = node.tagName.toLowerCase()
+    if (tag === 'picture') {
+      const sources = [...node.querySelectorAll('source')].map((s) => s.type || '?').join(', ')
+      log(`[${where}] вставлен <picture> sources=[${sources}]`)
+      return
+    }
+    const src = node.currentSrc || node.src || ''
+    log(`[${where}] вставлен <img> src=${src.slice(0, 40)}… alt="${node.alt || ''}"`)
+    try {
+      const blob = await (await fetch(src)).blob()
+      log(`  файл: ${blob.type || '?'} ${kb(blob.size)}`)
+      showFile(blob, `${where} img`)
+    } catch (e) {
+      log(`  файл не прочитать: ${e && e.message}`)
+    }
+  }
+
+  function watch(el, where) {
+    el.addEventListener('beforeinput', (e) => {
+      log(`[${where}] beforeinput ${e.inputType} data=${JSON.stringify(e.data ?? null)} dt: ${describeTransfer(e.dataTransfer)}`)
+    })
+    el.addEventListener('paste', (e) => {
+      log(`[${where}] paste dt: ${describeTransfer(e.clipboardData)}`)
+      for (const f of e.clipboardData?.files || []) if (f.type.startsWith('image/')) showFile(f, `${where} paste`)
+    })
+    el.addEventListener('drop', (e) => {
+      log(`[${where}] drop dt: ${describeTransfer(e.dataTransfer)}`)
+    })
+    el.addEventListener('input', (e) => {
+      const text = el.value ?? el.innerText
+      log(`[${where}] input ${e.inputType || ''} текст=${JSON.stringify(text.slice(-30))}`)
+      if (el.querySelectorAll) el.querySelectorAll('img, picture').forEach((n) => void inspectNode(n, where))
+    })
+  }
+
+  watch(document.getElementById('plain'), 'простое')
+  watch(document.getElementById('rich'), 'богатое')
+
+  document.getElementById('copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      log('— отчёт скопирован —')
+    } catch {
+      const r = document.createRange()
+      r.selectNodeContents(logEl)
+      getSelection().removeAllRanges()
+      getSelection().addRange(r)
+      log('— не скопировалось само: текст выделен, нажмите «Скопировать» —')
+    }
+  })
+  document.getElementById('clear').addEventListener('click', () => {
+    lines.length = 0
+    shots.textContent = ''
+    document.getElementById('plain').value = ''
+    document.getElementById('rich').textContent = ''
+    log(`UA: ${navigator.userAgent}`)
+  })
+})()
+</script>
+</body>
+</html>
