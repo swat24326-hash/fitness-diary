@@ -7,11 +7,20 @@
 import { isBirthdayToday } from '../clientBirthdays.js'
 import { CLUB_OPS_TIMEZONE, todayInTimeZoneIso } from '../dateRu.js'
 
-export const PROFILE_STATUS_EMOJIS = Object.freeze([
-  '💪', '🔥', '🏋️', '🏃', '🧘', '🚴', '🏊', '🥊',
-  '🏆', '🥇', '🎯', '⚡', '😎', '😊', '🥳', '❤️',
-  '👍', '🙏', '☕', '🍏', '🏖️', '✈️', '🤒', '😴',
+/**
+ * Ряды по 8 — в «Мой профиль» каждый ряд одна тема. Ставят в основном девушки из фитнеса и парни из зала:
+ * сверху «сияние» (👑 💅 🎀), дальше зал и тело, цель, питание, настроение, пауза (отпуск, болею).
+ */
+export const PROFILE_STATUS_GROUPS = Object.freeze([
+  { id: 'shine', label: 'Сияние', items: ['👑', '💎', '✨', '💖', '🦋', '🌸', '🎀', '💅'] },
+  { id: 'gym', label: 'Зал', items: ['💪', '🦾', '🏋️‍♀️', '🏋️', '🍑', '🦵', '🔥', '🥊'] },
+  { id: 'move', label: 'Движение', items: ['🏃‍♀️', '🧘‍♀️', '🤸‍♀️', '🚴‍♀️', '🏊‍♀️', '💃', '⚡', '💦'] },
+  { id: 'goal', label: 'Цель', items: ['🏆', '🥇', '🎯', '🚀', '💯', '📈', '❤️‍🔥', '🦁'] },
+  { id: 'food', label: 'Питание', items: ['🥗', '🥑', '🍓', '🥤', '🍳', '💧', '☕', '🍰'] },
+  { id: 'mood', label: 'Настроение', items: ['😎', '😊', '🥰', '😍', '🤩', '🥳', '😈', '🫶'] },
+  { id: 'pause', label: 'Пауза', items: ['🏖️', '🌴', '✈️', '🧖‍♀️', '😴', '🤒', '🤕', '🙏'] },
 ])
+export const PROFILE_STATUS_EMOJIS = Object.freeze(PROFILE_STATUS_GROUPS.flatMap((g) => g.items))
 export const PROFILE_BIRTHDAY_EMOJI = '🎂'
 
 export const PROFILE_STATUS_DURATIONS = Object.freeze([

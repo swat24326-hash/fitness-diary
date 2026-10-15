@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PROFILE_STATUS_DURATIONS, PROFILE_STATUS_EMOJIS, profileStatusUntilRu } from '../../lib/profile/profileStatusCore.js'
+import { PROFILE_STATUS_DURATIONS, PROFILE_STATUS_GROUPS, profileStatusUntilRu } from '../../lib/profile/profileStatusCore.js'
 import { ProfileStatusMark } from './ProfileStatusMark.jsx'
 import { ChatEmojiGlyph } from '../chat/ChatEmojiGlyph.jsx'
 import '../../styles/profile-status.css'
@@ -44,17 +44,21 @@ export function ProfileStatusPicker({ avatar }) {
         ))}
       </div>
       <div className="profile-status__grid">
-        {PROFILE_STATUS_EMOJIS.map((emoji) => (
-          <button
-            key={emoji}
-            type="button"
-            className={`profile-status__emoji${current?.emoji === emoji ? ' is-active' : ''}`}
-            aria-label={`Статус ${emoji}`}
-            disabled={avatar.busy}
-            onClick={() => void avatar.setStatus(emoji, duration)}
-          >
-            <ChatEmojiGlyph emoji={emoji} className="profile-status-mark__glyph" />
-          </button>
+        {PROFILE_STATUS_GROUPS.map((group) => (
+          <div key={group.id} className="profile-status__row" role="group" aria-label={group.label}>
+            {group.items.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className={`profile-status__emoji${current?.emoji === emoji ? ' is-active' : ''}`}
+                aria-label={`Статус ${emoji}`}
+                disabled={avatar.busy}
+                onClick={() => void avatar.setStatus(emoji, duration)}
+              >
+                <ChatEmojiGlyph emoji={emoji} className="profile-status-mark__glyph" />
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </section>

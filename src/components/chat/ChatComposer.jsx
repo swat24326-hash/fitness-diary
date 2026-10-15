@@ -50,8 +50,8 @@ export function ChatComposer({
   const vid = useChatVideoRecord({ send: onSubmit, enabled: voiceEnabled })
   const rec = useChatVoiceRecord({ send: onSubmit, enabled: voiceEnabled, draftKey: voiceDraftKey, onTap: vid.available ? vid.toggleMode : null })
   const att = useChatAttachDraft()
-  const filming = vid.phase !== 'idle'
-  const recording = rec.phase !== 'idle' || filming
+  const filming = vid.phase !== 'idle' && !vid.armed
+  const recording = (rec.phase !== 'idle' && !rec.armed) || filming
   const hasAttach = Boolean(att.item)
 
   useEffect(() => {

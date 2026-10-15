@@ -7,6 +7,8 @@
 import {
   PROFILE_BIRTHDAY_EMOJI,
   PROFILE_STATUS_BAD_RU,
+  PROFILE_STATUS_EMOJIS,
+  PROFILE_STATUS_GROUPS,
   activeOwnStatus,
   checkProfileStatusInput,
   profileStatusEmoji,
@@ -37,6 +39,13 @@ ok(profileStatusUntil('today', NOW) === '2026-10-15T21:00:00.000Z', '«Сего�
 ok(profileStatusUntil('today', new Date('2026-10-15T21:30:00Z')) === '2026-10-16T21:00:00.000Z', '«Сегодня» в 00:30 по Москве — до конца уже нового дня')
 ok(profileStatusUntil('3d', NOW) === '2026-10-18T11:30:00.000Z' && profileStatusUntil('week', NOW) === '2026-10-22T11:30:00.000Z', '3 дня и неделя')
 ok(profileStatusUntil('forever', NOW) === null && profileStatusUntil('year', NOW) === undefined, '«Пока не уберу» — без срока; срок не из списка — undefined')
+
+console.log('Набор')
+ok(PROFILE_STATUS_GROUPS.every((g) => g.items.length === 8), 'каждый ряд-тема — ровно 8 смайликов (ряд не переносится)')
+ok(new Set(PROFILE_STATUS_EMOJIS).size === PROFILE_STATUS_EMOJIS.length, 'без повторов')
+ok(PROFILE_STATUS_EMOJIS[0] === '👑', 'корона — первой')
+ok(!PROFILE_STATUS_EMOJIS.includes(PROFILE_BIRTHDAY_EMOJI), '🎂 руками не ставится — только в день рождения')
+ok(checkProfileStatusInput({ emoji: '🏋️‍♀️', duration: 'today' }, NOW).ok && !checkProfileStatusInput({ emoji: '🏋️‍♂️', duration: 'today' }, NOW).ok, 'составной смайлик (🏋️‍♀️) — целиком; похожий не из набора — отказ')
 
 console.log('Ввод')
 const good = checkProfileStatusInput({ emoji: '💪', duration: '1h' }, NOW)

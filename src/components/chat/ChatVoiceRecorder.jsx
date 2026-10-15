@@ -72,7 +72,7 @@ export function ChatVoicePanel({ rec }) {
 export function ChatVoiceButton({ rec }) {
   const { phase } = rec
   if (phase === 'idle' || phase === 'holding') {
-    const holding = phase === 'holding'
+    const holding = phase === 'holding' && !rec.armed
     const level = rec.levels[rec.levels.length - 1] ?? 0
     const lift = voiceLockProgress(rec.dy)
     return (

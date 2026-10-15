@@ -130,6 +130,19 @@ async function finger(page, cdp, testId) {
   }
 }
 
+/** Следит, появлялся ли элемент хоть на кадр (касание не должно мигать записью). Возвращает «видели?». */
+async function watchFlash(page, selector) {
+  await page.evaluate((sel) => {
+    globalThis.__flash = false
+    globalThis.__flashObs?.disconnect()
+    globalThis.__flashObs = new globalThis.MutationObserver(() => {
+      if (globalThis.document.querySelector(sel)) globalThis.__flash = true
+    })
+    globalThis.__flashObs.observe(globalThis.document.body, { childList: true, subtree: true })
+  }, selector)
+  return () => page.evaluate(() => (globalThis.__flashObs?.disconnect(), globalThis.__flash))
+}
+
 /** Короткое касание: подставная камера включается не мгновенно — не ждём её, как и живой палец. */
 async function tap(page, cdp, testId) {
   const f = await finger(page, cdp, testId)
@@ -150,8 +163,10 @@ async function client(c, context, chat) {
     c.ok(await reaches(page.getByTestId('chat-video-gone').getByText(new RegExp(CHAT_VIDEO_EXPIRED_RU))), 'клиент: кружок старше суток — «удалено»')
     c.ok((await page.getByTestId('chat-video-gone').innerText()).includes('0:12'), 'клиент: у удалённого кружка длительность осталась')
 
+    const voiceFlash = await watchFlash(page, '[data-testid="chat-voice-holding"]')
     await tap(page, cdp, 'chat-mic')
     c.ok(await reaches(page.getByTestId('chat-voice-hint').getByText(CHAT_VIDEO_MODE_RU)), 'клиент: короткое касание 🎤 — режим 📹 с подсказкой')
+    c.ok(!(await voiceFlash()), 'клиент: касание 🎤 не мигает панелью записи')
     c.ok(await reaches(page.getByTestId('chat-video-button')), 'клиент: справа 📹')
     c.ok(await eventually(async () => (await camOn(page)) === 0), 'клиент: после касания камера выключена')
 
@@ -161,6 +176,13 @@ async function client(c, context, chat) {
     c.ok(await reaches(page.getByTestId('chat-video-holding')), 'клиент: держит — идёт запись, «‹ Влево — отмена»')
     c.ok(await reaches(page.locator('.chat-video-rec__live')), 'клиент: над полем круг с живой камерой')
     c.ok(!(await page.getByTestId('chat-input').isVisible()), 'клиент: поле на время записи спрятано')
+    const grow = await page.locator('.chat-video-rec__circle').evaluate(async (el) => {
+      const s = globalThis.getComputedStyle(el)
+      const from = { y: parseFloat(s.getPropertyValue('--grow-y')), scale: parseFloat(s.getPropertyValue('--grow-scale')) }
+      await Promise.all(el.getAnimations().map((a) => a.finished.catch(() => null)))
+      return { growing: el.classList.contains('is-growing'), ...from }
+    })
+    c.ok(grow.growing && grow.y > 100 && grow.scale < 0.5, `клиент: круг вырастает из кнопки 📹, как в Telegram (снизу на ${Math.round(grow.y)} px, ×${grow.scale?.toFixed(2)})`)
     const recBox = await page.locator('.chat-video-rec__circle').boundingBox()
     const panelBox = await page.getByTestId('chat-video-holding').boundingBox()
     const vh = page.viewportSize()?.height ?? 800
@@ -222,8 +244,10 @@ async function client(c, context, chat) {
     await screenshot(page, 'client-chat-video-denied')
     await page.evaluate(() => (globalThis.__camDenied = false))
 
+    const circleFlash = await watchFlash(page, '.chat-video-rec')
     await tap(page, cdp, 'chat-video-button')
     c.ok(await reaches(page.getByTestId('chat-mic')), 'клиент: короткое касание 📹 — снова 🎤')
+    c.ok(!(await circleFlash()), 'клиент: касание 📹 не мигает затемнением и кругом')
     c.ok(await reaches(page.getByTestId('chat-voice-hint').getByText(CHAT_VOICE_MODE_RU)), 'клиент: подсказка «Голосовое: удерживайте 🎤»')
     c.ok(await eventually(async () => (await camOn(page)) === 0), 'клиент: камера не осталась включённой')
   } catch (e) {

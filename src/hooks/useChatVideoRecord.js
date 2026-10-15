@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CHAT_VOICE_MODE_RU, CHAT_VIDEO_BAD_RU, CHAT_VIDEO_MAX_SEC, CHAT_VIDEO_MIN_SEC, CHAT_VIDEO_MODE_RU, CHAT_VIDEO_OFFLINE_RU, CHAT_VIDEO_SHORT_RU } from '../lib/chat/chatVideoCore.js'
 import { isChatVideoSupported, startChatVideo } from '../lib/chat/chatVideoRecorder.js'
-import { isVoiceTap, voiceGesture } from '../lib/chat/chatVoiceCore.js'
+import { CHAT_VOICE_TAP_MS, isVoiceTap, voiceGesture } from '../lib/chat/chatVoiceCore.js'
 import { pauseVoice } from '../lib/chat/chatVoicePlayback.js'
 import { isAppOnline } from '../lib/networkReachability.js'
 
 const HINT_MS = 2500
-const IDLE = { phase: 'idle', stream: null, seconds: 0, dx: 0, dy: 0, error: '', hint: '', result: null }
+const IDLE = { phase: 'idle', armed: false, stream: null, seconds: 0, dx: 0, dy: 0, error: '', hint: '', result: null }
 const toSec = (seconds) => Math.min(CHAT_VIDEO_MAX_SEC, Math.max(1, Math.round(seconds)))
 const buzz = () => navigator.vibrate?.(15)
 
@@ -21,6 +21,7 @@ export function useChatVideoRecord({ send, enabled }) {
   const [mode, setMode] = useState('voice')
   const recRef = useRef(null)
   const runRef = useRef(0)
+  const armRef = useRef(0)
   const originRef = useRef(null)
   const phaseRef = useRef(state.phase)
   const resultRef = useRef(null)
@@ -34,6 +35,7 @@ export function useChatVideoRecord({ send, enabled }) {
   const drop = useCallback(() => {
     runRef.current += 1
     originRef.current = null
+    window.clearTimeout(armRef.current)
     recRef.current?.cancel()
     recRef.current = null
   }, [])
@@ -53,10 +55,19 @@ export function useChatVideoRecord({ send, enabled }) {
     setState((s) => ({ ...s, hint: next === 'video' ? CHAT_VIDEO_MODE_RU : CHAT_VOICE_MODE_RU }))
   }, [])
 
+  /**
+   * Камера включается сразу (ей нужно время), а круг и панель — только когда ясно, что это удержание, а не касание
+   * «переключить на 🎤»: иначе касание мигает затемнением на весь экран.
+   */
   const begin = useCallback(async () => {
     const run = ++runRef.current
     pauseVoice()
-    setState({ ...IDLE, phase: 'holding' })
+    setState({ ...IDLE, phase: 'holding', armed: true })
+    armRef.current = window.setTimeout(() => {
+      if (run !== runRef.current) return
+      buzz()
+      setState((s) => (s.armed ? { ...s, armed: false } : s))
+    }, CHAT_VOICE_TAP_MS)
     try {
       const rec = await startChatVideo()
       if (run !== runRef.current) {
@@ -140,7 +151,8 @@ export function useChatVideoRecord({ send, enabled }) {
       } else if (gesture === 'lock') {
         buzz()
         originRef.current = null
-        setState((s) => ({ ...s, phase: 'locked', dx: 0, dy: 0 }))
+        window.clearTimeout(armRef.current)
+        setState((s) => ({ ...s, phase: 'locked', armed: false, dx: 0, dy: 0 }))
       } else setState((s) => ({ ...s, dx, dy }))
     },
     [cancel],

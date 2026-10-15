@@ -7,6 +7,7 @@ import {
   CHAT_VOICE_OFFLINE_RU,
   CHAT_VOICE_ONCE_ON_RU,
   CHAT_VOICE_SHORT_RU,
+  CHAT_VOICE_TAP_MS,
   isVoiceTap,
   voiceGesture,
 } from '../lib/chat/chatVoiceCore.js'
@@ -22,6 +23,7 @@ const HINT_MS = 2500
 const FULL = [0, 1]
 const IDLE = {
   phase: 'idle',
+  armed: false,
   ready: false,
   seconds: 0,
   levels: [],
@@ -58,6 +60,7 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
   onTapRef.current = onTap
   const recRef = useRef(null)
   const runRef = useRef(0)
+  const armRef = useRef(0)
   const originRef = useRef(null)
   const phaseRef = useRef(state.phase)
   const resultRef = useRef(null)
@@ -75,6 +78,7 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
   const drop = useCallback(() => {
     runRef.current += 1
     originRef.current = null
+    window.clearTimeout(armRef.current)
     recRef.current?.cancel()
     recRef.current = null
   }, [])
@@ -120,10 +124,15 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
     setState(IDLE)
   }, [drop])
 
+  /** Микрофон включается сразу, панель записи — только после порога касания: касание «переключить на 📹» не мигает. */
   const begin = useCallback(async () => {
     const run = ++runRef.current
     pauseVoice()
-    setState({ ...IDLE, phase: 'holding' })
+    setState({ ...IDLE, phase: 'holding', armed: true })
+    armRef.current = window.setTimeout(() => {
+      if (run !== runRef.current) return
+      setState((s) => (s.armed ? { ...s, armed: false } : s))
+    }, CHAT_VOICE_TAP_MS)
     try {
       const rec = await startChatVoice({
         onLevel: (level) =>
@@ -269,7 +278,8 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
       } else if (gesture === 'lock') {
         buzz()
         originRef.current = null
-        setState((s) => ({ ...s, phase: 'locked', dx: 0, dy: 0 }))
+        window.clearTimeout(armRef.current)
+        setState((s) => ({ ...s, phase: 'locked', armed: false, dx: 0, dy: 0 }))
       } else setState((s) => ({ ...s, dx, dy }))
     },
     [cancel],
@@ -281,7 +291,10 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
     originRef.current = null
     if (!o || phaseRef.current !== 'holding') return
     if (isVoiceTap(e.timeStamp - o.at)) {
-      if (o.mouse) setState((s) => ({ ...s, phase: 'locked', dx: 0, dy: 0 }))
+      if (o.mouse) {
+        window.clearTimeout(armRef.current)
+        setState((s) => ({ ...s, phase: 'locked', armed: false, dx: 0, dy: 0 }))
+      }
       else {
         drop()
         setState(onTapRef.current ? IDLE : { ...IDLE, hint: CHAT_VOICE_HOLD_RU })

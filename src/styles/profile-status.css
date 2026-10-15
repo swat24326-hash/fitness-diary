@@ -56,6 +56,11 @@
 
 .profile-status__grid {
   display: grid;
+  gap: 2px;
+}
+
+.profile-status__row {
+  display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 4px;
 }
@@ -95,7 +100,12 @@
 }
 
 @media (max-width: 380px) {
-  .profile-status__grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+  .profile-status__emoji {
+    min-height: 34px;
+  }
+
+  .profile-status__emoji .profile-status-mark__glyph {
+    width: 22px;
+    height: 22px;
   }
 }

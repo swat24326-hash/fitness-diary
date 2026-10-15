@@ -178,6 +178,11 @@
   -webkit-touch-callout: none;
 }
 
+/* 🎤 ↔ 📹: новый значок проявляется с поворотом, как в Telegram. */
+.chat-voice-btn__mic > svg {
+  animation: chat-voice-swap 0.2s var(--ease-out, ease);
+}
+
 .chat-voice-btn__mic:hover,
 .chat-voice-btn__mic:focus-visible {
   color: var(--accent-bright, var(--accent));
@@ -581,8 +586,16 @@
   }
 }
 
+@keyframes chat-voice-swap {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-45deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-voice-rec__dot,
+  .chat-voice-btn__mic > svg,
   .chat-voice-btn__lock,
   .chat-voice__spin {
     animation: none;
