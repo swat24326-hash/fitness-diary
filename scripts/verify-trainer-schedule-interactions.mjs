@@ -37,6 +37,7 @@ import {
   scheduleKindFormMode,
 } from '../src/lib/trainer/trainerScheduleKindCore.js'
 import { normalizeTrainerSchedulePushPayload } from '../src/lib/trainer/trainerSchedulePushPayload.js'
+import { isScheduleEntryUnsent, scheduleMoveNotice } from '../src/lib/trainer/trainerScheduleDeliveryCore.js'
 
 let failed = 0
 
@@ -199,6 +200,20 @@ ok(scheduleKindFormMode('group') === 'either', 'form: group → either')
   ok(normalizeTrainerSchedulePushPayload({ ...base, kind: 'work' })?.kind === null, 'push: work with clients → null')
   ok(normalizeTrainerSchedulePushPayload({ ...base, kind: 'hack' })?.kind === null, 'push: unknown kind → null')
   ok(normalizeTrainerSchedulePushPayload({ ...base, kind: null })?.kind === null, 'push: explicit null resets')
+}
+
+/* --- Доставка переноса на сервер (INC-2026-10-15-06) --- */
+ok(isScheduleEntryUnsent({ synced: false }), 'unsent: synced false')
+ok(!isScheduleEntryUnsent({ synced: true }) && !isScheduleEntryUnsent({}), 'unsent: synced/pulled row is sent')
+{
+  const when = 'Пт 16.10, 17:00'
+  const sent = scheduleMoveNotice(when, 'sent')
+  ok(sent.tone === 'info' && sent.text.includes('напоминание тоже'), 'move notice: sent → reminder moved too')
+  ok(scheduleMoveNotice(when, 'sending').tone === 'info', 'move notice: sending is calm')
+  for (const d of ['pending', 'offline']) {
+    const n = scheduleMoveNotice(when, d)
+    ok(n.tone === 'warn' && n.text.includes('по старому времени') && n.text.includes(when), `move notice: ${d} warns about old reminder`)
+  }
 }
 
 if (failed) {

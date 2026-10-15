@@ -7709,7 +7709,7 @@ tr:last-child td {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 24px 16px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 16px 24px;
   overflow-y: auto;
   animation: fade-in-up 0.25s var(--ease-out) backwards;
 }
@@ -7727,7 +7727,7 @@ tr:last-child td {
 
 @media (max-width: 900px) {
   .modal-overlay {
-    padding: 18px 12px;
+    padding: calc(18px + env(safe-area-inset-top, 0px)) 12px 18px;
     align-items: stretch;
   }
 
@@ -7740,7 +7740,7 @@ tr:last-child td {
 
 @media (max-width: 560px) {
   .modal-overlay {
-    padding: 12px 10px calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 10px calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
   .modal-panel {
@@ -7935,7 +7935,7 @@ tr:last-child td {
     height: 100dvh;
     max-height: 100dvh;
     border-radius: 0;
-    padding: 16px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(12px + env(safe-area-inset-bottom, 0px));
   }
 }
 

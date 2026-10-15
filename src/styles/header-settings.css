@@ -1,45 +1,34 @@
-/* «Настройки» в бургер-меню шапки: свёрнутый блок служебных пунктов. */
-.header-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* Пункты настроек сотрудника (в «Мой профиль»): переключатели push и звуков, QR для телефона. */
+
+.coach-qr-panel {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: center;
 }
 
-/* Раскрытые «Настройки» выше экрана планшета в альбомной ориентации — меню прокручивается, «Выйти» доступен. */
-.app-header__dropdown {
-  max-height: calc(100dvh - 88px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.header-settings__label {
+.coach-qr-panel__label {
   flex: 1;
 }
 
-.header-settings__dot {
-  width: 10px;
-  height: 10px;
-  background: #ff5252;
-  border: 2px solid #fff;
-  border-radius: 2px;
-  box-shadow: 0 0 0 1px #0a0f0c;
-}
-
-.header-settings__chevron {
+.coach-qr-panel__chevron {
   color: var(--text-muted);
   transition: transform 0.2s var(--ease-out);
 }
 
-.header-settings__chevron--open {
+.coach-qr-panel__chevron--open {
   transform: rotate(180deg);
 }
 
-.header-settings__items {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-left: 10px;
-  border-left: 2px solid rgba(94, 232, 132, 0.18);
+/* Меню выше экрана планшета в альбомной ориентации — прокручивается, «Выйти» доступен. */
+.app-header__dropdown {
+  max-height: calc(100dvh - 88px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .header-push__row {

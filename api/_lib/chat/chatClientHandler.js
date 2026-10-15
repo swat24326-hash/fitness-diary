@@ -40,6 +40,7 @@ async function listThreads(db, client) {
       label: chatKindLabelRu(kind),
       name: kind === 'trainer' ? (trainer?.name ?? '') : '',
       photo: kind === 'trainer' ? (trainer?.photo ?? null) : null,
+      status: kind === 'trainer' ? (trainer?.status ?? null) : null,
       last_preview: t?.last_preview ?? '',
       last_message_at: t?.last_message_at ?? null,
       last_author: t?.last_author ?? null,
@@ -76,7 +77,7 @@ export async function handleClientChatPost(db, ctx, body, res) {
         kind === 'trainer' ? loadStaffCards(db, [client.trainer_id]) : new Map(),
       ])
       const trainer = cards.get(String(client.trainer_id ?? ''))
-      sendJson(res, 200, { ...page, kind, name: trainer?.name ?? '', photo: trainer?.photo ?? null })
+      sendJson(res, 200, { ...page, kind, name: trainer?.name ?? '', photo: trainer?.photo ?? null, status: trainer?.status ?? null })
       return
     }
     if (body.action === 'chat-send') {

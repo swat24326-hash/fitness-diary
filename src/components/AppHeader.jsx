@@ -4,12 +4,13 @@ import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
-import { AlertTriangle, BarChart3, CalendarDays, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, UserCircle, Building2 } from 'lucide-react'
-import { HeaderSettingsMenu, HeaderStaffSettingsItems } from './header/HeaderSettingsMenu.jsx'
-import { HeaderSettingsModals } from './header/HeaderSettingsModals.jsx'
+import { BarChart3, CalendarDays, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, UserCircle, Building2 } from 'lucide-react'
 import { HeaderClubSwitcher } from './header/HeaderClubSwitcher.jsx'
-import { ProfileMenuUser } from './profile/ProfileMenuUser.jsx'
+import { HeaderProfileSheet } from './header/HeaderProfileSheet.jsx'
+import { HeaderProfileSettings } from './header/HeaderProfileSettings.jsx'
+import { ProfileMenuRow } from './profile/ProfileMenuRow.jsx'
 import { staffAvatarApi } from '../lib/profile/staffAvatarApi.js'
+import { useMyAvatar } from '../hooks/useMyAvatar.js'
 import { useAdminClubContext } from './header/useAdminClubContext.js'
 import { IskraOrb } from './iskra/IskraOrb.jsx'
 import { productBrandDocumentTitle } from '../lib/productBrand.js'
@@ -49,6 +50,11 @@ export function AppHeader() {
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = useCallback(() => setMenuOpen(false), [])
+  const [profileOpen, setProfileOpen] = useState(false)
+  const openProfile = useCallback(() => setProfileOpen(true), [])
+  const closeProfile = useCallback(() => setProfileOpen(false), [])
+  const myName = user?.name ?? user?.email ?? ''
+  const myAvatar = useMyAvatar(staffAvatarApi, `u:${user?.id ?? ''}`)
   const {
     mode: iskraMode,
     trainerId: geminiTrainerId,
@@ -66,7 +72,6 @@ export function AppHeader() {
   const [inboxPending, setInboxPending] = useState(0)
   const [updatePending, setUpdatePending] = useState(false)
   const [recoverBusy, setRecoverBusy] = useState(false)
-  const [settingsModal, setSettingsModal] = useState(null)
   const isTrainerRole = !isAdmin && !isSalesManager && !isSupervisor
   useStaffPushSelfHeal(String(user?.club_id ?? '').trim(), Boolean(user && supabaseReady))
 
@@ -200,11 +205,6 @@ export function AppHeader() {
       window.removeEventListener('keydown', onKey)
     }
   }, [menuOpen])
-
-  const openSettingsModal = (which) => {
-    setMenuOpen(false)
-    setSettingsModal(which)
-  }
 
   const doSignOut = () => {
     setMenuOpen(false)
@@ -535,14 +535,23 @@ export function AppHeader() {
         </button>
         {menuOpen && (
           <div id="app-header-account-menu" className="app-header__dropdown" role="region" aria-label="Аккаунт и синхронизация">
-            <ProfileMenuUser name={user?.name ?? user?.email ?? ''} api={staffAvatarApi} cacheKey={`u:${user?.id ?? ''}`}>
+            <ProfileMenuRow
+              name={myName}
+              avatar={myAvatar}
+              hint="Мой профиль и настройки"
+              attention={needsAttention || updatePending}
+              onClick={() => {
+                setMenuOpen(false)
+                openProfile()
+              }}
+            >
               {!supabaseReady || (!isAdmin && !online) ? (
                 <>
                   <br />
                   {!supabaseReady ? 'локально' : 'офлайн'}
                 </>
               ) : null}
-            </ProfileMenuUser>
+            </ProfileMenuRow>
             <div className="app-header__menu-nav" aria-label="Разделы">
               {isAdmin ? (
                 <>
@@ -623,64 +632,6 @@ export function AppHeader() {
                 </>
               )}
             </div>
-            <HeaderSettingsMenu attention={needsAttention || updatePending}>
-              {supabaseReady ? (
-                <button
-                  type="button"
-                  className="app-header__menu-item"
-                  disabled={syncBusy}
-                  onClick={() => void syncNow()}
-                >
-                  <RefreshCw size={18} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
-                  {syncBusy
-                    ? syncProgress.label
-                      ? `${syncProgress.percent}% — ${syncProgress.label}`
-                      : `Синхронизация… ${syncProgress.percent}%`
-                    : syncMenuLabel}
-                </button>
-              ) : null}
-              <HeaderStaffSettingsItems
-                showPush={supabaseReady}
-                showChatSound={supabaseReady && (isDispatchInboxUser || isAdmin)}
-                showPhoneQr={supabaseReady && isTrainerRole}
-                showScheduleReminders={isTrainerRole}
-                clubId={String(user?.club_id ?? '').trim()}
-                onOpen={openSettingsModal}
-              />
-              <button
-                type="button"
-                className="app-header__menu-item"
-                disabled={recoverBusy}
-                onClick={() => void doRecoverApp()}
-              >
-                <RefreshCw size={18} className={recoverBusy ? 'icon-spin' : undefined} aria-hidden />
-                {recoverBusy ? 'Восстанавливаем…' : 'Восстановить приложение'}
-              </button>
-              <button
-                type="button"
-                className="app-header__menu-item app-header__menu-item--journal"
-                onClick={openErrorJournal}
-              >
-                <span className="app-header__menu-item-main">
-                  {isAdmin ? <AlertTriangle size={18} aria-hidden /> : <CircleHelp size={18} aria-hidden />}
-                  {isAdmin ? 'Журнал ошибок' : 'Помощь'}
-                </span>
-                {persistentErrorCount > 0 || updatePending ? (
-                  <span
-                    className="app-header__error-badge"
-                    aria-label={
-                      updatePending && persistentErrorCount > 0
-                        ? `Обновление отложено; записей в журнале: ${persistentErrorCount}`
-                        : updatePending
-                          ? 'Доступна новая версия'
-                          : `Записей в журнале: ${persistentErrorCount}`
-                    }
-                  >
-                    {persistentErrorCount > 0 ? (persistentErrorCount > 99 ? '99+' : persistentErrorCount) : '↑'}
-                  </span>
-                ) : null}
-              </button>
-            </HeaderSettingsMenu>
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>
               <LogOut size={18} aria-hidden />
               Выйти
@@ -689,6 +640,47 @@ export function AppHeader() {
         )}
       </div>
     </header>
+    {user ? (
+      <HeaderProfileSheet
+        open={profileOpen}
+        onOpen={openProfile}
+        onClose={closeProfile}
+        name={myName}
+        avatar={myAvatar}
+        isTrainer={isTrainer}
+        settings={
+          <HeaderProfileSettings
+            sync={{
+              ready: supabaseReady,
+              busy: syncBusy,
+              run: () => void syncNow(),
+              label: syncBusy
+                ? syncProgress.label
+                  ? `${syncProgress.percent}% — ${syncProgress.label}`
+                  : `Синхронизация… ${syncProgress.percent}%`
+                : syncMenuLabel,
+            }}
+            items={{
+              showPush: supabaseReady,
+              showChatSound: supabaseReady && (isDispatchInboxUser || isAdmin),
+              showPhoneQr: supabaseReady && isTrainerRole,
+              showScheduleReminders: isTrainerRole,
+              clubId: String(user?.club_id ?? '').trim(),
+            }}
+            recover={{ busy: recoverBusy, run: () => void doRecoverApp() }}
+            journal={{
+              isAdmin,
+              errorCount: persistentErrorCount,
+              updatePending,
+              open: () => {
+                closeProfile()
+                openErrorJournal()
+              },
+            }}
+          />
+        }
+      />
+    ) : null}
     <AppErrorJournalModal
       open={errorJournalOpen}
       onClose={() => setErrorJournalOpen(false)}
@@ -699,7 +691,6 @@ export function AppHeader() {
       syncBusy={syncBusy}
       onSignOut={doSignOut}
     />
-    <HeaderSettingsModals which={settingsModal} onClose={() => setSettingsModal(null)} />
     {isDispatchInboxUser ? (
       <TrainerInboxPanel
         open={inboxOpen}

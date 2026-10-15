@@ -134,7 +134,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 | Роль | Пути |
 |------|------|
-| trainer | `/trainer` (главная: плитки **Ежедневник · Клиенты · Профиль** в один ряд на планшете), `/trainer/calendar`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
+| trainer | `/trainer` (главная: плитки **Ежедневник · Клиенты · Профиль** в один ряд на планшете), `/trainer/calendar`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile` (зарплата и статистика; сверху фото и шестерёнка → окно «Мой профиль» из шапки), челленджи |
 | sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log`, `/sales/call-log` |
 | supervisor | `/club`, `/club/clients`, `/club/call-log`, `/club/trainer-schedule`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
 | trainer на телефоне | `/coach`, `/coach/chats`, `/coach/chat/:clientId`, `/coach/more` — без `AuthContext`, свой вход с разрешения админа (`src/lib/coach/`), API `/api/coach-auth` и `/api/coach`, только онлайн, без IndexedDB и sync. [COACH_APP.md](./COACH_APP.md) |

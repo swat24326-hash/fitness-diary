@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { isScheduleEntryUnsent } from '../lib/trainer/trainerScheduleDeliveryCore.js'
 import { listClientsByTrainerId } from '../lib/localDbClubQuery'
 import { listTrainerScheduleEntries } from '../lib/trainer/trainerScheduleService'
 import { loadTrainingsByIds } from '../lib/trainer/trainerScheduleTrainingService.js'
@@ -6,6 +7,8 @@ import {
   useDebouncedStorageReload,
 } from '../lib/useDebouncedStorageReload.js'
 import { shouldReloadTrainerScheduleData } from '../lib/trainer/trainerScheduleCore.js'
+
+const UNSENT_RECHECK_MS = 5000
 
 /**
  * @param {string | undefined | null} trainerId
@@ -56,6 +59,16 @@ export function useTrainerScheduleData(trainerId, clubId) {
   useDebouncedStorageReload(() => reload({ silent: true }), {
     shouldRun: shouldReloadTrainerScheduleData,
   })
+
+  /* Очередь отправляет запись в фоне без события экрану — пока есть «не отправлено», перечитываем IDB. */
+  const hasUnsent = entries.some(isScheduleEntryUnsent)
+  useEffect(() => {
+    if (!hasUnsent) return undefined
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void reload({ silent: true })
+    }, UNSENT_RECHECK_MS)
+    return () => window.clearInterval(id)
+  }, [hasUnsent, reload])
 
   const clientNameById = useMemo(() => {
     /** @type {Record<string, string>} */

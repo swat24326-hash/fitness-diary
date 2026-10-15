@@ -24,7 +24,7 @@ async function pagedRows(makeQuery) {
  */
 export async function loadTrainerClientContacts(db, trainerId) {
   const clients = await pagedRows(() =>
-    db.from('clients').select('id, name, club_id, trainer_id, archived_at, avatar_key').eq('trainer_id', trainerId).is('archived_at', null).order('id'),
+    db.from('clients').select('id, name, club_id, trainer_id, archived_at, avatar_key, status_emoji, status_until, birth_date').eq('trainer_id', trainerId).is('archived_at', null).order('id'),
   )
   const ids = clients.map((c) => String(c.id))
   const [sessions, threads] = await Promise.all([

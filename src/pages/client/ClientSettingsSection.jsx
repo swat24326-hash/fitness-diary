@@ -1,0 +1,71 @@
+import { Bell, Volume2 } from 'lucide-react'
+import { useChatSoundSetting } from '../../hooks/useChatSoundSetting.js'
+import { useClientApp } from './ClientAppContext.jsx'
+
+const REMINDER_HINT = {
+  install_first: 'На iPhone напоминания работают только в приложении со значка на экране «Домой». Установите его через меню.',
+  denied: 'Уведомления запрещены в настройках телефона. Разрешите их для этого приложения и откройте его снова.',
+  none: 'Напоминания пока недоступны на этом телефоне.',
+}
+
+/** Настройки клиента: напоминания о тренировках, звуки сообщений — в «Мой профиль» и на /me/settings. */
+export function ClientSettingsSection() {
+  const { push } = useClientApp()
+  const sound = useChatSoundSetting('client')
+  const on = push.mode === 'on'
+  const canToggle = on || push.mode === 'off'
+
+  return (
+    <>
+      <section className="client-me-card">
+        <div className="client-settings__row">
+          <span className="client-settings__label">
+            <Bell size={18} aria-hidden />
+            <span>
+              Напоминания о тренировках
+              <small className="client-me-muted">Накануне в 19:00</small>
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label="Напоминания о тренировках"
+            className={`client-switch${on ? ' client-switch--on' : ''}`}
+            disabled={!canToggle || push.busy}
+            onClick={() => void (on ? push.disable() : push.enable())}
+          >
+            <span className="client-switch__knob" />
+          </button>
+        </div>
+        {canToggle || !push.ready ? null : <p className="client-me-muted">{REMINDER_HINT[push.mode] ?? REMINDER_HINT.none}</p>}
+        {push.error ? (
+          <p className="client-onb__error" role="alert">
+            {push.error}
+          </p>
+        ) : null}
+      </section>
+      <section className="client-me-card">
+        <div className="client-settings__row">
+          <span className="client-settings__label">
+            <Volume2 size={18} aria-hidden />
+            <span>
+              Звуки сообщений
+              <small className="client-me-muted">Пока приложение открыто</small>
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={sound.on}
+            aria-label="Звуки сообщений"
+            className={`client-switch${sound.on ? ' client-switch--on' : ''}`}
+            onClick={sound.toggle}
+          >
+            <span className="client-switch__knob" />
+          </button>
+        </div>
+      </section>
+    </>
+  )
+}

@@ -84,6 +84,18 @@
   border-color: color-mix(in srgb, var(--danger) 45%, transparent);
 }
 
+.trainer-schedule-notice--warn {
+  border-color: color-mix(in srgb, var(--warning) 55%, transparent);
+}
+
+.trainer-schedule-day__entry-unsent {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: 4px;
+  color: var(--warning);
+  vertical-align: -2px;
+}
+
 .trainer-schedule-notice__text {
   min-width: 0;
 }

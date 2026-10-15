@@ -46,6 +46,7 @@ export function CoachChatPage() {
           back={<MessengerBack to="/coach/chats" />}
           icon={MessageCircle}
           photo={meta?.client?.photo}
+          status={meta?.client?.status}
           title={name}
           subtitle={chatKindLabelRu(kind)}
           searchHostRef={setSearchHost}

@@ -54,6 +54,7 @@ export function StaffMessengerList({ folder, chats, inbox, open, href }) {
       preview: chatThreadPreviewRu(t, 'staff'),
       avatar: t.client_name,
       photo: t.client_photo,
+      status: t.client_status ?? null,
       unread: t.unread,
       unreadCount: t.unread_count,
       at: t.last_message_at,

@@ -3,7 +3,7 @@ import { Undo2, X } from 'lucide-react'
 /**
  * Плашка внизу экрана ежедневника: итог переноса / повтора, «Отменить».
  * @param {{
- *   notice: { text: string, tone: 'info' | 'error', undoEntry?: object } | null,
+ *   notice: { text: string, tone: 'info' | 'warn' | 'error', undoEntry?: object } | null,
  *   onUndo?: () => void,
  *   onDismiss: () => void,
  * }} props
@@ -13,7 +13,7 @@ export function TrainerScheduleNotice({ notice, onUndo, onDismiss }) {
   return (
     <div
       className={`trainer-schedule-notice trainer-schedule-notice--${notice.tone}`}
-      role={notice.tone === 'error' ? 'alert' : 'status'}
+      role={notice.tone === 'info' ? 'status' : 'alert'}
     >
       <span className="trainer-schedule-notice__text">{notice.text}</span>
       {notice.undoEntry && onUndo ? (

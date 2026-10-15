@@ -7,6 +7,8 @@ import { AVATAR_UNAVAILABLE_RU } from '../../lib/profile/avatarCore.js'
 import { encodeAvatar, openAvatarImage } from '../../lib/profile/avatarPrepare.js'
 import { AvatarCropper } from './AvatarCropper.jsx'
 import { AvatarPhoto } from './AvatarPhoto.jsx'
+import { ProfileStatusMark } from './ProfileStatusMark.jsx'
+import { ProfileStatusPicker } from './ProfileStatusPicker.jsx'
 
 function release(image) {
   if (!image) return
@@ -15,17 +17,32 @@ function release(image) {
 }
 
 /**
- * «Мой профиль», как в Telegram: крупное фото (или инициалы), «Выбрать фото» → обрезка в круг → «Готово», «Удалить фото».
+ * «Мой профиль», как в Telegram: крупное фото (или инициалы), «Выбрать фото» → обрезка в круг → «Готово», «Удалить фото»;
+ * ниже — «Настройки» своего приложения (settings). Пункт, открывающий другое окно, закрывает меню — и это окно вместе с ним.
  * Портал в body: шапка и меню с position:fixed / blur запирали бы окно в своей рамке. mousedown не выпускаем —
  * иначе меню под окном закрылось бы вместе с ним.
- * @param {{ open: boolean, onClose: () => void, name: string, avatar: ReturnType<typeof import('../../hooks/useMyAvatar.js').useMyAvatar> }} props
+ * links — переходы своего приложения сразу под фото, чтобы не листать до них (тренеру — «Статистика и зарплата»).
+ * @param {{ open: boolean, onClose: () => void, name: string, avatar: ReturnType<typeof import('../../hooks/useMyAvatar.js').useMyAvatar>,
+ *   settings?: import('react').ReactNode, links?: import('react').ReactNode }} props
  */
-export function ProfilePhotoSheet({ open, onClose, name, avatar }) {
+export function ProfilePhotoSheet({ open, onClose, name, avatar, settings = null, links = null }) {
   const titleId = useId()
   const fileRef = useRef(null)
   const [image, setImage] = useState(null)
 
   useEffect(() => () => release(image), [image])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || avatar.busy) return
+      if (image) return setImage(null)
+      avatar.setError('')
+      onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, image, avatar, onClose])
 
   if (!open || typeof document === 'undefined') return null
   const { busy, error } = avatar
@@ -71,7 +88,9 @@ export function ProfilePhotoSheet({ open, onClose, name, avatar }) {
               <span className="profile-photo__circle" aria-hidden>
                 <AvatarPhoto src={avatar.photo} fallback={chatInitials(name) || '?'} />
               </span>
-              <strong className="profile-photo__name">{name || 'Без имени'}</strong>
+              <strong className="profile-photo__name">
+                {name || 'Без имени'} <ProfileStatusMark emoji={avatar.status?.emoji} />
+              </strong>
               <small className="muted">Фото видят в переписке клуба</small>
             </div>
             {avatar.ready ? (
@@ -90,12 +109,20 @@ export function ProfilePhotoSheet({ open, onClose, name, avatar }) {
             ) : (
               <p className="muted profile-photo__note">{AVATAR_UNAVAILABLE_RU}</p>
             )}
+            {links ? <div className="profile-photo__links">{links}</div> : null}
+            <ProfileStatusPicker avatar={avatar} />
           </>
         )}
         {error ? (
           <p className="profile-photo__error" role="alert">
             {error}
           </p>
+        ) : null}
+        {settings && !image ? (
+          <section className="profile-photo__settings" aria-label="Настройки" data-testid="profile-settings">
+            <h3 className="profile-photo__settings-title">Настройки</h3>
+            <div className="profile-photo__settings-items">{settings}</div>
+          </section>
         ) : null}
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void pick(e)} data-testid="profile-photo-input" />
       </div>

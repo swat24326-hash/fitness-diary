@@ -6,6 +6,7 @@
  */
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_COLLEAGUES, threadSummary } from './chatContactsCore.js'
 import { avatarPhotoUrl } from '../profile/avatarCore.js'
+import { profileStatusEmoji } from '../profile/profileStatusCore.js'
 import { staffDmFolderOf, staffDmRoleOf, staffDmSideOf, staffDmThreadForViewer } from './staffDmAccessCore.js'
 
 /**
@@ -29,6 +30,7 @@ export function buildStaffContacts({ viewerId, peers, liveUserIds, threads }) {
       id,
       name: String(p.name ?? '').trim(),
       photo: avatarPhotoUrl(p.avatar_key, 'staff', id),
+      status: profileStatusEmoji(p, 'staff'),
       ...(p.club_name ? { club_name: String(p.club_name) } : {}),
       ...(p.club_name && p.club_id ? { club_id: String(p.club_id) } : {}),
       role: staffDmRoleOf(p.role),

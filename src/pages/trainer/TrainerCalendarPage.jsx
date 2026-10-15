@@ -11,6 +11,7 @@ import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerSchedul
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
 import { TrainerScheduleNotice } from '../../components/trainer/TrainerScheduleNotice.jsx'
 import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
+import { waitScheduleEntryDelivery } from '../../lib/trainer/trainerScheduleDeliveryService.js'
 import '../../styles/trainer-schedule.css'
 import '../../styles/trainer-schedule-interactions.css'
 import '../../styles/trainer-schedule-kinds.css'
@@ -27,7 +28,10 @@ export function TrainerCalendarPage() {
     user?.club_id,
   )
 
-  const move = useTrainerScheduleMove({ onSaved: () => void reload({ silent: true }) })
+  const move = useTrainerScheduleMove({
+    onSaved: () => void reload({ silent: true }),
+    confirmDelivery: waitScheduleEntryDelivery,
+  })
 
   const countsByDay = useMemo(
     () => countScheduleEntriesByDay(entries, monthCursor.year, monthCursor.month),
@@ -111,6 +115,8 @@ export function TrainerCalendarPage() {
           void reload({ silent: true })
           if (result?.repeated) {
             move.notify(`Добавлено ещё ${result.repeated} ${pluralRu(result.repeated, 'запись', 'записи', 'записей')}`)
+          } else {
+            move.announceSavedMove(result?.prev, result?.entry)
           }
         }}
       />

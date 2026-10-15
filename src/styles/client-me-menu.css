@@ -127,10 +127,6 @@
   text-decoration: none;
 }
 
-.client-menu__item--active {
-  color: var(--accent-bright);
-}
-
 .client-settings__row {
   display: flex;
   align-items: center;

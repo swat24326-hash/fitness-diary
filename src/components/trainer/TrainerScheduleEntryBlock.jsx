@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { Check, Play } from 'lucide-react'
+import { Check, CloudOff, Play } from 'lucide-react'
+import { SCHEDULE_UNSENT_TITLE, isScheduleEntryUnsent } from '../../lib/trainer/trainerScheduleDeliveryCore.js'
 import {
   buildScheduleEntryGridLines,
   buildScheduleEntryLabel,
@@ -71,11 +72,22 @@ export function TrainerScheduleEntryBlock({
   const kind = resolveScheduleEntryKind(entry)
   const state = resolveScheduleEntryState(entry, linkedTraining, now)
   const titleParts = [formatScheduleTimeRange(entry), scheduleKindLabel(kind), trainerName, label].filter(Boolean)
-  const doneMark = state.done ? (
-    <span className="trainer-schedule-day__entry-done" aria-hidden>
-      <Check size={12} strokeWidth={3} />
-    </span>
-  ) : null
+  const unsent = !readOnly && !ghost && isScheduleEntryUnsent(entry)
+  if (unsent) titleParts.push(SCHEDULE_UNSENT_TITLE)
+  const doneMark = (
+    <>
+      {state.done ? (
+        <span className="trainer-schedule-day__entry-done" aria-hidden>
+          <Check size={12} strokeWidth={3} />
+        </span>
+      ) : null}
+      {unsent ? (
+        <span className="trainer-schedule-day__entry-unsent" aria-hidden>
+          <CloudOff size={12} strokeWidth={2.5} />
+        </span>
+      ) : null}
+    </>
+  )
   const showStart =
     canStartTraining &&
     !readOnly &&

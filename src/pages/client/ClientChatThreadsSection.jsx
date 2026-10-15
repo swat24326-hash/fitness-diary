@@ -22,6 +22,7 @@ export function ClientChatThreadsSection({ threads, error }) {
     preview: chatThreadPreviewRu(t, 'client'),
     avatar: t.kind === 'trainer' ? t.name : '',
     photo: t.photo ?? null,
+    status: t.status ?? null,
     unread: t.unread,
     unreadCount: t.unread_count,
     at: t.last_message_at,

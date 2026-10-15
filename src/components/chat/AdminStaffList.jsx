@@ -21,6 +21,7 @@ function PersonRows({ people, hrefFor, selectedId }) {
             title={p.club_title ? `${p.name || 'Без имени'} · ${p.club_title}` : p.name || 'Без имени'}
             avatar={p.name}
             photo={p.photo}
+            status={p.status}
             preview={previewOf(p)}
             unread={p.unread}
             unreadCount={p.unread_count}

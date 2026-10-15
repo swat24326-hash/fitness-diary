@@ -30,7 +30,7 @@ import { TrainerScheduleClientPicker } from './TrainerScheduleClientPicker.jsx'
  *   actions?: typeof trainerScheduleLocalActions,
  *   canStartTraining?: boolean,
  *   onClose: () => void,
- *   onSaved: (result?: { repeated: number }) => void,
+ *   onSaved: (result?: { repeated: number, prev?: object | null, entry?: object | null }) => void,
  * }} props
  * canStartTraining=false — телефон: без кнопки тренировки и карточки клиента (их нет на личном устройстве).
  */
@@ -118,7 +118,7 @@ export function TrainerScheduleEntryModal({
           return
         }
       }
-      onSaved({ repeated })
+      onSaved({ repeated, prev: draft?.id ? draft : null, entry: res.entry ?? null })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка сохранения')

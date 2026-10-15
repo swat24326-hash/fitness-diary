@@ -38,6 +38,7 @@ export function CoachDmPage() {
           back={<MessengerBack to="/coach/chats" />}
           icon={MessageCircle}
           photo={peer?.photo}
+          status={peer?.status}
           title={peer?.name || 'Сотрудник'}
           subtitle={peer?.label || ''}
           searchHostRef={setSearchHost}

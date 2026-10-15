@@ -5,6 +5,7 @@
 import { chatUnreadCount, isChatUnreadFor } from './chatAccessCore.js'
 import { chatUnseenReaction } from './chatReactionCore.js'
 import { avatarPhotoUrl } from '../profile/avatarCore.js'
+import { profileStatusEmoji } from '../profile/profileStatusCore.js'
 
 export const CHAT_FOLDER_CLIENTS = 'clients'
 export const CHAT_FOLDER_COLLEAGUES = 'colleagues'
@@ -53,6 +54,7 @@ export function buildClientContacts({ clients, liveClientIds, threads }) {
       id,
       name: String(c.name ?? '').trim(),
       photo: avatarPhotoUrl(c.avatar_key, 'client', id),
+      status: profileStatusEmoji(c, 'client'),
       has_app: live.has(id) || summary.unread,
       has_thread: byClient.has(id),
       ...summary,
@@ -69,7 +71,7 @@ export function buildThreadContacts(threads, clients) {
   return (threads ?? []).map((t) => {
     const id = String(t.client_id)
     const c = clients.get(id)
-    return { id, name: String(c?.name ?? '').trim(), photo: avatarPhotoUrl(c?.avatar_key, 'client', id), has_app: true, has_thread: true, ...threadSummary(t) }
+    return { id, name: String(c?.name ?? '').trim(), photo: avatarPhotoUrl(c?.avatar_key, 'client', id), status: profileStatusEmoji(c, 'client'), has_app: true, has_thread: true, ...threadSummary(t) }
   })
 }
 

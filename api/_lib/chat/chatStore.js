@@ -4,6 +4,7 @@
 import { chatReadCutoff, isUniqueViolation, mergeChatThreads } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chronological } from '../../../src/lib/chat/chatMessageCore.js'
 import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
+import { profileStatusEmoji } from '../../../src/lib/profile/profileStatusCore.js'
 import { loadInChunks } from '../batchCore.js'
 import { rows } from '../inbox/inboxStore.js'
 import { ATTACH_FIELDS, attachColumns } from './chatAttachStore.js'
@@ -27,7 +28,7 @@ export function isMissingChatTable(e) {
 }
 
 /** Клиент в переписке: права (club_id, trainer_id, archived_at) и фото профиля. */
-const CHAT_CLIENT_FIELDS = 'id, name, club_id, trainer_id, archived_at, avatar_key'
+const CHAT_CLIENT_FIELDS = 'id, name, club_id, trainer_id, archived_at, avatar_key, status_emoji, status_until, birth_date'
 
 export async function loadChatClient(db, clientId) {
   const { data, error } = await db
@@ -83,12 +84,14 @@ export async function loadStaffNames(db, ids) {
   return new Map(users.map((u) => [String(u.id), String(u.name ?? '').trim()]))
 }
 
-/** Сотрудники по id → { name, photo } (имя и фото тренера у клиента в списке и шапке диалога). */
+/** Сотрудники по id → { name, photo, status } (имя, фото и смайлик-статус тренера у клиента в списке и шапке диалога). */
 export async function loadStaffCards(db, ids) {
   const unique = [...new Set(ids.filter(Boolean).map(String))]
   if (!unique.length) return new Map()
-  const users = await rows(db.from('users').select('id, name, avatar_key').in('id', unique))
-  return new Map(users.map((u) => [String(u.id), { name: String(u.name ?? '').trim(), photo: avatarPhotoUrl(u.avatar_key, 'staff', u.id) }]))
+  const users = await rows(db.from('users').select('id, name, avatar_key, status_emoji, status_until').in('id', unique))
+  return new Map(
+    users.map((u) => [String(u.id), { name: String(u.name ?? '').trim(), photo: avatarPhotoUrl(u.avatar_key, 'staff', u.id), status: profileStatusEmoji(u, 'staff') }]),
+  )
 }
 
 /** Последняя страница ленты (по возрастанию); before — ISO-время самого старого показанного сообщения. */

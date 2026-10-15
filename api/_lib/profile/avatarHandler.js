@@ -16,6 +16,7 @@ import {
   isAvatarKey,
   isAvatarMime,
 } from '../../../src/lib/profile/avatarCore.js'
+import { activeOwnStatus, checkProfileStatusInput } from '../../../src/lib/profile/profileStatusCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { chatVoiceStorageMode, deleteVoice, getVoice, putVoice } from '../chat/chatVoiceStorage.js'
 
@@ -23,14 +24,14 @@ import { chatVoiceStorageMode, deleteVoice, getVoice, putVoice } from '../chat/c
 
 const TABLE_SIDE = { users: 'staff', clients: 'client' }
 
-async function readKey(db, owner) {
-  const { data, error } = await db.from(owner.table).select('avatar_key').eq('id', owner.id).maybeSingle()
+async function readRow(db, owner) {
+  const { data, error } = await db.from(owner.table).select('avatar_key, status_emoji, status_until').eq('id', owner.id).maybeSingle()
   if (error) throw error
-  return data?.avatar_key ?? null
+  return data ?? {}
 }
 
-async function writeKey(db, owner, key) {
-  const { error } = await db.from(owner.table).update({ avatar_key: key }).eq('id', owner.id)
+async function writeRow(db, owner, patch) {
+  const { error } = await db.from(owner.table).update(patch).eq('id', owner.id)
   if (error) throw error
 }
 
@@ -43,22 +44,34 @@ async function dropFile(key) {
   }
 }
 
-const view = (owner, key) => ({ photo: avatarPhotoUrl(key, owner.side, owner.id), ready: chatVoiceStorageMode() != null })
+const view = (owner, key, row) => ({
+  photo: avatarPhotoUrl(key, owner.side, owner.id),
+  ready: chatVoiceStorageMode() != null,
+  status: activeOwnStatus(row),
+})
 
 /**
  * @param {AvatarOwner} owner — только сам человек (id из его входа, не из запроса)
- * @param {'get'|'set'|'delete'} op
+ * @param {'get'|'set'|'delete'|'status'} op — status: { emoji, duration } смайлик рядом с именем (profileStatusCore.js)
  * @returns {Promise<{ status: number, body: object }>}
  */
 export async function avatarOp(db, owner, op, input) {
   if (TABLE_SIDE[owner.table] !== owner.side || !owner.id) return { status: 403, body: { error: AVATAR_FAILED_RU } }
-  const old = await readKey(db, owner)
-  if (op === 'get') return { status: 200, body: view(owner, old) }
+  const row = await readRow(db, owner)
+  const old = row.avatar_key ?? null
+  if (op === 'get') return { status: 200, body: view(owner, old, row) }
+  if (op === 'status') {
+    const checked = checkProfileStatusInput(input)
+    if (!checked.ok) return { status: 400, body: { error: checked.error } }
+    const patch = { status_emoji: checked.emoji, status_until: checked.until }
+    await writeRow(db, owner, patch)
+    return { status: 200, body: view(owner, old, patch) }
+  }
   if (op !== 'set' && op !== 'delete') return { status: 400, body: { error: 'Неизвестное действие' } }
   if (op === 'delete') {
-    await writeKey(db, owner, null)
+    await writeRow(db, owner, { avatar_key: null })
     await dropFile(old)
-    return { status: 200, body: view(owner, null) }
+    return { status: 200, body: view(owner, null, row) }
   }
   if (!chatVoiceStorageMode()) return { status: 503, body: { error: AVATAR_UNAVAILABLE_RU } }
   const checked = checkAvatarUpload(input)
@@ -73,9 +86,9 @@ export async function avatarOp(db, owner, op, input) {
     console.warn('[avatar]', e?.message || e)
     return { status: 502, body: { error: AVATAR_FAILED_RU } }
   }
-  await writeKey(db, owner, key)
+  await writeRow(db, owner, { avatar_key: key })
   if (old !== key) await dropFile(old)
-  return { status: 200, body: view(owner, key) }
+  return { status: 200, body: view(owner, key, row) }
 }
 
 /** Ответ JSON для op из тела запроса: «avatar-get» → get. */

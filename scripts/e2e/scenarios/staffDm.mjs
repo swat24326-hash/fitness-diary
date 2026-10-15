@@ -433,9 +433,10 @@ async function adminWrites(c, browser, backend, chat) {
     c.ok(await reaches(waiting.first()), 'и в мессенджере сразу «Ждут ответа» с числом — без кнопки «Обновить»')
     c.ok(await reaches(page.getByTestId('staff-people').getByText('Без push')), 'в списке — само новое сообщение')
     await page.getByRole('button', { name: 'Меню аккаунта' }).click()
-    await page.getByRole('button', { name: /Настройки/ }).click()
-    c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'админ: в «Настройках» переключатель «Уведомления», как у всех')
+    await page.getByTestId('profile-menu-user').click()
+    c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'админ: в «Мой профиль» → «Настройки» переключатель «Уведомления», как у всех')
     await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Меню аккаунта' }).click()
     const layout = () =>
       page.evaluate(() => {
         const box = (sel) => globalThis.document.querySelector(sel)?.getBoundingClientRect()

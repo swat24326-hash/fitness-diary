@@ -1,21 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, RefreshCw, Settings, Smartphone } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { LogOut, Menu, RefreshCw, Smartphone } from 'lucide-react'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
 import { postClientMe } from '../../lib/client/clientSession.js'
 import { avatarApiOver } from '../../lib/profile/avatarApi.js'
 import { useClientApp } from './ClientAppContext.jsx'
+import { ClientSettingsSection } from './ClientSettingsSection.jsx'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 const clientAvatarApi = avatarApiOver(postClientMe)
 
-function navClass({ isActive }) {
-  return `app-header__menu-item${isActive ? ' client-menu__item--active' : ''}`
-}
-
 /**
  * Бургер /me — выпадающее меню как у тренера (app-header__dropdown / __menu-item из index.css),
- * все строки одного вида: кто вошёл → разделы → действия → «Выйти». Новый раздел — ещё один NavLink в ClientMenuItems.
+ * все строки одного вида: «Мой профиль» (фото и настройки) → действия → «Выйти».
  * onRefresh — «Обновить» данные открытого экрана (как у тренера — в меню, не в шапке).
  * @param {{ clientName?: string, onLogout: () => void, onRefresh?: (() => void) | null, refreshing?: boolean }} props
  */
@@ -66,11 +63,9 @@ export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, r
   const { installer, onboarding } = useClientApp()
   return (
     <>
-      {clientName ? <ProfileMenuUser name={clientName} api={clientAvatarApi} cacheKey="client" /> : null}
-      <NavLink to="/me/settings" className={navClass} onClick={close}>
-        <Settings size={18} aria-hidden />
-        Настройки
-      </NavLink>
+      {clientName ? (
+        <ProfileMenuUser name={clientName} api={clientAvatarApi} cacheKey="client" settings={<ClientSettingsSection />} />
+      ) : null}
       {installer.mode !== 'none' ? (
         <button
           type="button"

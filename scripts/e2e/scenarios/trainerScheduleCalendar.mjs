@@ -222,6 +222,19 @@ export async function run(browser) {
     )
     c.ok(movedOk, 'сервер: сегодняшняя запись перенесена на 12:00')
     c.ok(await page.getByText(/Перенесено на .*12:00/).isVisible(), 'плашка «Перенесено на … 12:00»')
+    const confirmed = await page
+      .getByText(/Перенесено на .*12:00 · напоминание тоже/)
+      .waitFor({ timeout: 10_000 })
+      .then(() => true, () => false)
+    c.ok(confirmed, 'плашка подтвердила: сервер получил перенос — напоминание тоже перенесено')
+    c.ok(
+      await page
+        .locator('.trainer-schedule-day__entry-unsent')
+        .first()
+        .waitFor({ state: 'detached', timeout: 3_000 })
+        .then(() => true, () => false),
+      'после подтверждения на плитках нет значка «не отправлено»',
+    )
     c.ok(!(await page.getByRole('dialog').isVisible()), 'после переноса форма не открылась')
     await screenshot(page, 'schedule-drag-moved')
 
@@ -231,6 +244,40 @@ export async function run(browser) {
       10_000,
     )
     c.ok(undoOk, 'сервер: «Отменить» вернул запись на 10:00')
+
+    /* Без сети: перенос только на планшете — честное предупреждение и значок, пока очередь не отправит. */
+    await page.getByText(/Перенесено на .*10:00 · напоминание тоже/).waitFor({ timeout: 10_000 }).catch(() => {})
+    backend.cloudDown = true
+    await context.setOffline(true)
+    await scrollBoardTo(page, 9 * 60)
+    const offFrom = await center(entryAt(page, '10:00'))
+    await touchDrag(cdp, page, offFrom, { x: offFrom.x, y: offFrom.y + 60 * PX_PER_MIN })
+    const offWarn = await page
+      .getByText(/еренесено на .*11:00.*по старому времени/)
+      .waitFor({ timeout: 12_000 })
+      .then(() => true, () => false)
+    c.ok(offWarn, 'офлайн: плашка предупреждает, что напоминание придёт по старому времени')
+    c.ok((await page.locator('.trainer-schedule-day__entry-unsent').count()) === 1, 'офлайн: на плитке значок «не отправлено»')
+    await screenshot(page, 'schedule-move-offline')
+    backend.cloudDown = false
+    await context.setOffline(false)
+    const offSynced = await waitFor(
+      () => (state.trainer_schedule_entries ?? []).some((r) => r.day_date === today && r.start_minutes === 660),
+      20_000,
+    )
+    c.ok(offSynced, 'сеть вернулась: сервер получил перенос на 11:00')
+    const markGone = await page
+      .locator('.trainer-schedule-day__entry-unsent')
+      .first()
+      .waitFor({ state: 'detached', timeout: 15_000 })
+      .then(() => true, () => false)
+    c.ok(markGone, 'сеть вернулась: значок «не отправлено» пропал сам')
+    const backFrom = await center(entryAt(page, '11:00'))
+    await touchDrag(cdp, page, backFrom, { x: backFrom.x, y: backFrom.y - 60 * PX_PER_MIN })
+    await waitFor(
+      () => (state.trainer_schedule_entries ?? []).some((r) => r.day_date === today && r.start_minutes === 600),
+      10_000,
+    )
 
     /* Слот с завершённой тренировкой не двигается. */
     await scrollBoardTo(page, 17 * 60)

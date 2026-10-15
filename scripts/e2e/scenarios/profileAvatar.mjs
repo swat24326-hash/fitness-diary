@@ -39,12 +39,40 @@ const loaded = (img) =>
     )
     .catch(() => false)
 
-/** Окно открыто: выбрать фото, подвигать, «Готово», убедиться что легло; затем «Удалить». */
-async function photoFlow(c, page, row, label, shot, readKey) {
+/** Статус рядом с именем: срок «1 час» → смайлик → виден в окне и в строке меню; «Убрать» — пропал везде. */
+async function statusFlow(c, page, sheet, row, label, shot, readStatus, peek) {
+  const picker = sheet.getByTestId('profile-status')
+  await picker.getByRole('button', { name: '1 час' }).click()
+  await picker.getByRole('button', { name: 'Статус 🔥' }).click()
+  await picker.getByTestId('profile-status-clear').waitFor({ timeout: 10_000 })
+  c.ok(readStatus()?.status_emoji === '🔥' && Boolean(readStatus()?.status_until), `${label}: статус 🔥 со сроком записан в профиль`)
+  c.ok((await picker.getByTestId('profile-status-current').innerText()).includes('до '), `${label}: под заголовком — «до …»`)
+  await screenshot(page, `${shot}-status`)
+  await peek(async () => c.ok(await row.getByTestId('profile-status-mark').isVisible(), `${label}: 🔥 рядом с именем в строке меню`))
+  await picker.getByTestId('profile-status-clear').click()
+  await picker.getByTestId('profile-status-clear').waitFor({ state: 'detached', timeout: 10_000 })
+  c.ok(!readStatus()?.status_emoji, `${label}: «Убрать» — статус стёрт`)
+  await peek(async () => c.ok((await row.getByTestId('profile-status-mark').count()) === 0, `${label}: у имени смайлика больше нет`))
+}
+
+/**
+ * Окно открыто: выбрать фото, подвигать, «Готово», убедиться что легло; затем «Удалить»; затем статус.
+ * peek(check) — посмотреть строку меню: у клиента она под окном, у планшета бургер закрыт — закрыть окно, открыть бургер, вернуться.
+ */
+async function photoFlow(c, page, row, label, shot, readRow, peek = (check) => check()) {
+  const readKey = () => readRow()?.avatar_key
+  const readStatus = readRow
   await row.click()
   const sheet = page.getByTestId('profile-photo-sheet')
   c.ok(await sheet.isVisible(), `${label}: «Мой профиль» открылся`)
-  c.ok(await sheet.getByRole('button', { name: 'Выбрать фото' }).isVisible(), `${label}: фото нет — «Выбрать фото»`)
+  c.ok(
+    await sheet
+      .getByRole('button', { name: 'Выбрать фото' })
+      .waitFor({ timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false),
+    `${label}: фото нет — «Выбрать фото»`,
+  )
 
   await page.getByTestId('profile-photo-input').setInputFiles(PNG)
   const stage = page.getByTestId('avatar-crop-stage')
@@ -61,13 +89,14 @@ async function photoFlow(c, page, row, label, shot, readKey) {
   c.ok(await loaded(sheet.locator('img.avatar-photo')), `${label}: после «Готово» фото в кружке загрузилось`)
   c.ok(Boolean(readKey()), `${label}: ключ фото записан в профиль`)
   c.ok(await sheet.getByRole('button', { name: 'Сменить фото' }).isVisible(), `${label}: кнопка стала «Сменить фото»`)
-  c.ok(await loaded(row.locator('img.avatar-photo')), `${label}: фото и в строке меню`)
   await screenshot(page, `${shot}-saved`)
+  await peek(async () => c.ok(await loaded(row.locator('img.avatar-photo')), `${label}: фото и в строке меню`))
 
   await sheet.getByRole('button', { name: 'Удалить' }).click()
   await sheet.getByRole('button', { name: 'Выбрать фото' }).waitFor({ timeout: 10_000 })
   c.ok(!readKey(), `${label}: «Удалить» — ключ стёрт`)
   c.ok((await sheet.locator('img.avatar-photo').count()) === 0, `${label}: в кружке снова инициалы`)
+  await statusFlow(c, page, sheet, row, label, shot, readStatus, peek)
   await sheet.getByRole('button', { name: /Закрыть/ }).click()
   c.ok(!(await sheet.isVisible()), `${label}: окно закрывается`)
 }
@@ -86,7 +115,15 @@ async function client(c, browser) {
     await page.getByRole('button', { name: 'Меню', exact: true }).click()
     const row = page.locator('[data-testid="profile-menu-user"]:visible')
     await row.waitFor({ timeout: 10_000 })
-    const me = () => backend.state.clients.find((x) => x.id === CLIENT_ID)?.avatar_key
+    c.ok((await page.getByRole('region', { name: 'Меню' }).getByRole('link', { name: 'Настройки' }).count()) === 0, 'клиент: отдельного «Настройки» в меню нет')
+    const me = () => backend.state.clients.find((x) => x.id === CLIENT_ID)
+    await row.click()
+    const settings = page.getByTestId('profile-settings')
+    c.ok(await settings.getByRole('switch', { name: 'Напоминания о тренировках' }).isVisible(), 'клиент: в «Мой профиль» — «Напоминания о тренировках»')
+    c.ok(await settings.getByRole('switch', { name: 'Звуки сообщений' }).isVisible(), 'клиент: в «Мой профиль» — «Звуки сообщений»')
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Меню', exact: true }).click()
+    await row.waitFor({ timeout: 10_000 })
     await photoFlow(c, page, row, 'клиент', 'profile-avatar-client', me)
     c.ok(pageErrors.length === 0, `клиент: без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
@@ -105,9 +142,19 @@ async function trainer(c, browser) {
     const row = page.locator('#app-header-account-menu').getByTestId('profile-menu-user')
     await row.waitFor({ timeout: 10_000 })
     c.ok(await row.isVisible(), 'тренер: своё имя сверху меню, «Настройки» раскрывать не нужно')
-    const me = () => backend.state.users.find((x) => x.id === TRAINER_ID)?.avatar_key
-    await photoFlow(c, page, row, 'тренер', 'profile-avatar-trainer', me)
-    c.ok(await page.locator('#app-header-account-menu').isVisible(), 'тренер: меню под окном не закрылось')
+    const me = () => backend.state.users.find((x) => x.id === TRAINER_ID)
+    const sheet = page.getByTestId('profile-photo-sheet')
+    const peek = async (check) => {
+      await sheet.getByRole('button', { name: /Закрыть/ }).click()
+      await sheet.waitFor({ state: 'detached', timeout: 10_000 })
+      await page.getByRole('button', { name: 'Меню аккаунта' }).click()
+      await row.waitFor({ timeout: 10_000 })
+      await check()
+      await row.click()
+      await sheet.waitFor({ timeout: 10_000 })
+    }
+    await photoFlow(c, page, row, 'тренер', 'profile-avatar-trainer', me, peek)
+    c.ok(!(await page.locator('#app-header-account-menu').isVisible()), 'тренер: окно поверх, бургер под ним закрыт')
     c.ok(pageErrors.length === 0, `тренер: без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
     await screenshot(page, 'profile-avatar-trainer-FAIL').catch(() => null)

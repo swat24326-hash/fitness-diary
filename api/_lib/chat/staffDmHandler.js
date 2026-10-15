@@ -20,6 +20,7 @@ import {
 } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { CHAT_REACTION_GONE_RU, chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
+import { profileStatusEmoji } from '../../../src/lib/profile/profileStatusCore.js'
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
@@ -116,6 +117,7 @@ export function sendStaffDmThread(authCtx, res, peerId, before, seen) {
         id: String(peer.id),
         name: person ?? String(peer.name ?? '').trim(),
         photo: avatarPhotoUrl(peer.avatar_key, 'staff', peer.id),
+        status: profileStatusEmoji(peer, 'staff'),
         label: person ? LINKED_ROLE_LABEL_RU : staffRoleLabelRu(peer.role),
       },
       can_write: (await dmWriteAccess(db, viewer, peer)).ok,

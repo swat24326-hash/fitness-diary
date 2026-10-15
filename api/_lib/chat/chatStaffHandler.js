@@ -34,6 +34,7 @@ import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatRe
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
+import { profileStatusEmoji } from '../../../src/lib/profile/profileStatusCore.js'
 import { sendChatFileAnswer } from './chatAttachHandler.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
@@ -73,6 +74,7 @@ async function listThreads(ctx, scope) {
       client_id: String(t.client_id),
       client_name: client.name ?? '',
       client_photo: avatarPhotoUrl(client.avatar_key, 'client', client.id),
+      client_status: profileStatusEmoji(client, 'client'),
       kind: t.kind,
       label: chatKindLabelRu(t.kind),
       last_preview: t.last_preview ?? '',
@@ -142,6 +144,7 @@ export async function handleStaffChatGet(ctx, req, res) {
         id: String(client.id),
         name: client.name ?? '',
         photo: avatarPhotoUrl(client.avatar_key, 'client', client.id),
+        status: profileStatusEmoji(client, 'client'),
         archived: Boolean(client.archived_at),
         archived_at: client.archived_at ?? null,
       },

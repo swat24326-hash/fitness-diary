@@ -1,14 +1,15 @@
 /* Просмотр тренировки (дневник → глаз). Оверлей — portal в body. */
 
 .training-view-overlay {
+  --tv-safe-y: calc(env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
   z-index: 1200;
-  padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(20px + env(safe-area-inset-bottom, 0px));
 }
 
 .modal-panel.modal-panel--membership-view.training-view {
   width: min(720px, 100%);
-  height: min(92dvh, calc(100dvh - 32px));
-  max-height: min(92dvh, calc(100dvh - 32px));
+  height: min(92dvh, calc(100dvh - 32px - var(--tv-safe-y)));
+  max-height: min(92dvh, calc(100dvh - 32px - var(--tv-safe-y)));
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -261,11 +262,17 @@
   flex-shrink: 0;
 }
 
+@media (max-width: 900px) {
+  .modal-overlay.modal-overlay--membership-view.training-view-overlay {
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  }
+}
+
 @media (max-width: 560px) {
   .modal-panel.modal-panel--membership-view.training-view {
     width: 100%;
-    height: calc(100dvh - 16px);
-    max-height: calc(100dvh - 16px);
+    height: calc(100dvh - 16px - var(--tv-safe-y));
+    max-height: calc(100dvh - 16px - var(--tv-safe-y));
     border-radius: 16px;
   }
 

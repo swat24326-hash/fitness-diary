@@ -32,6 +32,7 @@ export function ClientChatPage() {
           back={<MessengerBack to="/me/inbox" />}
           icon={MessageCircle}
           photo={chat.meta?.photo}
+          status={chat.meta?.status}
           title={who || chatKindLabelRu(kind)}
           subtitle={who ? chatKindLabelRu(kind) : ''}
           searchHostRef={setSearchHost}
