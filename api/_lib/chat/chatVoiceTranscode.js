@@ -8,7 +8,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-export const VOICE_MP3_KBPS = 96
+/** Второе сжатие (после кодека телефона) почти неслышно; 5 минут ≈ 4,8 МБ — SpeechKit берёт до 60 МБ. */
+export const VOICE_MP3_KBPS = 128
 const TIMEOUT_MS = 60_000
 const MAX_OUT_BYTES = 8 * 1024 * 1024
 /** Два ядра на ВМ: больше двух перекодирований разом — ждут очереди, API не встаёт. */
