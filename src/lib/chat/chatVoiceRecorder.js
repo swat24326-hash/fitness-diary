@@ -1,24 +1,24 @@
 /**
- * Запись голосового: сырой звук через Web Audio (MediaRecorder на iPhone пишет mp4, в Chrome — webm,
- * а нужен один формат для всех и для SpeechKit) → MP3 на родной частоте микрофона прямо по ходу записи: 5 минут не
- * копятся в памяти. Микрофон — как у кружков (chatVideoRecorder.js), без своей обработки звука.
- * Кодировщик грузится при первой записи. На паузе и после остановки микрофон гаснет; «дописать» включает его снова
- * и продолжает тот же MP3.
+ * Запись голосового, как кружок (chatVideoRecorder.js): микрофон → MediaRecorder, звук кодирует сам телефон (Opus,
+ * на iPhone — AAC) вне страницы — тормоза экрана запись не рвут. Громкость для волны читает отдельный анализатор.
+ * На паузе микрофон гаснет, отрезок закрывается куском; «дописать» — новый кусок. Склеит и сделает MP3 сервер.
  */
 import {
+  CHAT_VOICE_BAD_RU,
   CHAT_VOICE_DENIED_RU,
-  CHAT_VOICE_KBPS,
   CHAT_VOICE_NO_MIC_RU,
+  CHAT_VOICE_RECORD_BPS,
   chatVoiceLevel,
   compressVoiceWave,
-  createPcmResampler,
-  pcm16Samples,
-  voiceMp3Rate,
+  pickVoiceRecorderMime,
 } from './chatVoiceCore.js'
 
+const LEVEL_MS = 100
+const isTypeSupported = (m) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)
+
 export function isChatVoiceSupported() {
-  if (typeof window === 'undefined') return false
-  return Boolean(navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext))
+  if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') return false
+  return Boolean(navigator.mediaDevices?.getUserMedia) && pickVoiceRecorderMime(isTypeSupported) !== null
 }
 
 function micErrorRu(e) {
@@ -27,28 +27,37 @@ function micErrorRu(e) {
   return CHAT_VOICE_NO_MIC_RU
 }
 
-function toBase64(bytes) {
-  let bin = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  return btoa(bin)
-}
-
-function concat(parts) {
-  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
-  let at = 0
-  for (const p of parts) {
-    out.set(p, at)
-    at += p.length
+/** Громкость для волны: анализатор только читает звук, в запись ничего не идёт. */
+function levelMeter(stream, onLevel) {
+  const Ctx = window.AudioContext || window.webkitAudioContext
+  if (!Ctx) return () => {}
+  const ctx = new Ctx()
+  if (ctx.state === 'suspended') void ctx.resume().catch(() => {})
+  const source = ctx.createMediaStreamSource(stream)
+  const analyser = ctx.createAnalyser()
+  analyser.fftSize = 2048
+  const mute = ctx.createGain()
+  mute.gain.value = 0
+  source.connect(analyser)
+  analyser.connect(mute)
+  mute.connect(ctx.destination)
+  const buf = new Float32Array(analyser.fftSize)
+  const timer = window.setInterval(() => {
+    analyser.getFloatTimeDomainData(buf)
+    onLevel(chatVoiceLevel(buf))
+  }, LEVEL_MS)
+  return () => {
+    window.clearInterval(timer)
+    source.disconnect()
+    void ctx.close().catch(() => {})
   }
-  return out
 }
 
 /**
- * Микрофон → куски звука в onData(samples); rate — частота записи (первое включение берёт частоту микрофона,
- * «дописать» — частоту уже начатого MP3). Настройки — как у кружков: системное шумо- и эхоподавление, без автогромкости.
- * Свои фильтры и компрессор убраны 15.10.2026: на Android голос звучал «металлом».
+ * Один отрезок записи: микрофон включён, пока не закрыли. Настройки — как у кружков.
+ * @returns {Promise<{ elapsed: () => number, close: () => Promise<Blob | null>, cancel: () => void }>}
  */
-async function openMic(onData, rate = null) {
+async function openSegment(mime, onLevel) {
   let stream
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -57,103 +66,115 @@ async function openMic(onData, rate = null) {
   } catch (e) {
     throw new Error(micErrorRu(e))
   }
-  const Ctx = window.AudioContext || window.webkitAudioContext
-  const ctx = new Ctx()
-  if (ctx.state === 'suspended') await ctx.resume().catch(() => {})
-  const outRate = rate ?? voiceMp3Rate(ctx.sampleRate)
-  const resample = createPcmResampler(ctx.sampleRate, outRate)
-  const source = ctx.createMediaStreamSource(stream)
-  const proc = ctx.createScriptProcessor(4096, 1, 1)
-  const mute = ctx.createGain()
-  mute.gain.value = 0
-  proc.onaudioprocess = (ev) => onData(resample(ev.inputBuffer.getChannelData(0)))
-  source.connect(proc)
-  proc.connect(mute)
-  mute.connect(ctx.destination)
+  const off = () => stream.getTracks().forEach((t) => t.stop())
+  const chunks = []
+  let recorder
+  try {
+    recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: CHAT_VOICE_RECORD_BPS })
+    recorder.ondataavailable = (ev) => ev.data?.size && chunks.push(ev.data)
+    recorder.start(1000)
+  } catch {
+    off()
+    throw new Error(CHAT_VOICE_BAD_RU)
+  }
+  const meterOff = levelMeter(stream, onLevel)
+  const startedAt = performance.now()
+  let endedAt = null
+  const end = () => {
+    endedAt ??= performance.now()
+    meterOff()
+    off()
+  }
   return {
-    rate: outRate,
+    elapsed: () => ((endedAt ?? performance.now()) - startedAt) / 1000,
     close() {
-      proc.onaudioprocess = null
-      source.disconnect()
-      proc.disconnect()
-      mute.disconnect()
-      stream.getTracks().forEach((t) => t.stop())
-      void ctx.close().catch(() => {})
+      endedAt ??= performance.now()
+      return new Promise((resolve) => {
+        const done = () => {
+          end()
+          const type = String(recorder.mimeType || mime).split(';')[0]
+          resolve(chunks.length ? new Blob(chunks, { type }) : null)
+        }
+        recorder.onstop = done
+        recorder.onerror = done
+        if (recorder.state === 'inactive') done()
+        else recorder.stop()
+      })
+    },
+    cancel() {
+      recorder.ondataavailable = null
+      recorder.onstop = null
+      if (recorder.state !== 'inactive') recorder.stop()
+      end()
     },
   }
 }
 
 /**
- * Вызывать из обработчика нажатия (iPhone пускает звук только по касанию).
+ * Вызывать из обработчика нажатия (iPhone пускает микрофон и звук только по касанию).
+ * Результат: parts — куски по порядку, seconds — длительность всех кусков, wave — 48 столбиков.
  * @param {{ onLevel?: (level: number) => void }} [opts]
- * @returns {Promise<{ stop: () => Promise<{ audio: string, seconds: number, wave: number[] }>, pause: () => void, resume: () => Promise<void>,
- *   snapshot: () => Promise<{ audio: string, seconds: number, wave: number[] }>, seconds: () => number, cancel: () => void }>}
+ * @returns {Promise<{ stop: () => Promise<{ parts: Blob[], seconds: number, wave: number[] }>, pause: () => void, resume: () => Promise<void>,
+ *   snapshot: () => Promise<{ parts: Blob[], seconds: number, wave: number[] }>, seconds: () => number, cancel: () => void }>}
  */
 export async function startChatVoice({ onLevel } = {}) {
-  const lamePromise = import('@breezystack/lamejs')
-  /** @type {Uint8Array[]} */
-  const parts = []
-  /** Звук до загрузки кодировщика — докодируем, как только он придёт. @type {Int16Array[]} */
-  let backlog = []
-  let encoder = null
-  const encode = (pcm) => {
-    const mp3 = encoder.encodeBuffer(pcm)
-    if (mp3.length) parts.push(new Uint8Array(mp3))
-  }
+  const mime = pickVoiceRecorderMime(isTypeSupported)
+  if (!mime) throw new Error(CHAT_VOICE_BAD_RU)
   const levels = []
-  let samples = 0
-  const onData = (data) => {
-    const level = chatVoiceLevel(data)
+  const onSegmentLevel = (level) => {
     levels.push(level)
     onLevel?.(level)
-    const pcm = pcm16Samples(data)
-    samples += pcm.length
-    if (encoder) encode(pcm)
-    else backlog.push(pcm)
   }
-  let mic = await openMic(onData)
-  const { rate } = mic
-  const ready = lamePromise.then((lame) => {
-    encoder = new lame.Mp3Encoder(1, rate, CHAT_VOICE_KBPS)
-    backlog.forEach(encode)
-    backlog = []
-  })
-  ready.catch(() => {})
-
+  /** @type {Blob[]} */
+  const parts = []
+  let doneSec = 0
+  let segment = await openSegment(mime, onSegmentLevel)
+  /** Закрытие отрезка (пауза) — снимок и отправка ждут, пока кусок допишется. */
+  let closing = Promise.resolve()
   let closed = false
-  const micOff = () => {
-    mic?.close()
-    mic = null
+
+  const closeSegment = () => {
+    const seg = segment
+    if (!seg) return closing
+    segment = null
+    const blobReady = seg.close()
+    doneSec += seg.elapsed()
+    closing = closing.then(async () => {
+      const blob = await blobReady
+      if (blob) parts.push(blob)
+    })
+    return closing
   }
+  const seconds = () => doneSec + (segment?.elapsed() ?? 0)
   const current = async () => {
-    await ready
-    return { audio: toBase64(concat(parts)), seconds: samples / rate, wave: compressVoiceWave(levels) }
+    await closing
+    if (!parts.length) throw new Error(CHAT_VOICE_BAD_RU)
+    return { parts: [...parts], seconds: seconds(), wave: compressVoiceWave(levels) }
   }
 
   return {
     async stop() {
       closed = true
-      micOff()
-      await ready
-      const tail = encoder.flush()
-      if (tail.length) parts.push(new Uint8Array(tail))
+      await closeSegment()
       return current()
     },
     /** Пауза, как ■ в Telegram: микрофон гаснет, записанное остаётся. */
-    pause: micOff,
+    pause: () => void closeSegment(),
     /** Дописать — вызывать из нажатия; микрофон запретили — ошибка с понятным текстом. */
     async resume() {
-      if (closed || mic) return
-      const next = await openMic(onData, rate)
-      if (closed) next.close()
-      else mic = next
+      if (closed || segment) return
+      await closing
+      const next = await openSegment(mime, onSegmentLevel)
+      if (closed) next.cancel()
+      else segment = next
     },
-    /** Записанное на сейчас — прослушать на паузе (без хвоста кодировщика: доли секунды, на отправке их добавит stop). */
+    /** Записанное на сейчас — прослушать и обрезать на паузе. */
     snapshot: current,
-    seconds: () => samples / rate,
+    seconds,
     cancel() {
       closed = true
-      micOff()
+      segment?.cancel()
+      segment = null
     },
   }
 }

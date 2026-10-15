@@ -1,27 +1,57 @@
 /**
  * Голосовые сообщения, как в Telegram: держишь 🎤 — пишется, отпустил — ушло; влево — отмена, вверх — без рук.
- * Звук — MP3 моно на родной частоте микрофона (играет на iPhone, Android и ПК, его же понимает SpeechKit), до 5 минут,
- * слушать — сутки. Настройки звука — как у кружков: системное шумо- и эхоподавление, без своей обработки.
- * 15.10.2026: 16 кГц звучало глухо, 24 кГц / 48–64 кбит/с с фильтрами и компрессором — «металлом» (Android).
+ * Телефон пишет звук своим кодеком, как кружок (Opus, на iPhone — AAC); каждый отрезок между паузами — отдельный кусок.
+ * Сервер склеивает куски, режет по ручкам обрезки и хранит MP3 (играет везде, его понимает SpeechKit). До 5 минут,
+ * слушать — сутки. 15.10.2026: свой MP3-кодировщик в браузере терял звук на Android («металл») — INC-2026-10-15-02.
  * Без React, браузера и базы — общее для сервера и экрана, проверяется verify-chat-voice.mjs.
  */
 
-/** Как звук кружка (CHAT_VIDEO_AUDIO_BPS). */
-export const CHAT_VOICE_KBPS = 96
+/** Opus 64 кбит/с моно — запас для голоса (Telegram пишет ~32); 5 минут ≈ 2,4 МБ. */
+export const CHAT_VOICE_RECORD_BPS = 64_000
 export const CHAT_VOICE_MAX_SEC = 300
 export const CHAT_VOICE_MIN_SEC = 1
 /** Последние секунды таймер красный. */
 export const CHAT_VOICE_WARN_SEC = 15
-/** 5 минут при 96 кбит/с ≈ 3,6 МБ; в base64 ≈ 4,9 МБ — под потолком тела запроса 5 МБ (PORTABLE_MAX_BODY_BYTES_DEFAULT). */
+/** Все куски вместе; в base64 ≈ 4,9 МБ — под потолком тела запроса 5 МБ (PORTABLE_MAX_BODY_BYTES_DEFAULT). */
 export const CHAT_VOICE_MAX_BYTES = 3_700_000
-/** Частоты, которые умеет MP3 (MPEG-1 / 2 / 2.5). */
-const MP3_RATES = new Set([8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000])
-
-/** Частота записи: родная частота микрофона, если MP3 её умеет (обычно 48 / 44,1 кГц), иначе 48 кГц. */
-export function voiceMp3Rate(micRate) {
-  return MP3_RATES.has(micRate) ? micRate : 48000
-}
+/** Кусков (пауза → «дописать») больше не бывает за 5 минут живой записи. */
+export const CHAT_VOICE_MAX_PARTS = 30
 const MIN_BYTES = 400
+
+/** Что просить у MediaRecorder: Opus (Chrome, Android, Firefox), иначе MP4 / AAC (iPhone). */
+const RECORDER_MIMES = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm']
+
+/** @param {(mime: string) => boolean} isSupported MediaRecorder.isTypeSupported */
+export function pickVoiceRecorderMime(isSupported) {
+  return (
+    RECORDER_MIMES.find((m) => {
+      try {
+        return isSupported(m)
+      } catch {
+        return false
+      }
+    }) ?? null
+  )
+}
+
+/** Тип звука по первым байтам: MP3 (старые версии приложения), WebM, Ogg, MP4; иначе null. */
+export function sniffVoiceMime(bytes) {
+  if (!bytes || bytes.length < 12) return null
+  if (isMp3Header(bytes)) return 'audio/mpeg'
+  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return 'audio/webm'
+  if (bytes[0] === 0x4f && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53) return 'audio/ogg'
+  if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) return 'audio/mp4'
+  return null
+}
+
+/** Обрезка от телефона: [с, по] в секундах; не тянули — null; мусор — false. */
+export function normalizeVoiceTrim(raw) {
+  if (raw == null) return null
+  if (!Array.isArray(raw) || raw.length !== 2) return false
+  const [from, to] = raw.map(Number)
+  if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to > CHAT_VOICE_MAX_SEC + 1 || to - from < CHAT_VOICE_MIN_SEC / 2) return false
+  return [Math.round(from * 100) / 100, Math.round(to * 100) / 100]
+}
 export const CHAT_VOICE_BARS = 48
 export const CHAT_VOICE_TTL_MS = 24 * 60 * 60 * 1000
 /** Палец ушёл влево на столько — отмена; вверх — запись без рук. */
@@ -51,33 +81,7 @@ export const CHAT_VOICE_ONCE_PLAYED_RU = 'Одноразовое голосов�
 export const CHAT_VOICE_ONCE_PEER_RU = 'Одноразовое голосовое слушает только собеседник'
 export const CHAT_VOICE_ONCE_TEXT_RU = 'Одноразовое голосовое не расшифровывается'
 
-/**
- * Пересчёт частоты, кусок за куском без швов: позиция и последний отсчёт переходят в следующий кусок, иначе на каждом
- * стыке щелчок и запись «уезжает» по времени. Обычно не нужен (step = 1): пишем на частоте микрофона; нужен, если
- * микрофон дал частоту, которой нет в MP3, или «дописать» открыл микрофон с другой частотой (подключили гарнитуру).
- */
-export function createPcmResampler(inRate, outRate) {
-  const step = inRate / outRate
-  let pos = 0
-  let last = 0
-  return (input) => {
-    if (!input?.length || !(step > 0)) return new Float32Array(0)
-    if (step === 1) return Float32Array.from(input)
-    const end = input.length - 1
-    const out = new Float32Array(Math.max(0, Math.ceil((end - pos) / step)))
-    let n = 0
-    for (; pos < end && n < out.length; pos += step, n += 1) {
-      const i = Math.floor(pos)
-      const a = i < 0 ? last : input[i]
-      out[n] = a + (input[i + 1] - a) * (pos - i)
-    }
-    pos -= input.length
-    last = input[end]
-    return out.subarray(0, n)
-  }
-}
-
-/** -1…1 → 16 бит со знаком (то, что берёт MP3-кодировщик). */
+/** -1…1 → 16 бит со знаком (WAV для прослушивания перед отправкой). */
 export function pcm16Samples(samples) {
   const out = new Int16Array(samples.length)
   for (let i = 0; i < samples.length; i += 1) {
@@ -141,16 +145,20 @@ function base64Bytes(s) {
   return (s.length / 4) * 3 - (s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0)
 }
 
+const isBase64 = (s) => typeof s === 'string' && s.length > 0 && s.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(s)
+
 /**
- * Голосовое от телефона — до того, как класть в хранилище: base64 MP3 не больше лимита, длительность 1–300 с, волна.
+ * Голосовое от телефона — до того, как класть в хранилище: куски записи (parts, base64) или MP3 старой версии
+ * приложения (audio), вместе не больше лимита, длительность 1–300 с, волна, обрезка (trim, секунды).
  * once — одноразовое: собеседник слушает один раз, потом звук недоступен никому.
- * @param {{ audio?: unknown, sec?: unknown, wave?: unknown, once?: unknown }} input
- * @returns {{ ok: true, audio: string, bytes: number, sec: number, wave: number[], once: boolean } | { ok: false, status: number, error: string }}
+ * @param {{ parts?: unknown, audio?: unknown, trim?: unknown, sec?: unknown, wave?: unknown, once?: unknown }} input
+ * @returns {{ ok: true, parts: string[], trim: [number, number] | null, bytes: number, sec: number, wave: number[], once: boolean }
+ *   | { ok: false, status: number, error: string }}
  */
 export function checkVoiceUpload(input) {
-  const audio = typeof input?.audio === 'string' ? input.audio : ''
-  if (!audio || audio.length % 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(audio)) return { ok: false, status: 400, error: CHAT_VOICE_BAD_RU }
-  const bytes = base64Bytes(audio)
+  const parts = Array.isArray(input?.parts) ? input.parts : typeof input?.audio === 'string' ? [input.audio] : []
+  if (!parts.length || parts.length > CHAT_VOICE_MAX_PARTS || !parts.every(isBase64)) return { ok: false, status: 400, error: CHAT_VOICE_BAD_RU }
+  const bytes = parts.reduce((n, p) => n + base64Bytes(p), 0)
   if (bytes < MIN_BYTES) return { ok: false, status: 400, error: CHAT_VOICE_SHORT_RU }
   if (bytes > CHAT_VOICE_MAX_BYTES) return { ok: false, status: 413, error: CHAT_VOICE_BAD_RU }
   const sec = Math.round(Number(input?.sec))
@@ -158,7 +166,9 @@ export function checkVoiceUpload(input) {
   if (sec > CHAT_VOICE_MAX_SEC) return { ok: false, status: 413, error: CHAT_VOICE_BAD_RU }
   const wave = normalizeVoiceWave(input?.wave)
   if (!wave) return { ok: false, status: 400, error: CHAT_VOICE_BAD_RU }
-  return { ok: true, audio, bytes, sec, wave, once: input?.once === true }
+  const trim = normalizeVoiceTrim(input?.trim)
+  if (trim === false) return { ok: false, status: 400, error: CHAT_VOICE_BAD_RU }
+  return { ok: true, parts, trim, bytes, sec, wave, once: input?.once === true }
 }
 
 const KEY_RE = /^voice\/[cu]-[0-9a-f-]{36}\/[0-9a-f-]{36}\.mp3$/

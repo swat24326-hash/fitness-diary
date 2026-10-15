@@ -60,7 +60,7 @@ import { voiceColumns } from '../../../api/_lib/chat/chatStore.js'
 import { attachFileAnswer } from '../../../api/_lib/chat/chatAttachHandler.js'
 import { attachColumns } from '../../../api/_lib/chat/chatAttachStore.js'
 import { CHAT_ATTACH_BAD_RU, attachStorageKey, checkAttachBytes } from '../../../src/lib/chat/chatAttachCore.js'
-import { CHAT_VOICE_BAD_RU, isMp3Header, voiceOnceRefusal, voiceStorageKey } from '../../../src/lib/chat/chatVoiceCore.js'
+import { CHAT_VOICE_BAD_RU, sniffVoiceMime, voiceOnceRefusal, voiceStorageKey } from '../../../src/lib/chat/chatVoiceCore.js'
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, CHAT_SEARCH_LIMIT, chatTextMatches, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
@@ -94,13 +94,17 @@ export function createFakeChat(state) {
   }
   const group = createFakeStaffGroup(state)
   chat.group = group.state
-  /** Как storeChatVoice: только MP3, файл под ключом автора. */
+  /**
+   * Как storeChatVoice: куски — звук телефона (WebM / Ogg / MP4) или MP3, файл под ключом автора. Без ffmpeg: кусков
+   * один — хранится как есть (играет в браузере стенда), склейку и обрезку проверяет verify-chat-voice.
+   */
   function storeVoice(checked) {
     if (checked.attach) return storeAttach(checked.attach)
     if (!checked.voice) return { ok: true, columns: {} }
     if (!chat.voiceReady) return { ok: false, status: 503, error: 'Голосовые пока недоступны' }
-    const bytes = Buffer.from(checked.voice.audio, 'base64')
-    if (!isMp3Header(bytes)) return { ok: false, status: 400, error: CHAT_VOICE_BAD_RU }
+    const parts = checked.voice.parts.map((p) => Buffer.from(p, 'base64'))
+    if (!parts.every(sniffVoiceMime)) return { ok: false, status: 400, error: CHAT_VOICE_BAD_RU }
+    const bytes = parts[0]
     const key = voiceStorageKey('client', randomUUID(), randomUUID())
     chat.voices.set(key, bytes)
     return { ok: true, columns: voiceColumns({ key, sec: checked.voice.sec, wave: checked.voice.wave, once: checked.voice.once }) }

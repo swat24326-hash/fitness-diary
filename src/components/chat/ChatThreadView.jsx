@@ -118,15 +118,16 @@ export function ChatThreadView({
   )
   const searchButton =
     finder.available && !finder.isOpen ? (
-      <button
-        type="button"
-        className={searchHost ? 'btn btn-ghost btn-icon-square btn-touch' : 'chat-thread__search-toggle'}
-        aria-label="Поиск по переписке"
-        title="Поиск по переписке"
-        onClick={finder.open}
-      >
-        <Search size={18} aria-hidden />
-      </button>
+      searchHost ? (
+        <button type="button" className="app-header__menu-item" aria-label="Поиск по переписке" onClick={finder.open}>
+          <Search size={18} aria-hidden />
+          Поиск
+        </button>
+      ) : (
+        <button type="button" className="chat-thread__search-toggle" aria-label="Поиск по переписке" title="Поиск по переписке" onClick={finder.open}>
+          <Search size={18} aria-hidden />
+        </button>
+      )
     ) : null
 
   return (

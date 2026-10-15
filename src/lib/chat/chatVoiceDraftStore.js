@@ -1,7 +1,7 @@
 /**
  * Черновик голосового, как в Telegram: ушли из диалога посреди записи или прослушивания — запись ждёт в этом диалоге.
- * Живёт, пока открыто приложение (звук в памяти, не на диске: 5 минут ≈ 3,6 МБ).
- * @type {Map<string, { result: { audio: string, sec: number, wave: number[] }, trim: [number, number], once?: boolean }>}
+ * Живёт, пока открыто приложение (куски записи в памяти, не на диске: 5 минут ≈ 2,4 МБ).
+ * @type {Map<string, { result: { parts: Blob[], dur: number, sec: number, wave: number[] }, trim: [number, number], once?: boolean }>}
  */
 const drafts = new Map()
 

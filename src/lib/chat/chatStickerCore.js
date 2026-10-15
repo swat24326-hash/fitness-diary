@@ -50,13 +50,13 @@ export function isChatArtSticker(id) {
 /**
  * Что сохранить: голосовое (текст = «🎤 Голосовое 0:42»), фото / PDF (текст = «📷 подпись», body — подпись),
  * стикер (текст = подпись стикера) или обычный текст. Чужой id стикера — ошибка, не текст.
- * @param {{ body?: unknown, sticker?: unknown, audio?: unknown, sec?: unknown, wave?: unknown, once?: unknown, attach?: unknown }} input
+ * @param {{ body?: unknown, sticker?: unknown, parts?: unknown, audio?: unknown, trim?: unknown, sec?: unknown, wave?: unknown, once?: unknown, attach?: unknown }} input
  * @returns {{ ok: true, body: string, sticker: string|null, voice: ReturnType<typeof checkVoiceUpload> & { ok: true } | null,
  *   attach: (ReturnType<typeof checkAttachUpload> & { ok: true, caption: string }) | null }
  *   | { ok: false, error: string, status?: number }}
  */
 export function resolveChatOutgoing(input) {
-  if (input?.audio != null) {
+  if (input?.audio != null || input?.parts != null) {
     const voice = checkVoiceUpload(input)
     return voice.ok ? { ok: true, body: chatVoiceLabel(voice.sec, voice.once), sticker: null, voice, attach: null } : voice
   }

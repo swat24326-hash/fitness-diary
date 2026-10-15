@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Trash2 } from 'lucide-react'
 import { formatVoiceTime, voiceSeekRatio } from '../../lib/chat/chatVoiceCore.js'
+import { voicePreviewBlob } from '../../lib/chat/chatVoiceParts.js'
 import { trimmedVoiceSec } from '../../lib/chat/chatVoiceTrimCore.js'
 import { useChatVoicePlayer } from '../../hooks/useChatVoicePlayer.js'
 import { ChatVoicePlayIcon, ChatVoiceWave } from './ChatVoiceBubble.jsx'
@@ -42,12 +43,13 @@ function TrimHandle({ side, at, onMove, disabled }) {
  * @param {{ rec: ReturnType<typeof import('../../hooks/useChatVoiceRecord.js').useChatVoiceRecord> }} props
  */
 export function ChatVoiceReview({ rec }) {
-  const { audio, sec, wave } = rec.result
+  const { result } = rec
+  const { sec, wave } = result
   const { trim, previewKey } = rec
   const sending = rec.phase === 'sending'
   const track = useMemo(
-    () => ({ key: previewKey, sec, preview: true, mine: true, range: trim, load: () => Promise.resolve({ audio }) }),
-    [previewKey, sec, audio, trim],
+    () => ({ key: previewKey, sec, preview: true, mine: true, range: trim, load: () => voicePreviewBlob(result).then((blob) => ({ blob })) }),
+    [previewKey, sec, result, trim],
   )
   const player = useChatVoicePlayer(track)
   const active = player.status === 'playing' || player.status === 'paused'

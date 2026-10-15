@@ -162,8 +162,10 @@ async function trainerReadsAndMutes(c, page, backend, chat) {
   c.ok(await inView(), 'нажал закреп — лента доехала до сообщения')
   await screenshot(page, 'staff-group-coach-pinned-jump')
 
+  await page.getByRole('button', { name: 'Ещё' }).click()
   const mute = page.getByTestId('group-mute')
   await mute.click()
+  await page.getByRole('button', { name: 'Ещё' }).click()
   c.ok(await reaches(page.locator('[data-testid="group-mute"][aria-pressed="true"]')), '«Без звука» включён')
   const before = chat.state.group.pushes.length
   chat.staff({ method: 'POST', searchParams: new URLSearchParams({ action: 'chat' }), body: { op: 'group-send', body: QUIET } }, sup)

@@ -131,7 +131,9 @@ async function handlePost(ctx, res, body, store) {
       client_id: body.client_id,
       body: body.body,
       sticker: body.sticker,
+      parts: body.parts,
       audio: body.audio,
+      trim: body.trim,
       sec: body.sec,
       wave: body.wave,
       once: body.once,
@@ -154,8 +156,8 @@ async function handlePost(ctx, res, body, store) {
     return handleStaffChatPost(ctx, res, { op: 'react', kind, client_id: body.client_id, message_id: body.message_id, emoji: body.emoji })
   }
   if (op === 'dm-send') {
-    const { body: text, sticker, audio, sec, wave, once, attach, client_msg_id, reply_to, silent } = body
-    return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, audio, sec, wave, once, attach, client_msg_id, reply_to, silent })
+    const { body: text, sticker, parts, audio, trim, sec, wave, once, attach, client_msg_id, reply_to, silent } = body
+    return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, parts, audio, trim, sec, wave, once, attach, client_msg_id, reply_to, silent })
   }
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body.user_id, { message_id: body.message_id, emoji: body.emoji })
   if (op.startsWith('group-')) return handleStaffGroupPost(ctx, res, op, body)

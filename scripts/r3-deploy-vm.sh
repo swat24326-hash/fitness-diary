@@ -9,6 +9,9 @@ REF="${1:?укажите коммит или origin/main}"
 as_app() { sudo -u osapp "$@"; }
 
 cd "$APP"
+# Голосовые: куски записи → MP3 (api/_lib/chat/chatVoiceTranscode.js). Без ffmpeg голосовые не примутся, выкатку не роняем.
+command -v ffmpeg >/dev/null || { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg >/dev/null; } \
+  || echo "ffmpeg не поставился — голосовые в переписке не примутся: sudo apt-get install -y ffmpeg" >&2
 as_app git fetch -q origin
 as_app git checkout -q "$REF"
 echo "код: $(as_app git log --oneline -1)"

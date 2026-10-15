@@ -9,15 +9,13 @@ function navClass({ isActive }) {
 
 /**
  * Бургер /me — выпадающее меню как у тренера (app-header__dropdown / __menu-item из index.css),
- * все строки одного вида: кто вошёл → разделы → действия → «Выйти». Новый раздел — ещё один NavLink.
+ * все строки одного вида: кто вошёл → разделы → действия → «Выйти». Новый раздел — ещё один NavLink в ClientMenuItems.
  * onRefresh — «Обновить» данные открытого экрана (как у тренера — в меню, не в шапке).
  * @param {{ clientName?: string, onLogout: () => void, onRefresh?: (() => void) | null, refreshing?: boolean }} props
  */
 export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refreshing = false }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef(null)
-  const navigate = useNavigate()
-  const { installer, onboarding } = useClientApp()
 
   useEffect(() => {
     if (!open) return undefined
@@ -32,8 +30,6 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
       window.removeEventListener('keydown', onKey)
     }
   }, [open])
-
-  const close = () => setOpen(false)
 
   return (
     <span className="client-menu" ref={rootRef}>
@@ -51,58 +47,69 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
       </button>
       {open ? (
         <div id="client-menu-dropdown" className="app-header__dropdown" role="region" aria-label="Меню">
-          {clientName ? (
-            <div className="app-header__menu-item client-menu__who">
-              <User size={18} aria-hidden />
-              {clientName}
-            </div>
-          ) : null}
-          <NavLink to="/me/settings" className={navClass} onClick={close}>
-            <Settings size={18} aria-hidden />
-            Настройки
-          </NavLink>
-          {installer.mode !== 'none' ? (
-            <button
-              type="button"
-              className="app-header__menu-item"
-              onClick={() => {
-                close()
-                navigate('/me')
-                onboarding.show('install')
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-              }}
-            >
-              <Smartphone size={18} aria-hidden />
-              Установить на телефон
-            </button>
-          ) : null}
-          {onRefresh ? (
-            <button
-              type="button"
-              className="app-header__menu-item"
-              disabled={refreshing}
-              onClick={() => {
-                close()
-                onRefresh()
-              }}
-            >
-              <RefreshCw size={18} aria-hidden className={refreshing ? 'client-me-spin' : undefined} />
-              Обновить
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="app-header__menu-item app-header__menu-item--danger"
-            onClick={() => {
-              close()
-              if (window.confirm('Выйти? Войти снова можно будет только по новой ссылке из клуба.')) onLogout()
-            }}
-          >
-            <LogOut size={18} aria-hidden />
-            Выйти
-          </button>
+          <ClientMenuItems clientName={clientName} onLogout={onLogout} onRefresh={onRefresh} refreshing={refreshing} close={() => setOpen(false)} />
         </div>
       ) : null}
     </span>
+  )
+}
+
+/** Строки меню клиента — в ☰ экранов и в «⋮» шапки диалога. close — закрыть то меню, где они стоят. */
+export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, refreshing = false, close = () => {} }) {
+  const navigate = useNavigate()
+  const { installer, onboarding } = useClientApp()
+  return (
+    <>
+      {clientName ? (
+        <div className="app-header__menu-item client-menu__who">
+          <User size={18} aria-hidden />
+          {clientName}
+        </div>
+      ) : null}
+      <NavLink to="/me/settings" className={navClass} onClick={close}>
+        <Settings size={18} aria-hidden />
+        Настройки
+      </NavLink>
+      {installer.mode !== 'none' ? (
+        <button
+          type="button"
+          className="app-header__menu-item"
+          onClick={() => {
+            close()
+            navigate('/me')
+            onboarding.show('install')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+        >
+          <Smartphone size={18} aria-hidden />
+          Установить на телефон
+        </button>
+      ) : null}
+      {onRefresh ? (
+        <button
+          type="button"
+          className="app-header__menu-item"
+          disabled={refreshing}
+          onClick={() => {
+            close()
+            onRefresh()
+          }}
+        >
+          <RefreshCw size={18} aria-hidden className={refreshing ? 'client-me-spin' : undefined} />
+          Обновить
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="app-header__menu-item app-header__menu-item--danger"
+        onClick={() => {
+          close()
+          if (window.confirm('Выйти? Войти снова можно будет только по новой ссылке из клуба.')) onLogout()
+        }}
+      >
+        <LogOut size={18} aria-hidden />
+        Выйти
+      </button>
+    </>
   )
 }

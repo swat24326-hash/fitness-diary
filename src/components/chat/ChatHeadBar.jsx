@@ -1,12 +1,13 @@
+import { ChatHeadMenu } from './ChatHeadMenu.jsx'
 import '../../styles/chat-head-bar.css'
 
 /**
- * Шапка диалога одной строкой, как в Telegram: «←» (только телефон), значок, название и подпись под ним, справа кнопки.
- * searchHostRef — место для лупы: её ставит туда ChatThreadView (searchHost), пока лента открыта.
+ * Шапка диалога одной строкой, как в Telegram: «←» (только телефон), значок, название и подпись под ним, справа «⋮».
+ * В «⋮» — лупа (её ставит ChatThreadView в searchHostRef, пока лента открыта) и пункты menu (строки app-header__menu-item).
  * @param {{ back?: import('react').ReactNode, icon: import('react').ComponentType<{ size?: number }>, title: string,
- *   subtitle?: string, actions?: import('react').ReactNode, searchHostRef?: (el: HTMLElement | null) => void, className?: string }} props
+ *   subtitle?: string, menu?: import('react').ReactNode, searchHostRef?: (el: HTMLElement | null) => void, className?: string }} props
  */
-export function ChatHeadBar({ back = null, icon: Icon, title, subtitle = '', actions = null, searchHostRef, className = '' }) {
+export function ChatHeadBar({ back = null, icon: Icon, title, subtitle = '', menu = null, searchHostRef, className = '' }) {
   return (
     <header className={`chat-head chat-bar${className ? ` ${className}` : ''}`}>
       {back}
@@ -23,10 +24,7 @@ export function ChatHeadBar({ back = null, icon: Icon, title, subtitle = '', act
           </small>
         ) : null}
       </div>
-      <div className="chat-bar__actions">
-        {searchHostRef ? <span ref={searchHostRef} className="chat-bar__slot" /> : null}
-        {actions}
-      </div>
+      {searchHostRef || menu ? <ChatHeadMenu searchHostRef={searchHostRef}>{menu}</ChatHeadMenu> : null}
     </header>
   )
 }

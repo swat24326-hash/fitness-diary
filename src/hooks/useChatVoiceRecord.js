@@ -13,7 +13,8 @@ import {
 import { clearVoiceDraft, readVoiceDraft, saveVoiceDraft } from '../lib/chat/chatVoiceDraftStore.js'
 import { forgetVoice, pauseVoice, updateVoiceTrack } from '../lib/chat/chatVoicePlayback.js'
 import { isChatVoiceSupported, startChatVoice } from '../lib/chat/chatVoiceRecorder.js'
-import { clampVoiceTrim, trimVoiceResult } from '../lib/chat/chatVoiceTrimCore.js'
+import { voicePartsBase64 } from '../lib/chat/chatVoiceParts.js'
+import { clampVoiceTrim, voiceTrimPlan } from '../lib/chat/chatVoiceTrimCore.js'
 import { isAppOnline } from '../lib/networkReachability.js'
 
 const LIVE_BARS = 32
@@ -37,6 +38,8 @@ const IDLE = {
 let previewSeq = 0
 const nextPreviewKey = () => `voice-preview-${(previewSeq += 1)}`
 const toSec = (seconds) => Math.min(CHAT_VOICE_MAX_SEC, Math.max(1, Math.round(seconds)))
+/** Запись: куски (Blob), точная длительность dur — для обрезки, sec — на экран и сервер, волна. */
+const toResult = (out) => ({ parts: out.parts, dur: out.seconds, sec: toSec(out.seconds), wave: out.wave })
 
 const buzz = () => navigator.vibrate?.(15)
 
@@ -46,7 +49,8 @@ const buzz = () => navigator.vibrate?.(15)
  * onTap (переключить на 📹, если камера есть), иначе подсказка «Удерживайте»; мышью — сразу без рук (как Telegram Web). На 5:00 запись встаёт на паузу — сама не уходит.
  * Не отправилось — запись остаётся (review). Ушли из диалога — запись ждёт черновиком (draftKey).
  * Долгое нажатие на «Отправить» — «без звука» (finish({ silent: true })). «1» без рук / на паузе — одноразовое (once).
- * @param {{ send: (voice: { audio: string, sec: number, wave: number[], silent?: boolean, once?: boolean }) => Promise<boolean>, enabled: boolean, draftKey?: string }} p
+ * @param {{ send: (voice: { parts: string[], trim: [number, number] | null, sec: number, wave: number[], silent?: boolean, once?: boolean }) => Promise<boolean>,
+ *   enabled: boolean, draftKey?: string }} p
  */
 export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null }) {
   const [state, setState] = useState(IDLE)
@@ -92,7 +96,7 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
     if (rec) {
       void rec
         .stop()
-        .then((out) => out.seconds >= CHAT_VOICE_MIN_SEC && saveVoiceDraft(key, { result: { audio: out.audio, sec: toSec(out.seconds), wave: out.wave }, trim, once }))
+        .then((out) => out.seconds >= CHAT_VOICE_MIN_SEC && saveVoiceDraft(key, { result: toResult(out), trim, once }))
         .catch(() => {})
     } else if (result && (phase === 'review' || phase === 'sending')) saveVoiceDraft(key, { result, trim, once })
   }, [])
@@ -136,7 +140,7 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
     }
   }, [])
 
-  /** Остановить запись → { audio, sec, wave } или null (коротко / сбой — ошибка уже на экране). */
+  /** Остановить запись → { parts, dur, sec, wave } или null (коротко / сбой — ошибка уже на экране). */
   const stopRecording = useCallback(async () => {
     const rec = recRef.current
     if (!rec) return null
@@ -150,7 +154,7 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
         setState({ ...IDLE, error: CHAT_VOICE_SHORT_RU })
         return null
       }
-      return { audio: out.audio, sec: toSec(out.seconds), wave: out.wave }
+      return toResult(out)
     } catch {
       if (run === runRef.current) setState({ ...IDLE, error: CHAT_VOICE_BAD_RU })
       return null
@@ -161,8 +165,14 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
   const deliver = useCallback(async (result, trim, silent) => {
     const key = draftKeyRef.current
     setState((s) => ({ ...s, phase: 'sending', result, live: false, error: '' }))
-    const out = trimVoiceResult(result, trim)
-    const sent = await sendRef.current({ ...out, ...(silent ? { silent: true } : {}), ...(onceRef.current ? { once: true } : {}) })
+    let sent = false
+    try {
+      const parts = await voicePartsBase64(result.parts)
+      const plan = voiceTrimPlan(result, trim)
+      sent = await sendRef.current({ parts, ...plan, ...(silent ? { silent: true } : {}), ...(onceRef.current ? { once: true } : {}) })
+    } catch {
+      setState((s) => ({ ...s, error: CHAT_VOICE_BAD_RU }))
+    }
     if (sent) clearVoiceDraft(key)
     setState(sent ? IDLE : (s) => ({ ...s, phase: 'review', result }))
   }, [])
@@ -191,7 +201,7 @@ export function useChatVoiceRecord({ send, enabled, draftKey = '', onTap = null 
         ...s,
         phase: 'review',
         live: snap.seconds < CHAT_VOICE_MAX_SEC,
-        result: { audio: snap.audio, sec: toSec(snap.seconds), wave: snap.wave },
+        result: toResult(snap),
         trim: FULL,
         seconds: snap.seconds,
         dx: 0,

@@ -26,7 +26,7 @@
 
 /* Диалог: вместо шапки клуба — строка диалога (ChatHeadBar), «←» слева, как в Telegram. */
 .client-me__top--bar {
-  padding: 4px 8px;
+  padding: 6px 10px;
 }
 
 .client-me__top--bar > .chat-bar {

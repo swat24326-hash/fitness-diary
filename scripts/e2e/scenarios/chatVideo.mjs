@@ -25,12 +25,31 @@ const IPHONE = {
 const TABLET = { viewport: { width: 1180, height: 820 }, hasTouch: true }
 const INVITE = 'e2e-video-invite'
 
-/** Камера = анимированный холст + тон 440 Гц; __camOn — сколько камер включено, __camDenied — «Запретить». */
+/**
+ * Камера = анимированный холст + тон 440 Гц; __camOn — сколько камер / микрофонов включено, __camDenied — «Запретить».
+ * Без video в запросе — только звук, как у настоящего телефона (голосовое пишет MediaRecorder только со звуком).
+ */
 async function fakeCamera(page) {
   await page.addInitScript(() => {
     globalThis.__camOn = 0
-    navigator.mediaDevices.getUserMedia = async () => {
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
       if (globalThis.__camDenied) throw new DOMException('Permission denied', 'NotAllowedError')
+      if (!constraints?.video) {
+        const ctx = new globalThis.AudioContext()
+        const osc = ctx.createOscillator()
+        const dest = ctx.createMediaStreamDestination()
+        osc.connect(dest)
+        osc.start()
+        globalThis.__camOn += 1
+        const track = dest.stream.getAudioTracks()[0]
+        const stop = track.stop.bind(track)
+        track.stop = () => {
+          stop()
+          globalThis.__camOn -= 1
+          void ctx.close()
+        }
+        return dest.stream
+      }
       const canvas = Object.assign(globalThis.document.createElement('canvas'), { width: 240, height: 240 })
       const g = canvas.getContext('2d')
       let frame = 0

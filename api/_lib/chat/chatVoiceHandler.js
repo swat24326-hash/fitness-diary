@@ -17,6 +17,7 @@ import {
   isMp3Header,
   isVoiceExpired,
   isVoiceStorageKey,
+  sniffVoiceMime,
   voiceHeardBy,
   voiceOnceRefusal,
   voiceStorageKey,
@@ -27,6 +28,7 @@ import { pollYandexStt, startYandexStt } from '../yandexSttClient.js'
 import { chatVoiceStorageMode, getVoice, putVoice } from './chatVoiceStorage.js'
 import { claimOnceVoice, loadVoiceMessage, markVoicePlayed, saveVoiceFields } from './chatVoiceStore.js'
 import { createChatVoiceTextLimiter } from './chatVoiceTextLimitCore.js'
+import { transcodeVoiceToMp3 } from './chatVoiceTranscode.js'
 
 const limiter = createChatVoiceTextLimiter()
 
@@ -40,13 +42,34 @@ export function chatVoiceBlocked(checked, env = process.env) {
 }
 
 /**
- * Звук (checkVoiceUpload) → хранилище. Повтор той же отправки (тот же msgId) перезапишет тот же файл.
+ * Куски записи → один MP3. Целый MP3 без обрезки (старая версия приложения) — как есть, без ffmpeg.
+ * @returns {Promise<{ ok: true, bytes: Buffer } | { ok: false, status: number, error: string }>}
+ */
+async function voiceMp3(voice, transcode) {
+  const parts = voice.parts.map((p) => Buffer.from(p, 'base64'))
+  const mimes = parts.map(sniffVoiceMime)
+  if (mimes.some((m) => !m)) return fail(400, CHAT_VOICE_BAD_RU)
+  if (parts.length === 1 && mimes[0] === 'audio/mpeg' && !voice.trim) return { ok: true, bytes: parts[0] }
+  let bytes
+  try {
+    bytes = await transcode(parts, voice.trim)
+  } catch (e) {
+    const missing = e?.code === 'ENOENT'
+    console.warn('[chat-voice-ffmpeg]', missing ? 'ffmpeg_missing' : e?.message || e)
+    return missing ? fail(503, CHAT_VOICE_UNAVAILABLE_RU) : fail(400, CHAT_VOICE_BAD_RU)
+  }
+  return isMp3Header(bytes) ? { ok: true, bytes } : fail(400, CHAT_VOICE_BAD_RU)
+}
+
+/**
+ * Звук (checkVoiceUpload) → MP3 → хранилище. Повтор той же отправки (тот же msgId) перезапишет тот же файл.
  * @param {{ side: 'client' | 'staff', authorId: string, msgId: string | null }} who
  * @returns {Promise<{ ok: true, voice: { key: string, sec: number, wave: number[], once: boolean } } | { ok: false, status: number, error: string }>}
  */
-export async function storeChatVoice(voice, { side, authorId, msgId }, put = putVoice) {
-  const bytes = Buffer.from(voice.audio, 'base64')
-  if (!isMp3Header(bytes)) return fail(400, CHAT_VOICE_BAD_RU)
+export async function storeChatVoice(voice, { side, authorId, msgId }, put = putVoice, transcode = transcodeVoiceToMp3) {
+  const mp3 = await voiceMp3(voice, transcode)
+  if (!mp3.ok) return mp3
+  const { bytes } = mp3
   const key = voiceStorageKey(side, authorId, msgId || randomUUID())
   if (!isVoiceStorageKey(key)) return fail(400, CHAT_VOICE_BAD_RU)
   try {
@@ -70,7 +93,7 @@ export async function voiceAudioAnswer(message, get = getVoice) {
     return { status: 502, body: { error: CHAT_VOICE_LOAD_FAILED_RU } }
   }
   if (!bytes) return { status: 410, body: { error: CHAT_VOICE_EXPIRED_RU } }
-  return { status: 200, body: { audio: bytes.toString('base64'), mime: 'audio/mpeg' } }
+  return { status: 200, body: { audio: bytes.toString('base64'), mime: sniffVoiceMime(bytes) ?? 'audio/mpeg' } }
 }
 
 /**

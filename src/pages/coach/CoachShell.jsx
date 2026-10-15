@@ -53,7 +53,7 @@ export function CoachShell({ children, title = '', actions = null, tabs = true, 
   const clubTitle = club?.name || COACH_APP_TITLE
   useClientBranding(clubTitle, club?.manifest_url || COACH_MANIFEST)
   return (
-    <div className={`coach-app${tabs ? ' coach-app--tabs' : ''}${fill ? ' coach-app--fill' : ''}`}>
+    <div className={`coach-app${tabs ? ' coach-app--tabs' : ''}${fill ? ' coach-app--fill' : ''}${bar ? ' coach-app--bar' : ''}`}>
       {bar ? <div className="coach-app__top coach-app__top--bar">{bar}</div> : <CoachTop title={title || clubTitle} actions={actions} menu={tabs} />}
       <main className="coach-app__main">{children}</main>
       {tabs ? <CoachTabs /> : null}

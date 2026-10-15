@@ -116,7 +116,9 @@ export function sendStaffGroupMessage(authCtx, res, clubId, input) {
     const checked = resolveChatOutgoing({
       body: input?.body,
       sticker: input?.sticker,
+      parts: input?.parts,
       audio: input?.audio,
+      trim: input?.trim,
       sec: input?.sec,
       wave: input?.wave,
       once: false,

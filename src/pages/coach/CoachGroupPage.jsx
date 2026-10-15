@@ -3,7 +3,7 @@ import { Users } from 'lucide-react'
 import { ChatHeadBar } from '../../components/chat/ChatHeadBar.jsx'
 import { MessengerBack } from '../../components/chat/MessengerLayout.jsx'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
-import { StaffGroupMuteButton, StaffGroupThreadView } from '../../components/chat/StaffGroupThreadView.jsx'
+import { StaffGroupMuteItem, StaffGroupThreadView } from '../../components/chat/StaffGroupThreadView.jsx'
 import { useStaffGroupThread } from '../../hooks/useStaffGroupThread.js'
 import { coachGroupApi } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
@@ -35,7 +35,7 @@ export function CoachGroupPage() {
           title={STAFF_GROUP_TITLE_RU}
           subtitle={info ? `${info.name} · ${staffGroupMembersRu(info.members)}` : ''}
           searchHostRef={setSearchHost}
-          actions={chat.meta ? <StaffGroupMuteButton muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
+          menu={chat.meta ? <StaffGroupMuteItem muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
         />
       }
     >

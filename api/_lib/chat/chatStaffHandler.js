@@ -197,7 +197,7 @@ export async function handleStaffChatPost(ctx, res, body) {
       userId,
       body: body?.body,
       sticker: body?.sticker,
-      voice: { audio: body?.audio, sec: body?.sec, wave: body?.wave, once: body?.once },
+      voice: { parts: body?.parts, audio: body?.audio, trim: body?.trim, sec: body?.sec, wave: body?.wave, once: body?.once },
       attach: body?.attach,
       clientMsgId: body?.client_msg_id,
       replyTo: body?.reply_to,

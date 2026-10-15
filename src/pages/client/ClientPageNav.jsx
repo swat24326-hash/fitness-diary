@@ -1,22 +1,30 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { logoutClient, readClientMeCache } from '../../lib/client/clientSession.js'
-import { ClientMenu } from './ClientMenu.jsx'
+import { ClientMenu, ClientMenuItems } from './ClientMenu.jsx'
+
+function useClientMenuProps() {
+  const navigate = useNavigate()
+  return {
+    clientName: readClientMeCache()?.data?.client?.name || '',
+    onLogout: () => void logoutClient().then(() => navigate('/me', { replace: true })),
+  }
+}
 
 /** Шапка вложенного экрана /me: меню, в нём «Обновить» (если экран умеет) — как на главной. */
 export function ClientPageActions({ onRefresh = null, refreshing = false }) {
-  const navigate = useNavigate()
-  const name = readClientMeCache()?.data?.client?.name || ''
+  const menu = useClientMenuProps()
   return (
     <span className="client-me__actions">
-      <ClientMenu
-        clientName={name}
-        onRefresh={onRefresh}
-        refreshing={refreshing}
-        onLogout={() => void logoutClient().then(() => navigate('/me', { replace: true }))}
-      />
+      <ClientMenu {...menu} onRefresh={onRefresh} refreshing={refreshing} />
     </span>
   )
+}
+
+/** Те же пункты строками — для «⋮» в шапке диалога (одна кнопка справа, как в Telegram). */
+export function ClientPageMenuItems({ onRefresh = null, refreshing = false }) {
+  const menu = useClientMenuProps()
+  return <ClientMenuItems {...menu} onRefresh={onRefresh} refreshing={refreshing} />
 }
 
 /** Заголовок вложенного экрана: «Назад» слева от названия — одно место на всех экранах. Экран-вкладка — back={false}. */

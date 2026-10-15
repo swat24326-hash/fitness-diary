@@ -32,7 +32,7 @@ html[data-chat-fit] body {
   border-radius: var(--radius-md);
   /* Узор из фитнес-значков, как обои Telegram: стоит на месте, листаются только сообщения. */
   background:
-    url('/chat/pattern-fitness.svg') 0 0 / 300px 300px repeat,
+    url('/chat/pattern-fitness.svg') 0 0 / 420px 420px repeat,
     radial-gradient(120% 60% at 100% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
     radial-gradient(90% 50% at 0% 100%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%),
     var(--bg-subtle, var(--bg));

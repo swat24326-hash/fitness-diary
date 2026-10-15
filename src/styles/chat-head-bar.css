@@ -1,14 +1,61 @@
-/* Шапка диалога одной строкой (ChatHeadBar.jsx): «←» · значок · название / подпись · лупа и кнопки. */
+/* Шапка диалога одной строкой (ChatHeadBar.jsx): «←» · значок · название / подпись · «⋮».
+   Парит над лентой: полупрозрачная карточка с размытием и тенью, как плашки в Telegram. */
 
 .chat-head.chat-bar {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 52px;
+  padding: 4px 4px 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg-card)) 58%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.42),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
 }
 
 .msgr__thread > .chat-head.chat-bar {
-  padding: 4px 6px 4px 8px;
+  padding: 4px 4px 4px 6px;
+  border-radius: 18px;
+}
+
+/* Лента заходит под шапку: шапка слегка прозрачная, сквозь неё видны узор и уезжающие вверх сообщения,
+   как в Telegram. Только когда ниже лента — «Открываем…» и ошибки стоят под шапкой как обычно.
+   overlap — от верха шапки до верха ленты в каждой оболочке (высота шапки + отступы). */
+.coach-app--bar .coach-app__main > .chat-thread:first-child {
+  --chat-head-overlap: 68px;
+}
+
+.client-me--bar .client-me__main > .chat-thread:first-child {
+  --chat-head-overlap: 64px;
+}
+
+.msgr__thread > .chat-head + .chat-thread {
+  --chat-head-overlap: 62px;
+}
+
+.coach-app--bar .coach-app__main > .chat-thread:first-child,
+.client-me--bar .client-me__main > .chat-thread:first-child,
+.msgr__thread > .chat-head + .chat-thread {
+  margin-top: calc(-1 * var(--chat-head-overlap));
+}
+
+.chat-thread > .chat-thread__feed:first-child {
+  padding-top: calc(var(--chat-head-overlap, 0px) + 10px);
+}
+
+.chat-thread > :not(.chat-thread__feed):first-child {
+  margin-top: var(--chat-head-overlap, 0px);
+}
+
+.client-me__top--bar {
+  position: relative;
+  z-index: 5;
 }
 
 .chat-bar__icon {
@@ -48,18 +95,35 @@
   line-height: 1.2;
 }
 
-.chat-bar__actions,
-.chat-bar__slot {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 2px;
-}
-
-.chat-bar__slot:empty {
-  display: none;
+.chat-bar .btn-icon-square {
+  border-color: transparent;
+  background: transparent;
 }
 
 .chat-bar .msgr__back {
-  margin-left: -4px;
+  margin-left: -2px;
+}
+
+.chat-bar__menu {
+  position: relative;
+  flex: none;
+}
+
+/* Меню плотное: под ним лента с узором, сквозь прозрачное читаются чужие кнопки. */
+.chat-bar__dropdown {
+  min-width: 220px;
+  background: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--bg);
+}
+
+.chat-bar__dropdown[hidden] {
+  display: none;
+}
+
+.chat-bar__dropdown .app-header__menu-item {
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.chat-bar__slot {
+  display: contents;
 }

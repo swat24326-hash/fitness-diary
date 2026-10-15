@@ -1,9 +1,9 @@
 /**
  * Голосовые как в Telegram, сверх записи: подряд следующее голосовое собеседника, пауза помнит место, скорость
- * запоминается, обрезка по кадрам MP3, «прослушано» (кто и когда ставит), «Отправить без звука» до push, одноразовое.
+ * запоминается, обрезка (секунды для сервера), WAV для прослушивания своей записи, «прослушано» (кто и когда ставит), «Отправить без звука» до push, одноразовое.
  * node scripts/verify-chat-voice-player.mjs
  */
-import { CHAT_VOICE_BARS, buildVoiceView, isMp3Header, voiceHeardBy, voiceOnceRefusal } from '../src/lib/chat/chatVoiceCore.js'
+import { CHAT_VOICE_BARS, buildVoiceView, voiceHeardBy, voiceOnceRefusal } from '../src/lib/chat/chatVoiceCore.js'
 import { resolveChatOutgoing } from '../src/lib/chat/chatStickerCore.js'
 import { voiceColumns } from '../api/_lib/chat/chatStore.js'
 import {
@@ -13,15 +13,8 @@ import {
   prevVoiceInQueue,
   voiceResumeAt,
 } from '../src/lib/chat/chatVoicePlaylistCore.js'
-import {
-  clampVoiceTrim,
-  isVoiceTrimmed,
-  mp3FrameOffsets,
-  trimMp3,
-  trimVoiceResult,
-  trimVoiceWave,
-  trimmedVoiceSec,
-} from '../src/lib/chat/chatVoiceTrimCore.js'
+import { clampVoiceTrim, isVoiceTrimmed, trimVoiceWave, trimmedVoiceSec, voiceTrimPlan } from '../src/lib/chat/chatVoiceTrimCore.js'
+import { pcmWav } from '../src/lib/chat/chatVoiceParts.js'
 import { buildStaffDmPushPayload } from '../src/lib/chat/staffDmAccessCore.js'
 import { buildDispatchPushPayload } from '../src/lib/push/trainerPushCore.js'
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
@@ -54,36 +47,10 @@ ok(voiceResumeAt(0.99) === 0 && voiceResumeAt(0.01) === 0 && voiceResumeAt('x') 
 ok(parseVoiceSpeed('1.5') === 1.5 && parseVoiceSpeed('3') === 1 && parseVoiceSpeed(null) === 1, 'скорость из памяти: 1.5x — берём, мусор — 1x')
 ok(isPastVoiceRange(9.96, 10, [0, 1]) && !isPastVoiceRange(5, 10, [0, 0.8]) && isPastVoiceRange(8, 10, [0, 0.8]), 'обрезанная запись: стоп у правой ручки')
 
-console.log('Обрезка по кадрам MP3')
-/** MPEG-2 Layer III 16 кГц 32 кбит/с моно — так писали до 15.10.2026, такие ещё лежат в черновиках: кадр 144 байта. */
-const frame = (i) => {
-  const f = new Uint8Array(144)
-  f.set([0xff, 0xf3, 0x48, 0xc4])
-  f[10] = i
-  return f
-}
+console.log('Обрезка: секунды для сервера')
+/** MPEG-2 Layer III 16 кГц 32 кбит/с моно — MP3 старой версии приложения: кадр 144 байта. */
 const mp3 = new Uint8Array(144 * 10)
-for (let i = 0; i < 10; i += 1) mp3.set(frame(i), i * 144)
-ok(mp3FrameOffsets(mp3).length === 10, '10 кадров по 144 байта')
-/** MPEG-1 Layer III 48 кГц 96 кбит/с моно — как пишет телефон сейчас: кадр 144 · 96000 / 48000 = 288 байт. */
-const mp3hq = new Uint8Array(288 * 4)
-for (let i = 0; i < 4; i += 1) mp3hq.set([0xff, 0xfb, 0x74, 0xc4], i * 288)
-ok(mp3FrameOffsets(mp3hq).length === 4, '48 кГц 96 кбит/с — кадры по 288 байт')
-ok(trimMp3(mp3hq, 0.25, 0.75)?.length === 288 * 2, 'и режется целыми кадрами')
-/** 44,1 кГц (iPhone) 96 кбит/с: кадр 144 · 96000 / 44100 = 313 байт, с битом добивки — 314. */
-const mp3ios = new Uint8Array(313 + 314 + 313)
-mp3ios.set([0xff, 0xfb, 0x70, 0xc4], 0)
-mp3ios.set([0xff, 0xfb, 0x72, 0xc4], 313)
-mp3ios.set([0xff, 0xfb, 0x70, 0xc4], 627)
-ok(mp3FrameOffsets(mp3ios).join() === '0,313,627', '44,1 кГц — кадры разной длины (добивка) находятся верно')
-const id3 = new Uint8Array(20 + mp3.length)
-id3.set([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 10])
-id3.set(mp3, 20)
-ok(mp3FrameOffsets(id3).length === 10, 'тег ID3 в начале пропускаем')
-const cut = trimMp3(mp3, 0.2, 0.7)
-ok(cut.length === 144 * 5 && cut[10] === 2 && isMp3Header(cut), 'вырезали 2…7 кадр целыми кадрами — сервер примет как MP3')
-ok(trimMp3(mp3, 0.95, 1).length === 144, 'хвост — минимум один кадр')
-ok(trimMp3(new Uint8Array(500), 0, 1) === null, 'не MP3 — null, не отправляем мусор')
+for (let i = 0; i < 10; i += 1) mp3.set([0xff, 0xf3, 0x48, 0xc4], i * 144)
 ok(clampVoiceTrim([0.5, 0.52], 10).join() === '0.5,0.6', 'между ручками не меньше секунды')
 const edge = clampVoiceTrim([0.95, 0.96], 10)
 ok(Math.abs(edge[0] - 0.86) < 1e-9 && edge[1] === 0.96, 'у правого края — левую ручку отодвигаем на секунду')
@@ -92,10 +59,19 @@ ok(trimmedVoiceSec(60, [0.25, 0.75]) === 30 && trimmedVoiceSec(1, [0, 0.1]) === 
 const wave = Array.from({ length: CHAT_VOICE_BARS }, (_, i) => (i < 24 ? 10 : 90))
 const tw = trimVoiceWave(wave, [0.5, 1])
 ok(tw.length === CHAT_VOICE_BARS && tw.every((v) => v === 90), 'волна обрезанного — снова 48 столбиков из оставшегося куска')
-const rec = { audio: Buffer.from(mp3).toString('base64'), sec: 10, wave }
-const sent = trimVoiceResult(rec, [0.5, 1])
-ok(Buffer.from(sent.audio, 'base64').length === 144 * 5 && sent.sec === 5 && sent.wave.length === CHAT_VOICE_BARS, 'к отправке: звук, длительность и волна — только оставленный кусок')
-ok(trimVoiceResult(rec, [0, 1]) === rec, 'не тянули ручки — запись как была')
+const rec = { sec: 10, dur: 10.4, wave }
+const plan = voiceTrimPlan(rec, [0.5, 1])
+ok(plan.trim.join() === '5.2,10.4' && plan.sec === 5 && plan.wave.length === CHAT_VOICE_BARS, 'к отправке: [с, по] по точной длине записи, длительность и волна — оставленного куска')
+const whole = voiceTrimPlan(rec, [0, 1])
+ok(whole.trim === null && whole.sec === 10 && whole.wave === wave, 'не тянули ручки — запись целиком')
+ok(voiceTrimPlan({ sec: 8, wave }, [0.25, 0.75]).trim.join() === '2,6', 'черновик без точной длины — по секундам на экране')
+
+console.log('Прослушать перед отправкой (WAV)')
+const wav = pcmWav([Float32Array.from([0, 1]), Float32Array.from([-1])], 48000)
+const dv = new DataView(wav.buffer)
+ok(String.fromCharCode(...wav.subarray(0, 4)) === 'RIFF' && String.fromCharCode(...wav.subarray(8, 12)) === 'WAVE', 'заголовок WAV')
+ok(dv.getUint32(24, true) === 48000 && dv.getUint16(22, true) === 1 && dv.getUint32(40, true) === 6, '48 кГц моно, 3 отсчёта из двух кусков подряд')
+ok(dv.getInt16(46, true) === 32767 && dv.getInt16(48, true) === -32768 && wav.length === 50, 'куски склеены по порядку, громкость не тронута')
 
 console.log('«Прослушано»')
 const voiceMsg = { voice_sec: 7, author_side: 'staff', author_user_id: 'u1', voice_played_at: null }

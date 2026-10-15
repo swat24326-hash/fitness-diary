@@ -1,15 +1,17 @@
 /**
- * Голосовые сообщения, как в Telegram: звук → 24 кГц, волна, таймер, жест (отмена / без рук / нажатие),
- * проверка загрузки (MP3, размер, 1–300 с), метка «🎤 Голосовое», срок сутки, вид для экрана, запрос SpeechKit (MP3),
- * лимит расшифровок, обработчики: загрузка, звук, «→ Аа» (запуск, ожидание, готово, сбой).
+ * Голосовые сообщения, как в Telegram: кодек телефона (выбор формата, тип по байтам), волна, таймер, жест
+ * (отмена / без рук / нажатие), проверка загрузки (куски или MP3, размер, 1–300 с, обрезка), склейка в MP3 (ffmpeg),
+ * метка «🎤 Голосовое», срок сутки, вид для экрана, запрос SpeechKit (MP3), лимит расшифровок, обработчики:
+ * загрузка, звук, «→ Аа» (запуск, ожидание, готово, сбой).
  * node scripts/verify-chat-voice.mjs
  */
 import {
   CHAT_VOICE_BARS,
   CHAT_VOICE_EXPIRED_RU,
-  CHAT_VOICE_KBPS,
   CHAT_VOICE_MAX_BYTES,
+  CHAT_VOICE_MAX_PARTS,
   CHAT_VOICE_MAX_SEC,
+  CHAT_VOICE_RECORD_BPS,
   CHAT_VOICE_SHORT_RU,
   CHAT_VOICE_TEXT_BUSY_RU,
   CHAT_VOICE_TEXT_UNAVAILABLE_RU,
@@ -20,8 +22,6 @@ import {
   chatVoiceLevel,
   checkVoiceUpload,
   compressVoiceWave,
-  createPcmResampler,
-  voiceMp3Rate,
   formatVoiceTime,
   isMp3Header,
   isVoiceEnding,
@@ -29,8 +29,11 @@ import {
   isVoiceStorageKey,
   isVoiceTap,
   nextVoiceSpeed,
+  normalizeVoiceTrim,
   normalizeVoiceWave,
   pcm16Samples,
+  pickVoiceRecorderMime,
+  sniffVoiceMime,
   voiceCancelProgress,
   voiceGesture,
   voiceSeekRatio,
@@ -42,6 +45,7 @@ import { nextChatOutgoingId } from '../src/lib/chat/chatDeliveryCore.js'
 import { buildChatMessageView } from '../src/lib/chat/chatMessageCore.js'
 import { buildYandexSttRequest, parseYandexSttResult, splitJsonStream } from '../api/_lib/yandexSttCore.js'
 import { createChatVoiceTextLimiter } from '../api/_lib/chat/chatVoiceTextLimitCore.js'
+import { voiceFfmpegArgs } from '../api/_lib/chat/chatVoiceTranscode.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -61,35 +65,50 @@ const mp3Bytes = (n = 4000) => {
   return b
 }
 const b64 = (bytes) => Buffer.from(bytes).toString('base64')
+const webmBytes = (n = 4000) => {
+  const b = new Uint8Array(n)
+  b.set([0x1a, 0x45, 0xdf, 0xa3])
+  return b
+}
+const mp4Bytes = (n = 4000) => {
+  const b = new Uint8Array(n)
+  b.set([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70])
+  return b
+}
 const wave = Array.from({ length: CHAT_VOICE_BARS }, (_, i) => i)
 const upload = (over = {}) => ({ audio: b64(mp3Bytes()), sec: 7, wave, ...over })
+const partsUpload = (over = {}) => ({ parts: [b64(webmBytes()), b64(webmBytes(3000))], sec: 7, wave, ...over })
 
-console.log('Звук и волна')
-ok(voiceMp3Rate(48000) === 48000 && voiceMp3Rate(44100) === 44100 && voiceMp3Rate(16000) === 16000, 'пишем на родной частоте микрофона (48 / 44,1 / гарнитура 16 кГц)')
-ok(voiceMp3Rate(96000) === 48000 && voiceMp3Rate(undefined) === 48000, 'частоты, которой нет в MP3, — 48 кГц')
-ok(createPcmResampler(48000, 48000)(Float32Array.from([0.1, 0.2])).join() === Float32Array.from([0.1, 0.2]).join(), 'частота та же — звук без изменений')
-/** Секунда звука кусками по 4096, как отдаёт микрофон. */
-const inChunks = (rate, out, fn, size = 4096) => {
-  const resample = createPcmResampler(rate, out)
-  const parts = []
-  for (let at = 0; at < rate; at += size) parts.push(resample(Float32Array.from({ length: Math.min(size, rate - at) }, (_, i) => fn(at + i, rate))))
-  return Float32Array.from(parts.flatMap((p) => [...p]))
-}
-const flat = () => 0.5
-const tone = (i, rate) => Math.sin((2 * Math.PI * 440 * i) / rate)
-for (const [from, to] of [[96000, 48000], [16000, 44100]]) {
-  const out = inChunks(from, to, flat)
-  /* Хвост куска (меньше одного входного отсчёта) ждёт следующий кусок — между чем интерполировать. */
-  ok(Math.abs(out.length - to) <= Math.ceil(to / from) + 1 && out.every((v) => Math.abs(v - 0.5) < 1e-6), `${from / 1000} → ${to / 1000} кГц: секунда остаётся секундой, уровень тот же`)
-}
-const whole = createPcmResampler(96000, 48000)(Float32Array.from({ length: 96000 }, (_, i) => tone(i, 96000)))
-const parts = inChunks(96000, 48000, tone)
+console.log('Кодек телефона')
+const supports = (list) => (m) => list.includes(m)
+ok(pickVoiceRecorderMime(supports(['audio/webm;codecs=opus', 'audio/mp4'])) === 'audio/webm;codecs=opus', 'Chrome / Android — Opus')
+ok(pickVoiceRecorderMime(supports(['audio/mp4'])) === 'audio/mp4', 'iPhone — MP4 (AAC)')
+ok(pickVoiceRecorderMime(() => false) === null, 'браузер не пишет звук — null, кнопку не показываем')
 ok(
-  whole.length === parts.length && parts.every((v, i) => Math.abs(v - whole[i]) < 1e-6),
-  'пересчёт кусками — то же, что целиком: на стыках нет щелчков и сдвига',
+  pickVoiceRecorderMime(() => {
+    throw new Error('x')
+  }) === null,
+  'проверка формата упала — не падаем',
 )
-ok(Math.abs(parts[24000] - Math.sin((2 * Math.PI * 440 * 24000) / 48000)) < 0.01, 'тон 440 Гц после пересчёта на своём месте')
-ok(createPcmResampler(48000, 44100)(null).length === 0, 'пусто — пусто, без падения')
+ok(sniffVoiceMime(webmBytes()) === 'audio/webm' && sniffVoiceMime(mp4Bytes()) === 'audio/mp4' && sniffVoiceMime(mp3Bytes()) === 'audio/mpeg', 'тип по байтам: WebM, MP4, MP3')
+ok(sniffVoiceMime(Uint8Array.from([0x4f, 0x67, 0x67, 0x53, 0, 0, 0, 0, 0, 0, 0, 0])) === 'audio/ogg', 'Ogg (Firefox)')
+ok(sniffVoiceMime(new Uint8Array(40)) === null && sniffVoiceMime(null) === null, 'мусор — null')
+ok((CHAT_VOICE_MAX_SEC * CHAT_VOICE_RECORD_BPS * 1.25) / 8 < CHAT_VOICE_MAX_BYTES, '5 минут с запасом 25 % на перебор битрейта влезают в лимит')
+ok((CHAT_VOICE_MAX_BYTES * 4) / 3 + 20_000 < PORTABLE_MAX_BODY_BYTES_DEFAULT, 'в base64 с волной — под потолок тела запроса')
+
+console.log('Склейка в MP3 (ffmpeg)')
+const args = voiceFfmpegArgs(['/t/a', '/t/b'], null)
+const graph = args[args.indexOf('-filter_complex') + 1]
+ok(args.filter((a) => a === '-i').length === 2 && graph.includes('concat=n=2:v=0:a=1') && !graph.includes('atrim'), 'два куска — склейка по порядку, без обрезки')
+ok(graph.includes('aresample=48000') && graph.includes('channel_layouts=mono'), 'каждый кусок → 48 кГц моно (гарнитура посреди записи не ломает склейку)')
+ok(args.includes('libmp3lame') && args.at(-1) === 'pipe:1' && args.includes('-nostdin'), 'MP3 в ответ, ffmpeg ничего не ждёт с клавиатуры')
+const cutGraph = voiceFfmpegArgs(['/t/a'], [1.5, 4])[voiceFfmpegArgs(['/t/a'], [1.5, 4]).indexOf('-filter_complex') + 1]
+ok(cutGraph.includes('atrim=start=1.5:end=4') && cutGraph.includes('asetpts=PTS-STARTPTS'), 'обрезка — по секундам ручек, отсчёт с нуля')
+ok(normalizeVoiceTrim(null) === null && normalizeVoiceTrim([1.234, 5]).join() === '1.23,5', 'обрезка: не тянули — null; секунды до сотых')
+ok(normalizeVoiceTrim([3, 3.1]) === false && normalizeVoiceTrim([-1, 4]) === false && normalizeVoiceTrim('x') === false, 'обрезка: короче полсекунды, минус, мусор — отказ')
+ok(normalizeVoiceTrim([0, CHAT_VOICE_MAX_SEC + 5]) === false, 'обрезка: дальше 5 минут — отказ')
+
+console.log('Волна')
 const pcm = pcm16Samples(Float32Array.from([1, -1, 0, 2]))
 ok(pcm[0] === 32767 && pcm[1] === -32768 && pcm[3] === 32767, '16 бит: край шкалы, перегруз обрезается')
 ok(chatVoiceLevel(new Float32Array(100)) === 0 && chatVoiceLevel(new Float32Array(100).fill(0.05)) > 0.3, 'тишина — 0, тихая речь заметна')
@@ -115,15 +134,17 @@ ok(nextVoiceSpeed(1) === 1.5 && nextVoiceSpeed(1.5) === 2 && nextVoiceSpeed(2) =
 ok(voiceSeekRatio(50, 200) === 0.25 && voiceSeekRatio(-5, 200) === 0 && voiceSeekRatio(10, 0) === 0, 'перемотка по волне')
 
 console.log('Загрузка')
-ok(checkVoiceUpload(upload()).ok, 'MP3 7 с — берём')
+ok(checkVoiceUpload(upload()).ok, 'MP3 7 с (старая версия приложения) — берём')
+const pu = checkVoiceUpload(partsUpload({ trim: [1, 6] }))
+ok(pu.ok && pu.parts.length === 2 && pu.bytes === 7000 && pu.trim.join() === '1,6', 'два куска и обрезка — берём, размер общий')
+ok(checkVoiceUpload(partsUpload()).trim === null, 'не обрезали — trim: null')
+ok(checkVoiceUpload(partsUpload({ trim: [5, 5.2] })).status === 400, 'битая обрезка — 400')
+ok(checkVoiceUpload(partsUpload({ parts: [] })).status === 400 && checkVoiceUpload(partsUpload({ parts: [b64(webmBytes()), 'не base64!'] })).status === 400, 'пусто или мусор среди кусков — 400')
+ok(checkVoiceUpload(partsUpload({ parts: Array(CHAT_VOICE_MAX_PARTS + 1).fill(b64(webmBytes(400))) })).status === 400, 'кусков сверх меры — 400')
+ok(checkVoiceUpload(partsUpload({ parts: [b64(webmBytes(CHAT_VOICE_MAX_BYTES - 100)), b64(webmBytes(400))] })).status === 413, 'куски вместе больше 3,7 МБ — 413')
 ok(checkVoiceUpload(upload({ sec: 0.3 })).error === CHAT_VOICE_SHORT_RU, 'короче секунды — «слишком коротко»')
 ok(checkVoiceUpload(upload({ sec: CHAT_VOICE_MAX_SEC + 5 })).status === 413, 'дольше 5 минут — 413')
 ok(checkVoiceUpload(upload({ audio: b64(mp3Bytes(CHAT_VOICE_MAX_BYTES + 10)) })).status === 413, 'больше 3,7 МБ — 413')
-ok(CHAT_VOICE_KBPS === 96, '96 кбит/с — как звук кружка')
-ok(
-  (CHAT_VOICE_MAX_SEC * CHAT_VOICE_KBPS * 1000) / 8 < CHAT_VOICE_MAX_BYTES && (CHAT_VOICE_MAX_BYTES * 4) / 3 + 20_000 < PORTABLE_MAX_BODY_BYTES_DEFAULT,
-  '5 минут влезают в лимит, а в base64 с волной — под потолок тела запроса',
-)
 ok(checkVoiceUpload(upload({ audio: 'не base64!' })).status === 400, 'мусор — 400')
 ok(checkVoiceUpload(upload({ audio: b64(new Uint8Array(30)) })).error === CHAT_VOICE_SHORT_RU, 'пара байт — «слишком коротко»')
 ok(checkVoiceUpload(upload({ wave: [1] })).status === 400, 'без волны — 400')
@@ -133,12 +154,16 @@ const v = resolveChatOutgoing(upload({ sec: 65 }))
 ok(v.ok && v.body === '🎤 Голосовое 1:05' && v.voice?.sec === 65 && v.sticker === null, 'голосовое → текст «🎤 Голосовое 1:05» для превью и push')
 ok(resolveChatOutgoing({ body: 'Привет' }).voice === null, 'обычный текст — без голоса')
 ok(resolveChatOutgoing({ audio: 'xx', sec: 5, wave }).ok === false, 'битое голосовое — ошибка, не пустое сообщение')
+ok(resolveChatOutgoing(partsUpload()).voice?.parts.length === 2, 'куски записи — голосовое')
 const key = voiceStorageKey('client', UUID_A, UUID_B)
 ok(key === `voice/c-${UUID_A}/${UUID_B}.mp3` && isVoiceStorageKey(key), 'файл: автор + номер отправки')
 ok(!isVoiceStorageKey('../etc/passwd') && !isVoiceStorageKey(`voice/c-${UUID_A}/x.mp3`), 'чужой путь — не ключ')
 const a1 = nextChatOutgoingId(null, 'k', upload())
 ok(nextChatOutgoingId(a1, 'k', upload()) === a1, 'повтор той же записи после ошибки — тот же номер')
 ok(nextChatOutgoingId(a1, 'k', upload({ audio: b64(mp3Bytes(4004)) })).id !== a1.id, 'другая запись — новый номер')
+const p1 = nextChatOutgoingId(null, 'k', partsUpload())
+ok(nextChatOutgoingId(p1, 'k', partsUpload()) === p1, 'куски: повтор той же записи — тот же номер')
+ok(nextChatOutgoingId(p1, 'k', partsUpload({ trim: [1, 5] })).id !== p1.id, 'куски: обрезали иначе — новый номер')
 
 console.log('Срок и вид для экрана')
 const now = Date.parse('2026-10-13T12:00:00Z')
@@ -186,10 +211,25 @@ ok(chatVoiceBlocked({ voice: null }) === null, 'текст без бакета �
 ok(chatVoiceBlocked({ voice }, { CHAT_VOICE_BUCKET: 'fd-chat-voice' }) === null, 'бакет есть — можно')
 const puts = new Map()
 const put = async (k, bytes) => puts.set(k, bytes)
-const stored = await storeChatVoice(voice, { side: 'staff', authorId: UUID_A, msgId: UUID_B }, put)
+let transcoded = null
+const transcode = async (bufs, trim) => {
+  transcoded = { n: bufs.length, trim }
+  return Buffer.from(mp3Bytes(500))
+}
+const noFfmpeg = async () => {
+  throw Object.assign(new Error('spawn ffmpeg ENOENT'), { code: 'ENOENT' })
+}
+const stored = await storeChatVoice(voice, { side: 'staff', authorId: UUID_A, msgId: UUID_B }, put, transcode)
 ok(stored.ok && stored.voice.key === `voice/u-${UUID_A}/${UUID_B}.mp3` && puts.size === 1, 'загрузка: файл по ключу автора и отправки')
-const notMp3 = await storeChatVoice({ ...voice, audio: b64(new Uint8Array(4000)) }, { side: 'staff', authorId: UUID_A, msgId: UUID_B }, put)
-ok(!notMp3.ok && notMp3.status === 400, 'не MP3 — отказ, в хранилище не кладём')
+ok(transcoded === null && puts.get(stored.voice.key).length === 4000, 'MP3 старой версии без обрезки — как есть, без ffmpeg')
+const fromParts = await storeChatVoice(checkVoiceUpload(partsUpload({ trim: [1, 6] })), { side: 'client', authorId: UUID_A, msgId: UUID_B }, put, transcode)
+ok(fromParts.ok && transcoded?.n === 2 && transcoded.trim.join() === '1,6' && puts.get(fromParts.voice.key).length === 500, 'куски → ffmpeg (склейка и обрезка) → в хранилище MP3')
+const notAudio = await storeChatVoice(checkVoiceUpload(partsUpload({ parts: [b64(new Uint8Array(4000))] })), { side: 'staff', authorId: UUID_A, msgId: UUID_B }, put, transcode)
+ok(!notAudio.ok && notAudio.status === 400, 'не звук — отказ, в хранилище не кладём')
+const missing = await storeChatVoice(checkVoiceUpload(partsUpload()), { side: 'staff', authorId: UUID_A, msgId: UUID_B }, put, noFfmpeg)
+ok(!missing.ok && missing.status === 503 && missing.error === CHAT_VOICE_UNAVAILABLE_RU, 'на сервере нет ffmpeg — 503 «пока недоступны»')
+const garbled = await storeChatVoice(checkVoiceUpload(partsUpload()), { side: 'staff', authorId: UUID_A, msgId: UUID_B }, put, async () => Buffer.alloc(10))
+ok(!garbled.ok && garbled.status === 400, 'ffmpeg вернул не MP3 — отказ')
 const putFail = await storeChatVoice(voice, { side: 'client', authorId: UUID_A, msgId: null }, async () => {
   throw new Error('voice_put_http_403')
 })
@@ -199,6 +239,8 @@ const fresh = { id: UUID_B, voice_key: key, voice_sec: 7, voice_text: null, voic
 const getOk = async () => Buffer.from(mp3Bytes(10))
 const audio = await voiceAudioAnswer(fresh, getOk)
 ok(audio.status === 200 && audio.body.mime === 'audio/mpeg' && audio.body.audio.length > 0, 'звук свежего голосового')
+const webmOut = await voiceAudioAnswer(fresh, async () => Buffer.from(webmBytes()))
+ok(webmOut.body.mime === 'audio/webm', 'тип звука — по байтам файла')
 const old = await voiceAudioAnswer({ ...fresh, created_at: '2020-01-01T00:00:00Z' }, getOk)
 ok(old.status === 410 && old.body.error === CHAT_VOICE_EXPIRED_RU, 'старше суток — 410 «удалено», даже если файл ещё лежит')
 ok((await voiceAudioAnswer(fresh, async () => null)).status === 410, 'файла уже нет — 410')

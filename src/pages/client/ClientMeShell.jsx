@@ -14,7 +14,7 @@ export function ClientMeShell({ children, actions = null, club = null, tabs = fa
   const { handoffToken } = useClientApp()
   useClientBranding(clubName, withHandoffManifest(club?.manifest_url || null, handoffToken))
   return (
-    <div className={`client-me${tabs ? ' client-me--tabs' : ''}`}>
+    <div className={`client-me${tabs ? ' client-me--tabs' : ''}${bar ? ' client-me--bar' : ''}`}>
       {bar ? (
         <div className="client-me__top client-me__top--bar">{bar}</div>
       ) : (

@@ -8,7 +8,7 @@ import { CHAT_VOICE_LOAD_FAILED_RU, nextVoiceSpeed } from './chatVoiceCore.js'
 import { isPastVoiceRange, nextVoiceInQueue, parseVoiceSpeed, prevVoiceInQueue, voiceResumeAt } from './chatVoicePlaylistCore.js'
 
 /**
- * @typedef {{ key: string, sec: number, load: () => Promise<{ audio: string, mime?: string }>, title?: string,
+ * @typedef {{ key: string, sec: number, load: () => Promise<{ audio: string, mime?: string } | { blob: Blob }>, title?: string,
  *   mine?: boolean, expired?: boolean, preview?: boolean, range?: [number, number], once?: boolean }} VoiceTrack
  * preview — своя запись перед отправкой: без мини-плеера и очереди; range — обрезка (доли 0…1);
  * once — одноразовое: без перемотки и памяти места, доиграло / закрыли / включили другое — звук стёрт (consumed)
@@ -185,9 +185,9 @@ async function startVoice(track, at) {
     a.src = SILENT_MP3
     void a.play().catch(() => {})
     try {
-      const { audio: base64, mime } = await track.load()
+      const loaded = await track.load()
       if (my !== token) return
-      url = objectUrl(base64, mime)
+      url = loaded.blob ? URL.createObjectURL(loaded.blob) : objectUrl(loaded.audio, loaded.mime)
       remember(track.key, url)
     } catch (e) {
       if (my !== token) return

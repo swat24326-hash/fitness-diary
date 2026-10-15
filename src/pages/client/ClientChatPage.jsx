@@ -8,7 +8,7 @@ import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { chatKindLabelRu, isChatKind } from '../../lib/chat/chatAccessCore.js'
 import { chatClientEmptyRu } from '../../lib/chat/chatUiCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
-import { ClientPageActions } from './ClientPageNav.jsx'
+import { ClientPageMenuItems } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientChatThread } from './useClientChat.js'
@@ -33,7 +33,7 @@ export function ClientChatPage() {
           title={who || chatKindLabelRu(kind)}
           subtitle={who ? chatKindLabelRu(kind) : ''}
           searchHostRef={setSearchHost}
-          actions={<ClientPageActions onRefresh={chat.reload} refreshing={chat.status === 'loading'} />}
+          menu={<ClientPageMenuItems onRefresh={chat.reload} refreshing={chat.status === 'loading'} />}
         />
       }
     >

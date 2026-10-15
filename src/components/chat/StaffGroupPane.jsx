@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { RefreshCw, Users, WifiOff } from 'lucide-react'
 import { ChatHeadBar } from './ChatHeadBar.jsx'
 import { ChatOpenErrorAction } from './ChatOpenErrorAction.jsx'
-import { StaffGroupMuteButton, StaffGroupThreadView } from './StaffGroupThreadView.jsx'
+import { StaffGroupMuteItem, StaffGroupThreadView } from './StaffGroupThreadView.jsx'
 import { useStaffGroupThread } from '../../hooks/useStaffGroupThread.js'
 import { staffGroupApi } from '../../lib/chat/staffChatApiClient.js'
 import { STAFF_GROUP_TITLE_RU, staffGroupMembersRu } from '../../lib/chat/staffGroupCore.js'
@@ -37,7 +37,7 @@ export function StaffGroupPane({ clubId, backTo, back = null, onSent }) {
         title={STAFF_GROUP_TITLE_RU}
         subtitle={group ? `${group.name} · ${staffGroupMembersRu(group.members)}` : ''}
         searchHostRef={setSearchHost}
-        actions={chat.meta ? <StaffGroupMuteButton muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
+        menu={chat.meta ? <StaffGroupMuteItem muted={muted} onToggle={() => void toggleMute()} error={muteError} /> : null}
       />
       {!chat.messages ? (
         <div className="card staff-inbox__status" role="status">

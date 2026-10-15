@@ -65,19 +65,21 @@ export function StaffGroupThreadView({ group, onSubmit, searchHost = null }) {
 }
 
 /** «Без звука»: без push и без числа на конверте; новое в списке всё равно видно. */
-export function StaffGroupMuteButton({ muted, onToggle, error }) {
+/** Строка в «⋮» шапки чата клуба: включить / выключить звук уведомлений. */
+export function StaffGroupMuteItem({ muted, onToggle, error }) {
   const label = muted ? 'Включить уведомления чата клуба' : 'Без звука — не присылать уведомления чата клуба'
   return (
     <button
       type="button"
-      className={`btn btn-ghost btn-icon-square btn-touch staff-group__mute${muted ? ' is-muted' : ''}`}
+      className={`app-header__menu-item staff-group__mute${muted ? ' is-muted' : ''}`}
       onClick={onToggle}
       aria-pressed={muted}
       aria-label={label}
       title={error || label}
       data-testid="group-mute"
     >
-      {muted ? <BellOff size={20} aria-hidden /> : <Bell size={20} aria-hidden />}
+      {muted ? <Bell size={18} aria-hidden /> : <BellOff size={18} aria-hidden />}
+      {muted ? 'Включить звук' : 'Без звука'}
     </button>
   )
 }

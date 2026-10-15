@@ -6,11 +6,10 @@
  * 🎤 дописать → ■ → обрезка ручкой → «Отправить без звука»; удержание мышью — отправка, влево / Esc — отмена;
  * ушёл посреди записи — черновик; «1» — одноразовое. Клиент слушает одноразовое раз — дальше «прослушано», сервер 410.
  * Голосовое старше суток — «удалено».
- * Микрофон — подставной тон, бакет и SpeechKit — подменные (fakeChat.mjs), ответы — настоящий chatVoiceHandler.
+ * Микрофон — подставной тон, бакет и SpeechKit — подменные (fakeChat.mjs, без ffmpeg), ответы — настоящий chatVoiceHandler.
  */
-import * as lame from '@breezystack/lamejs'
 import { CHAT_VIDEO_MODE_RU } from '../../../src/lib/chat/chatVideoCore.js'
-import { CHAT_VOICE_DENIED_RU, CHAT_VOICE_EXPIRED_RU, CHAT_VOICE_ONCE_ON_RU } from '../../../src/lib/chat/chatVoiceCore.js'
+import { CHAT_VOICE_DENIED_RU, CHAT_VOICE_EXPIRED_RU, CHAT_VOICE_ONCE_ON_RU, sniffVoiceMime } from '../../../src/lib/chat/chatVoiceCore.js'
 import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
@@ -56,11 +55,11 @@ async function fakeMic(page) {
   })
 }
 
-/** Голосовое, отправленное позавчера: звук уже удалён правилом бакета. */
+/** Голосовое старой версии приложения (MP3), отправленное позавчера: звук уже удалён правилом бакета. */
 function seedExpiredVoice(chat) {
-  const enc = new lame.Mp3Encoder(1, 16000, 32)
-  const pcm = Int16Array.from({ length: 32000 }, (_, i) => Math.round(Math.sin((2 * Math.PI * 440 * i) / 16000) * 8000))
-  const audio = Buffer.concat([enc.encodeBuffer(pcm), enc.flush()].map((p) => Buffer.from(p.buffer, p.byteOffset, p.length))).toString('base64')
+  const frames = Buffer.alloc(144 * 20)
+  for (let i = 0; i < 20; i += 1) frames.set([0xff, 0xf3, 0x48, 0xc4], i * 144)
+  const audio = frames.toString('base64')
   chat.client(CLIENT_ID, { action: 'chat-send', kind: 'trainer', audio, sec: 2, wave: Array.from({ length: 48 }, () => 40) })
   chat.state.messages.at(-1).created_at = new Date(Date.now() - 50 * 3600_000).toISOString()
 }
@@ -142,7 +141,8 @@ async function client(c, context, chat) {
     await f.up()
     c.ok(await eventually(() => voiceCount(chat) === before + 1), 'клиент: отпустил — голосовое ушло')
     const sent = chat.state.messages.at(-1)
-    c.ok(sent.voice_sec >= 1 && sent.body.startsWith('🎤 Голосовое') && chat.state.voices.size >= 2, 'клиент: на сервере MP3, длительность и подпись для списка')
+    c.ok(sent.voice_sec >= 1 && sent.body.startsWith('🎤 Голосовое') && chat.state.voices.size >= 2, 'клиент: на сервере звук, длительность и подпись для списка')
+    c.ok(['audio/webm', 'audio/ogg', 'audio/mp4'].includes(sniffVoiceMime(chat.state.voices.get(sent.voice_key))), 'клиент: звук записан кодеком телефона, как кружок (не MP3 в браузере)')
     c.ok(await reaches(page.locator('.chat-msg--mine.chat-msg--voice').last()), 'клиент: голосовое в ленте пузырём с волной')
     c.ok(await reaches(page.locator('.chat-msg--mine').getByTestId('chat-voice-unplayed').last()), 'клиент: у своего голосового синяя точка — тренер ещё не слушал')
     c.ok(await eventually(async () => (await micOn(page)) === 0), 'клиент: после отправки микрофон выключен')
@@ -266,6 +266,12 @@ async function trainer(c, browser, backend, chat) {
     const kept = await timeOf()
     c.ok(kept < whole, 'тренер: потянул левую ручку — начало обрезано, время меньше')
     await screenshot(page, 'staff-chat-voice-review')
+    await page.getByTestId('chat-voice-preview-play').click()
+    c.ok(
+      await reaches(page.getByTestId('chat-voice-preview-play').and(page.getByRole('button', { name: 'Пауза' }))),
+      'тренер: ▶ на паузе — играет своя запись (обе части склеены на телефоне)',
+    )
+    await page.getByTestId('chat-voice-preview-play').click()
     await page.getByTestId('chat-voice-send').click({ button: 'right' })
     c.ok(await reaches(page.getByTestId('chat-voice-send-silent')), 'тренер: правая кнопка на «Отправить» — «Отправить без звука»')
     await screenshot(page, 'staff-chat-voice-silent')

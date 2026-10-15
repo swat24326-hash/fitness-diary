@@ -69,7 +69,10 @@
 
 /* Диалог: вместо шапки приложения — строка диалога (ChatHeadBar), «←» слева, как в Telegram. */
 .coach-app__top--bar {
-  padding: calc(4px + env(safe-area-inset-top)) 8px 4px;
+  padding: calc(6px + env(safe-area-inset-top)) 10px 6px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .coach-app__top--bar > .chat-bar {
