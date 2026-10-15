@@ -1,20 +1,37 @@
-/* Видеокружки: круг записи над полем ввода и кружок в ленте (без пузыря, как в Telegram). */
+/* Видеокружки как в Telegram: запись — крупный круг вверху экрана над затемнённой лентой; в ленте — без пузыря,
+   при просмотре со звуком кружок увеличивается, по окончании — обратно. */
 
+/* Слой над лентой до верха поля ввода (высота — из ChatVideoCircle); касания проходят сквозь к 📹. */
 .chat-video-rec {
-  display: grid;
-  place-items: center;
-  padding: 6px 0 10px;
-  animation: chat-video-in 0.18s var(--ease-out, ease);
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: 100dvh;
+  padding: calc(env(safe-area-inset-top, 0px) + clamp(16px, 9dvh, 96px)) 16px 16px;
+  background: rgb(0 0 0 / 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  animation: chat-video-fade 0.18s var(--ease-out, ease);
+}
+
+.chat-video-rec__anchor {
+  display: block;
+  height: 0;
 }
 
 .chat-video-rec__circle {
   position: relative;
-  width: min(240px, 62vw);
+  width: min(320px, 82vw, 58dvh);
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 50%;
   background: #000;
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.35);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+  animation: chat-video-in 0.22s var(--ease-out, ease);
 }
 
 .chat-video-rec__live {
@@ -67,6 +84,7 @@
 
 /* Кружок в ленте: без фона пузыря, время — плашкой поверх. */
 .chat-msg.chat-msg--video {
+  max-width: none;
   padding: 0;
   background: transparent;
 }
@@ -98,6 +116,11 @@
   background: color-mix(in srgb, var(--bg) 60%, #000);
   color: rgb(255 255 255 / 0.85);
   cursor: pointer;
+  transition: width 0.24s var(--ease-out, ease);
+}
+
+.chat-video.is-sound {
+  width: min(320px, 84vw);
 }
 
 .chat-video__media {
@@ -175,6 +198,12 @@
   }
 }
 
+@keyframes chat-video-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes chat-video-spin {
   to {
     transform: rotate(360deg);
@@ -183,11 +212,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chat-video-rec,
+  .chat-video-rec__circle,
   .chat-video__spin {
     animation: none;
   }
 
-  .chat-video-rec__ring circle {
+  .chat-video-rec__ring circle,
+  .chat-video {
     transition: none;
   }
 }

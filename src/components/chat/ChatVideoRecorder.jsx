@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronUp, Lock, Video } from 'lucide-react'
 import { CHAT_VIDEO_MAX_SEC, isVideoEnding } from '../../lib/chat/chatVideoCore.js'
 import { formatVoiceTime, voiceCancelProgress, voiceLockProgress } from '../../lib/chat/chatVoiceCore.js'
@@ -34,12 +35,32 @@ function useResultUrl(blob) {
   return url
 }
 
+/** Верх поля ввода в окне: затемнение над лентой кончается здесь — таймер и «Отмена» остаются яркими. */
+function useComposerTop(anchorRef) {
+  const [top, setTop] = useState(null)
+  useEffect(() => {
+    const measure = () => setTop(anchorRef.current?.getBoundingClientRect().top ?? null)
+    measure()
+    const vv = window.visualViewport
+    window.addEventListener('resize', measure)
+    vv?.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      vv?.removeEventListener('resize', measure)
+    }
+  }, [anchorRef])
+  return top
+}
+
 /**
- * Круг над полем: живая фронтальная камера (зеркально), кольцо — сколько осталось до минуты.
+ * Как в Telegram: крупный круг в верхней части экрана, лента за ним затемнена и размыта; поле ввода — без затемнения.
+ * Живая фронтальная камера (зеркально), кольцо — сколько осталось до минуты. Касания проходят сквозь — палец на 📹.
  * @param {{ vid: ReturnType<typeof import('../../hooks/useChatVideoRecord.js').useChatVideoRecord> }} props
  */
 export function ChatVideoCircle({ vid }) {
   const ref = useRef(null)
+  const anchorRef = useRef(null)
+  const top = useComposerTop(anchorRef)
   const resultUrl = useResultUrl(vid.stream ? null : vid.result?.video)
   useEffect(() => {
     const el = ref.current
@@ -48,8 +69,8 @@ export function ChatVideoCircle({ vid }) {
     void el.play().catch(() => {})
   }, [vid.stream])
   const left = 1 - Math.min(1, vid.seconds / CHAT_VIDEO_MAX_SEC)
-  return (
-    <div className="chat-video-rec" data-testid="chat-video-circle">
+  const overlay = (
+    <div className="chat-video-rec" style={top != null ? { height: `${top}px` } : undefined} data-testid="chat-video-circle">
       <div className="chat-video-rec__circle">
         {vid.stream ? (
           <video ref={ref} className="chat-video-rec__live" muted playsInline autoPlay aria-label="Камера" />
@@ -63,6 +84,12 @@ export function ChatVideoCircle({ vid }) {
         </svg>
       </div>
     </div>
+  )
+  return (
+    <>
+      <span ref={anchorRef} className="chat-video-rec__anchor" aria-hidden />
+      {createPortal(overlay, document.body)}
+    </>
   )
 }
 

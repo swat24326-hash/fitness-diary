@@ -11,7 +11,7 @@ const RING_LEN = 2 * Math.PI * RING_R
 
 /**
  * Видеокружок в ленте: когда виден — качаем и крутим сам без звука; тап — со звуком с начала (кольцо прогресса),
- * ещё тап — пауза. Ушёл с экрана — пауза. Через сутки — «Видео удалено через сутки · 0:12».
+ * кружок крупнее, как в Telegram, по окончании — обратно; ещё тап — пауза. Ушёл с экрана — пауза. Через сутки — «Видео удалено через сутки · 0:12».
  * @param {{ id: string, attach: { sec: number|null, expired: boolean }, load: (id: string) => Promise<{ blob: Blob, mime: string }> }} props
  */
 export function ChatVideoBubble({ id, attach, load }) {
@@ -61,6 +61,13 @@ export function ChatVideoBubble({ id, attach, load }) {
       void v.play().catch(() => {})
     }
   }, [visible, file.url, sound])
+
+  /* Со звуком кружок крупнее — у края экрана подвинуть, чтобы виден целиком. */
+  useEffect(() => {
+    if (!sound) return undefined
+    const t = window.setTimeout(() => boxRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }), 260)
+    return () => window.clearTimeout(t)
+  }, [sound])
 
   const tap = () => {
     const v = videoRef.current

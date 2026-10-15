@@ -161,6 +161,19 @@ async function client(c, context, chat) {
     c.ok(await reaches(page.getByTestId('chat-video-holding')), 'клиент: держит — идёт запись, «‹ Влево — отмена»')
     c.ok(await reaches(page.locator('.chat-video-rec__live')), 'клиент: над полем круг с живой камерой')
     c.ok(!(await page.getByTestId('chat-input').isVisible()), 'клиент: поле на время записи спрятано')
+    const recBox = await page.locator('.chat-video-rec__circle').boundingBox()
+    const panelBox = await page.getByTestId('chat-video-holding').boundingBox()
+    const vh = page.viewportSize()?.height ?? 800
+    c.ok(recBox && recBox.y < vh * 0.3, `клиент: круг записи вверху экрана, как в Telegram (верх ${Math.round(recBox?.y ?? -1)} из ${vh})`)
+    c.ok(recBox && panelBox && recBox.y + recBox.height < panelBox.y, 'клиент: круг не налезает на таймер и «Влево — отмена»')
+    c.ok(
+      await page.evaluate(() => {
+        const r = globalThis.document.querySelector('.chat-video-rec')?.getBoundingClientRect()
+        const p = globalThis.document.querySelector('[data-testid="chat-video-holding"]')?.getBoundingClientRect()
+        return Boolean(r && p && r.bottom <= p.top + 1)
+      }),
+      'клиент: затемнение ленты кончается над полем — таймер не затемнён',
+    )
     await wait(2000)
     c.ok((await page.getByTestId('chat-video-time').innerText()) >= '0:01', 'клиент: таймер идёт')
     await screenshot(page, 'client-chat-video-holding')
@@ -235,9 +248,19 @@ async function trainer(c, browser, backend, chat) {
     c.ok((await peer.count()) === 2, 'тренер: оба кружка клиента в ленте')
     const bubble = peer.last()
     c.ok(await reaches(bubble.locator('video')), 'тренер: кружок загрузился — крутится без звука')
+    const small = (await bubble.boundingBox())?.width ?? 0
     await bubble.click()
     c.ok(await eventually(async () => (await bubble.getAttribute('class')).includes('is-sound')), 'тренер: тап — со звуком, кольцо прогресса')
+    await wait(400)
+    const big = (await bubble.boundingBox())?.width ?? 0
+    c.ok(big > small * 1.25, `тренер: со звуком кружок крупнее, как в Telegram (${Math.round(small)} → ${Math.round(big)} px)`)
     await screenshot(page, 'staff-chat-video-feed')
+    c.ok(
+      await eventually(async () => !(await bubble.getAttribute('class')).includes('is-sound'), 100),
+      'тренер: досмотрел — звук выключен',
+    )
+    await wait(400)
+    c.ok(Math.abs(((await bubble.boundingBox())?.width ?? 0) - small) < 2, 'тренер: досмотрел — кружок снова обычного размера')
 
     const before = videos(chat, 'staff').length
     await tap(page, cdp, 'chat-mic')
