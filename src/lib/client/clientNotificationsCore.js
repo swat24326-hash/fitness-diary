@@ -62,8 +62,15 @@ export function clientNotificationsUnreadCount(items) {
   return (items ?? []).reduce((n, it) => n + (it?.read_at ? 0 : 1), 0)
 }
 
-/** Подпись входа на главной / aria. */
+/** Подпись колокольчика / aria. */
 export function clientNotificationsEntryLabelRu(unread) {
   const n = Math.max(0, Number(unread) || 0)
-  return n > 0 ? 'Уведомления, есть новые' : 'Уведомления'
+  return n > 0 ? `Уведомления: новых ${n}` : 'Уведомления'
+}
+
+/** Число на колокольчике (как на «Сообщениях»). */
+export function clientNotificationsBadgeText(count) {
+  const n = Number(count) || 0
+  if (n <= 0) return ''
+  return n > 9 ? '9+' : String(n)
 }

@@ -35,8 +35,8 @@ async function clientOpensTask(c, browser, backend) {
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
     await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
-    const notif = page.getByRole('link', { name: 'Уведомления, есть новые' })
-    c.ok(await reaches(notif), 'клиент: на главной «Уведомления» с новыми')
+    const notif = page.getByRole('link', { name: 'Уведомления: новых 1' })
+    c.ok(await reaches(notif), 'клиент: в шапке колокольчик с новыми')
     await notif.click()
     await page.waitForURL(`${ORIGIN}/me/notifications`, { timeout: 10_000 })
     c.ok(await reaches(page.getByRole('link', { name: /Новое задание/ })), 'клиент: в ленте «Новое задание»')

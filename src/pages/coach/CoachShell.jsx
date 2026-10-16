@@ -6,6 +6,7 @@ import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
 import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
 import { useClientBranding } from '../client/useClientBranding.js'
 import { useCoachApp } from './CoachAppContext.jsx'
+import { CoachNotificationsBell } from './CoachNotificationsBell.jsx'
 import { useCoachAttention } from './useCoachAttention.js'
 import { useCoachPushSelfHeal } from './useCoachPush.js'
 
@@ -73,6 +74,7 @@ function CoachTop({ title, actions, menu }) {
       </span>
       <span className="coach-app__actions">
         {actions}
+        {menu ? <CoachNotificationsBell /> : null}
         {menu ? (
           <NavLink
             to="/coach/more"

@@ -14,6 +14,7 @@ import { CoachDmPage } from './CoachDmPage.jsx'
 import { CoachGroupPage } from './CoachGroupPage.jsx'
 import { CoachJoinPage } from './CoachJoinPage.jsx'
 import { CoachMorePage } from './CoachMorePage.jsx'
+import { CoachNotificationsPage } from './CoachNotificationsPage.jsx'
 import { CoachSignInPage } from './CoachSignInPage.jsx'
 
 /** Вход значка iPhone из адреса: переживает пересборку экрана, как сохранённый QR. */
@@ -63,6 +64,7 @@ function CoachRoutes() {
       <Route path="dm/:userId" element={<CoachDmPage />} />
       <Route path="group" element={<CoachGroupPage />} />
       <Route path="clients" element={<CoachClientsPage />} />
+      <Route path="notifications" element={<CoachNotificationsPage />} />
       <Route path="more" element={<CoachMorePage />} />
       <Route path="*" element={<Navigate to={COACH_HOME} replace />} />
     </Routes>

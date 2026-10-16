@@ -44,6 +44,7 @@ import { Login } from './pages/Login'
 import { SupervisorOfferGate } from './components/legal/SupervisorOfferGate.jsx'
 import { ClientCard } from './pages/trainer/ClientCard'
 import { TrainerHome } from './pages/trainer/TrainerHome'
+import { TrainerNotificationsPage } from './pages/trainer/TrainerNotificationsPage.jsx'
 import { TrainerClients } from './pages/trainer/TrainerClients'
 import { TrainerProfile } from './pages/trainer/TrainerProfile'
 import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
@@ -331,6 +332,7 @@ export default function App() {
             <Route path="/" element={<HomeRedirect />} />
             <Route element={<RoleOutlet roles={['trainer']} />}>
               <Route path="/trainer" element={<TrainerHome />} />
+              <Route path="/trainer/notifications" element={<TrainerNotificationsPage />} />
               <Route path="/trainer/clients" element={<TrainerClients />} />
               <Route path="/trainer/profile" element={<TrainerProfile />} />
               <Route path="/trainer/clients/:id" element={<ClientCard />} />

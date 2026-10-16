@@ -26,6 +26,7 @@ import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
 import { StaffInboxButton } from './inbox/StaffInboxButton.jsx'
 import { HeaderDeviceHealthButton } from './HeaderDeviceHealthButton.jsx'
 import { HeaderHelpButton } from './HeaderHelpButton.jsx'
+import { TrainerNotificationsBell } from '../pages/trainer/TrainerNotificationsBell.jsx'
 import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
 import { TRAINER_INBOX_OPEN_EVENT } from '../lib/admin/trainerInboxEvents.js'
 import { recoverApp } from '../lib/appLifecycle'
@@ -456,6 +457,7 @@ export function AppHeader() {
           </button>
         ) : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHelpButton onOpen={openErrorJournal} /> : null}
+        {isTrainerRole && user ? <TrainerNotificationsBell /> : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHeartRate /> : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderStopwatch /> : null}
         {isDispatchInboxUser && supabaseReady ? <StaffInboxButton /> : null}

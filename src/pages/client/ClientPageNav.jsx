@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { logoutClient, readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientMenu, ClientMenuItems } from './ClientMenu.jsx'
+import { ClientNotificationsEntry } from './ClientNotificationsEntry.jsx'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function useClientMenuProps() {
@@ -17,6 +18,7 @@ export function ClientPageActions({ onRefresh = null, refreshing = false }) {
   const menu = useClientMenuProps()
   return (
     <span className="client-me__actions">
+      <ClientNotificationsEntry plans={readClientMeCache()?.data?.plans} />
       <ClientMenu {...menu} onRefresh={onRefresh} refreshing={refreshing} />
     </span>
   )

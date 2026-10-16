@@ -109,9 +109,9 @@
 
 **Ситуация:** клиент утром открыл `/me` — пришло задание и/или рацион; нужен один список «что случилось», с переходом в экран. Позже сюда же — оценки тренировки/абонемента (закладка в модели).
 
-**Что сделано (фаза 1, виртуальная лента):** на главной `/me` — компактная строка «Уведомления» (точка, пока есть непрочитанное). Экран `/me/notifications`: события `homework_sent` и `nutrition_sent` из сводки `plans` ответа `/api/client-me`. Тап → `/me/task` или `/me/nutrition`; прочитано = тот же `client_seen_at` / `seen`, что точка «Новое» на вкладке «От тренера» (одна правда, без второй таблицы). Точка на вкладке остаётся. Тренерская лента — фаза 2. Оценка (`rate_training`, `rate_membership`) — закладка kinds, UI не в этой фазе; при первом kind вне планов — таблица `client_notifications`.
+**Что сделано (фаза 1, виртуальная лента):** в шапке `/me` — колокольчик (серый; при непрочитанных — accent и число). Экран `/me/notifications`: события `homework_sent` и `nutrition_sent` из сводки `plans` ответа `/api/client-me`. Тап → `/me/task` или `/me/nutrition`; прочитано = тот же `client_seen_at` / `seen`, что точка «Новое» на вкладке «От тренера». Оценка (`rate_training`, `rate_membership`) — закладка kinds. Тренер: шапка планшета и `/coach` — колокольчик → один экран настроек + лента (планшет), см. [COACH_APP.md](./COACH_APP.md).
 
-**Код:** `src/lib/client/clientNotificationsCore.js`, `ClientNotificationsPage.jsx`, `ClientNotificationsEntry.jsx`, стили `client-notifications.css`. Проверка — `scripts/verify-client-notifications.mjs` + сценарий `clientTrainerPlans` в `qa:screens`.
+**Код:** `src/lib/client/clientNotificationsCore.js`, `ClientNotificationsPage.jsx`, `ClientNotificationsEntry.jsx`, `NotificationsBellLink.jsx`, стили `client-notifications.css`. Проверка — `scripts/verify-client-notifications.mjs` + сценарий `clientTrainerPlans` в `qa:screens`.
 
 Объявления и опросы клуба — вкладка «Сообщения» с красным числом, внутри переключатель «Диалоги | От клуба» (`ClientSegments.jsx`, тот же, что «Задание | Питание»); рассылки — `/me/inbox?tab=news` и `/me/inbox/:id`. Число на вкладке (рассылки + переписка) обновляется само: раз в минуту при открытом приложении, при возврате и сразу при push (`useClientMe.js`, тихо — без «загрузки»). Канон, правила и статус — [INBOX.md](./INBOX.md).
 

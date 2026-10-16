@@ -5,6 +5,7 @@ import {
   CLIENT_NOTIFICATION_KINDS,
   CLIENT_NOTIFICATIONS_PATH,
   buildClientNotificationsFromPlans,
+  clientNotificationsBadgeText,
   clientNotificationsEntryLabelRu,
   clientNotificationsUnreadCount,
 } from '../src/lib/client/clientNotificationsCore.js'
@@ -63,7 +64,9 @@ const seenHw = buildClientNotificationsFromPlans({
   nutrition: nu,
 })
 ok(clientNotificationsUnreadCount(seenHw) === 0, 'оба открыты — ноль непрочитанных')
-ok(clientNotificationsEntryLabelRu(1) === 'Уведомления, есть новые', 'aria при новых')
+ok(clientNotificationsEntryLabelRu(1) === 'Уведомления: новых 1', 'aria при новых')
 ok(clientNotificationsEntryLabelRu(0) === 'Уведомления', 'aria без новых')
+ok(clientNotificationsBadgeText(1) === '1' && clientNotificationsBadgeText(12) === '9+', 'счётчик на колокольчике')
+ok(clientNotificationsBadgeText(0) === '', 'без непрочитанных — без числа')
 
 console.log('verify-client-notifications: ok')

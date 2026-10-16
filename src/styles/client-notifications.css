@@ -1,47 +1,91 @@
-/* Лента персональных уведомлений клиента (/me/notifications) и вход на главной. */
+/* Колокольчик уведомлений в шапке клиента (/me). */
 
-.client-notif-entry {
-  display: flex;
-  align-items: center;
+.client-notif-bell {
+  position: relative;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.client-notif-bell--live {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.client-notif-bell__badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 1;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg, #0a0f0c);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Экран «Уведомления» у тренера /coach и планшета: настройки + лента. */
+.staff-notif-settings,
+.staff-notif-feed {
+  display: grid;
   gap: 10px;
-  min-height: 48px;
-  padding: 0 14px;
+  margin-bottom: 16px;
+}
+
+.staff-notif-settings__title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.staff-notif-settings__list {
+  display: grid;
+  gap: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-card);
-  color: var(--text);
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.18s ease, transform 0.12s ease;
+  overflow: hidden;
 }
 
-.client-notif-entry:hover {
-  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+.staff-notif-settings__list .app-header__menu-item,
+.staff-notif-settings__list .header-push__row {
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.client-notif-entry:active {
-  transform: scale(0.985);
+.staff-notif-settings__list .app-header__menu-item:last-child,
+.staff-notif-settings__list .header-push__row:last-child {
+  border-bottom: none;
 }
 
-.client-notif-entry__icon {
-  display: grid;
+.staff-notif-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.staff-notif-hint svg {
   flex: none;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
+  margin-top: 2px;
+  opacity: 0.7;
 }
 
-.client-notif-entry__label {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
+.trainer-notif-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
 }
 
-.client-notif-entry__go {
-  flex: none;
-  opacity: 0.45;
-}

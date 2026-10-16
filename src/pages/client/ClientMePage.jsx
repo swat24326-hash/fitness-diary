@@ -14,6 +14,7 @@ import {
   ClientProgressCard,
   ClientStatsCard,
 } from './ClientMeSections.jsx'
+import { readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientNotificationsEntry } from './ClientNotificationsEntry.jsx'
 import { ClientOnboardingBanner } from './ClientOnboardingBanner.jsx'
 import { useClientMe } from './useClientMe.js'
@@ -40,6 +41,7 @@ export function ClientMePage() {
 
   const actions = (
     <span className="client-me__actions">
+      <ClientNotificationsEntry plans={data?.plans ?? readClientMeCache()?.data?.plans} />
       <ClientMenu
         clientName={data?.client?.name || ''}
         onRefresh={spark.refresh}
@@ -78,7 +80,6 @@ export function ClientMePage() {
         sparkSettling={spark.settling}
       />
       <ClientStatsCard progress={data.progress} />
-      <ClientNotificationsEntry plans={data.plans} />
       <div className="client-me-tiles">
         {sessionFirst ? <ClientNextSessionCard session={data.next_session} today={today} lead /> : null}
         <ClientMembershipsCard memberships={data.memberships} today={today} lead={!sessionFirst} />
