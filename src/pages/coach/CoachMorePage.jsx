@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LogOut, RefreshCw } from 'lucide-react'
 import { HeaderChatSoundSwitch } from '../../components/header/HeaderChatSoundSwitch.jsx'
+import { NotificationsSettingsFold } from '../../components/header/NotificationsSettingsFold.jsx'
 import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
 import { SignOutWarnDialog } from '../../components/screenCache/SignOutWarnDialog.jsx'
@@ -45,8 +46,10 @@ export function CoachMorePage() {
           cacheKey="coach"
           settings={
             <>
-              <CoachMenuPushSwitch />
-              <HeaderChatSoundSwitch />
+              <NotificationsSettingsFold>
+                <CoachMenuPushSwitch />
+                <HeaderChatSoundSwitch />
+              </NotificationsSettingsFold>
               <button type="button" className="app-header__menu-item" onClick={() => window.location.reload()}>
                 <RefreshCw size={18} aria-hidden />
                 Обновить

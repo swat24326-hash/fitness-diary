@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { LegalPageShell } from '../../components/legal/LegalPageShell.jsx'
 import {
   CHAT_RULES_TITLE,
   CHAT_RULES_UPDATED,
@@ -13,7 +14,7 @@ export function ChatRulesPage() {
   const updated = formatDateRu(CHAT_RULES_UPDATED) || CHAT_RULES_UPDATED
 
   return (
-    <main className="privacy-policy">
+    <LegalPageShell>
       <header className="privacy-policy__head">
         <p className="privacy-policy__brand muted">{PRODUCT_BRAND_NAME}</p>
         <h1 className="privacy-policy__title">{CHAT_RULES_TITLE}</h1>
@@ -32,16 +33,6 @@ export function ChatRulesPage() {
           <p className="privacy-policy__body">{s.body}</p>
         </section>
       ))}
-
-      <p className="privacy-policy__back">
-        <Link to={PRIVACY_POLICY_PATH}>{PRIVACY_POLICY_LINK_RU}</Link>
-        {' · '}
-        <Link to="/login">Ко входу сотрудников</Link>
-        {' · '}
-        <Link to="/me">В приложение клиента</Link>
-        {' · '}
-        <Link to="/coach">В приложение тренера</Link>
-      </p>
-    </main>
+    </LegalPageShell>
   )
 }

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { LegalPageShell } from '../../components/legal/LegalPageShell.jsx'
 import { OFFER_LINK_RU, OFFER_PATH } from '../../lib/legal/offerCore.js'
 import {
   CHAT_RULES_LINK_RU,
@@ -17,7 +18,7 @@ export function PrivacyPolicyPage() {
   const updated = formatDateRu(PRIVACY_POLICY_UPDATED) || PRIVACY_POLICY_UPDATED
 
   return (
-    <main className="privacy-policy">
+    <LegalPageShell>
       <header className="privacy-policy__head">
         <p className="privacy-policy__brand muted">{PRODUCT_BRAND_NAME}</p>
         <h1 className="privacy-policy__title">{PRIVACY_POLICY_TITLE}</h1>
@@ -28,7 +29,9 @@ export function PrivacyPolicyPage() {
         Этот текст объясняет, как программа «{PRODUCT_BRAND_NAME}» обрабатывает персональные данные. Это не замена
         консультации юриста. Оператор ваших данных как клиента клуба — ваш клуб; мы — обработчик по его поручению.
         Правила общения в мессенджере клуба — отдельно:{' '}
-        <Link to={CHAT_RULES_PATH}>{CHAT_RULES_LINK_RU}</Link>.
+        <Link to={CHAT_RULES_PATH}>{CHAT_RULES_LINK_RU}</Link>
+        {' · '}
+        <Link to={OFFER_PATH}>{OFFER_LINK_RU}</Link>.
       </p>
 
       {privacyPolicySections().map((s) => (
@@ -53,18 +56,6 @@ export function PrivacyPolicyPage() {
           )}
         </p>
       </section>
-
-      <p className="privacy-policy__back">
-        <Link to={CHAT_RULES_PATH}>{CHAT_RULES_LINK_RU}</Link>
-        {' · '}
-        <Link to={OFFER_PATH}>{OFFER_LINK_RU}</Link>
-        {' · '}
-        <Link to="/login">Ко входу сотрудников</Link>
-        {' · '}
-        <Link to="/me">В приложение клиента</Link>
-        {' · '}
-        <Link to="/coach">В приложение тренера</Link>
-      </p>
-    </main>
+    </LegalPageShell>
   )
 }

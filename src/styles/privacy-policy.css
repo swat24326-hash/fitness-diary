@@ -1,6 +1,7 @@
 /* Публичные legal-страницы (/privacy, /chat-rules, /offer) и ссылки на входе */
 
 .privacy-policy {
+  position: relative;
   max-width: 40rem;
   margin: 0 auto;
   padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(2.5rem, env(safe-area-inset-bottom));
@@ -13,6 +14,12 @@
       transparent 50%
     ),
     var(--bg);
+}
+
+.privacy-policy__chrome {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 0.35rem;
 }
 
 .privacy-policy__brand {
@@ -78,13 +85,6 @@
 .privacy-policy__lead a:hover,
 .privacy-policy__back a:hover {
   text-decoration: underline;
-}
-
-.privacy-policy__back {
-  margin: 2rem 0 0;
-  padding-top: 1rem;
-  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
-  font-size: 0.9rem;
 }
 
 .privacy-policy-link {

@@ -434,7 +434,8 @@ async function adminWrites(c, browser, backend, chat) {
     c.ok(await reaches(page.getByTestId('staff-people').getByText('Без push')), 'в списке — само новое сообщение')
     await page.getByRole('button', { name: 'Меню аккаунта' }).click()
     await page.getByTestId('profile-menu-user').click()
-    c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'админ: в «Мой профиль» → «Настройки» переключатель «Уведомления», как у всех')
+    await page.getByTestId('notifications-fold').click()
+    c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'админ: «Уведомления» → раскрыли → переключатель, как у всех')
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Меню аккаунта' }).click()
     const layout = () =>

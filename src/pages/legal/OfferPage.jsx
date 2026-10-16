@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { LegalPageShell } from '../../components/legal/LegalPageShell.jsx'
 import {
   OFFER_PARTY,
   OFFER_TITLE,
@@ -15,7 +16,7 @@ export function OfferPage() {
   const updated = formatDateRu(OFFER_UPDATED) || OFFER_UPDATED
 
   return (
-    <main className="privacy-policy">
+    <LegalPageShell>
       <header className="privacy-policy__head">
         <p className="privacy-policy__brand muted">{PRODUCT_BRAND_NAME}</p>
         <h1 className="privacy-policy__title">{OFFER_TITLE}</h1>
@@ -41,12 +42,6 @@ export function OfferPage() {
           <p className="privacy-policy__body">{s.body}</p>
         </section>
       ))}
-
-      <p className="privacy-policy__back">
-        <Link to={PRIVACY_POLICY_PATH}>{PRIVACY_POLICY_LINK_RU}</Link>
-        {' · '}
-        <Link to="/login">Ко входу</Link>
-      </p>
-    </main>
+    </LegalPageShell>
   )
 }

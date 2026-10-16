@@ -43,7 +43,10 @@ export async function run(browser) {
     const settings = sheet.getByTestId('profile-settings')
     c.ok(await reaches(settings), '«Мой профиль»: под фото — «Настройки»')
     c.ok(await reaches(settings.getByRole('button', { name: 'Восстановить приложение' })), 'в настройках — «Восстановить приложение»')
-    c.ok(await reaches(settings.getByRole('switch', { name: 'Уведомления' })), 'в настройках — переключатель «Уведомления»')
+    const notifyFold = settings.getByTestId('notifications-fold')
+    c.ok(await reaches(notifyFold), 'в настройках — одна кнопка «Уведомления»')
+    await notifyFold.click()
+    c.ok(await reaches(settings.getByRole('switch', { name: 'Уведомления' })), 'раскрыли — переключатель «Уведомления»')
     c.ok(
       await settings.getByRole('switch', { name: 'Напоминания из Ежедневника' }).isDisabled(),
       'тренеру — «Напоминания из Ежедневника», без уведомлений неактивны',

@@ -1,5 +1,14 @@
 /* Пункты настроек сотрудника (в «Мой профиль»): переключатели push и звуков, QR для телефона. */
 
+/* Тренер: три переключателя спрятаны за одной кнопкой «Уведомления». */
+.header-notifications-fold__panel {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 4px;
+  padding: 4px 0 4px 8px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 .coach-qr-panel {
   display: grid;
   justify-items: center;
