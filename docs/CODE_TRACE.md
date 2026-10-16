@@ -87,6 +87,7 @@
 | Клиент входа | `src/lib/authSignInService.js`, `src/lib/authLoginResolveCore.js` |
 | Окно «Установить» | `src/lib/pwa/installPromptStore.js` (ловится в `main.jsx`), `src/hooks/useInstallPrompt.js`, режим подсказки `src/lib/client/clientInstallCore.js`; verify `scripts/verify-client-app-branding.mjs` |
 | Вход значка клиента `/me` | `src/lib/client/clientHandoffCore.js`, `src/pages/client/useClientHandoff.js`, `src/pages/client/ClientAppContext.jsx`; сервер `api/_lib/clientPortal/clientHandoffCore.js` — verify `scripts/verify-client-handoff.mjs` |
+| Вход клиента по QR в приложении | `src/pages/client/ClientSignInPanel.jsx`, `ClientQrScanSheet.jsx`, `useClientQrScan.js`, `src/lib/client/clientInviteTokenCore.js` — verify `scripts/verify-client-invite-token.mjs` |
 | Юр.страницы → обратно в `/me` | `src/lib/legal/legalPageCloseCore.js`, `src/components/legal/LegalPageShell.jsx`, `LegalAppEntryBar.jsx` — verify `scripts/verify-legal-page-close.mjs` |
 | SW / обновление | `src/lib/appLifecycle.js`, `src/lib/appUpdateApplyService.js`, `src/lib/appBuildInfo.js` |
 | Verify | `scripts/verify-auth-sign-in-fallback.mjs`, `scripts/verify-auth-sign-in-fast-path.mjs`, `scripts/verify-auth-session-recover.mjs`, `scripts/verify-client-handoff.mjs` |

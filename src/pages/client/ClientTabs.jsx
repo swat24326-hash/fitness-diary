@@ -7,9 +7,9 @@ import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 const PLAN_PATHS = Object.values(CLIENT_PLAN_ROUTES)
 
-/** Новые сообщения и непройденные опросы — из ответа /api/client-me. */
+/** Число на «Сообщениях» — только диалоги (опросы и объявления — на колокольчике). */
 export function clientAttention(data) {
-  return (Number(data?.inbox_attention) || 0) + (Number(data?.chat_attention) || 0)
+  return Number(data?.chat_attention) || 0
 }
 
 function Tab({ to, end, active, icon: Icon, label, ariaLabel, badge = '', dot = false }) {

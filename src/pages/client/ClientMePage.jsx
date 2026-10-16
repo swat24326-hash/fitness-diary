@@ -1,7 +1,9 @@
-import { QrCode, RefreshCw, WifiOff } from 'lucide-react'
-import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
+import { RefreshCw, WifiOff } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { clientMeLeadCard } from '../../lib/client/clientMeHighlightsCore.js'
+import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
+import { readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientMenu } from './ClientMenu.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { clientAttention } from './ClientTabs.jsx'
@@ -14,27 +16,31 @@ import {
   ClientProgressCard,
   ClientStatsCard,
 } from './ClientMeSections.jsx'
-import { readClientMeCache } from '../../lib/client/clientSession.js'
+import { useClientApp } from './ClientAppContext.jsx'
 import { ClientNotificationsEntry } from './ClientNotificationsEntry.jsx'
 import { ClientOnboardingBanner } from './ClientOnboardingBanner.jsx'
+import { ClientSignInPanel } from './ClientSignInPanel.jsx'
 import { useClientMe } from './useClientMe.js'
 import { useSparkRebuild } from './useSparkRebuild.js'
 
 /** /me — приложение клиента: данные клуба; установка и напоминания — баннеры первого входа и меню. */
 export function ClientMePage() {
+  const navigate = useNavigate()
+  const { onboarding } = useClientApp()
   const { data, savedAt, status, error, reload, logout } = useClientMe()
   const spark = useSparkRebuild(status, reload)
 
   if (status === 'signed_out') {
     return (
       <ClientMeShell>
-        <ClientMeStatus
-          icon={QrCode}
-          title="Вход по ссылке из клуба"
-          hint={error || 'Попросите тренера или администратора показать QR-код в вашей карточке и отсканируйте его камерой.'}
-        >
-          <LegalEntryLinks />
-        </ClientMeStatus>
+        <ClientSignInPanel
+          error={error}
+          onEntered={() => {
+            onboarding.start()
+            navigate(CLIENT_HOME, { replace: true, state: { clientQrIn: Date.now() } })
+            reload()
+          }}
+        />
       </ClientMeShell>
     )
   }
@@ -44,6 +50,7 @@ export function ClientMePage() {
       <ClientNotificationsEntry
         plans={data?.plans ?? readClientMeCache()?.data?.plans}
         ratings={data?.ratings ?? readClientMeCache()?.data?.ratings}
+        inboxAttention={data?.inbox_attention ?? readClientMeCache()?.data?.inbox_attention}
       />
       <ClientMenu
         clientName={data?.client?.name || ''}

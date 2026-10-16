@@ -65,7 +65,9 @@ export async function run(browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await page.goto(`${ORIGIN}/me`)
-    c.ok(await visible(page, 'Вход по ссылке из клуба'), 'без входа — подсказка «Вход по ссылке из клуба»')
+    c.ok(await visible(page, 'Вход в приложение клуба'), 'без входа — экран входа в приложение')
+    c.ok(await visible(page, 'Войти по QR'), 'на экране входа — кнопка «Войти по QR»')
+    c.ok(await visible(page, INSTALL_BANNER), 'до входа на iPhone — шаг «Значок на экран»')
 
     await page.goto(`${ORIGIN}/me/join#t=not-our-token`)
     c.ok(await visible(page, 'Не получилось войти'), 'чужая ссылка — «Не получилось войти»')

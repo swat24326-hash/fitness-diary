@@ -94,6 +94,7 @@ run('trainer notifications feed', 'node', ['scripts/verify-trainer-notifications
 run('trainer schedule reminders', 'node', ['scripts/verify-schedule-reminders.mjs'])
 run('client app onboarding', 'node', ['scripts/verify-client-onboarding.mjs'])
 run('client app iphone handoff', 'node', ['scripts/verify-client-handoff.mjs'])
+run('client invite token from QR', 'node', ['scripts/verify-client-invite-token.mjs'])
 run('pwa single manifest link', 'node', ['scripts/verify-pwa-single-manifest.mjs'])
 run('client inbox', 'node', ['scripts/verify-inbox.mjs'])
 run('client chat', 'node', ['scripts/verify-chat.mjs'])

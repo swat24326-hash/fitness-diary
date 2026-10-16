@@ -4,6 +4,7 @@
  * Запуск: node scripts/e2e/preview-client.mjs
  */
 import { chromium } from 'playwright'
+import { clientRatingCopy, publicClientRating } from '../../src/lib/client/clientRatingCore.js'
 import { createFakeBackend } from './lib/fakeBackend.mjs'
 import { createFakeChat } from './lib/fakeChat.mjs'
 import { createFakeClientPortal } from './lib/fakeClientPortal.mjs'
@@ -63,13 +64,92 @@ const portal = createFakeClientPortal(backend.state, {
     { day_date: isoDay(4), start_minutes: 1080, duration_minutes: 60, trainer_id: TRAINER_ID },
   ],
 })
+const inboxSurvey = {
+  id: 'd-preview-survey',
+  kind: 'survey',
+  title: 'Как вам зал?',
+  sent_at: daysAgo(0, '09'),
+  status: 'new',
+  open: true,
+  reward_points: 50,
+  attention: true,
+  body: 'Короткий опрос — пара минут.',
+  questions: [{ id: 'q1', type: 'rating', text: 'Оцените атмосферу', required: true }],
+}
+/** Три вида оценок в ленте — чтобы глянуть вид (абонемент / задание / рацион). */
+const previewRatings = [
+  {
+    id: 'r-membership',
+    kind: 'membership',
+    client_id: CLIENT_ID,
+    requested_at: daysAgo(0, '08'),
+    created_at: daysAgo(0, '08'),
+    answered_at: null,
+    dismissed_at: null,
+    score: null,
+    comment: null,
+  },
+  {
+    id: 'r-homework',
+    kind: 'homework',
+    client_id: CLIENT_ID,
+    requested_at: daysAgo(1, '14'),
+    created_at: daysAgo(1, '14'),
+    answered_at: null,
+    dismissed_at: null,
+    score: null,
+    comment: null,
+  },
+  {
+    id: 'r-nutrition',
+    kind: 'nutrition',
+    client_id: CLIENT_ID,
+    requested_at: daysAgo(2, '11'),
+    created_at: daysAgo(2, '11'),
+    answered_at: null,
+    dismissed_at: null,
+    score: null,
+    comment: null,
+  },
+]
+const ratingById = Object.fromEntries(previewRatings.map((r) => [r.id, r]))
 backend.clientMe = (req) => {
   const authed = /^Bearer .+/.test(String(req.headers.authorization ?? ''))
-  if (authed && req.path === '/api/client-me' && req.method === 'POST' && String(req.body?.action ?? '').startsWith('chat-')) {
-    return chat.client(CLIENT_ID, req.body)
+  if (authed && req.path === '/api/client-me' && req.method === 'POST') {
+    const action = String(req.body?.action ?? '')
+    if (action.startsWith('chat-')) return chat.client(CLIENT_ID, req.body)
+    if (action === 'inbox-list') {
+      return { status: 200, json: { items: [inboxSurvey], attention: 1, points: 0 } }
+    }
+    if (action === 'inbox-item' && String(req.body?.id) === inboxSurvey.id) {
+      return { status: 200, json: { item: { ...inboxSurvey, status: 'read', attention: false } } }
+    }
+    if (action === 'rating-get') {
+      const row = ratingById[String(req.body?.id ?? '')]
+      if (!row) return { status: 404, json: { error: 'Оценка не найдена' } }
+      return { status: 200, json: { rating: publicClientRating(row), copy: clientRatingCopy(row.kind) } }
+    }
+    if (action === 'rating-answer') {
+      const row = ratingById[String(req.body?.id ?? '')]
+      if (!row) return { status: 404, json: { error: 'Оценка не найдена' } }
+      row.answered_at = new Date().toISOString()
+      row.score = Number(req.body?.score) || 5
+      row.comment = String(req.body?.comment ?? '').trim().slice(0, 300) || null
+      return { status: 200, json: { rating: publicClientRating(row) } }
+    }
+    if (action === 'rating-dismiss') {
+      const row = ratingById[String(req.body?.id ?? '')]
+      if (!row) return { status: 404, json: { error: 'Оценка не найдена' } }
+      row.dismissed_at = new Date().toISOString()
+      return { status: 200, json: { rating: publicClientRating(row) } }
+    }
   }
   const res = portal(req)
-  if (req.path === '/api/client-me' && req.method === 'GET' && res.json?.as_of) res.json.chat_attention = chat.attentionForClient(CLIENT_ID)
+  if (req.path === '/api/client-me' && req.method === 'GET' && res.json?.as_of) {
+    res.json.chat_attention = chat.attentionForClient(CLIENT_ID)
+    res.json.inbox_attention = 1
+    res.json.ratings = previewRatings.map((r) => publicClientRating(r)).filter(Boolean)
+  }
   return res
 }
 
@@ -85,7 +165,8 @@ const context = await newE2eContext(browser, backend, {
 const page = await context.newPage()
 await page.goto(`${ORIGIN}/me/join#t=${INVITE}`, { waitUntil: 'domcontentloaded', timeout: 90_000 })
 await page.waitForURL(`${ORIGIN}/me/`, { timeout: 60_000 })
-console.log(`Приложение клиента открыто: ${ORIGIN}/me (тестовые данные). Закройте окно, чтобы выйти.`)
+await page.goto(`${ORIGIN}/me/notifications`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+console.log(`Уведомления клиента: ${ORIGIN}/me/notifications (тестовые данные). Закройте окно, чтобы выйти.`)
 
 browser.on('disconnected', () => {
   server.stop()

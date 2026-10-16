@@ -4,8 +4,11 @@
 import {
   CLIENT_NOTIFICATION_KINDS,
   CLIENT_NOTIFICATIONS_PATH,
+  buildClientNotifications,
+  buildClientNotificationsFromInbox,
   buildClientNotificationsFromPlans,
   clientNotificationsBadgeText,
+  clientNotificationsBellCount,
   clientNotificationsEntryLabelRu,
   clientNotificationsUnreadCount,
 } from '../src/lib/client/clientNotificationsCore.js'
@@ -68,5 +71,17 @@ ok(clientNotificationsEntryLabelRu(1) === 'Уведомления: новых 1'
 ok(clientNotificationsEntryLabelRu(0) === 'Уведомления', 'aria без новых')
 ok(clientNotificationsBadgeText(1) === '1' && clientNotificationsBadgeText(12) === '9+', 'счётчик на колокольчике')
 ok(clientNotificationsBadgeText(0) === '', 'без непрочитанных — без числа')
+
+const inboxItems = [
+  { id: 'd1', kind: 'survey', title: 'Как вам зал?', sent_at: '2026-10-10T12:00:00Z', attention: true, open: true, reward_points: 50 },
+  { id: 'd2', kind: 'notice', title: '1 января выходной', sent_at: '2026-10-07T08:00:00Z', attention: false },
+]
+const fromInbox = buildClientNotificationsFromInbox(inboxItems)
+ok(fromInbox.length === 2 && fromInbox[0].kind === 'club_survey', 'опрос клуба → club_survey')
+ok(fromInbox[0].deep_link === '/me/inbox/d1' && !fromInbox[0].read_at, 'опрос ведёт в карточку, unread')
+ok(fromInbox[1].kind === 'club_notice' && fromInbox[1].read_at, 'объявление прочитано')
+const merged = buildClientNotifications({ homework: hw }, null, { inboxItems, timeZone: TZ })
+ok(merged.length === 3 && merged[0].id === 'inbox:d1', 'единая лента: опрос сверху по дате')
+ok(clientNotificationsBellCount({ plans: { homework: hw }, inboxAttention: 2 }) === 3, 'колокольчик: планы + inbox_attention')
 
 console.log('verify-client-notifications: ok')

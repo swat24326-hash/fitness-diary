@@ -18,7 +18,11 @@ export function ClientPageActions({ onRefresh = null, refreshing = false }) {
   const menu = useClientMenuProps()
   return (
     <span className="client-me__actions">
-      <ClientNotificationsEntry plans={readClientMeCache()?.data?.plans} />
+      <ClientNotificationsEntry
+        plans={readClientMeCache()?.data?.plans}
+        ratings={readClientMeCache()?.data?.ratings}
+        inboxAttention={readClientMeCache()?.data?.inbox_attention}
+      />
       <ClientMenu {...menu} onRefresh={onRefresh} refreshing={refreshing} />
     </span>
   )

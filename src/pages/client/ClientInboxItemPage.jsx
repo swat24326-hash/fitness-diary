@@ -1,7 +1,8 @@
 import { Navigate, useParams } from 'react-router-dom'
 import { CheckCircle2, Lock, RefreshCw, WifiOff } from 'lucide-react'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
-import { CLIENT_INBOX_NEWS_PATH, inboxItemMetaRu, inboxThanksRu } from '../../lib/client/clientInboxUiCore.js'
+import { CLIENT_NOTIFICATIONS_PATH } from '../../lib/client/clientNotificationsCore.js'
+import { inboxItemMetaRu, inboxThanksRu } from '../../lib/client/clientInboxUiCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
@@ -21,7 +22,7 @@ export function ClientInboxItemPage() {
   if (!item) {
     return (
       <ClientMeShell actions={actions} club={club}>
-        <ClientPageTitle title="Сообщение" to={CLIENT_INBOX_NEWS_PATH} />
+        <ClientPageTitle title="Сообщение" to={CLIENT_NOTIFICATIONS_PATH} />
         {status === 'error' ? (
           <ClientMeStatus icon={WifiOff} title="Не открылось" hint={error}>
             <button type="button" className="btn btn-secondary btn-touch" onClick={reload}>
@@ -39,7 +40,7 @@ export function ClientInboxItemPage() {
   return (
     <ClientMeShell actions={actions} club={club}>
       <header className="client-inbox-item__head">
-        <ClientPageTitle title={item.title} to={CLIENT_INBOX_NEWS_PATH} />
+        <ClientPageTitle title={item.title} to={CLIENT_NOTIFICATIONS_PATH} />
         <small className="client-me-muted">
           {inboxItemMetaRu(item)} · {formatDateTimeRu(item.sent_at)}
         </small>

@@ -1,7 +1,9 @@
 /**
- * Лента персональных уведомлений клиента (/me/notifications).
- * Планы (client_plans) + запросы оценки (client_ratings).
+ * Лента уведомлений клиента (/me/notifications).
+ * Планы (client_plans) + оценки (client_ratings) + рассылки клуба (inbox).
+ * Без вкладок: одна лента, разные kinds.
  */
+import { inboxItemMetaRu } from './clientInboxUiCore.js'
 import { CLIENT_PLAN_ROUTES, clientHomeworkTitle, planFootRu } from './clientPlanUiCore.js'
 import { CLIENT_RATING_KINDS } from './clientRatingCore.js'
 
@@ -13,6 +15,8 @@ export const CLIENT_NOTIFICATION_KINDS = Object.freeze({
   rate_membership: 'rate_membership',
   rate_homework: 'rate_homework',
   rate_nutrition: 'rate_nutrition',
+  club_survey: 'club_survey',
+  club_notice: 'club_notice',
 })
 
 const RATING_KIND_TO_NOTIF = Object.freeze({
@@ -85,11 +89,39 @@ export function buildClientNotificationsFromRatings(ratings) {
   return out
 }
 
-/** Планы + оценки, новые сверху. */
-export function buildClientNotifications(plans, ratings, opts) {
+/**
+ * Рассылки клуба (список my-inbox) → элементы ленты.
+ * @param {Array<{ id: string, kind?: string, title?: string, sent_at?: string, attention?: boolean }>|null|undefined} inboxItems
+ */
+export function buildClientNotificationsFromInbox(inboxItems) {
+  const out = []
+  for (const it of inboxItems ?? []) {
+    if (!it?.id || !it.sent_at) continue
+    const survey = it.kind === 'survey'
+    out.push({
+      id: `inbox:${it.id}`,
+      kind: survey ? CLIENT_NOTIFICATION_KINDS.club_survey : CLIENT_NOTIFICATION_KINDS.club_notice,
+      title: String(it.title || (survey ? 'Опрос' : 'Объявление')).trim() || (survey ? 'Опрос' : 'Объявление'),
+      body: inboxItemMetaRu(it),
+      deep_link: `/me/inbox/${encodeURIComponent(String(it.id))}`,
+      created_at: String(it.sent_at),
+      read_at: it.attention ? null : String(it.sent_at),
+    })
+  }
+  return out
+}
+
+/**
+ * Планы + оценки + рассылки клуба, новые сверху.
+ * @param {object} [opts]
+ * @param {object[]} [opts.inboxItems]
+ * @param {string} [opts.timeZone]
+ */
+export function buildClientNotifications(plans, ratings, opts = {}) {
   const items = [
-    ...buildClientNotificationsFromPlans(plans, opts),
+    ...buildClientNotificationsFromPlans(plans, { timeZone: opts?.timeZone }),
     ...buildClientNotificationsFromRatings(ratings),
+    ...buildClientNotificationsFromInbox(opts?.inboxItems),
   ]
   items.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
   return items
@@ -97,6 +129,15 @@ export function buildClientNotifications(plans, ratings, opts) {
 
 export function clientNotificationsUnreadCount(items) {
   return (items ?? []).reduce((n, it) => n + (it?.read_at ? 0 : 1), 0)
+}
+
+/**
+ * Число на колокольчике: непрочитанные планы/оценки + inbox_attention с /api/client-me
+ * (список рассылок может ещё не быть загружен).
+ */
+export function clientNotificationsBellCount({ plans, ratings, inboxAttention } = {}) {
+  const personal = clientNotificationsUnreadCount(buildClientNotifications(plans, ratings))
+  return personal + Math.max(0, Number(inboxAttention) || 0)
 }
 
 /** Подпись колокольчика / aria. */

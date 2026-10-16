@@ -10,11 +10,11 @@ export function LegalEntryLinks({ className = '', fromProfile = false }) {
   const cls = ['legal-entry-links', className].filter(Boolean).join(' ')
   return (
     <p className={cls}>
-      <PrivacyPolicyLink fromProfile={inProfile} />
+      <PrivacyPolicyLink className="legal-entry-links__a" fromProfile={inProfile} />
       <span className="legal-entry-links__sep" aria-hidden>
         ·
       </span>
-      <ChatRulesLink fromProfile={inProfile} />
+      <ChatRulesLink className="legal-entry-links__a" fromProfile={inProfile} />
     </p>
   )
 }
