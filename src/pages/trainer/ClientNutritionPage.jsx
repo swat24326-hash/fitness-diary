@@ -569,7 +569,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
         health,
         plan: planToSave,
         planUnsaved: false,
-        trigger: planToSave.rescaledAt ? 'manual_recalc' : 'manual_recalc',
+        trigger: 'manual_recalc',
       })
       if (auto.shouldPush) {
         const snap = buildNutritionAppSnapshot(planToSave, { health, planUnsaved: false, goalKindLabel })

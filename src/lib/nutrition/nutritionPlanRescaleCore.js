@@ -1,5 +1,6 @@
 /**
  * Пересчёт КБЖУ при смене веса: те же блюда/состав, новые граммы под новую цель ккал.
+ * Недельный план — масштабирует каждый день в days[], не только активный dayPlan.
  */
 import { resolveCatalogProduct } from './nutritionCatalogResolve.js'
 import {
@@ -44,6 +45,28 @@ export function scaleMealItemsToKcalBudget(items, mealKcalBudget, catalogMap) {
 }
 
 /**
+ * @param {object[]} dayPlan
+ * @param {number} oldTarget
+ * @param {number} kcalTarget
+ * @param {Map<string, import('./nutritionCatalogResolve.js').ResolvedNutritionProduct>} catalogMap
+ */
+export function rescaleDayPlanToKcal(dayPlan, oldTarget, kcalTarget, catalogMap) {
+  const meals = dayPlan ?? []
+  if (!meals.length || !(kcalTarget > 0)) return meals
+  const base = oldTarget > 0 ? oldTarget : meals.reduce((s, m) => s + (m.kcalBudget ?? 0), 0) || kcalTarget
+  return meals.map((meal) => {
+    const ratio = meal.kcalBudget > 0 ? meal.kcalBudget / base : 1 / meals.length
+    const mealKcalBudget = Math.round(kcalTarget * ratio)
+    const items = scaleMealItemsToKcalBudget(meal.items ?? [], mealKcalBudget, catalogMap)
+    return {
+      ...meal,
+      items,
+      kcalBudget: mealKcalBudget,
+    }
+  })
+}
+
+/**
  * @param {object} plan — сохранённый/черновой рацион
  * @param {object} health — актуальная карточка здоровья
  * @param {object} survey
@@ -51,7 +74,10 @@ export function scaleMealItemsToKcalBudget(items, mealKcalBudget, catalogMap) {
  * @returns {{ ok: true, plan: object } | { ok: false, errors: string[] }}
  */
 export function rescaleNutritionPlanToHealth(plan, health, survey, catalogMap) {
-  if (!plan?.dayPlan?.length) return { ok: false, errors: ['Нет рациона для пересчёта'] }
+  const hasWeek = Array.isArray(plan?.days) && plan.days.length > 0
+  if (!plan?.dayPlan?.length && !hasWeek) {
+    return { ok: false, errors: ['Нет рациона для пересчёта'] }
+  }
   if (!isNutritionHealthReady(health)) {
     return { ok: false, errors: ['Заполните рост, вес и пол во вкладке «Здоровье»'] }
   }
@@ -79,25 +105,41 @@ export function rescaleNutritionPlanToHealth(plan, health, survey, catalogMap) {
   const macros = macroTargetsFromReferents(referents)
   const oldTarget = plan.kcalTarget > 0 ? plan.kcalTarget : plan.totals?.kcal || kcalTarget
 
-  const dayPlan = plan.dayPlan.map((meal) => {
-    const ratio = meal.kcalBudget > 0 ? meal.kcalBudget / oldTarget : 1 / plan.dayPlan.length
-    const mealKcalBudget = Math.round(kcalTarget * ratio)
-    const items = scaleMealItemsToKcalBudget(meal.items ?? [], mealKcalBudget, catalogMap)
-    return {
-      ...meal,
-      items,
-      kcalBudget: mealKcalBudget,
-    }
-  })
+  const di = Math.max(
+    0,
+    Math.min(hasWeek ? plan.days.length - 1 : 0, Number(plan.activeDayIndex) || 0),
+  )
+
+  /** @type {object[] | undefined} */
+  let days
+  /** @type {object[]} */
+  let dayPlan
+
+  if (hasWeek) {
+    days = plan.days.map((d) => {
+      const scaledMeals = rescaleDayPlanToKcal(d.dayPlan ?? [], d.kcalTarget || oldTarget, kcalTarget, catalogMap)
+      const shell = recalcPlanTotals({ dayPlan: scaledMeals })
+      return {
+        ...d,
+        dayPlan: shell.dayPlan,
+        totals: shell.totals,
+        kcalTarget,
+      }
+    })
+    dayPlan = days[di]?.dayPlan ?? []
+  } else {
+    dayPlan = rescaleDayPlanToKcal(plan.dayPlan, oldTarget, kcalTarget, catalogMap)
+  }
 
   const next = recalcPlanTotals({
     ...plan,
-    version: Math.max(4, Number(plan.version) || 4),
+    version: Math.max(hasWeek ? 5 : 4, Number(plan.version) || (hasWeek ? 5 : 4)),
     bmr: Math.round(bmr),
     tdee,
     kcalTarget,
     referents,
     macros,
+    ...(days ? { days, daysCount: days.length, activeDayIndex: di } : {}),
     dayPlan,
     basis: {
       weightKg: getHealthCurrentWeightKg(health),

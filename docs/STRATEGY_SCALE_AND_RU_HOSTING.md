@@ -352,21 +352,21 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] 3–7 дней усиленного мониторинга Sync и статистики — владелец 06.10: 6 дней, всё работает нормально.
 - [ ] Rollback-план: DNS назад + старый Supabase read-only на окно.
 
-#### Фаза R4 — decommission старого края (🔧 с 07.10, владелец: «ты руководитель»)
+#### Фаза R4 — decommission старого края (✅ 16.10 — Supabase удалён; Vercel redirect пока держим)
 
 - [x] Нет записи в старый Supabase: последняя запись во всех таблицах — 30.09 до 23:08 МСК (`scripts/r4-check-supabase-idle-vm.sh`, 07.10).
 - [x] Финальная выгрузка Supabase на ВМ (РФ): `/var/backups/fitness-diary/r4-supabase-2026-10-07/` (gzip NDJSON, 39 таблиц + auth.users, mode 700/600, владелец osapp); файл = облако по каждой таблице, в Managed PG строк ≥ (`scripts/r4-export-supabase.mjs`).
 - [x] ИСКРА больше не ходит в Supabase Edge `gemini-analytics` (путь удалён из `geminiAnalyticsHandler.js`; на prod и так был выключен провайдером Yandex).
-- [x] Серверные ключи Supabase убраны с ВМ — `scripts/r4-drop-supabase-env-vm.sh` (07.10 14:18: health ок, API без токена 401, копия `.env` с ключом уничтожена; в журнале `cloudKey: missing` — так и должно быть). Повторная выгрузка из Supabase теперь только с ключом из кабинета.
-- [x] Владелец: Supabase → **Pause project** ✅ 07.10 14:26 (проект «фитнес-дневник»; возобновить можно до 11.11.2027, потом только скачать бэкап).
+- [x] Серверные ключи Supabase убраны с ВМ — `scripts/r4-drop-supabase-env-vm.sh` (07.10 14:18: health ок, API без токена 401, копия `.env` с ключом уничтожена; в журнале `cloudKey: missing` — так и должно быть).
+- [x] Владелец: Supabase → **Pause project** ✅ 07.10 14:26 (проект «фитнес-дневник»).
 - [x] Своя ночная копия Managed PG на ВМ (`scripts/pg-backup-install-vm.sh`, 04:30 МСК, 14 дн.) ✅ 07.10 — плюс автокопии Yandex 7 дн.; восстановление — RUNBOOK §8.
 - [x] Защита кластера от удаления — ✅ 07.10 (GrokBot `2026-10-07-02`).
-- [x] Копия вне аккаунта Yandex — **временно ноутбук владельца** (12.10, до своего сервера через ~2 мес.): `scripts/pg-backup-pull-laptop.ps1` → `C:\fd-backups` (вне OneDrive), файл зашифрован паролем копий бакета, сверка SHA-256, 8 последних; задача Планировщика `FitnessDiary-DB-Backup` — пн 10:00, журнал `C:\fd-backups\pull.log`. После покупки сервера — перенести туда.
-- [ ] ~21.10, если ничего не понадобилось: Supabase → Delete project (копия уже на ВМ). Vercel: redirect держим, пока не уйдут старые ярлыки планшетов, затем Delete project.
-- [x] CORS `/api/*` только свой домен — ✅ 12.10 на prod (`1ed24bf`) (`corsOriginCore.js` из `PUBLIC_ORIGIN`, `verify-cors-origin`). Не ждали удаления Vercel: старые ярлыки и так не ходят в API — предзапрос CORS через redirect 307 браузер не пропускает.
-- [ ] После удаления Supabase: убрать `authPortSupabase` / ветки «не pg», `supabase/functions/`.
+- [x] Копия вне аккаунта Yandex — ноутбук владельца: `C:\fd-backups` (`pg-backup-pull-laptop.ps1`, свежий `fd-2026-10-16.dump.gpg` перед Delete); задача Планировщика `FitnessDiary-DB-Backup`.
+- [x] Supabase → **Delete project** ✅ 16.10 (команда владельца «R4»; CLI `projects delete hrylzinyasucjecltxpc`; список проектов пуст; `app-core.ru/api/health` 200). Vercel: **redirect оставляем** (старые ярлыки планшетов), Delete project Vercel — отдельно, когда ярлыки уйдут.
+- [x] CORS `/api/*` только свой домен — ✅ 12.10 на prod (`1ed24bf`) (`corsOriginCore.js` из `PUBLIC_ORIGIN`, `verify-cors-origin`).
+- [x] После удаления: убран `authPortSupabase.js` (порт только `AUTH_PROVIDER=own`); удалены `supabase/functions/` (legacy Edge). Ветки `DATA_BACKEND≠pg` в pgRest — ещё в коде для verify/локалки; прод всегда `pg`.
 - [x] [DEPLOY.md](./DEPLOY.md), [RUNBOOK.md](./RUNBOOK.md) §3–4c/§8, [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — хостер = РФ (12.10); GROWTH_PLAYBOOK уже с пометкой «история».
-- [ ] Vercel/Supabase — отменить или оставить только CI-preview по решению команды.
+- [ ] Vercel — отменить или оставить только CI-preview / redirect по решению команды (не блокер ПДн).
 
 ### 5.5. Риски и как снижаем
 
@@ -595,6 +595,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 | 2026-10-06 | Запрет тренеру менять поля абонемента через Sync | Последний этап — при полном переходе с 1С на Ядро (абонемент продаётся в Ядре, домен платежа) | Не делать в спринте §5.7; связать с PATH_TO_GOAL §4 п.5 |
 | 2026-10-06 | Внешний пентест prod | Серьёзных дыр нет: RLS держит, API требует токен, перебор → 429, файлы скрыты. Одна находка — CORS `*` | Сузить CORS после R4; результат в §5.7 «Внешний пентест 2026-10-06» |
 | 2026-10-07 | **Старт R4** | Владелец делегировал («ты руководитель; безопасность, производительность, монетизация»). Главный риск — копия базы клиентов в Supabase вне РФ. Порядок: проверка «не пишут» → выгрузка на ВМ → ключи с ВМ → пауза проекта → удаление | Чеклист «Фаза R4» выше |
+| 2026-10-16 | **R4 Delete Supabase** | Команда владельца «R4». Бэкапы: daily на ВМ до 16.10, Object Storage `.gpg`, laptop `C:\fd-backups\fd-2026-10-16.dump.gpg`, экспорт `r4-supabase-2026-10-07`. Проект `hrylzinyasucjecltxpc` удалён (был INACTIVE с 07.10). Прод `app-core.ru` health 200. Код: без `authPortSupabase` / `supabase/functions/` | Vercel redirect пока; полный вынос `DATA_BACKEND≠pg` — по желанию |
 
 ---
 

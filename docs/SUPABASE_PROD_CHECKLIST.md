@@ -2,7 +2,7 @@
 
 Выполнять **до** подключения нового клуба с большим числом тренеров или после смены домена/проекта Supabase.
 
-> **С 01.10.2026 prod — `https://app-core.ru` (ВМ + Managed PG, свой Auth).** Проверки безопасности прода — [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md). Этот файл — для старого контура Supabase до его выключения в R4.
+> **С 01.10.2026 prod — `https://app-core.ru` (ВМ + Managed PG, свой Auth).** Проверки безопасности прода — [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md). **Supabase-проект удалён 16.10 (R4).** Этот файл — архив чеклиста старого контура.
 
 Production app (до 01.10): **https://fitness-diary-bice.vercel.app** — теперь redirect.
 

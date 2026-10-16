@@ -2,7 +2,7 @@
 
 **Актуально:** 2026-10-16  
 **Кому:** разработчику / агенту после деплоя, который трогал вход, push, API или сервер; перед подключением нового клуба; раз в квартал.  
-**Контур:** ВМ Yandex Cloud (`/opt/fitness-diary`, сервис `os-hybrid` за Caddy) + Managed PG, свой Auth. Как устроено — [R3_NIGHT.md](./R3_NIGHT.md); решения и история аудитов — [STRATEGY §5.7](./STRATEGY_SCALE_AND_RU_HOSTING.md). Старый [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) — до выключения Supabase в R4.
+**Контур:** ВМ Yandex Cloud (`/opt/fitness-diary`, сервис `os-hybrid` за Caddy) + Managed PG, свой Auth. Как устроено — [R3_NIGHT.md](./R3_NIGHT.md); решения и история аудитов — [STRATEGY §5.7](./STRATEGY_SCALE_AND_RU_HOSTING.md). Старый [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) — архив; проект Supabase удалён 16.10 (R4).
 
 Все проверки — только чтение и выдуманные логины. Настоящие учётки и данные клубов не трогать.
 

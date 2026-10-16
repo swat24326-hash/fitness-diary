@@ -117,6 +117,35 @@ ok(scaled.ok, 'rescale ok')
 ok(scaled.plan.kcalTarget !== one.plan.kcalTarget, 'kcal target changed with weight')
 ok(scaled.plan.dayPlan[0].dishId === one.plan.dayPlan[0].dishId, 'dish kept after rescale')
 
+const weekHeavy = rescaleNutritionPlanToHealth(week7.plan, heavy, { ...survey, daysCount: 7 }, catalog)
+ok(weekHeavy.ok, 'week rescale ok')
+ok(weekHeavy.plan.days?.length === 7, 'week rescale keeps 7 days')
+ok(weekHeavy.plan.kcalTarget !== week7.plan.kcalTarget, 'week rescale changes root kcalTarget')
+ok(
+  weekHeavy.plan.days.every((d) => d.kcalTarget === weekHeavy.plan.kcalTarget),
+  'week rescale: each day gets new kcalTarget',
+)
+ok(
+  weekHeavy.plan.days[0].dayPlan[0].dishId === week7.plan.days[0].dayPlan[0].dishId &&
+    weekHeavy.plan.days[3].dayPlan[0].dishId === week7.plan.days[3].dayPlan[0].dishId,
+  'week rescale keeps dishes on day 0 and day 3',
+)
+ok(
+  weekHeavy.plan.dayPlan[0].dishId === weekHeavy.plan.days[0].dayPlan[0].dishId,
+  'week rescale: root dayPlan matches days[0]',
+)
+
+const light = { ...health, weight_kg: 60 }
+const weekLight = rescaleNutritionPlanToHealth(week7.plan, light, { ...survey, daysCount: 7 }, catalog)
+ok(weekLight.ok, 'week rescale down ok')
+ok(weekLight.plan.kcalTarget < week7.plan.kcalTarget, 'lower weight → lower kcalTarget')
+const day3Down = weekLight.plan.days[3].totals?.kcal
+const day3Orig = week7.plan.days[3].totals?.kcal
+ok(
+  day3Orig > 0 && day3Down > 0 && day3Down < day3Orig,
+  `week rescale down shrinks day 3 (${day3Orig} → ${day3Down})`,
+)
+
 ok(
   shouldAutoPushNutritionPlan({
     enabled: true,

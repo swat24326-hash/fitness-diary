@@ -1,6 +1,6 @@
 /**
  * Порт Auth для API.
- * AUTH_PROVIDER=own — свой JWT и хеш пароля. Иначе Supabase, как на проде.
+ * Прод: AUTH_PROVIDER=own + DATA_BACKEND=pg (Supabase Auth снят в R4, 16.10.2026).
  * @see docs/AUTH_C2_MAP.md
  */
 import { isPgDataBackend, pgDataBackendEnvError } from './pgRest/backend.js'
@@ -12,25 +12,18 @@ import {
   signInWithPasswordOwn,
   verifyBearerOwn,
 } from './authPortOwn.js'
-import {
-  adminCreateUserSupabase,
-  adminDeleteUserSupabase,
-  adminUpdatePasswordSupabase,
-  signInWithPasswordSupabase,
-  verifyBearerSupabase,
-} from './authPortSupabase.js'
 
 export { isOwnAuthProvider, passwordHashForUsersRow }
 
-/** Сообщение когда не заданы ключи API (Vercel или portable host). */
+/** Сообщение когда на сервере не включён свой Auth / PG (старый контур Supabase удалён). */
 export const AUTH_ENV_MISSING_RU =
-  'На сервере API задайте SUPABASE_SERVICE_ROLE_KEY (и при необходимости SUPABASE_URL / SUPABASE_ANON_KEY), затем перезапустите / Redeploy.'
+  'На сервере API задайте AUTH_PROVIDER=own, DATA_BACKEND=pg, JWT_SECRET и DATABASE_URL, затем перезапустите сервис.'
 
-function supabaseEnv() {
-  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
-  return { url, serviceKey, anonKey }
+function requireOwnAuth() {
+  if (!isOwnAuthProvider()) {
+    return { ok: false, error: AUTH_ENV_MISSING_RU }
+  }
+  return { ok: true }
 }
 
 /** Что не хватает, чтобы API вообще проверил вход. null — можно работать. */
@@ -39,37 +32,36 @@ export function authRuntimeEnvError() {
   if (ownErr) return ownErr
   const pgErr = pgDataBackendEnvError()
   if (pgErr) return pgErr
-  const { url, serviceKey, anonKey } = supabaseEnv()
   if (isPgDataBackend() && isOwnAuthProvider()) return null
-  if (isOwnAuthProvider()) {
-    if (!url || !serviceKey) return AUTH_ENV_MISSING_RU
-    return null
-  }
-  if (!url || !serviceKey || !anonKey) return AUTH_ENV_MISSING_RU
-  return null
+  return AUTH_ENV_MISSING_RU
 }
 
-export function verifyBearer(url, anonKey, token) {
-  if (isOwnAuthProvider()) return verifyBearerOwn(token)
-  return verifyBearerSupabase(url, anonKey, token)
+export function verifyBearer(_url, _anonKey, token) {
+  const gate = requireOwnAuth()
+  if (!gate.ok) return Promise.resolve({ user: null, error: gate.error })
+  return verifyBearerOwn(token)
 }
 
-export function signInWithPassword(url, anonKey, creds, opts) {
-  if (isOwnAuthProvider()) return signInWithPasswordOwn(url, anonKey, creds)
-  return signInWithPasswordSupabase(url, anonKey, creds, opts)
+export function signInWithPassword(url, anonKey, creds, _opts) {
+  const gate = requireOwnAuth()
+  if (!gate.ok) return Promise.resolve({ session: null, user: null, error: gate.error })
+  return signInWithPasswordOwn(url, anonKey, creds)
 }
 
 export function adminCreateUser(supabaseAdmin, attrs) {
-  if (isOwnAuthProvider()) return adminCreateUserOwn(supabaseAdmin, attrs)
-  return adminCreateUserSupabase(supabaseAdmin, attrs)
+  const gate = requireOwnAuth()
+  if (!gate.ok) return Promise.resolve({ user: null, error: gate.error })
+  return adminCreateUserOwn(supabaseAdmin, attrs)
 }
 
 export function adminUpdatePassword(supabaseAdmin, userId, password) {
-  if (isOwnAuthProvider()) return adminUpdatePasswordOwn(supabaseAdmin, userId, password)
-  return adminUpdatePasswordSupabase(supabaseAdmin, userId, password)
+  const gate = requireOwnAuth()
+  if (!gate.ok) return Promise.resolve({ error: gate.error })
+  return adminUpdatePasswordOwn(supabaseAdmin, userId, password)
 }
 
-export function adminDeleteUser(supabaseAdmin, userId) {
-  if (isOwnAuthProvider()) return adminDeleteUserOwn()
-  return adminDeleteUserSupabase(supabaseAdmin, userId)
+export function adminDeleteUser(_supabaseAdmin, _userId) {
+  const gate = requireOwnAuth()
+  if (!gate.ok) return Promise.resolve({ error: gate.error })
+  return adminDeleteUserOwn()
 }

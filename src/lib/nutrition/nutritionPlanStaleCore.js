@@ -22,7 +22,7 @@ export function nutritionPlanStaleMessage(health, plan) {
   const w = getHealthCurrentWeightKg(health)
   const prev = Number(basis?.weightKg)
   if (w != null && Number.isFinite(prev) && Math.round(w * 10) !== Math.round(prev * 10)) {
-    return `Вес изменился (${prev} → ${w} кг). Пересоберите рацион.`
+    return `Вес изменился (${prev} → ${w} кг). Пересчитайте КБЖУ — блюда те же, граммы под новый вес.`
   }
-  return 'Рост или вес в «Здоровье» изменились. Пересоберите рацион.'
+  return 'Рост или вес в «Здоровье» изменились. Пересчитайте КБЖУ.'
 }

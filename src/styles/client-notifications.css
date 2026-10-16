@@ -1,0 +1,47 @@
+/* Лента персональных уведомлений клиента (/me/notifications) и вход на главной. */
+
+.client-notif-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.18s ease, transform 0.12s ease;
+}
+
+.client-notif-entry:hover {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+
+.client-notif-entry:active {
+  transform: scale(0.985);
+}
+
+.client-notif-entry__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.client-notif-entry__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.client-notif-entry__go {
+  flex: none;
+  opacity: 0.45;
+}
