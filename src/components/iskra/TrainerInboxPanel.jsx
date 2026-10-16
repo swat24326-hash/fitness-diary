@@ -14,6 +14,8 @@ import { notifyTrainerInboxUpdated } from '../../lib/admin/trainerInboxEvents.js
 import { taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
 import { DispatchTaskProgressBar } from './DispatchTaskProgressBar.jsx'
 import { DispatchTaskStagesList } from './DispatchTaskStagesList.jsx'
+import { TrainerInboxTabBar } from './TrainerInboxTabBar.jsx'
+import { TrainerInboxClientsFeed } from './TrainerInboxClientsFeed.jsx'
 import '../../styles/iskra-dispatch.css'
 
 /**
@@ -22,9 +24,22 @@ import '../../styles/iskra-dispatch.css'
  *   onClose: () => void,
  *   clubId?: string,
  *   onPendingChange?: (count: number) => void,
+ *   showClientsTab?: boolean,
+ *   initialTab?: 'planerka' | 'clients',
+ *   clientsUnread?: number,
+ *   planerkaPending?: number,
  * }} props
  */
-export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange }) {
+export function TrainerInboxPanel({
+  open,
+  onClose,
+  clubId = '',
+  onPendingChange,
+  showClientsTab = false,
+  initialTab = 'planerka',
+  clientsUnread = 0,
+  planerkaPending = 0,
+}) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +47,7 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
   const [busyStageId, setBusyStageId] = useState('')
   const [declineId, setDeclineId] = useState('')
   const [declineReply, setDeclineReply] = useState('')
+  const [tab, setTab] = useState(/** @type {'planerka' | 'clients'} */ ('planerka'))
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -67,6 +83,12 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
     if (!open) return
     void reload()
   }, [open, reload])
+
+  useEffect(() => {
+    if (!open) return
+    const next = showClientsTab && initialTab === 'clients' ? 'clients' : 'planerka'
+    setTab(next)
+  }, [open, initialTab, showClientsTab])
 
   useEffect(() => {
     if (!open) return
@@ -110,6 +132,15 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
   if (typeof document === 'undefined') return null
 
   const active = items.filter((i) => ISKRA_DISPATCH_ACTIVE_STATUSES.includes(i.status))
+  const onClients = showClientsTab && tab === 'clients'
+  const title = showClientsTab ? 'Входящие' : 'Планёрка'
+  const sub = onClients
+    ? clientsUnread
+      ? `${clientsUnread} ждут открытия`
+      : 'Задания и рационы клиентов'
+    : active.length
+      ? `${active.length} в работе`
+      : 'Задания от руководства и ИСКРЫ'
 
   return createPortal(
     <div
@@ -125,11 +156,9 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
             <Inbox size={20} aria-hidden />
             <div>
               <h2 id="iskra-inbox-title" className="iskra-inbox__title">
-                Планёрка
+                {title}
               </h2>
-              <p className="iskra-inbox__sub muted">
-                {active.length ? `${active.length} в работе` : 'Задания от руководства и ИСКРЫ'}
-              </p>
+              <p className="iskra-inbox__sub muted">{sub}</p>
             </div>
           </div>
           <button type="button" className="btn btn-ghost btn-sm" disabled={!!busyId} onClick={onClose} aria-label="Закрыть">
@@ -137,6 +166,21 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
           </button>
         </header>
 
+        {showClientsTab ? (
+          <TrainerInboxTabBar
+            tab={tab}
+            onTab={setTab}
+            planerkaCount={planerkaPending}
+            clientsCount={clientsUnread}
+          />
+        ) : null}
+
+        {onClients ? (
+          <div className="iskra-inbox__list iskra-inbox__list--clients">
+            <TrainerInboxClientsFeed onNavigate={onClose} />
+          </div>
+        ) : (
+          <>
         {loading ? (
           <div className="iskra-inbox__loading muted" aria-busy>
             Загрузка…
@@ -269,6 +313,8 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
             </article>
           ))}
         </div>
+          </>
+        )}
       </div>
     </div>,
     document.body,

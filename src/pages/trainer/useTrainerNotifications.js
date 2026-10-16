@@ -14,22 +14,34 @@ async function loadFeed() {
   return { items, unread: trainerNotificationsUnreadCount(items) }
 }
 
-/** Лента client_plans для шапки и экрана /trainer/notifications. */
-export function useTrainerNotifications() {
-  const [state, setState] = useState({ items: [], unread: 0, status: 'loading' })
+/**
+ * Лента client_plans для шапки и вкладки «От клиентов».
+ * @param {boolean} [enabled=true] — false у не-тренера (хук в AppHeader без лишней загрузки IDB).
+ */
+export function useTrainerNotifications(enabled = true) {
+  const [state, setState] = useState({
+    items: [],
+    unread: 0,
+    status: enabled ? 'loading' : 'ready',
+  })
 
   const reload = useCallback(() => {
+    if (!enabled) return
     loadFeed()
       .then(({ items, unread }) => setState({ items, unread, status: 'ready' }))
       .catch(() => setState((s) => ({ ...s, status: 'error' })))
-  }, [])
+  }, [enabled])
 
   useEffect(() => {
+    if (!enabled) {
+      setState({ items: [], unread: 0, status: 'ready' })
+      return undefined
+    }
     reload()
     const onChange = () => reload()
     window.addEventListener(LOCAL_DATA_CHANGED, onChange)
     return () => window.removeEventListener(LOCAL_DATA_CHANGED, onChange)
-  }, [reload])
+  }, [enabled, reload])
 
   return { ...state, reload }
 }

@@ -5,6 +5,8 @@ import {
   COACH_NOTIFICATIONS_PATH,
   TRAINER_NOTIFICATIONS_PATH,
   buildTrainerNotificationsFromPlans,
+  trainerInboxHeaderBadgeCount,
+  trainerInboxHeaderLabelRu,
   trainerNotificationsBadgeText,
   trainerNotificationsEntryLabelRu,
   trainerNotificationsUnreadCount,
@@ -39,5 +41,8 @@ ok(items[0].deep_link.includes('/trainer/clients/c2') && items[0].deep_link.incl
 ok(trainerNotificationsUnreadCount(items) === 1, 'unread только ждущие')
 ok(trainerNotificationsBadgeText(1) === '1', 'счётчик')
 ok(trainerNotificationsEntryLabelRu(1) === 'Уведомления: новых 1', 'aria')
+ok(trainerInboxHeaderBadgeCount(2, 1) === 3, 'бейдж шапки: сумма')
+ok(trainerInboxHeaderBadgeCount(0, 0) === 0, 'бейдж шапки: пусто')
+ok(trainerInboxHeaderLabelRu(2, 1).includes('Планёрка') && trainerInboxHeaderLabelRu(2, 1).includes('клиент'), 'aria входящих')
 
 console.log('verify-trainer-notifications: ok')

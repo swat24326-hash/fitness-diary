@@ -26,9 +26,13 @@ import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
 import { StaffInboxButton } from './inbox/StaffInboxButton.jsx'
 import { HeaderDeviceHealthButton } from './HeaderDeviceHealthButton.jsx'
 import { HeaderHelpButton } from './HeaderHelpButton.jsx'
-import { TrainerNotificationsBell } from '../pages/trainer/TrainerNotificationsBell.jsx'
 import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
 import { TRAINER_INBOX_OPEN_EVENT } from '../lib/admin/trainerInboxEvents.js'
+import { useTrainerNotifications } from '../pages/trainer/useTrainerNotifications.js'
+import {
+  trainerInboxHeaderBadgeCount,
+  trainerInboxHeaderLabelRu,
+} from '../lib/trainer/trainerNotificationsCore.js'
 import { recoverApp } from '../lib/appLifecycle'
 import { subscribeAppUpdatePending } from '../lib/appUpdateState'
 import { consumeReopenMyProfileState } from '../lib/profile/myProfileEvents.js'
@@ -77,9 +81,11 @@ export function AppHeader() {
   const [trainerClubLabel, setTrainerClubLabel] = useState(null)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [inboxPending, setInboxPending] = useState(0)
+  const [inboxTab, setInboxTab] = useState(/** @type {'planerka' | 'clients'} */ ('planerka'))
   const [updatePending, setUpdatePending] = useState(false)
   const [recoverBusy, setRecoverBusy] = useState(false)
   const isTrainerRole = !isAdmin && !isSalesManager && !isSupervisor
+  const { unread: clientsUnread } = useTrainerNotifications(Boolean(isTrainerRole && user))
   useStaffPushSelfHeal(String(user?.club_id ?? '').trim(), Boolean(user && supabaseReady))
 
   const {
@@ -180,20 +186,26 @@ export function AppHeader() {
 
   useEffect(() => {
     if (!isDispatchInboxUser) return
-    const onOpen = () => setInboxOpen(true)
+    const onOpen = (e) => {
+      const tab = e?.detail?.tab === 'clients' && isTrainerRole ? 'clients' : 'planerka'
+      setInboxTab(tab)
+      setInboxOpen(true)
+    }
     window.addEventListener(TRAINER_INBOX_OPEN_EVENT, onOpen)
     return () => window.removeEventListener(TRAINER_INBOX_OPEN_EVENT, onOpen)
-  }, [isDispatchInboxUser])
+  }, [isDispatchInboxUser, isTrainerRole])
 
   useEffect(() => {
     if (!isDispatchInboxUser) return
-    if (searchParams.get('inbox') === '1') {
+    const inbox = searchParams.get('inbox')
+    if (inbox === '1' || inbox === 'clients') {
+      setInboxTab(inbox === 'clients' && isTrainerRole ? 'clients' : 'planerka')
       setInboxOpen(true)
       const next = new URLSearchParams(searchParams)
       next.delete('inbox')
       setSearchParams(next, { replace: true })
     }
-  }, [isDispatchInboxUser, searchParams, setSearchParams])
+  }, [isDispatchInboxUser, isTrainerRole, searchParams, setSearchParams])
 
   useEffect(() => subscribeNetworkStatus(setOnline), [])
 
@@ -457,7 +469,6 @@ export function AppHeader() {
           </button>
         ) : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHelpButton onOpen={openErrorJournal} /> : null}
-        {isTrainerRole && user ? <TrainerNotificationsBell /> : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHeartRate /> : null}
         {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderStopwatch /> : null}
         {isDispatchInboxUser && supabaseReady ? <StaffInboxButton /> : null}
@@ -467,16 +478,37 @@ export function AppHeader() {
           <button
             type="button"
             className={`btn btn-secondary btn-sm app-header__inbox-btn${inboxOpen ? ' app-header__inbox-btn--active' : ''}`}
-            title={inboxPending ? `Планёрка: ${inboxPending} новых` : 'Планёрка'}
-            aria-label={inboxPending ? `Планёрка: ${inboxPending} новых заданий` : 'Планёрка — мои задания'}
-            onClick={() => setInboxOpen(true)}
+            title={
+              isTrainerRole
+                ? trainerInboxHeaderLabelRu(inboxPending, clientsUnread)
+                : inboxPending
+                  ? `Планёрка: ${inboxPending} новых`
+                  : 'Планёрка'
+            }
+            aria-label={
+              isTrainerRole
+                ? trainerInboxHeaderLabelRu(inboxPending, clientsUnread)
+                : inboxPending
+                  ? `Планёрка: ${inboxPending} новых заданий`
+                  : 'Планёрка — мои задания'
+            }
+            onClick={() => {
+              setInboxTab('planerka')
+              setInboxOpen(true)
+            }}
           >
             <Inbox size={20} aria-hidden />
-            {inboxPending > 0 ? (
-              <span className="app-header__inbox-badge" aria-hidden>
-                {inboxPending > 99 ? '99+' : inboxPending}
-              </span>
-            ) : null}
+            {(() => {
+              const n = isTrainerRole
+                ? trainerInboxHeaderBadgeCount(inboxPending, clientsUnread)
+                : inboxPending
+              if (n <= 0) return null
+              return (
+                <span className="app-header__inbox-badge" aria-hidden>
+                  {n > 99 ? '99+' : n}
+                </span>
+              )
+            })()}
           </button>
         ) : null}
         {showHeaderSync ? (
@@ -705,6 +737,10 @@ export function AppHeader() {
         onClose={() => setInboxOpen(false)}
         clubId={String(user?.club_id ?? '').trim()}
         onPendingChange={setInboxPending}
+        showClientsTab={isTrainerRole}
+        initialTab={inboxTab}
+        clientsUnread={clientsUnread}
+        planerkaPending={inboxPending}
       />
     ) : null}
     {iskraMode !== 'closed' ? (

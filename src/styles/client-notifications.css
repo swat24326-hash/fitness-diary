@@ -29,7 +29,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Экран «Уведомления» у тренера /coach и планшета: настройки + лента. */
+/* Лента «От клиентов» во Входящих планшета и экран /coach/notifications. */
 .staff-notif-settings,
 .staff-notif-feed {
   display: grid;

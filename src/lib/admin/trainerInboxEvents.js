@@ -1,9 +1,10 @@
 export const TRAINER_INBOX_OPEN_EVENT = 'fitness-diary:trainer-inbox-open'
 export const TRAINER_INBOX_UPDATED_EVENT = 'fitness-diary:trainer-inbox-updated'
 
-export function requestOpenTrainerInbox() {
+/** @param {{ tab?: 'planerka' | 'clients' }} [detail] */
+export function requestOpenTrainerInbox(detail = {}) {
   if (typeof window === 'undefined') return
-  window.dispatchEvent(new CustomEvent(TRAINER_INBOX_OPEN_EVENT))
+  window.dispatchEvent(new CustomEvent(TRAINER_INBOX_OPEN_EVENT, { detail: detail || {} }))
 }
 
 export function notifyTrainerInboxUpdated() {

@@ -43,3 +43,19 @@ export function buildTrainerNotificationsFromPlans(plans, clientsById = {}) {
 export function trainerNotificationsUnreadCount(items) {
   return (items ?? []).reduce((n, it) => n + (it?.read_at ? 0 : 1), 0)
 }
+
+/** Счётчик на кнопке «Входящие» в шапке: задания Планёрки + ждущие открытия клиентом. */
+export function trainerInboxHeaderBadgeCount(planerkaPending, clientUnread) {
+  return Math.max(0, Number(planerkaPending) || 0) + Math.max(0, Number(clientUnread) || 0)
+}
+
+export function trainerInboxHeaderLabelRu(planerkaPending, clientUnread) {
+  const pk = Math.max(0, Number(planerkaPending) || 0)
+  const cl = Math.max(0, Number(clientUnread) || 0)
+  const total = pk + cl
+  if (!total) return 'Входящие — Планёрка и клиенты'
+  const parts = []
+  if (pk) parts.push(`Планёрка: ${pk}`)
+  if (cl) parts.push(`от клиентов: ${cl}`)
+  return `Входящие · ${parts.join(', ')}`
+}

@@ -92,6 +92,18 @@ export async function run(browser) {
     await screenshot(page, 'trainer-profile-sheet')
     await page.keyboard.press('Escape')
     c.ok(!(await sheet.isVisible()), 'Esc — окно закрылось, страница на месте')
+
+    const inboxBtn = page.getByRole('button', { name: /Входящие|Планёрка/ })
+    c.ok(await reaches(inboxBtn), 'в шапке — одна кнопка Входящих (Планёрка + клиенты)')
+    c.ok((await page.locator('.client-notif-bell').count()) === 0, 'отдельного колокольчика в шапке планшета нет')
+    await inboxBtn.click()
+    c.ok(await reaches(page.getByTestId('trainer-inbox-tab-planerka')), 'во Входящих — вкладка «Планёрка»')
+    c.ok(await reaches(page.getByTestId('trainer-inbox-tab-clients')), 'во Входящих — вкладка «От клиентов»')
+    await page.getByTestId('trainer-inbox-tab-clients').click()
+    c.ok(await reaches(page.getByText(/Пока тихо|ждут открытия|Задания и рационы/)), 'вкладка «От клиентов» открывается')
+    await screenshot(page, 'trainer-inbox-unified')
+    await page.keyboard.press('Escape')
+
     c.ok(pageErrors.length === 0, `без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
     await screenshot(page, 'settings-menu-FAIL').catch(() => null)
