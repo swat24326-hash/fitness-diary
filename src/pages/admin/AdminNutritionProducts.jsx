@@ -12,8 +12,10 @@ import {
 import { NUTRITION_MACRO_GROUP_LABELS } from '../../lib/nutrition/nutritionProductsCore.js'
 import { NUTRITION_EXCLUSION_OPTIONS } from '../../lib/nutrition/nutritionMacrosCore.js'
 import {
+  FOOD_CATEGORY_OPTIONS,
   MEAL_ROLE_OPTIONS,
   PAIRS_WITH_OPTIONS,
+  SUITABLE_SLOT_OPTIONS,
   buildProductTags,
   defaultMealRoleForMacroGroup,
   formatPairingTagsForDisplay,
@@ -112,7 +114,9 @@ function emptyForm() {
     fat_per100: '',
     carbs_per100: '',
     piece_grams: '',
+    food_category: '',
     meal_role: defaultMealRoleForMacroGroup('protein'),
+    suitable: [],
     pairs_with: [],
     exclusions: [],
     grams_min: '',
@@ -179,6 +183,15 @@ export function AdminNutritionProducts() {
     })
   }
 
+  const toggleSuitable = (id) => {
+    setForm((f) => {
+      const set = new Set(f.suitable)
+      if (set.has(id)) set.delete(id)
+      else set.add(id)
+      return { ...f, suitable: [...set] }
+    })
+  }
+
   const pullFromCloud = async () => {
     if (!clubId) return
     setPullBusy(true)
@@ -211,11 +224,17 @@ export function AdminNutritionProducts() {
   const addProduct = async (e) => {
     e.preventDefault()
     if (!clubId) return
+    if (!form.food_category) {
+      setMsg('Укажите пищевую группу — иначе продукт не попадёт в «Не ем» у клиента.')
+      return
+    }
     setBusy(true)
     setMsg('')
     try {
       const tags = buildProductTags({
+        foodCategory: form.food_category,
         mealRole: form.meal_role,
+        suitable: form.suitable,
         pairsWith: form.pairs_with,
         exclusions: form.exclusions,
         gramsMin: form.grams_min ? Number(String(form.grams_min).replace(',', '.')) : null,
@@ -273,8 +292,9 @@ export function AdminNutritionProducts() {
             Продукты для рациона
           </h2>
           <p className="muted" style={{ margin: '8px 0 0', lineHeight: 1.45 }}>
-            Свой справочник клуба. Тренер видит эти продукты во вкладке «Питание» у клиента. Теги сочетания помогают
-            приложению собирать логичные приёмы пищи (например, йогурт + фрукты).
+            Свой справочник клуба — как шаблоны ДЗ. Тренер видит продукты во вкладке «Питание». Пищевая группа нужна
+            для опроса «Не ем»; тип и сочетания — чтобы рацион собирал логичные тарелки. Книга рецептов — соседняя
+            вкладка «Рецепты».
           </p>
           <p className="admin-nutrition-hero__stat">
             Активных: <strong>{activeCount}</strong>
@@ -328,6 +348,26 @@ export function AdminNutritionProducts() {
             <input className="input" type="number" min={0} step="1" value={form.piece_grams} onChange={(e) => setForm((f) => ({ ...f, piece_grams: e.target.value }))} />
           </label>
 
+          <label className="admin-nutrition-form__field admin-nutrition-form__field--wide">
+            <span>Пищевая группа (для «Не ем»)</span>
+            <select
+              className="input"
+              required
+              value={form.food_category}
+              onChange={(e) => setForm((f) => ({ ...f, food_category: e.target.value }))}
+            >
+              <option value="">Выберите…</option>
+              {FOOD_CATEGORY_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span className="muted admin-nutrition-form__hint">
+              Без группы продукт не появится в категориях опроса «Не ем».
+            </span>
+          </label>
+
           <div className="admin-nutrition-form__field admin-nutrition-form__field--wide admin-nutrition-form__pairing">
             <span>Тип продукта (для сочетаний)</span>
             <select className="input" value={form.meal_role} onChange={(e) => setForm((f) => ({ ...f, meal_role: e.target.value }))}>
@@ -338,6 +378,21 @@ export function AdminNutritionProducts() {
               ))}
             </select>
           </div>
+
+          <fieldset className="admin-nutrition-form__field admin-nutrition-form__field--wide admin-nutrition-form__checks">
+            <legend>Подходит для</legend>
+            <div className="admin-nutrition-form__check-grid">
+              {SUITABLE_SLOT_OPTIONS.map((o) => (
+                <label key={o.id} className="admin-nutrition-form__check">
+                  <input type="checkbox" checked={form.suitable.includes(o.id)} onChange={() => toggleSuitable(o.id)} />
+                  <span>{o.label}</span>
+                </label>
+              ))}
+            </div>
+            <span className="muted admin-nutrition-form__hint">
+              Завтрак — без тяжёлого мяса с крахмалом; обед/ужин — основное блюдо.
+            </span>
+          </fieldset>
 
           <fieldset className="admin-nutrition-form__field admin-nutrition-form__field--wide admin-nutrition-form__checks">
             <legend>Хорошо сочетается с</legend>

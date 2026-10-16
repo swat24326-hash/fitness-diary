@@ -163,6 +163,7 @@ function friendlyClientsDbError(error) {
 /**
  * clients в проде без колонки updated_at. avatar_key и статус (status_*) ставит только сам клиент (/api/client-me):
  * копия строки на планшете могла устареть и затёрла бы новое фото или статус.
+ * trainer_chat_since ставит только триггер БД при смене trainer_id — с планшета не принимаем.
  */
 function stripUnknownClientFields(payload) {
   if (!payload || typeof payload !== 'object') return payload
@@ -171,6 +172,7 @@ function stripUnknownClientFields(payload) {
   delete next.avatar_key
   delete next.status_emoji
   delete next.status_until
+  delete next.trainer_chat_since
   return next
 }
 

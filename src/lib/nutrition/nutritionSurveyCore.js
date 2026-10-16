@@ -7,7 +7,12 @@ export function defaultNutritionSurvey() {
     goalKind: 'maintain',
     mealsPerDay: 4,
     exclusions: [],
+    productSelectMode: /** @type {const} */ ('avoid'),
+    avoidProductIds: [],
     pickedProducts: { protein: [], fat: [], carbs: [] },
+    proteinAccent: /** @type {const} */ ('mixed'),
+    daysCount: 1,
+    nutritionAutoPush: false,
   }
 }
 

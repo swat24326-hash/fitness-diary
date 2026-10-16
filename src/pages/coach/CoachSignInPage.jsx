@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { LogIn } from 'lucide-react'
+import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
 import { CoachPendingError, signInCoach } from '../../lib/coach/coachSession.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachPendingScreen } from './CoachPendingScreen.jsx'
@@ -84,6 +85,7 @@ export function CoachSignInPage() {
         <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !login.trim() || !password}>
           <LogIn size={18} aria-hidden /> {busy ? 'Входим…' : 'Войти'}
         </button>
+        <LegalEntryLinks />
       </form>
     </CoachShell>
   )

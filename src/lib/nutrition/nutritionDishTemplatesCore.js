@@ -1,5 +1,7 @@
 /**
  * Шаблоны тарелок: сначала блюдо, КБЖУ — следствие порций.
+ * Завтрак: белок + клетчатка (каша/овощи/фрукт) + жир — без «обеденного» мяса с картошкой.
+ * Обед/ужин: белок с гарниром / овощами.
  * @typedef {'protein' | 'fruit' | 'salad' | 'starchy' | 'grain' | 'spread_dairy_fat' | 'oil_fat' | 'nut_fat'} DishPartRole
  *
  * @typedef {object} DishPart
@@ -17,9 +19,71 @@
 /** @type {DishTemplate[]} */
 export const NUTRITION_DISH_TEMPLATES = [
   {
+    id: 'oats_eggs',
+    label: 'Каша с белком',
+    slotKinds: ['breakfast'],
+    parts: [
+      { role: 'grain', share: 0.35 },
+      { role: 'protein', share: 0.45 },
+      { role: 'nut_fat', share: 0.1, optional: true },
+      { role: 'fruit', share: 0.1, optional: true },
+    ],
+  },
+  {
+    id: 'cottage_fruit',
+    label: 'Творог / йогурт с фруктами',
+    slotKinds: ['breakfast', 'snack'],
+    parts: [
+      { role: 'protein', share: 0.55 },
+      { role: 'fruit', share: 0.35 },
+      { role: 'nut_fat', share: 0.1, optional: true },
+    ],
+  },
+  {
+    id: 'eggs_veg',
+    label: 'Яйца / белок с овощами',
+    slotKinds: ['breakfast'],
+    parts: [
+      { role: 'protein', share: 0.5 },
+      { role: 'salad', share: 0.25 },
+      { role: 'grain', share: 0.15, optional: true },
+      { role: 'oil_fat', share: 0.1, optional: true },
+    ],
+  },
+  {
+    id: 'eggs_toast',
+    label: 'Белок с хлебом',
+    slotKinds: ['breakfast'],
+    parts: [
+      { role: 'protein', share: 0.45 },
+      { role: 'grain', share: 0.35 },
+      { role: 'spread_dairy_fat', share: 0.1, optional: true },
+      { role: 'salad', share: 0.1, optional: true },
+    ],
+  },
+  {
+    id: 'fruit_nuts',
+    label: 'Фрукт с орехами',
+    slotKinds: ['snack'],
+    parts: [
+      { role: 'fruit', share: 0.7 },
+      { role: 'nut_fat', share: 0.3 },
+    ],
+  },
+  {
+    id: 'protein_carb_snack',
+    label: 'Белок с углеводом',
+    slotKinds: ['snack'],
+    parts: [
+      { role: 'protein', share: 0.5 },
+      { role: 'starchy', share: 0.4 },
+      { role: 'oil_fat', share: 0.1, optional: true },
+    ],
+  },
+  {
     id: 'protein_starch_salad',
     label: 'Белок с гарниром и салатом',
-    slotKinds: ['breakfast', 'lunch', 'dinner'],
+    slotKinds: ['lunch', 'dinner'],
     parts: [
       { role: 'protein', share: 0.35 },
       { role: 'starchy', share: 0.35 },
@@ -35,35 +99,6 @@ export const NUTRITION_DISH_TEMPLATES = [
       { role: 'protein', share: 0.5 },
       { role: 'salad', share: 0.35 },
       { role: 'oil_fat', share: 0.15 },
-    ],
-  },
-  {
-    id: 'oats_eggs',
-    label: 'Каша с белком',
-    slotKinds: ['breakfast'],
-    parts: [
-      { role: 'grain', share: 0.4 },
-      { role: 'protein', share: 0.45 },
-      { role: 'nut_fat', share: 0.15, optional: true },
-    ],
-  },
-  {
-    id: 'cottage_fruit',
-    label: 'Творог / йогурт с фруктами',
-    slotKinds: ['breakfast', 'snack'],
-    parts: [
-      { role: 'protein', share: 0.55 },
-      { role: 'fruit', share: 0.35 },
-      { role: 'nut_fat', share: 0.1, optional: true },
-    ],
-  },
-  {
-    id: 'fruit_nuts',
-    label: 'Фрукт с орехами',
-    slotKinds: ['snack'],
-    parts: [
-      { role: 'fruit', share: 0.7 },
-      { role: 'nut_fat', share: 0.3 },
     ],
   },
   {
@@ -92,7 +127,7 @@ export function slotKindFromId(slotId) {
 }
 
 /**
- * Шаблоны, подходящие слоту, в стабильном порядке.
+ * Шаблоны, подходящие слоту, в стабильном порядке (сначала типичные для слота).
  * @param {string} slotId
  * @returns {DishTemplate[]}
  */

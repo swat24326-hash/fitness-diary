@@ -16,18 +16,19 @@ const TABLES = {
 
 /**
  * Строки сообщений с совпадением, новые сверху. Шаблон чуть шире (е/ё), лишнее отсекаем точной проверкой.
+ * since — нижняя граница created_at (новый тренер не ищет в чужой истории).
  * @param {'chat'|'dm'} scope
  */
-export async function searchThreadMessages(db, scope, threadId, q) {
+export async function searchThreadMessages(db, scope, threadId, q, since = null) {
   const t = TABLES[scope]
-  const found = await rows(
-    db
-      .from(t.messages)
-      .select(t.fields)
-      .eq('thread_id', threadId)
-      .ilike('body', chatSearchPattern(q))
-      .order('created_at', { ascending: false })
-      .limit(CHAT_SEARCH_LIMIT * 2),
-  )
+  let query = db
+    .from(t.messages)
+    .select(t.fields)
+    .eq('thread_id', threadId)
+    .ilike('body', chatSearchPattern(q))
+    .order('created_at', { ascending: false })
+    .limit(CHAT_SEARCH_LIMIT * 2)
+  if (since) query = query.gte('created_at', since)
+  const found = await rows(query)
   return found.filter((m) => chatTextMatches(m.body, q)).slice(0, CHAT_SEARCH_LIMIT)
 }

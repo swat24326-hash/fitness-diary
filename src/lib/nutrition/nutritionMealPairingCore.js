@@ -6,6 +6,7 @@ import { parseGramLimitsFromTags, parseMealRoleFromTags, parsePairsWithFromTags 
 /** @type {Record<string, MealFoodRole>} */
 const PRODUCT_MEAL_ROLE = {
   butter: 'spread_dairy_fat',
+  sunflower_oil: 'oil_fat',
   olive_oil: 'oil_fat',
   peanut_butter: 'nut_fat',
   nuts_walnut: 'nut_fat',
@@ -30,6 +31,11 @@ const PRODUCT_MEAL_ROLE = {
   beef_lean: 'protein',
   kefir: 'protein',
   yogurt: 'protein',
+  protein_drink_hp: 'protein',
+  yogurt_greek: 'protein',
+  cottage_cheese_soft: 'protein',
+  cheese_light: 'protein',
+  whey_protein: 'protein',
 }
 
 /** Несовместимые роли в одном приёме пищи. */
@@ -52,11 +58,16 @@ export const PORTION_LIMITS = {
   apple: { max: 300 },
   berries: { max: 250 },
   butter: { max: 25 },
+  sunflower_oil: { max: 20 },
   olive_oil: { max: 20 },
   peanut_butter: { max: 40 },
   nuts_walnut: { max: 45 },
   avocado: { max: 120 },
   eggs: { max: 300 },
+  protein_drink_hp: { max: 350 },
+  cottage_cheese_soft: { max: 150 },
+  cheese_light: { max: 80 },
+  whey_protein: { min: 20, max: 40 },
 }
 
 /**

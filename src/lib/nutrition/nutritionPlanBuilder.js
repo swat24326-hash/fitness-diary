@@ -1,14 +1,20 @@
 import { getHealthCurrentWeightKg } from '../clientWeightCore.js'
 import { getHealthSex } from '../healthCardCore.js'
-import { filterCatalogProductsByExclusions, buildNutritionCatalogMap } from './nutritionCatalogResolve.js'
+import { buildNutritionCatalogMap } from './nutritionCatalogResolve.js'
 import { computeBmr, computeTdee } from './nutritionMacrosCore.js'
 import { getMealSlots } from './nutritionMealSlotsCore.js'
-import { buildMealFromDish } from './nutritionDishBuildCore.js'
+import { buildMealForSlot } from './nutritionRecipesCore.js'
 import {
   computeNutritionReferents,
   macroTargetsFromReferents,
 } from './nutritionReferentsCore.js'
 import { surveyBuildKey } from './nutritionPlanSessionCore.js'
+import {
+  resolveSurveyProductPools,
+  validateSurveyProductPools,
+} from './nutritionSurveyProductsCore.js'
+import { normalizeProteinAccent } from './nutritionProteinAccentCore.js'
+import { clampDayCount } from './nutritionDaysCountCore.js'
 
 /**
  * @typedef {object} NutritionSurvey
@@ -16,8 +22,14 @@ import { surveyBuildKey } from './nutritionPlanSessionCore.js'
  * @property {import('./nutritionMacrosCore.js').NutritionActivityLevel} [activityLevel]
  * @property {import('./nutritionMacrosCore.js').NutritionGoalKind} [goalKind]
  * @property {number} [mealsPerDay]
- * @property {string[]} [exclusions]
- * @property {{ protein?: string[], fat?: string[], carbs?: string[] }} [pickedProducts]
+ * @property {string[]} [exclusions] — теги: lactose, gluten
+ * @property {string[]} [avoidProductIds] — продукты, которые клиент не ест (режим avoid)
+ * @property {'avoid'|'pick'} [productSelectMode]
+ * @property {{ protein?: string[], fat?: string[], carbs?: string[] }} [pickedProducts] — устаревший opt-in
+ * @property {import('./nutritionProteinAccentCore.js').NutritionProteinAccent} [proteinAccent]
+ * @property {number} [daysCount] — 3–7 дней рациона
+ * @property {boolean} [nutritionAutoPush] — авто-выдача в /me при пересчёте
+ * @property {number} [_mealIndexOffset] — внутренний сдвиг вариантов (неделя)
  */
 
 /**
@@ -38,13 +50,25 @@ export function normalizeNutritionSurvey(raw) {
     }
   }
   const meals = Number(o.mealsPerDay)
+  const mode = o.productSelectMode === 'pick' || o.productSelectMode === 'avoid' ? o.productSelectMode : undefined
+  const daysRaw = Number(o.daysCount)
+  let daysCount
+  if (Number.isFinite(daysRaw)) {
+    daysCount = daysRaw >= 3 ? clampDayCount(daysRaw) : 1
+  }
   return {
     age: Number.isFinite(Number(o.age)) ? Number(o.age) : undefined,
     activityLevel: typeof o.activityLevel === 'string' ? o.activityLevel : undefined,
     goalKind: typeof o.goalKind === 'string' ? o.goalKind : undefined,
     mealsPerDay: meals >= 3 && meals <= 6 ? meals : undefined,
     exclusions: Array.isArray(o.exclusions) ? o.exclusions.map(String) : [],
+    avoidProductIds: Array.isArray(o.avoidProductIds) ? o.avoidProductIds.map(String) : [],
+    productSelectMode: mode,
     pickedProducts,
+    proteinAccent: normalizeProteinAccent(o.proteinAccent),
+    daysCount,
+    nutritionAutoPush: o.nutritionAutoPush === true,
+    _mealIndexOffset: Number.isFinite(Number(o._mealIndexOffset)) ? Number(o._mealIndexOffset) : undefined,
   }
 }
 
@@ -71,16 +95,13 @@ export function isNutritionHealthReady(health) {
   return Number.isFinite(h) && h > 0 && w != null && w > 0 && !!getHealthSex(health)
 }
 
-export function validateSurveyForBuild(survey) {
+export function validateSurveyForBuild(survey, catalogMap) {
   const errors = []
   if (!survey.age || survey.age < 14 || survey.age > 90) errors.push('Укажите возраст (14–90)')
   if (!survey.activityLevel) errors.push('Укажите активность')
   if (!survey.goalKind) errors.push('Укажите цель')
   if (!survey.mealsPerDay) errors.push('Укажите число приёмов пищи')
-  const pp = survey.pickedProducts ?? {}
-  if (!pp.protein?.length) errors.push('Выберите источники белка')
-  if (!pp.fat?.length) errors.push('Выберите источники жиров')
-  if (!pp.carbs?.length) errors.push('Выберите источники углеводов')
+  if (catalogMap) errors.push(...validateSurveyProductPools(survey, catalogMap))
   return errors
 }
 
@@ -103,7 +124,7 @@ function sumItems(items) {
  */
 export function buildNutritionPlan(health, survey, catalogMap) {
   const catalog = catalogMap ?? buildNutritionCatalogMap([])
-  const errors = validateSurveyForBuild(survey)
+  const errors = validateSurveyForBuild(survey, catalog)
   if (!isNutritionHealthReady(health)) {
     errors.push('Заполните рост, вес и пол во вкладке «Здоровье»')
   }
@@ -128,15 +149,9 @@ export function buildNutritionPlan(health, survey, catalogMap) {
   const kcalTarget = referents?.kcal.aim ?? tdee
   const macros = macroTargetsFromReferents(referents)
 
-  const pp = survey.pickedProducts ?? {}
-  const productIdsByGroup = {
-    protein: filterCatalogProductsByExclusions(pp.protein ?? [], survey.exclusions, catalog),
-    fat: filterCatalogProductsByExclusions(pp.fat ?? [], survey.exclusions, catalog),
-    carbs: filterCatalogProductsByExclusions(pp.carbs ?? [], survey.exclusions, catalog),
-  }
-  if (!productIdsByGroup.protein.length || !productIdsByGroup.fat.length || !productIdsByGroup.carbs.length) {
-    return { ok: false, errors: ['После исключений не осталось продуктов в одной из групп'], plan: null }
-  }
+  const productIdsByGroup = resolveSurveyProductPools(survey, catalog)
+  const proteinAccent = normalizeProteinAccent(survey.proteinAccent)
+  const mealIndexOffset = Number(survey._mealIndexOffset) || 0
 
   const slots = getMealSlots(survey.mealsPerDay)
   /** @type {object[]} */
@@ -144,12 +159,13 @@ export function buildNutritionPlan(health, survey, catalogMap) {
   for (let idx = 0; idx < slots.length; idx++) {
     const slot = slots[idx]
     const mealKcalBudget = Math.round(kcalTarget * slot.ratio)
-    const dish = buildMealFromDish({
+    const dish = buildMealForSlot({
       slotId: slot.id,
-      mealIndex: idx,
+      mealIndex: idx + mealIndexOffset,
       mealKcalBudget,
       productIdsByGroup,
       catalogMap: catalog,
+      proteinAccent,
     })
     if (!dish?.items?.length) {
       return {
@@ -163,6 +179,10 @@ export function buildNutritionPlan(health, survey, catalogMap) {
       label: slot.label,
       dishId: dish.dishId,
       dishLabel: dish.dishLabel,
+      source: dish.source ?? 'plate',
+      recipeId: dish.recipeId,
+      recipeSteps: dish.recipeSteps,
+      optionOffset: dish.optionOffset,
       items: dish.items,
       subtotal: sumItems(dish.items),
       kcalBudget: mealKcalBudget,
@@ -175,8 +195,9 @@ export function buildNutritionPlan(health, survey, catalogMap) {
     ok: true,
     errors: [],
     plan: {
-      version: 3,
+      version: 4,
       mealsPerDay: survey.mealsPerDay,
+      proteinAccent,
       bmr: Math.round(bmr),
       tdee,
       kcalTarget,

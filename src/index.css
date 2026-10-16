@@ -59,7 +59,10 @@
 @import './styles/coach-schedule.css';
 @import './styles/coach-clients.css';
 @import './styles/sign-out-warn.css';
+@import './styles/privacy-policy.css';
 @import './styles/survey-points.css';
+@import './styles/nutrition-recipes.css';
+@import './styles/admin-nutrition-recipes.css';
 
 *,
 *::before,

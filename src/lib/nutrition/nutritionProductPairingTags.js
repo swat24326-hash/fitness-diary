@@ -1,8 +1,26 @@
+import { NUTRITION_FOOD_CATEGORIES, parseFoodCategoryFromTags } from './nutritionFoodCategoriesCore.js'
+
 /** @typedef {'fruit' | 'salad' | 'starchy' | 'grain' | 'spread_dairy_fat' | 'oil_fat' | 'nut_fat' | 'protein' | 'other'} MealFoodRole */
 
 /** @typedef {'fruit' | 'salad' | 'starchy' | 'grain'} PairWithRole */
 
+/** @typedef {'breakfast' | 'main'} NutritionSuitableSlot */
+
 export const NUTRITION_EXCLUSION_TAG_IDS = ['lactose', 'gluten']
+
+/** @type {readonly NutritionSuitableSlot[]} */
+export const VALID_SUITABLE_SLOTS = ['breakfast', 'main']
+
+export const FOOD_CATEGORY_OPTIONS = NUTRITION_FOOD_CATEGORIES.map((c) => ({
+  id: c.id,
+  label: c.label,
+  hint: c.hint,
+}))
+
+export const SUITABLE_SLOT_OPTIONS = [
+  { id: 'breakfast', label: 'Завтрак / перекус' },
+  { id: 'main', label: 'Обед / ужин' },
+]
 
 /** @type {readonly MealFoodRole[]} */
 export const VALID_MEAL_ROLES = [
@@ -42,7 +60,7 @@ export const PAIRS_WITH_OPTIONS = [
 const MEAL_ROLE_LABEL = Object.fromEntries(MEAL_ROLE_OPTIONS.map((o) => [o.id, o.label]))
 const PAIRS_LABEL = Object.fromEntries(PAIRS_WITH_OPTIONS.map((o) => [o.id, o.label]))
 
-const PAIRING_TAG_PREFIXES = ['meal_role:', 'pairs:', 'grams_min:', 'grams_max:']
+const PAIRING_TAG_PREFIXES = ['meal_role:', 'pairs:', 'grams_min:', 'grams_max:', 'suitable:', 'food_cat:']
 
 /** @param {string} tag */
 export function isPairingMetaTag(tag) {
@@ -103,8 +121,22 @@ export function parseExclusionTags(tags) {
 }
 
 /**
+ * @param {string[] | undefined} tags
+ * @returns {NutritionSuitableSlot[]}
+ */
+export function parseSuitableFromTags(tags) {
+  return (tags ?? [])
+    .map((t) => String(t))
+    .filter((t) => t.startsWith('suitable:'))
+    .map((t) => t.slice(9))
+    .filter((s) => VALID_SUITABLE_SLOTS.includes(/** @type {NutritionSuitableSlot} */ (s)))
+}
+
+/**
  * @param {{
  *   mealRole?: string | null,
+ *   foodCategory?: string | null,
+ *   suitable?: string[],
  *   pairsWith?: string[],
  *   exclusions?: string[],
  *   gramsMin?: number | null,
@@ -114,9 +146,19 @@ export function parseExclusionTags(tags) {
  */
 export function buildProductTags(input) {
   const tags = []
+  const foodCat = String(input.foodCategory ?? '').trim()
+  if (foodCat && FOOD_CATEGORY_OPTIONS.some((c) => c.id === foodCat)) {
+    tags.push(`food_cat:${foodCat}`)
+  }
   const role = String(input.mealRole ?? '').trim()
   if (role && VALID_MEAL_ROLES.includes(/** @type {MealFoodRole} */ (role))) {
     tags.push(`meal_role:${role}`)
+  }
+  for (const s of input.suitable ?? []) {
+    const id = String(s).trim()
+    if (VALID_SUITABLE_SLOTS.includes(/** @type {NutritionSuitableSlot} */ (id))) {
+      tags.push(`suitable:${id}`)
+    }
   }
   for (const p of input.pairsWith ?? []) {
     const id = String(p).trim()
@@ -141,17 +183,24 @@ export function defaultMealRoleForMacroGroup(macroGroup) {
   return 'other'
 }
 
+const FOOD_CAT_LABEL = Object.fromEntries(FOOD_CATEGORY_OPTIONS.map((c) => [c.id, c.label]))
+const SUITABLE_LABEL = Object.fromEntries(SUITABLE_SLOT_OPTIONS.map((o) => [o.id, o.label]))
+
 /**
  * Человекочитаемые подписи для списка продуктов.
  * @param {string[] | undefined} tags
  */
 export function formatPairingTagsForDisplay(tags) {
+  const foodCat = parseFoodCategoryFromTags(tags)
   const role = parseMealRoleFromTags(tags)
+  const suitable = parseSuitableFromTags(tags)
   const pairs = parsePairsWithFromTags(tags)
   const limits = parseGramLimitsFromTags(tags)
   const exclusions = parseExclusionTags(tags)
   const chips = []
+  if (foodCat) chips.push({ kind: 'food_cat', text: FOOD_CAT_LABEL[foodCat] ?? foodCat })
   if (role) chips.push({ kind: 'role', text: MEAL_ROLE_LABEL[role] ?? role })
+  for (const s of suitable) chips.push({ kind: 'suitable', text: SUITABLE_LABEL[s] ?? s })
   for (const p of pairs) chips.push({ kind: 'pairs', text: `+ ${PAIRS_LABEL[p] ?? p}` })
   if (limits.min != null) chips.push({ kind: 'limit', text: `мин ${limits.min} г` })
   if (limits.max != null) chips.push({ kind: 'limit', text: `макс ${limits.max} г` })

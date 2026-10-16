@@ -5,6 +5,41 @@ import { normalizeNutritionProductRow } from './nutritionProductsCore.js'
  * @typedef {import('./nutritionProductCatalog.js').NutritionProduct & { source?: 'club' | 'builtin' }} ResolvedNutritionProduct
  */
 
+function normalizeProductLabel(label) {
+  return String(label ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+/** Базовый справочник по нормализованному названию — для UUID клуба без meal_role. */
+const BUILTIN_BY_LABEL = new Map(
+  NUTRITION_PRODUCT_CATALOG.map((p) => [normalizeProductLabel(p.label), p]),
+)
+
+/**
+ * У клубных строк часто UUID и неполные tags — без meal_role/suitable:* тарелки ломаются.
+ * Дописываем недостающие теги из builtin по тому же названию (не затираем клубные).
+ * @param {ResolvedNutritionProduct} product
+ * @returns {ResolvedNutritionProduct}
+ */
+export function enrichProductTagsFromBuiltin(product) {
+  if (!product) return product
+  const builtin = BUILTIN_BY_LABEL.get(normalizeProductLabel(product.label))
+  if (!builtin?.tags?.length) return product
+  const own = product.tags ?? []
+  const merged = [...own]
+  let changed = false
+  for (const t of builtin.tags) {
+    if (!merged.includes(t)) {
+      merged.push(t)
+      changed = true
+    }
+  }
+  if (!changed) return product
+  return { ...product, tags: merged }
+}
+
 /**
  * @param {object} row — строка nutrition_products
  * @returns {ResolvedNutritionProduct | null}
@@ -12,7 +47,7 @@ import { normalizeNutritionProductRow } from './nutritionProductsCore.js'
 export function dbRowToCatalogProduct(row) {
   const n = normalizeNutritionProductRow(row)
   if (!n) return null
-  return {
+  return enrichProductTagsFromBuiltin({
     id: n.id,
     label: n.label,
     group: n.macro_group,
@@ -20,9 +55,10 @@ export function dbRowToCatalogProduct(row) {
     fatPer100: n.fat_per100,
     carbsPer100: n.carbs_per100,
     pieceGrams: n.piece_grams ?? undefined,
+    fiberPer100: n.fiber_per100 != null ? Number(n.fiber_per100) : undefined,
     tags: n.tags?.length ? n.tags : undefined,
     source: 'club',
-  }
+  })
 }
 
 /**

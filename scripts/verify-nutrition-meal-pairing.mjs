@@ -38,7 +38,15 @@ ok(fatForSalad === 'olive_oil', 'salad meal prefers oil')
 ok(clampProductGrams('potato', 80) >= 150, 'potato min 150g')
 ok(clampProductGrams('vegetables', 2000) <= 350, 'salad max 350g')
 
-const yogurtTags = buildProductTags({ mealRole: 'protein', pairsWith: ['fruit'], exclusions: ['lactose'] })
+const yogurtTags = buildProductTags({
+  foodCategory: 'dairy',
+  mealRole: 'protein',
+  suitable: ['breakfast'],
+  pairsWith: ['fruit'],
+  exclusions: ['lactose'],
+})
+ok(yogurtTags.includes('food_cat:dairy'), 'build food_cat:dairy')
+ok(yogurtTags.includes('suitable:breakfast'), 'build suitable:breakfast')
 ok(parseMealRoleFromTags(yogurtTags) === 'protein', 'parse meal_role from tags')
 ok(parsePairsWithFromTags(yogurtTags).includes('fruit'), 'parse pairs:fruit from tags')
 

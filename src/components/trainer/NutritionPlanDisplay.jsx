@@ -1,6 +1,7 @@
-import { Send, Share2 } from 'lucide-react'
+import { RefreshCw, Send, Share2 } from 'lucide-react'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 import { NutritionTableBlock } from './NutritionTableBlock.jsx'
+import { NutritionMealRecipeBlock } from './NutritionMealRecipeBlock.jsx'
 import { ClientPlanAppButton, ClientPlanAppStatus } from './ClientPlanAppButton.jsx'
 
 function mapSummaryRow(row) {
@@ -46,6 +47,9 @@ export function NutritionPlanDisplay({
   onExportMax,
   onExportOther,
   onItemGramsChange,
+  onSwapMeal,
+  onSelectDay,
+  activeDayIndex = 0,
   hasPendingChanges,
   draftAligned,
   onDiscard,
@@ -59,6 +63,7 @@ export function NutritionPlanDisplay({
 
   const brandClub = String(clubName ?? '').trim()
   const canSend = !exportBusy && !planUnsaved && !readOnly
+  const weekDays = Array.isArray(displayPlan.days) ? displayPlan.days : null
 
   return (
     <>
@@ -130,6 +135,24 @@ export function NutritionPlanDisplay({
       </div>
 
       <div className="nutrition-plan-body">
+        {weekDays && weekDays.length > 1 ? (
+          <div className="nutrition-week-days" role="tablist" aria-label="Дни рациона">
+            {weekDays.map((d) => (
+              <button
+                key={d.dayIndex}
+                type="button"
+                role="tab"
+                aria-selected={activeDayIndex === d.dayIndex}
+                className={`btn btn-sm${activeDayIndex === d.dayIndex ? '' : ' btn-ghost'}`}
+                disabled={readOnly && !onSelectDay}
+                onClick={() => onSelectDay?.(d.dayIndex)}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         {daySummary.length > 0 ? (
           <article className="nutrition-meal-block nutrition-day-summary">
             <h3 className="nutrition-meal-title">Сводка на день</h3>
@@ -143,11 +166,33 @@ export function NutritionPlanDisplay({
 
         <div className="nutrition-day-table">
           {displayPlan.dayPlan.map((meal) => (
-            <article key={meal.slot} className="nutrition-meal-block">
-              <h3 className="nutrition-meal-title">
-                {meal.label}
-                {meal.dishLabel ? ` · ${meal.dishLabel}` : ''}
-              </h3>
+            <article
+              key={meal.slot}
+              className={`nutrition-meal-block${meal.source === 'recipe' || meal.recipeId ? ' nutrition-meal-block--recipe' : ''}`}
+            >
+              <header className="nutrition-meal-block__head">
+                <div className="nutrition-meal-block__title-row">
+                  <h3 className="nutrition-meal-title">
+                    <span className="nutrition-meal-title__slot">{meal.label}</span>
+                    {meal.dishLabel ? (
+                      <span className="nutrition-meal-title__dish">{meal.dishLabel}</span>
+                    ) : null}
+                  </h3>
+                  {!readOnly && onSwapMeal ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost nutrition-meal-swap"
+                      disabled={busy}
+                      title="Другое блюдо в этом приёме"
+                      onClick={() => onSwapMeal(meal.slot)}
+                    >
+                      <RefreshCw size={14} aria-hidden />
+                      Другое блюдо
+                    </button>
+                  ) : null}
+                </div>
+                <NutritionMealRecipeBlock meal={meal} />
+              </header>
               <NutritionTableBlock
                 rows={meal.items.map((item) => mapMealItem(meal, item))}
                 footer={{

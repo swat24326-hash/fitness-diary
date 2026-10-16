@@ -63,7 +63,7 @@ ok(roundGrams(47) === 45 || roundGrams(47) === 50, 'round grams to 5')
 
 const built = buildNutritionPlan(health, survey)
 ok(built.ok, `plan builds: ${built.errors?.join('; ') ?? ''}`)
-ok(built.plan?.version === 3, 'plan version 3 dishes')
+ok(built.plan?.version === 4, 'plan version 4 dishes')
 ok(built.plan?.dayPlan?.length === 4, 'day plan 4 meals')
 ok(built.plan?.totals?.kcal > 0, 'totals kcal')
 const target = built.plan?.kcalTarget ?? 0

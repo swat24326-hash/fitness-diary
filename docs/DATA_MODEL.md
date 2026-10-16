@@ -11,7 +11,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | Store | keyPath | Заметки |
 |-------|---------|---------|
 | `meta` | key (string) | Флаги, служебное |
-| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / **архив клуба** (`archived_at`…); `desk_hall`; закрытие направления — `client_hall_lifecycle` ([CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md)). Lite-ПЗ = тренер с `uses_tablet=false`. |
+| `clients` | `id` | индексы `club_id`, `trainer_id`; `trainer_chat_since` — с какой метки новый тренер видит диалог «Тренер» ([CHAT.md](./CHAT.md)); поля ПНК / **архив клуба** (`archived_at`…); `desk_hall`; закрытие направления — `client_hall_lifecycle` ([CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md)). Lite-ПЗ = тренер с `uses_tablet=false`. |
 | `memberships` | `id` | `client_id`, `club_id`; **`hall`** (`pz`\|`tz`\|`az`) — зал абона (один client — несколько залов); опционально `clip_id`; `paid_amount` (₽ **цены покупки** desk/lite — **не** сущность платежа); `session_visits` JSONB — журнал списаний desk АЗ `[{id,date,created_at}]` |
 | `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (упражнения: `format` 1–3, опционально `laterality: 'lr'` — левая/правая в одном подходе; опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |

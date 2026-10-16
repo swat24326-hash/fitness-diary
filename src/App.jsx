@@ -80,6 +80,12 @@ const AppUpdatedBannerLazy = lazyPwaOverlay(
   'AppUpdatedBanner',
 )
 
+const PrivacyPolicyPage = lazy(() =>
+  import('./pages/legal/PrivacyPolicyPage.jsx').then((m) => ({ default: m.PrivacyPolicyPage })),
+)
+const ChatRulesPage = lazy(() =>
+  import('./pages/legal/ChatRulesPage.jsx').then((m) => ({ default: m.ChatRulesPage })),
+)
 const ClientMePage = lazy(() => import('./pages/client/ClientMePage.jsx').then((m) => ({ default: m.ClientMePage })))
 const ClientJoinPage = lazy(() => import('./pages/client/ClientJoinPage.jsx').then((m) => ({ default: m.ClientJoinPage })))
 const ClientSettingsPage = lazy(() =>
@@ -306,6 +312,8 @@ export default function App() {
         <ChatVoiceMiniPlayer />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/chat-rules" element={<ChatRulesPage />} />
           <Route path="/me/*" element={<ClientAppRoutes />} />
           <Route path="/coach/*" element={<CoachAppRoutes />} />
           <Route element={<LoggedInLayout />}>

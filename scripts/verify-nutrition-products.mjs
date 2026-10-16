@@ -1,6 +1,12 @@
-import { buildNutritionCatalogMap, filterCatalogProductsByExclusions } from '../src/lib/nutrition/nutritionCatalogResolve.js'
+import {
+  buildNutritionCatalogMap,
+  enrichProductTagsFromBuiltin,
+  filterCatalogProductsByExclusions,
+} from '../src/lib/nutrition/nutritionCatalogResolve.js'
 import { normalizeNutritionProductRow } from '../src/lib/nutrition/nutritionProductsCore.js'
+import { getProductMealRole } from '../src/lib/nutrition/nutritionMealPairingCore.js'
 import { isNutritionPlanStale, nutritionPlanStaleMessage } from '../src/lib/nutrition/nutritionPlanStaleCore.js'
+import { parseMealRoleFromTags } from '../src/lib/nutrition/nutritionProductPairingTags.js'
 
 let failed = 0
 
@@ -39,5 +45,17 @@ ok(filtered.length === 0, 'lactose filter on club product')
 ok(!isNutritionPlanStale({ weight_kg: 75, height_cm: 170 }, { basis: { weightKg: 75, heightCm: 170 } }), 'plan fresh')
 ok(isNutritionPlanStale({ weight_kg: 74, height_cm: 170 }, { basis: { weightKg: 75, heightCm: 170 } }), 'plan stale on weight')
 ok(nutritionPlanStaleMessage({ weight_kg: 74, height_cm: 170 }, { basis: { weightKg: 75, heightCm: 170 } })?.includes('74'), 'stale message')
+
+const enriched = enrichProductTagsFromBuiltin({
+  id: 'uuid-apple',
+  label: 'Яблоко',
+  group: 'carbs',
+  proteinPer100: 0.3,
+  fatPer100: 0.2,
+  carbsPer100: 14,
+  source: 'club',
+})
+ok(parseMealRoleFromTags(enriched.tags) === 'fruit', 'enrich apple tags from builtin label')
+ok(getProductMealRole('uuid-apple', enriched) === 'fruit', 'role fruit after enrich')
 
 process.exit(failed > 0 ? 1 : 0)

@@ -68,22 +68,58 @@ function sanitizeHomework(p) {
 
 function sanitizeNutrition(p) {
   const meals = list(p?.meals, 10)
-    .map((m) => ({
-      label: str(m?.label, 60),
-      items: list(m?.items, 30)
-        .map((it) => ({ label: str(it?.label, 120), portion: str(it?.portion, 60), grams: num(it?.grams, 0, 5000), ...macros(it) }))
-        .filter((it) => it.label),
-      subtotal: macros(m?.subtotal),
-    }))
+    .map((m) => {
+      const steps = list(m?.steps, 6)
+        .map((s) => str(s, 160))
+        .filter(Boolean)
+      const meal = {
+        label: str(m?.label, 80),
+        items: list(m?.items, 30)
+          .map((it) => ({ label: str(it?.label, 120), portion: str(it?.portion, 60), grams: num(it?.grams, 0, 5000), ...macros(it) }))
+          .filter((it) => it.label),
+        subtotal: macros(m?.subtotal),
+      }
+      if (steps.length) meal.steps = steps
+      return meal
+    })
     .filter((m) => m.label && m.items.length)
   if (!meals.length) return null
-  return {
+  const days = list(p?.days, 7)
+    .map((d) => {
+      const dayMeals = list(d?.meals, 10)
+        .map((m) => {
+          const steps = list(m?.steps, 6)
+            .map((s) => str(s, 160))
+            .filter(Boolean)
+          const meal = {
+            label: str(m?.label, 80),
+            items: list(m?.items, 30)
+              .map((it) => ({
+                label: str(it?.label, 120),
+                portion: str(it?.portion, 60),
+                grams: num(it?.grams, 0, 5000),
+                ...macros(it),
+              }))
+              .filter((it) => it.label),
+            subtotal: macros(m?.subtotal),
+          }
+          if (steps.length) meal.steps = steps
+          return meal
+        })
+        .filter((m) => m.label && m.items.length)
+      if (!dayMeals.length) return null
+      return { label: str(d?.label, 40) || 'День', totals: macros(d?.totals), meals: dayMeals }
+    })
+    .filter(Boolean)
+  const out = {
     goal: str(p?.goal, 80),
     kcal_target: num(p?.kcal_target, 0, 20_000),
     totals: macros(p?.totals),
     meals,
     disclaimer: str(p?.disclaimer, 400),
   }
+  if (days.length > 1) out.days = days
+  return out
 }
 
 /** @returns {object|null} null — пустой или битый снимок */

@@ -13,8 +13,10 @@ import {
   clampProductGrams,
   getProductMealRole,
 } from './nutritionMealPairingCore.js'
+import { preferProteinsForSlotKind } from './nutritionMealSlotFoodCore.js'
+import { orderProteinIdsByAccent } from './nutritionProteinAccentCore.js'
 import { parsePairsWithFromTags } from './nutritionProductPairingTags.js'
-import { pickDishTemplate, templatesForSlot } from './nutritionDishTemplatesCore.js'
+import { pickDishTemplate, slotKindFromId, templatesForSlot } from './nutritionDishTemplatesCore.js'
 
 /** Роли, которые берём из пула углеводов. */
 const CARB_ROLES = new Set(['fruit', 'salad', 'starchy', 'grain'])
@@ -86,24 +88,37 @@ function dairyFriendlyProteins(proteinPool, catalogMap) {
  * @param {{ protein: string[], fat: string[], carbs: string[] }} p.productIdsByGroup
  * @param {Map<string, import('./nutritionCatalogResolve.js').ResolvedNutritionProduct>} p.catalogMap
  * @param {number} p.mealIndex
+ * @param {'breakfast'|'lunch'|'dinner'|'snack'} [p.slotKind]
+ * @param {string} [p.proteinAccent]
  * @returns {{ productId: string, role: string }[] | null}
  */
-export function fillDishParts({ template, productIdsByGroup, catalogMap, mealIndex }) {
+export function fillDishParts({ template, productIdsByGroup, catalogMap, mealIndex, slotKind, proteinAccent }) {
   /** @type {{ productId: string, role: string }[]} */
   const filled = []
   let anchorCarbId = null
+  const kind = slotKind ?? 'lunch'
 
   for (const part of template.parts) {
     const group = poolGroupForRole(part.role)
     let pool = productIdsByGroup[group] ?? []
-    if (template.id === 'cottage_fruit' && part.role === 'protein') {
-      pool = dairyFriendlyProteins(pool, catalogMap)
+    if (part.role === 'protein') {
+      pool = orderProteinIdsByAccent(pool, proteinAccent)
+      pool = preferProteinsForSlotKind(pool, kind, catalogMap)
+      if (template.id === 'cottage_fruit') {
+        pool = dairyFriendlyProteins(pool, catalogMap)
+      }
     }
 
     let candidates = candidatesForRole(pool, part.role, catalogMap)
     if (part.role === 'starchy') {
-      const grain = candidatesForRole(pool, 'grain', catalogMap)
-      if (!candidates.length && grain.length) candidates = grain
+      // Без meal_role клубные углеводы часто все «starchy»; если роли узкие — берём любой карб.
+      for (const fallback of /** @type {const} */ (['grain', 'fruit', 'salad'])) {
+        if (candidates.length) break
+        candidates = candidatesForRole(pool, fallback, catalogMap)
+      }
+    }
+    if (part.role === 'nut_fat' && !candidates.length) {
+      candidates = candidatesForRole(pool, 'oil_fat', catalogMap)
     }
 
     candidates = filterCompatible(candidates, filled.map((f) => f.productId), catalogMap)
@@ -209,10 +224,12 @@ function sharesForFilled(template, filled) {
  * @param {number} p.mealKcalBudget
  * @param {{ protein: string[], fat: string[], carbs: string[] }} p.productIdsByGroup
  * @param {Map<string, import('./nutritionCatalogResolve.js').ResolvedNutritionProduct>} p.catalogMap
+ * @param {string} [p.proteinAccent]
  * @returns {{ dishId: string, dishLabel: string, items: object[] } | null}
  */
-export function buildMealFromDish({ slotId, mealIndex, mealKcalBudget, productIdsByGroup, catalogMap }) {
+export function buildMealFromDish({ slotId, mealIndex, mealKcalBudget, productIdsByGroup, catalogMap, proteinAccent }) {
   const pool = templatesForSlot(slotId)
+  const kind = slotKindFromId(slotId)
   const tried = new Set()
   const start = pickDishTemplate(slotId, mealIndex, pool)
 
@@ -221,7 +238,14 @@ export function buildMealFromDish({ slotId, mealIndex, mealKcalBudget, productId
     if (tried.has(template.id)) continue
     tried.add(template.id)
 
-    const filled = fillDishParts({ template, productIdsByGroup, catalogMap, mealIndex })
+    const filled = fillDishParts({
+      template,
+      productIdsByGroup,
+      catalogMap,
+      mealIndex,
+      slotKind: kind,
+      proteinAccent,
+    })
     if (!filled) continue
 
     const shares = sharesForFilled(template, filled)

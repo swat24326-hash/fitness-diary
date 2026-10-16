@@ -1,0 +1,80 @@
+/* Публичная политика конфиденциальности (/privacy) */
+.privacy-policy {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem max(2rem, env(safe-area-inset-bottom));
+  line-height: 1.5;
+}
+
+.privacy-policy__brand {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+}
+
+.privacy-policy__title {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.privacy-policy__meta {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
+.privacy-policy__lead {
+  margin: 1.25rem 0 0;
+}
+
+.privacy-policy__section {
+  margin-top: 1.35rem;
+}
+
+.privacy-policy__h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.privacy-policy__body {
+  margin: 0;
+  color: var(--text-muted, inherit);
+}
+
+.privacy-policy__body a {
+  color: var(--accent, #3b82f6);
+}
+
+.privacy-policy__back {
+  margin: 2rem 0 0;
+  font-size: 0.9rem;
+}
+
+.privacy-policy__back a {
+  color: var(--accent, #3b82f6);
+}
+
+.privacy-policy-link {
+  display: inline;
+  font-size: 0.9rem;
+  color: var(--accent, #3b82f6);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-entry-links {
+  margin: 1rem 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.legal-entry-links__sep {
+  margin: 0 0.35rem;
+  color: var(--muted, #64748b);
+}
+
+.login-page .legal-entry-links,
+.coach-form .legal-entry-links,
+.client-me-card--center .legal-entry-links {
+  margin-top: 1rem;
+}

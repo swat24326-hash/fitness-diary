@@ -2,6 +2,8 @@ import { getHealthCurrentWeightKg, getHealthInitialWeightKg } from '../clientWei
 import { getHealthSex } from '../healthCardCore.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { buildNutritionPlan, normalizeNutritionSurvey } from './nutritionPlanBuilder.js'
+import { buildNutritionWeekPlan } from './nutritionWeekPlanCore.js'
+import { clampDayCount } from './nutritionDaysCountCore.js'
 import { buildNutritionCatalogMap } from './nutritionCatalogResolve.js'
 import { appendNutritionPlanHistory, parseNutritionPlanHistory, serializeNutritionPlanHistoryForStorage, removeNutritionPlanHistoryEntry } from './nutritionPlanHistoryCore.js'
 import { listNutritionProductsForClub } from './nutritionProductsService.js'
@@ -97,6 +99,10 @@ export async function saveClientNutrition(clientId, health, survey, plan, opts =
 export async function previewNutritionPlan(health, survey, clubId) {
   const clubRows = clubId ? await listNutritionProductsForClub(clubId, { activeOnly: true }) : []
   const catalogMap = buildNutritionCatalogMap(clubRows)
+  const days = Number(survey?.daysCount)
+  if (Number.isFinite(days) && days >= 3) {
+    return buildNutritionWeekPlan(health, { ...survey, daysCount: clampDayCount(days) }, catalogMap)
+  }
   return buildNutritionPlan(health, survey, catalogMap)
 }
 

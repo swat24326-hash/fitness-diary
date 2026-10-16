@@ -105,6 +105,16 @@ export function ClientNutritionView({ item }) {
               </li>
             ))}
           </ul>
+          {Array.isArray(m.steps) && m.steps.length > 0 ? (
+            <details className="client-plan__recipe">
+              <summary>Как приготовить</summary>
+              <ol className="client-plan__recipe-steps">
+                {m.steps.map((step, si) => (
+                  <li key={si}>{step}</li>
+                ))}
+              </ol>
+            </details>
+          ) : null}
         </div>
       ))}
       {p.disclaimer ? <p className="client-me-muted client-plan__disclaimer">{p.disclaimer}</p> : null}

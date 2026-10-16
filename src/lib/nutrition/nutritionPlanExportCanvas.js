@@ -164,8 +164,10 @@ export async function renderNutritionPlanPng(plan, meta = {}) {
           bold: true,
         }
       : null
+    const steps = Array.isArray(meal.recipeSteps) ? meal.recipeSteps.filter(Boolean).slice(0, 3) : []
     y = drawTableCard(ctx, {
       title: meal.dishLabel ? `${meal.label ?? ''} · ${meal.dishLabel}` : (meal.label ?? ''),
+      subtitle: steps.length ? steps.map((s, i) => `${i + 1}. ${s}`).join('  ') : '',
       cols: MEAL_COLS,
       rows,
       footer,
@@ -203,22 +205,25 @@ function estimateHeight(dayPlan, daySummary) {
     h += cardHeight(daySummary.length, true)
   }
   for (const meal of dayPlan) {
-    h += cardHeight(meal.items?.length ?? 0, false, Boolean(meal.subtotal))
+    const stepLines = Array.isArray(meal.recipeSteps) && meal.recipeSteps.filter(Boolean).length ? 1 : 0
+    h += cardHeight(meal.items?.length ?? 0, false, Boolean(meal.subtotal), stepLines)
   }
   h += 90 + PADDING
   return h
 }
 
-function cardHeight(rowCount, accent, hasFooter = true) {
+function cardHeight(rowCount, accent, hasFooter = true, subtitleLines = 0) {
   const footerRows = hasFooter ? 1 : 0
   const tableH = TABLE_HEAD_H + (rowCount + footerRows) * ROW_H
-  return TITLE_H + tableH + CARD_PAD * 2 + CARD_GAP + (accent ? 4 : 0)
+  const subH = subtitleLines > 0 ? 22 : 0
+  return TITLE_H + subH + tableH + CARD_PAD * 2 + CARD_GAP + (accent ? 4 : 0)
 }
 
-function drawTableCard(ctx, { title, cols, rows, footer, y, accent = false }) {
+function drawTableCard(ctx, { title, subtitle = '', cols, rows, footer, y, accent = false }) {
   const rowCount = rows.length + (footer ? 1 : 0)
   const tableH = TABLE_HEAD_H + rowCount * ROW_H
-  const cardH = TITLE_H + tableH + CARD_PAD * 2
+  const subH = subtitle ? 22 : 0
+  const cardH = TITLE_H + subH + tableH + CARD_PAD * 2
   const bg = accent ? C.summaryBg : C.card
   const border = accent ? C.summaryBorder : C.cardBorder
 
@@ -233,7 +238,16 @@ function drawTableCard(ctx, { title, cols, rows, footer, y, accent = false }) {
   ctx.font = 'bold 15px system-ui, sans-serif'
   ctx.fillText(title, PADDING + CARD_PAD + (accent ? 6 : 0), y + CARD_PAD + 16)
 
-  const tableY = y + CARD_PAD + TITLE_H
+  let titleBlock = TITLE_H
+  if (subtitle) {
+    ctx.fillStyle = C.dim
+    ctx.font = '12px system-ui, sans-serif'
+    const clipped = subtitle.length > 110 ? `${subtitle.slice(0, 107)}…` : subtitle
+    ctx.fillText(clipped, PADDING + CARD_PAD + (accent ? 6 : 0), y + CARD_PAD + 34)
+    titleBlock += subH
+  }
+
+  const tableY = y + CARD_PAD + titleBlock
   const innerX = PADDING + CARD_PAD
   const innerW = CONTENT_W - CARD_PAD * 2
   drawTable(ctx, cols, rows, footer, innerX, tableY, innerW)

@@ -15,12 +15,11 @@ export function buildNutritionAppSnapshot(plan, { health = null, planUnsaved = f
   if (planUnsaved) return { ok: false, error: 'unsaved' }
   if (!plan) return { ok: false, error: 'empty_plan' }
   if (isNutritionPlanStale(health, plan)) return { ok: false, error: 'stale' }
-  const payload = sanitizeClientPlanPayload('nutrition', {
-    goal: goalKindLabel,
-    kcal_target: plan.kcalTarget,
-    totals: plan.totals,
-    disclaimer: plan.disclaimer,
-    meals: (plan.dayPlan ?? []).map((meal) => ({
+  const mapMeal = (meal) => {
+    const steps = Array.isArray(meal?.recipeSteps)
+      ? meal.recipeSteps.map((s) => String(s ?? '').trim()).filter(Boolean).slice(0, 6)
+      : []
+    const row = {
       label: meal?.dishLabel ? `${meal.label} · ${meal.dishLabel}` : meal?.label,
       subtotal: meal?.subtotal,
       items: (meal?.items ?? []).map((it) => ({
@@ -32,8 +31,26 @@ export function buildNutritionAppSnapshot(plan, { health = null, planUnsaved = f
         fatG: it?.fatG,
         carbsG: it?.carbsG,
       })),
-    })),
-  })
+    }
+    if (steps.length) row.steps = steps
+    return row
+  }
+
+  const body = {
+    goal: goalKindLabel,
+    kcal_target: plan.kcalTarget,
+    totals: plan.totals,
+    disclaimer: plan.disclaimer,
+    meals: (plan.dayPlan ?? []).map(mapMeal),
+  }
+  if (Array.isArray(plan.days) && plan.days.length > 1) {
+    body.days = plan.days.map((d) => ({
+      label: d.label,
+      totals: d.totals,
+      meals: (d.dayPlan ?? []).map(mapMeal),
+    }))
+  }
+  const payload = sanitizeClientPlanPayload('nutrition', body)
   return payload ? { ok: true, payload } : { ok: false, error: 'empty_plan' }
 }
 

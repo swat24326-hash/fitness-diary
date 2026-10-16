@@ -7,6 +7,7 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt.js'
 import { isPwaUpdateInFlight } from '../lib/appUpdateInFlightSession.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../lib/authLoginResolveCore'
 import { getSupabaseSetupMessage } from '../lib/supabase'
+import { LegalEntryLinks } from '../components/legal/LegalEntryLinks.jsx'
 
 export function Login() {
   const { user, role, signIn, loading, signingIn } = useAuth()
@@ -115,6 +116,7 @@ export function Login() {
             Установить приложение
           </button>
         )}
+        <LegalEntryLinks />
       </div>
     </div>
   )

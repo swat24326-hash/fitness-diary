@@ -32,6 +32,11 @@ import {
 import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
+import {
+  blankStaffTrainerThreadBeforeSince,
+  staffUsesTrainerChatSince,
+  trainerChatSinceIso,
+} from '../../../src/lib/chat/chatTrainerHistoryCore.js'
 import { isInboxUuid } from '../../../src/lib/inbox/inboxCampaignCore.js'
 import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
 import { profileStatusEmoji } from '../../../src/lib/profile/profileStatusCore.js'
@@ -69,7 +74,9 @@ async function listThreads(ctx, scope) {
     const client = clients.get(String(t.client_id))
     if (seen.has(t.id) || !canStaffReadChat(t.actor ?? ctx, t.kind, client)) continue
     seen.add(t.id)
-    const unread = isStaffChatUnread(t, client)
+    const since = staffUsesTrainerChatSince(scope.role, t.kind) ? trainerChatSinceIso(client) : null
+    const view = blankStaffTrainerThreadBeforeSince(t, since)
+    const unread = isStaffChatUnread(view, client)
     out.push({
       client_id: String(t.client_id),
       client_name: client.name ?? '',
@@ -77,12 +84,12 @@ async function listThreads(ctx, scope) {
       client_status: profileStatusEmoji(client, 'client'),
       kind: t.kind,
       label: chatKindLabelRu(t.kind),
-      last_preview: t.last_preview ?? '',
-      last_message_at: t.last_message_at,
-      last_author: t.last_author,
+      last_preview: view.last_preview ?? '',
+      last_message_at: view.last_message_at,
+      last_author: view.last_author,
       unread,
-      unread_count: unread ? chatUnreadCount('staff', t) : 0,
-      reaction: chatUnseenReaction('staff', t),
+      unread_count: unread ? chatUnreadCount('staff', view) : 0,
+      reaction: chatUnseenReaction('staff', view),
     })
   }
   out.sort((a, b) => Number(b.unread) - Number(a.unread) || String(b.last_message_at ?? '').localeCompare(String(a.last_message_at ?? '')))
@@ -126,8 +133,9 @@ export async function handleStaffChatGet(ctx, req, res) {
     const found = await resolveClient(ctx, res, req.query?.client_id, kind, false)
     if (!found) return
     const { client, actor } = found
+    const since = staffUsesTrainerChatSince(scope.role, kind) ? trainerChatSinceIso(client) : null
     if (view === 'search') {
-      const out = await searchChatThread(ctx.supabaseAdmin, { client, kind, side: 'staff', q: req.query?.q })
+      const out = await searchChatThread(ctx.supabaseAdmin, { client, kind, side: 'staff', q: req.query?.q, since })
       sendJson(res, out.status, out.body)
       return
     }
@@ -138,6 +146,7 @@ export async function handleStaffChatGet(ctx, req, res) {
       reactor: chatReactorKey('staff', actor.user?.id ?? scope.userId),
       before: req.query?.before,
       markRead: staffMarksChatRead(scope.role) && chatSeenFromRequest(req.query?.seen),
+      since,
     })
     sendJson(res, 200, {
       client: {
@@ -182,6 +191,7 @@ export async function handleStaffChatPost(ctx, res, body) {
     if (!found) return
     const { client, actor } = found
     const userId = String(actor.user?.id ?? scope.userId)
+    const since = staffUsesTrainerChatSince(scope.role, kind) ? trainerChatSinceIso(client) : null
     if (voiceWant) {
       const out = await chatVoiceOf(ctx.supabaseAdmin, {
         client,
@@ -191,13 +201,21 @@ export async function handleStaffChatPost(ctx, res, body) {
         who: `u:${scope.userId}`,
         side: 'staff',
         mark: staffMarksChatRead(scope.role),
+        since,
       })
       sendChatFileAnswer(res, out)
       return
     }
     if (op === 'react') {
       const reactor = chatReactorKey('staff', userId)
-      const out = await reactChatMessage(ctx.supabaseAdmin, { client, kind, reactor, messageId: body?.message_id, emoji: body?.emoji })
+      const out = await reactChatMessage(ctx.supabaseAdmin, {
+        client,
+        kind,
+        reactor,
+        messageId: body?.message_id,
+        emoji: body?.emoji,
+        since,
+      })
       sendJson(res, out.status, out.body)
       return
     }
@@ -213,6 +231,7 @@ export async function handleStaffChatPost(ctx, res, body) {
       clientMsgId: body?.client_msg_id,
       replyTo: body?.reply_to,
       silent: body?.silent === true,
+      since,
     })
     sendJson(res, out.status, out.body)
   } catch (e) {

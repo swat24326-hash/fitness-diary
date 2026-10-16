@@ -45,6 +45,12 @@ import {
 } from '../src/lib/chat/chatStickerCore.js'
 import { buildChatPushPayload } from '../api/_lib/chat/chatPushJob.js'
 import { countNewPeerMessages, didInboxCountChange, didInboxCountRise, isChatSoundEnabled } from '../src/lib/chat/chatSoundCore.js'
+import {
+  blankStaffTrainerThreadBeforeSince,
+  isChatMessageVisibleAfterSince,
+  staffUsesTrainerChatSince,
+  trainerChatSinceIso,
+} from '../src/lib/chat/chatTrainerHistoryCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -247,6 +253,35 @@ ok(
   !didInboxCountChange(null, 3) && didInboxCountChange(0, 1) && didInboxCountChange(2, 1) && !didInboxCountChange(1, 1),
   'конверт: число изменилось (выросло или упало) — мессенджер перечитывает список; первая загрузка и то же число — нет',
 )
+
+// --- смена тренера: новый не видит старую историю; админ — видит
+const since = '2026-10-15T12:00:00.000Z'
+ok(trainerChatSinceIso({ trainer_chat_since: since }) === since, 'trainer_chat_since: валидный ISO')
+ok(trainerChatSinceIso({ trainer_chat_since: '' }) == null && trainerChatSinceIso({}) == null, 'trainer_chat_since: пусто = без границы')
+ok(staffUsesTrainerChatSince('trainer', 'trainer') && !staffUsesTrainerChatSince('admin', 'trainer'), 'история: режет только тренер×trainer')
+ok(!staffUsesTrainerChatSince('trainer', 'sales'), 'история: sales у тренера не режем')
+ok(isChatMessageVisibleAfterSince({ created_at: '2026-10-15T12:00:00.000Z' }, since), 'история: сообщение на границе видно')
+ok(isChatMessageVisibleAfterSince({ created_at: '2026-10-15T13:00:00.000Z' }, since), 'история: после границы видно')
+ok(!isChatMessageVisibleAfterSince({ created_at: '2026-10-15T11:59:59.000Z' }, since), 'история: до границы скрыто')
+ok(isChatMessageVisibleAfterSince({ created_at: '2020-01-01T00:00:00.000Z' }, null), 'история: без since — всё видно')
+const oldThread = {
+  kind: 'trainer',
+  last_preview: 'привет от прошлого',
+  last_message_at: '2026-10-14T10:00:00.000Z',
+  last_author: 'client',
+  staff_unread: 3,
+  last_reaction_at: '2026-10-14T10:01:00.000Z',
+  last_reaction_emoji: '👍',
+  last_reaction_by: 'u:t1',
+}
+const blank = blankStaffTrainerThreadBeforeSince(oldThread, since)
+ok(!blank.last_preview && blank.last_message_at == null && blank.staff_unread === 0, 'история: список — пустое превью до границы')
+ok(blank.last_reaction_at == null, 'история: список — реакция до границы скрыта')
+const fresh = blankStaffTrainerThreadBeforeSince(
+  { ...oldThread, last_message_at: '2026-10-16T10:00:00.000Z', last_preview: 'новое' },
+  since,
+)
+ok(fresh.last_preview === 'новое' && fresh.staff_unread === 3, 'история: список — после границы как есть')
 
 if (failed) {
   console.error(`\nverify-chat: ${failed} FAIL`)

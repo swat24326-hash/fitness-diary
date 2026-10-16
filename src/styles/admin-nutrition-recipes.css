@@ -1,0 +1,87 @@
+.admin-nutrition-form__hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.admin-nutrition-pairing-chip--food_cat {
+  background: color-mix(in srgb, var(--color-accent, #c4a35a) 18%, transparent);
+}
+
+.admin-nutrition-pairing-chip--suitable {
+  background: color-mix(in srgb, var(--color-text-muted, #888) 14%, transparent);
+}
+
+.admin-nutrition-recipes-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.admin-nutrition-recipes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-nutrition-recipe__head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border, #ddd) 80%, transparent);
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.admin-nutrition-recipe--open .admin-nutrition-recipe__head {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.admin-nutrition-recipe__title {
+  font-weight: 600;
+}
+
+.admin-nutrition-recipe__slots {
+  font-size: 0.85rem;
+}
+
+.admin-nutrition-recipe__body {
+  padding: 0 14px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border, #ddd) 80%, transparent);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+}
+
+.admin-nutrition-recipe__parts-label {
+  margin: 10px 0 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted, #888);
+}
+
+.admin-nutrition-recipe__parts,
+.admin-nutrition-recipe__steps {
+  margin: 0;
+  padding-left: 1.2em;
+  line-height: 1.45;
+}
+
+.admin-nutrition-recipe__steps li + li {
+  margin-top: 4px;
+}

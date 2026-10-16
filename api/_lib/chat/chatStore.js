@@ -27,8 +27,9 @@ export function isMissingChatTable(e) {
   return /chat_(threads|messages)/.test(msg) && /does not exist|relation/i.test(msg)
 }
 
-/** Клиент в переписке: права (club_id, trainer_id, archived_at) и фото профиля. */
-const CHAT_CLIENT_FIELDS = 'id, name, club_id, trainer_id, archived_at, avatar_key, status_emoji, status_until, birth_date'
+/** Клиент в переписке: права (club_id, trainer_id, archived_at), граница истории тренера и фото профиля. */
+const CHAT_CLIENT_FIELDS =
+  'id, name, club_id, trainer_id, trainer_chat_since, archived_at, avatar_key, status_emoji, status_until, birth_date'
 
 export async function loadChatClient(db, clientId) {
   const { data, error } = await db
@@ -94,10 +95,14 @@ export async function loadStaffCards(db, ids) {
   )
 }
 
-/** Последняя страница ленты (по возрастанию); before — ISO-время самого старого показанного сообщения. */
-export async function loadChatMessages(db, threadId, before) {
+/**
+ * Последняя страница ленты (по возрастанию); before — ISO-время самого старого показанного сообщения.
+ * since — нижняя граница (новый тренер не видит историю до смены trainer_id).
+ */
+export async function loadChatMessages(db, threadId, before, since = null) {
   let q = db.from('chat_messages').select(MESSAGE_FIELDS).eq('thread_id', threadId)
   if (before) q = q.lt('created_at', before)
+  if (since) q = q.gte('created_at', since)
   const desc = await rows(q.order('created_at', { ascending: false }).limit(CHAT_PAGE))
   return { messages: chronological(desc), has_more: desc.length === CHAT_PAGE }
 }

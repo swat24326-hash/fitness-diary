@@ -15,6 +15,7 @@ import { CHAT_REACTION_GONE_RU, chatUnseenReaction } from '../../../src/lib/chat
 import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
+import { isChatMessageVisibleAfterSince } from '../../../src/lib/chat/chatTrainerHistoryCore.js'
 import { sendChatPush } from './chatPushJob.js'
 import { loadReactionsFor, markReactionSeen, setMessageReaction } from './chatReactionStore.js'
 import { loadReplyTarget, loadReplyTargets } from './chatReplyStore.js'
@@ -40,19 +41,21 @@ function isIsoCursor(v) {
 /**
  * @param {'client'|'staff'} side
  * markRead=false — смотрит не ответственный (главный админ): непрочитанное остаётся у того, кто отвечает.
+ * since — ISO-граница для нового тренера (null — без отсечения).
  */
-export async function openChatThread(db, { client, kind, side, reactor, before, markRead = true }) {
+export async function openChatThread(db, { client, kind, side, reactor, before, markRead = true, since = null }) {
   const thread = await loadChatThread(db, client.id, kind)
   const voice_ready = chatVoiceStorageMode() != null
   if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null, voice_ready }
-  const page = await loadChatMessages(db, thread.id, isIsoCursor(before) ? before : null)
+  const page = await loadChatMessages(db, thread.id, isIsoCursor(before) ? before : null, since)
   const marked =
     markRead && !before && isChatUnreadFor(side, thread) && (await markChatRead(db, thread, side, page.messages.at(-1)?.created_at))
   const ids = page.messages.map((m) => m.id)
-  const [quoted, reactions] = await Promise.all([
+  const [quotedRaw, reactions] = await Promise.all([
     loadReplyTargets(db, 'chat', thread.id, page.messages),
     loadReactionsFor(db, 'chat', ids, reactor, clientNameMap(client)),
   ])
+  const quoted = filterQuotedAfterSince(quotedRaw, since)
   const names = await loadStaffNames(db, [...page.messages, ...quoted.values()].map((m) => m.author_user_id))
   if (markRead && !before && chatUnseenReaction(side, thread)) await markReactionSeen(db, 'chat', thread.id, `${side}_reaction_seen_at`)
   const toView = (m) => buildChatMessageView(m, side, names)
@@ -74,21 +77,27 @@ export async function openChatThread(db, { client, kind, side, reactor, before, 
  * @param {'client'|'staff'} side
  * @returns {Promise<{ status: number, body: object }>}
  */
-export async function searchChatThread(db, { client, kind, side, q }) {
+export async function searchChatThread(db, { client, kind, side, q, since = null }) {
   const checked = normalizeChatSearchQuery(q)
   if (!checked.ok) return { status: 400, body: { error: checked.error } }
   const thread = await loadChatThread(db, client.id, kind)
   if (!thread) return { status: 200, body: { results: [] } }
-  const found = await searchThreadMessages(db, 'chat', thread.id, checked.q)
+  const found = await searchThreadMessages(db, 'chat', thread.id, checked.q, since)
   const names = await loadStaffNames(db, found.map((m) => m.author_user_id))
   const results = found.map((m) => buildChatSearchHit(buildChatMessageView(m, side, names), checked.q, peerNameOf(side, client)))
   return { status: 200, body: { results } }
 }
 
 /** Своя реакция на сообщение диалога; reactor — chatReactorKey того, кто ставит. */
-export async function reactChatMessage(db, { client, kind, reactor, messageId, emoji }) {
+export async function reactChatMessage(db, { client, kind, reactor, messageId, emoji, since = null }) {
   const thread = await loadChatThread(db, client.id, kind)
   if (!thread) return { status: 404, body: { error: CHAT_REACTION_GONE_RU } }
+  if (since) {
+    const target = await loadReplyTarget(db, 'chat', thread.id, messageId)
+    if (!target || !isChatMessageVisibleAfterSince(target, since)) {
+      return { status: 404, body: { error: CHAT_REACTION_GONE_RU } }
+    }
+  }
   return setMessageReaction(db, 'chat', { threadId: thread.id, messageId, reactor, emoji, clientNames: clientNameMap(client) })
 }
 
@@ -97,10 +106,26 @@ export async function reactChatMessage(db, { client, kind, reactor, messageId, e
  * @param {'audio'|'text'|'file'} want
  * @param {'client'|'staff'} side кто слушает; mark=false — смотрит не ответственный: «прослушано» не ставим
  */
-export async function chatVoiceOf(db, { client, kind, messageId, want, who, side, mark = true }) {
+export async function chatVoiceOf(db, { client, kind, messageId, want, who, side, mark = true, since = null }) {
   const thread = await loadChatThread(db, client.id, kind)
+  if (since) {
+    const target = await loadReplyTarget(db, 'chat', thread?.id ?? null, messageId)
+    if (!target || !isChatMessageVisibleAfterSince(target, since)) {
+      return { status: 404, body: { error: CHAT_REACTION_GONE_RU } }
+    }
+  }
   if (want === 'file') return answerChatAttach(db, 'chat_messages', thread?.id ?? null, messageId)
   return answerChatVoice(db, 'chat_messages', thread?.id ?? null, messageId, want, who, { side, mark })
+}
+
+/** Цитаты на сообщения до границы истории тренеру не показываем. */
+function filterQuotedAfterSince(quoted, since) {
+  if (!since || !quoted?.size) return quoted ?? new Map()
+  const out = new Map()
+  for (const [id, m] of quoted) {
+    if (isChatMessageVisibleAfterSince(m, since)) out.set(id, m)
+  }
+  return out
 }
 
 /** «Кто поставил» у реакции клиента — его имя. */
@@ -119,7 +144,7 @@ function peerNameOf(side, client) {
  * attach — { kind, data, name?, w?, h? } фото или PDF (chatAttachCore); body тогда — подпись. silent — push без звука.
  * @returns {Promise<{ status: number, body: object }>}
  */
-export async function sendChatMessage(db, { client, kind, side, userId, body, sticker, voice, attach, clientMsgId, replyTo, silent = false }) {
+export async function sendChatMessage(db, { client, kind, side, userId, body, sticker, voice, attach, clientMsgId, replyTo, silent = false, since = null }) {
   const checked = resolveChatOutgoing({ body, sticker, ...voice, attach })
   if (!checked.ok) return { status: checked.status ?? 400, body: { error: checked.error } }
   const blocked = chatVoiceBlocked(checked)
@@ -135,7 +160,8 @@ export async function sendChatMessage(db, { client, kind, side, userId, body, st
     if (!put.ok) return { status: put.status, body: { error: put.error } }
     stored = put
   }
-  const target = earlier ? null : await loadReplyTarget(db, 'chat', thread.id, replyTo)
+  const rawTarget = earlier ? null : await loadReplyTarget(db, 'chat', thread.id, replyTo)
+  const target = rawTarget && isChatMessageVisibleAfterSince(rawTarget, since) ? rawTarget : null
   const { message, duplicate } = earlier
     ? { message: earlier, duplicate: true }
     : await insertChatMessage(db, thread, client, {

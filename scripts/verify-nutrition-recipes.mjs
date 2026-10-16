@@ -1,0 +1,146 @@
+import { buildNutritionCatalogMap } from '../src/lib/nutrition/nutritionCatalogResolve.js'
+import { NUTRITION_RECIPE_CATALOG } from '../src/lib/nutrition/nutritionRecipeCatalog.js'
+import {
+  buildMealForSlot,
+  buildMealFromRecipe,
+  listFittingRecipes,
+  recipeFitsPool,
+  resolveRecipeProductKey,
+} from '../src/lib/nutrition/nutritionRecipesCore.js'
+import { buildNutritionPlan, normalizeNutritionSurvey } from '../src/lib/nutrition/nutritionPlanBuilder.js'
+
+let failed = 0
+
+function ok(cond, msg) {
+  if (cond) console.log(`ok: ${msg}`)
+  else {
+    console.error(`FAIL: ${msg}`)
+    failed++
+  }
+}
+
+const catalogMap = buildNutritionCatalogMap([])
+
+ok(NUTRITION_RECIPE_CATALOG.length >= 18, `recipe catalog size (${NUTRITION_RECIPE_CATALOG.length})`)
+ok(
+  NUTRITION_RECIPE_CATALOG.some((r) => /блендер/i.test(r.steps?.join(' ') ?? '')),
+  'catalog mentions blender',
+)
+const stoveish = NUTRITION_RECIPE_CATALOG.filter((r) =>
+  /сковород|духовк|отвар|кипят|плит/i.test(r.steps?.join(' ') ?? ''),
+)
+ok(stoveish.length >= NUTRITION_RECIPE_CATALOG.length * 0.7, 'most recipes lead with stove/pan/oven')
+const airFirst = NUTRITION_RECIPE_CATALOG.filter((r) => {
+  const t = r.steps?.join(' ') ?? ''
+  const air = t.search(/аэрогриль/i)
+  if (air < 0) return false
+  const stove = t.search(/сковород|духовк|отвар|кипят/i)
+  return stove < 0 || air < stove
+})
+ok(airFirst.length === 0, 'air fryer is not the primary path')
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'caesar_pp'), 'caesar_pp in catalog')
+ok(!NUTRITION_RECIPE_CATALOG.some((r) => /лосось|авокадо|арахис/i.test(`${r.label} ${r.steps?.join(' ')}`)), 'no salmon/avocado/peanut as recipe core')
+ok(
+  NUTRITION_RECIPE_CATALOG.every((r) =>
+    (r.parts ?? []).every((p) => p.productKey !== 'salmon' && p.productKey !== 'avocado' && p.productKey !== 'peanut_butter'),
+  ),
+  'parts avoid salmon/avocado/peanut_butter',
+)
+
+const fullPools = {
+  protein: [
+    'chicken_breast',
+    'eggs',
+    'cottage_cheese_5',
+    'beef_lean',
+    'yogurt',
+    'kefir',
+    'fish_white',
+    'turkey_breast',
+  ],
+  fat: ['sunflower_oil', 'butter', 'nuts_walnut', 'olive_oil'],
+  carbs: ['buckwheat', 'rice', 'potato', 'pasta', 'oats', 'bread_whole', 'vegetables', 'apple', 'banana', 'berries'],
+}
+
+ok(resolveRecipeProductKey('chicken_breast', fullPools, catalogMap) === 'chicken_breast', 'resolve builtin id')
+ok(resolveRecipeProductKey('sunflower_oil', { ...fullPools, fat: ['olive_oil'] }, catalogMap) === 'olive_oil', 'sunflower falls back to olive')
+ok(recipeFitsPool(NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'caesar_pp'), fullPools, catalogMap), 'caesar fits full pool')
+
+const caesar = buildMealFromRecipe({
+  recipe: NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'caesar_pp'),
+  mealKcalBudget: 550,
+  productIdsByGroup: fullPools,
+  catalogMap,
+})
+ok(caesar?.source === 'recipe', 'caesar builds as recipe')
+ok(caesar?.dishLabel?.includes('Цезарь'), `caesar label: ${caesar?.dishLabel}`)
+ok((caesar?.recipeSteps?.length ?? 0) >= 3, 'caesar has steps')
+ok(caesar?.items?.some((i) => i.productId === 'chicken_breast'), 'caesar has chicken')
+
+const lunchFit = listFittingRecipes('lunch', fullPools, catalogMap)
+ok(lunchFit.length >= 3, `lunch fitting recipes: ${lunchFit.length}`)
+
+const meal0 = buildMealForSlot({
+  slotId: 'lunch',
+  mealIndex: 0,
+  mealKcalBudget: 600,
+  productIdsByGroup: fullPools,
+  catalogMap,
+})
+const mealLast = buildMealForSlot({
+  slotId: 'lunch',
+  mealIndex: lunchFit.length,
+  mealKcalBudget: 600,
+  productIdsByGroup: fullPools,
+  catalogMap,
+})
+ok(meal0?.items?.length >= 2, 'slot meal 0 ok')
+ok(mealLast?.source === 'plate', `plate option at index N: ${mealLast?.source}`)
+
+const clubRows = [
+  { id: 'u-ch', club_id: 'c1', label: 'Куриная грудка', macro_group: 'protein', protein_per100: 23, fat_per100: 2, carbs_per100: 0, tags: [], is_active: true },
+  { id: 'u-yog', club_id: 'c1', label: 'Йогурт натуральный', macro_group: 'protein', protein_per100: 10, fat_per100: 2, carbs_per100: 4, tags: [], is_active: true },
+  { id: 'u-veg', club_id: 'c1', label: 'Овощи (салат)', macro_group: 'carbs', protein_per100: 1.5, fat_per100: 0.2, carbs_per100: 5, tags: [], is_active: true },
+  { id: 'u-oil', club_id: 'c1', label: 'Масло подсолнечное', macro_group: 'fat', protein_per100: 0, fat_per100: 100, carbs_per100: 0, tags: [], is_active: true },
+  { id: 'u-buck', club_id: 'c1', label: 'Гречка (варёная)', macro_group: 'carbs', protein_per100: 4, fat_per100: 1, carbs_per100: 21, tags: [], is_active: true },
+  { id: 'u-oats', club_id: 'c1', label: 'Овсянка (сухая)', macro_group: 'carbs', protein_per100: 13, fat_per100: 6, carbs_per100: 62, tags: [], is_active: true },
+  { id: 'u-cot', club_id: 'c1', label: 'Творог 5%', macro_group: 'protein', protein_per100: 17, fat_per100: 5, carbs_per100: 2, tags: [], is_active: true },
+  { id: 'u-ber', club_id: 'c1', label: 'Ягоды', macro_group: 'carbs', protein_per100: 0.7, fat_per100: 0.3, carbs_per100: 12, tags: [], is_active: true },
+  { id: 'u-kef', club_id: 'c1', label: 'Кефир 1%', macro_group: 'protein', protein_per100: 3, fat_per100: 1, carbs_per100: 4, tags: [], is_active: true },
+  { id: 'u-apple', club_id: 'c1', label: 'Яблоко', macro_group: 'carbs', protein_per100: 0.3, fat_per100: 0.2, carbs_per100: 14, tags: [], is_active: true },
+]
+const clubMap = buildNutritionCatalogMap(clubRows)
+const clubPools = {
+  protein: ['u-ch', 'u-yog', 'u-cot', 'u-kef'],
+  fat: ['u-oil'],
+  carbs: ['u-veg', 'u-buck', 'u-oats', 'u-ber', 'u-apple'],
+}
+ok(resolveRecipeProductKey('chicken_breast', clubPools, clubMap) === 'u-ch', 'resolve club by label')
+ok(resolveRecipeProductKey('sunflower_oil', clubPools, clubMap) === 'u-oil', 'resolve sunflower by label')
+const caesarClub = buildMealFromRecipe({
+  recipe: NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'caesar_pp'),
+  mealKcalBudget: 500,
+  productIdsByGroup: clubPools,
+  catalogMap: clubMap,
+})
+ok(caesarClub?.source === 'recipe', `caesar on club UUID: ${caesarClub?.dishLabel ?? caesarClub}`)
+
+const health = { height_cm: 170, current_weight_kg: 75, weight_kg: 75, sex: 'male' }
+const survey = normalizeNutritionSurvey({
+  age: 35,
+  activityLevel: 'moderate',
+  goalKind: 'lose_weight',
+  mealsPerDay: 4,
+  exclusions: [],
+  pickedProducts: fullPools,
+})
+const built = buildNutritionPlan(health, survey, catalogMap)
+ok(built.ok, `full plan with recipes: ${built.errors?.join('; ') ?? ''}`)
+ok(built.plan?.version === 4, 'plan v4')
+ok(built.plan?.dayPlan?.some((m) => m.source === 'recipe'), 'day has at least one recipe')
+
+if (failed) {
+  console.error(`\n${failed} check(s) failed`)
+  process.exit(1)
+}
+console.log('\nAll nutrition recipe checks passed')

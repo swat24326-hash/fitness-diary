@@ -1,4 +1,5 @@
 import { QrCode, RefreshCw, WifiOff } from 'lucide-react'
+import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { clientMeLeadCard } from '../../lib/client/clientMeHighlightsCore.js'
 import { ClientMenu } from './ClientMenu.jsx'
@@ -29,7 +30,9 @@ export function ClientMePage() {
           icon={QrCode}
           title="Вход по ссылке из клуба"
           hint={error || 'Попросите тренера или администратора показать QR-код в вашей карточке и отсканируйте его камерой.'}
-        />
+        >
+          <LegalEntryLinks />
+        </ClientMeStatus>
       </ClientMeShell>
     )
   }

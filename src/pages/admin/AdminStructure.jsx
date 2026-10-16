@@ -6,6 +6,7 @@ import { AdminMembershipTypes } from './AdminMembershipTypes'
 import { AdminSalesManagers } from './AdminSalesManagers'
 import { AdminSupervisors } from './AdminSupervisors'
 import { AdminNutritionProducts } from './AdminNutritionProducts'
+import { AdminNutritionRecipes } from './AdminNutritionRecipes.jsx'
 import { AdminHomeworkPresets } from './AdminHomeworkPresets'
 import { AdminHomeworkLibrary } from './AdminHomeworkLibrary.jsx'
 import { AdminMaxOutreach } from './AdminMaxOutreach'
@@ -23,6 +24,7 @@ const TAB_IDS = [
   'club-plan',
   'loyalty',
   'nutrition-products',
+  'nutrition-recipes',
   'homework-presets',
   'homework-library',
   'exercises',
@@ -40,6 +42,7 @@ const TABS = [
   { id: 'club-plan', label: 'План ЗП' },
   { id: 'loyalty', label: 'Лояльность' },
   { id: 'nutrition-products', label: 'Питание' },
+  { id: 'nutrition-recipes', label: 'Рецепты' },
   { id: 'homework-presets', label: 'ДЗ' },
   { id: 'homework-library', label: 'Библиотека ДЗ' },
   { id: 'exercises', label: 'Упражнения' },
@@ -165,6 +168,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'nutrition-products' ? <AdminNutritionProducts /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-nutrition-recipes"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-nutrition-recipes"
+          hidden={tab !== 'nutrition-recipes'}
+          className="admin-structure__panel"
+        >
+          {tab === 'nutrition-recipes' ? <AdminNutritionRecipes /> : null}
         </div>
         <div
           id="admin-structure-panel-homework-presets"

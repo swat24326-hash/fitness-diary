@@ -2,17 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { NutritionPlanDisplay } from '../../components/trainer/NutritionPlanDisplay.jsx'
+import { NutritionAvoidCategories } from '../../components/trainer/NutritionAvoidCategories.jsx'
 import {
   NUTRITION_ACTIVITY_OPTIONS,
   NUTRITION_EXCLUSION_OPTIONS,
   NUTRITION_GOAL_OPTIONS,
   NUTRITION_MEALS_PER_DAY_OPTIONS,
 } from '../../lib/nutrition/nutritionMacrosCore.js'
-import {
-  buildNutritionCatalogMap,
-  catalogSourceLabel,
-  listCatalogProductsByGroup,
-} from '../../lib/nutrition/nutritionCatalogResolve.js'
+import { NUTRITION_PROTEIN_ACCENT_OPTIONS } from '../../lib/nutrition/nutritionProteinAccentCore.js'
+import { NUTRITION_DAYS_COUNT_OPTIONS } from '../../lib/nutrition/nutritionDaysCountCore.js'
+import { swapMealInPlan } from '../../lib/nutrition/nutritionMealSwapCore.js'
+import { rescaleNutritionPlanToHealth } from '../../lib/nutrition/nutritionPlanRescaleCore.js'
+import { pickWeekDayPlan } from '../../lib/nutrition/nutritionWeekPlanCore.js'
+import { shouldAutoPushNutritionPlan } from '../../lib/nutrition/nutritionAutoPushCore.js'
+import { buildNutritionCatalogMap, catalogSourceLabel } from '../../lib/nutrition/nutritionCatalogResolve.js'
 import { isNutritionHealthReady } from '../../lib/nutrition/nutritionPlanBuilder.js'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 import { getHealthSex } from '../../lib/healthCardCore'
@@ -32,6 +35,10 @@ import {
 } from '../../lib/nutrition/nutritionPlanService.js'
 import { assessTotalsAgainstReferents } from '../../lib/nutrition/nutritionReferentsCore.js'
 import { attachSurveyKeyToPlan, planMatchesSurvey } from '../../lib/nutrition/nutritionPlanSessionCore.js'
+import {
+  migratePickedSurveyToAvoid,
+  resolveProductSelectMode,
+} from '../../lib/nutrition/nutritionSurveyProductsCore.js'
 import { sendNutritionPlanPng } from '../../lib/nutrition/nutritionPlanShareCore.js'
 import { buildNutritionAppSnapshot, NUTRITION_APP_SEND_ERRORS_RU } from '../../lib/nutrition/nutritionAppSendCore.js'
 import { useClientPlanSend } from './useClientPlanSend.js'
@@ -44,9 +51,7 @@ const STEPS = [
   { id: 'profile', label: 'Профиль' },
   { id: 'meals', label: 'Приёмы' },
   { id: 'exclusions', label: 'Ограничения' },
-  { id: 'protein', label: 'Белки' },
-  { id: 'fat', label: 'Жиры' },
-  { id: 'carbs', label: 'Углеводы' },
+  { id: 'avoid', label: 'Не ем' },
   { id: 'result', label: 'Рацион' },
 ]
 
@@ -54,31 +59,6 @@ const PAGE_VIEWS = {
   ration: 'ration',
   compose: 'compose',
   history: 'history',
-}
-
-function ProductChips({ group, selected, exclusions, catalogMap, onToggle, readOnly, locked }) {
-  const products = useMemo(() => listCatalogProductsByGroup(catalogMap, group), [catalogMap, group])
-  const ex = new Set(exclusions ?? [])
-  return (
-    <div className="nutrition-chips">
-      {products.map((p) => {
-        const blocked = p.tags?.some((t) => ex.has(t))
-        const active = selected.includes(p.id)
-        return (
-          <button
-            key={p.id}
-            type="button"
-            className={`nutrition-chip${active ? ' nutrition-chip--active' : ''}${blocked ? ' nutrition-chip--blocked' : ''}`}
-            disabled={readOnly || locked || blocked}
-            title={blocked ? 'Исключено ограничениями' : undefined}
-            onClick={() => onToggle(p.id)}
-          >
-            {p.label}
-          </button>
-        )
-      })}
-    </div>
-  )
 }
 
 export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
@@ -108,6 +88,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
   const [catalogMap, setCatalogMap] = useState(() => buildNutritionCatalogMap([]))
   const [catalogLabel, setCatalogLabel] = useState('Базовый справочник')
   const [confirmDialog, setConfirmDialog] = useState(null)
+  const [activeDayIndex, setActiveDayIndex] = useState(0)
   const planApp = useClientPlanSend('nutrition', client, readOnly)
 
   const surveyLoadedRef = useRef(false)
@@ -159,7 +140,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       const map = buildNutritionCatalogMap([])
       setCatalogMap(map)
       setCatalogLabel(catalogSourceLabel(map))
-      return
+      return map
     }
     if (isSupabaseConfigured() && navigator.onLine) {
       await pullNutritionProductsForClubFromCloud(clubId)
@@ -168,7 +149,14 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     const map = buildNutritionCatalogMap(rows)
     setCatalogMap(map)
     setCatalogLabel(catalogSourceLabel(map))
+    return map
   }, [clubId])
+
+  /** Старые опросники «что ем» → «что не ем» после загрузки каталога. */
+  useEffect(() => {
+    setSurvey((s) => (resolveProductSelectMode(s) === 'pick' ? migratePickedSurveyToAvoid(s, catalogMap) : s))
+    setSavedSurvey((s) => (resolveProductSelectMode(s) === 'pick' ? migratePickedSurveyToAvoid(s, catalogMap) : s))
+  }, [catalogMap])
 
   const reload = useCallback(async ({ refreshSurvey = false } = {}) => {
     if (!client?.id) return null
@@ -215,7 +203,11 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
   const healthReady = isNutritionHealthReady(health)
   const isComposing = pageView === PAGE_VIEWS.compose
   const rationPlan = planUnsaved && pageView === PAGE_VIEWS.ration ? draftPlan : savedPlan
-  const displayPlan = isComposing ? (planUnsaved ? draftPlan : savedPlan) : rationPlan
+  const rawDisplayPlan = isComposing ? (planUnsaved ? draftPlan : savedPlan) : rationPlan
+  const displayPlan = useMemo(
+    () => (rawDisplayPlan?.days?.length ? pickWeekDayPlan(rawDisplayPlan, activeDayIndex) : rawDisplayPlan),
+    [rawDisplayPlan, activeDayIndex],
+  )
   const planStale = isNutritionPlanStale(health, savedPlan)
   const staleMessage = nutritionPlanStaleMessage(health, savedPlan)
   const daySummary = useMemo(() => buildDayProductSummary(displayPlan), [displayPlan])
@@ -380,6 +372,50 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     setError(null)
   }
 
+  const onSwapMeal = (mealSlot) => {
+    if (readOnly) return
+    const base = draftPlan ?? savedPlan
+    if (!base) return
+    const withDay = base.days?.length ? { ...base, activeDayIndex } : base
+    const res = swapMealInPlan(withDay, mealSlot, {
+      survey: isComposing ? survey : savedSurvey,
+      catalogMap,
+      direction: 1,
+    })
+    if (!res.ok) {
+      setError(res.error === 'no_alternatives' ? 'Нет другого варианта для этого приёма' : 'Не удалось сменить блюдо')
+      return
+    }
+    setDraftPlan(res.plan)
+    setPlanUnsaved(true)
+    setError(null)
+  }
+
+  const onSelectDay = (dayIndex) => {
+    setActiveDayIndex(dayIndex)
+  }
+
+  const rescaleKbju = async () => {
+    if (readOnly || !client?.id) return
+    const base = draftPlan ?? savedPlan
+    if (!base) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = rescaleNutritionPlanToHealth(base, health, survey, catalogMap)
+      if (!res.ok) {
+        setError((res.errors ?? []).join('\n') || 'Не удалось пересчитать')
+        return
+      }
+      setDraftPlan(res.plan)
+      setPlanUnsaved(true)
+      setPageView(PAGE_VIEWS.compose)
+      setStep(RESULT_STEP)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const buildPlan = async () => {
     if (readOnly || !client?.id) return
     setBusy(true)
@@ -501,6 +537,23 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       setPageView(PAGE_VIEWS.ration)
       setStep(0)
       await reload({ refreshSurvey: true })
+      const auto = shouldAutoPushNutritionPlan({
+        enabled: surveyForSave.nutritionAutoPush === true,
+        health,
+        plan: planToSave,
+        planUnsaved: false,
+        trigger: planToSave.rescaledAt ? 'manual_recalc' : 'manual_recalc',
+      })
+      if (auto.shouldPush) {
+        const snap = buildNutritionAppSnapshot(planToSave, { health, planUnsaved: false, goalKindLabel })
+        if (snap.ok) {
+          try {
+            await planApp.send(() => snap)
+          } catch {
+            /* авто-выдача не ломает сохранение */
+          }
+        }
+      }
       try {
         await onPlanSaved?.()
       } catch {
@@ -648,15 +701,14 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
         <section className="card nutrition-stale-banner" role="status">
           <p style={{ margin: 0 }}>{staleMessage}</p>
           {!readOnly ? (
-            <button
-              type="button"
-              className="btn btn-touch"
-              style={{ marginTop: 10 }}
-              disabled={busy}
-              onClick={() => void rebuildFromSaved()}
-            >
-              Пересобрать рацион
-            </button>
+            <div className="nutrition-stale-banner__actions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+              <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void rescaleKbju()}>
+                Пересчитать КБЖУ
+              </button>
+              <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void rebuildFromSaved()}>
+                Пересобрать блюда
+              </button>
+            </div>
           ) : null}
         </section>
       ) : null}
@@ -757,6 +809,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
             onSendApp={sendToApp}
             clubName={clubName}
             onItemGramsChange={onItemGramsChange}
+            onSwapMeal={onSwapMeal}
+            onSelectDay={onSelectDay}
+            activeDayIndex={activeDayIndex}
             hasPendingChanges={hasPendingChanges && pageView === PAGE_VIEWS.ration}
             draftAligned={draftAligned}
             onDiscard={() => discardDraft({ goHome: true })}
@@ -923,6 +978,47 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 {survey.mealsPerDay === 5 && 'Завтрак · перекус · обед · полдник · ужин'}
                 {survey.mealsPerDay === 6 && 'Завтрак · 2 перекуса · обед · ужин · вечерний перекус'}
               </p>
+
+              <p className="nutrition-field-label">На сколько дней рацион</p>
+              <div className="nutrition-chips">
+                {NUTRITION_DAYS_COUNT_OPTIONS.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    className={`nutrition-chip${(survey.daysCount ?? 1) === o.id ? ' nutrition-chip--active' : ''}`}
+                    disabled={readOnly || composeSurveyLocked}
+                    onClick={() => patchSurvey({ daysCount: o.id })}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+
+              <p className="nutrition-field-label">Акцент белка на период</p>
+              <div className="nutrition-chips nutrition-chips--stack">
+                {NUTRITION_PROTEIN_ACCENT_OPTIONS.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    className={`nutrition-chip nutrition-chip--wide${(survey.proteinAccent ?? 'mixed') === o.id ? ' nutrition-chip--active' : ''}`}
+                    disabled={readOnly || composeSurveyLocked}
+                    onClick={() => patchSurvey({ proteinAccent: o.id })}
+                    title={o.hint}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="nutrition-field" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={survey.nutritionAutoPush === true}
+                  disabled={readOnly || composeSurveyLocked}
+                  onChange={(e) => patchSurvey({ nutritionAutoPush: e.target.checked })}
+                />
+                <span>После пересчёта КБЖУ сами отправлять рацион в приложение клиента</span>
+              </label>
             </section>
           )}
 
@@ -954,72 +1050,26 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
             </section>
           )}
 
-          {stepId === 'protein' && (
+          {stepId === 'avoid' && (
             <section className="card nutrition-panel">
               <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-                Белки — что клиент готов есть
+                Что клиент не ест
               </h2>
-              <ProductChips
-                group="protein"
-                selected={survey.pickedProducts?.protein ?? []}
+              <p className="muted nutrition-hint">
+                Откройте категорию (молочка, мясо, рыба…) и отметьте отказы. «Не ем всё» — сразу всю
+                группу. Подсвеченный чип = не едим. По умолчанию в рацион идёт весь справочник.
+              </p>
+              <NutritionAvoidCategories
+                avoided={survey.avoidProductIds ?? []}
                 exclusions={survey.exclusions}
                 catalogMap={catalogMap}
                 readOnly={readOnly}
                 locked={composeSurveyLocked}
-                onToggle={(id) =>
+                onChangeAvoidIds={(ids) =>
                   patchSurvey({
-                    pickedProducts: {
-                      ...survey.pickedProducts,
-                      protein: toggleProductId(survey.pickedProducts?.protein, id),
-                    },
-                  })
-                }
-              />
-            </section>
-          )}
-
-          {stepId === 'fat' && (
-            <section className="card nutrition-panel">
-              <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-                Жиры
-              </h2>
-              <ProductChips
-                group="fat"
-                selected={survey.pickedProducts?.fat ?? []}
-                exclusions={survey.exclusions}
-                catalogMap={catalogMap}
-                readOnly={readOnly}
-                locked={composeSurveyLocked}
-                onToggle={(id) =>
-                  patchSurvey({
-                    pickedProducts: {
-                      ...survey.pickedProducts,
-                      fat: toggleProductId(survey.pickedProducts?.fat, id),
-                    },
-                  })
-                }
-              />
-            </section>
-          )}
-
-          {stepId === 'carbs' && (
-            <section className="card nutrition-panel">
-              <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-                Углеводы
-              </h2>
-              <ProductChips
-                group="carbs"
-                selected={survey.pickedProducts?.carbs ?? []}
-                exclusions={survey.exclusions}
-                catalogMap={catalogMap}
-                readOnly={readOnly}
-                locked={composeSurveyLocked}
-                onToggle={(id) =>
-                  patchSurvey({
-                    pickedProducts: {
-                      ...survey.pickedProducts,
-                      carbs: toggleProductId(survey.pickedProducts?.carbs, id),
-                    },
+                    productSelectMode: 'avoid',
+                    avoidProductIds: ids,
+                    pickedProducts: { protein: [], fat: [], carbs: [] },
                   })
                 }
               />
@@ -1046,6 +1096,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 onSendApp={sendToApp}
                 clubName={clubName}
                 onItemGramsChange={onItemGramsChange}
+                onSwapMeal={onSwapMeal}
+                onSelectDay={onSelectDay}
+                activeDayIndex={activeDayIndex}
                 hasPendingChanges={planUnsaved && draftAligned}
                 draftAligned={draftAligned}
                 busy={busy}

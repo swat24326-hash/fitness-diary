@@ -10,6 +10,11 @@ export function surveyBuildKey(survey) {
     goalKind: survey?.goalKind ?? null,
     mealsPerDay: survey?.mealsPerDay ?? null,
     exclusions: [...(survey?.exclusions ?? [])].sort(),
+    productSelectMode: survey?.productSelectMode ?? null,
+    avoidProductIds: [...(survey?.avoidProductIds ?? [])].sort(),
+    proteinAccent: survey?.proteinAccent ?? 'mixed',
+    daysCount: survey?.daysCount ?? null,
+    nutritionAutoPush: survey?.nutritionAutoPush === true,
     pickedProducts: {
       protein: [...(pp.protein ?? [])].sort(),
       fat: [...(pp.fat ?? [])].sort(),

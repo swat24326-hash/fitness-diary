@@ -52,6 +52,7 @@ CREATE TABLE clients (
   max_chat_url TEXT,
   avatar_key TEXT,
   trainer_id UUID REFERENCES users (id),
+  trainer_chat_since TIMESTAMPTZ,
   club_id UUID NOT NULL REFERENCES clubs (id),
   archived_at TIMESTAMPTZ,
   archive_reason TEXT,

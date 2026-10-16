@@ -37,6 +37,7 @@ export const STRUCTURE_TAB_LABELS = {
   'club-plan': 'План ЗП',
   loyalty: 'Лояльность',
   'nutrition-products': 'Питание',
+  'nutrition-recipes': 'Рецепты',
   'homework-presets': 'ДЗ',
   'homework-library': 'Библиотека ДЗ',
   exercises: 'Упражнения',
