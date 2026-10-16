@@ -20,20 +20,20 @@
  */
 export const NUTRITION_PRODUCT_CATALOG = [
   // —— Мясо и птица ——
-  { id: 'chicken_breast', label: 'Куриная грудка', group: 'protein', proteinPer100: 23, fatPer100: 1.5, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main'] },
-  { id: 'chicken_thigh', label: 'Куриное бедро без кожи', group: 'protein', proteinPer100: 19, fatPer100: 8, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main'] },
-  { id: 'turkey_breast', label: 'Индейка', group: 'protein', proteinPer100: 21, fatPer100: 1, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main'] },
-  { id: 'beef_lean', label: 'Говядина постная', group: 'protein', proteinPer100: 21, fatPer100: 8, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main'] },
-  { id: 'minced_turkey', label: 'Фарш индейки', group: 'protein', proteinPer100: 20, fatPer100: 7, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main'] },
+  { id: 'chicken_breast', label: 'Куриная грудка', group: 'protein', proteinPer100: 23, fatPer100: 1.5, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main', 'grams_max:220'] },
+  { id: 'chicken_thigh', label: 'Куриное бедро без кожи', group: 'protein', proteinPer100: 19, fatPer100: 8, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main', 'grams_max:220'] },
+  { id: 'turkey_breast', label: 'Индейка', group: 'protein', proteinPer100: 21, fatPer100: 1, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main', 'grams_max:220'] },
+  { id: 'beef_lean', label: 'Говядина постная', group: 'protein', proteinPer100: 21, fatPer100: 8, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main', 'grams_max:200'] },
+  { id: 'minced_turkey', label: 'Фарш индейки', group: 'protein', proteinPer100: 20, fatPer100: 7, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:meat', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main', 'grams_max:220'] },
 
   // —— Рыба ——
   { id: 'fish_white', label: 'Белая рыба', group: 'protein', proteinPer100: 18, fatPer100: 1, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:seafood', 'meal_role:protein', 'pairs:starchy', 'pairs:salad', 'suitable:main'] },
   { id: 'pollock', label: 'Минтай', group: 'protein', proteinPer100: 16, fatPer100: 0.9, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:seafood', 'meal_role:protein', 'pairs:starchy', 'pairs:salad', 'suitable:main'] },
-  { id: 'salmon', label: 'Лосось', group: 'protein', proteinPer100: 20, fatPer100: 13, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:seafood', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main'] },
+  { id: 'salmon', label: 'Лосось / сёмга слабосолёная', group: 'protein', proteinPer100: 20, fatPer100: 13, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:seafood', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:main', 'suitable:breakfast', 'grams_max:60'] },
   { id: 'tuna_canned', label: 'Тунец в собственном соку', group: 'protein', proteinPer100: 25, fatPer100: 1, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:seafood', 'meal_role:protein', 'pairs:salad', 'pairs:grain', 'suitable:main', 'suitable:breakfast'] },
 
   // —— Яйца ——
-  { id: 'eggs', label: 'Яйцо куриное', group: 'protein', proteinPer100: 13, fatPer100: 11, carbsPer100: 1, fiberPer100: 0, pieceGrams: 55, tags: ['food_cat:eggs', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:breakfast', 'grams_max:300'] },
+  { id: 'eggs', label: 'Яйцо куриное', group: 'protein', proteinPer100: 13, fatPer100: 11, carbsPer100: 1, fiberPer100: 0, pieceGrams: 55, tags: ['food_cat:eggs', 'meal_role:protein', 'pairs:starchy', 'pairs:grain', 'suitable:breakfast', 'grams_max:165'] },
 
   // —— Молочка ——
   { id: 'cottage_cheese_5', label: 'Творог 5%', group: 'protein', proteinPer100: 17, fatPer100: 5, carbsPer100: 2, fiberPer100: 0, tags: ['food_cat:dairy', 'lactose', 'meal_role:protein', 'pairs:fruit', 'pairs:grain', 'suitable:breakfast'] },
@@ -47,7 +47,7 @@ export const NUTRITION_PRODUCT_CATALOG = [
   { id: 'whey_protein', label: 'Протеин сывороточный (сухой)', group: 'protein', proteinPer100: 75, fatPer100: 5, carbsPer100: 8, fiberPer100: 0, tags: ['food_cat:dairy', 'lactose', 'meal_role:protein', 'pairs:fruit', 'pairs:grain', 'suitable:breakfast', 'grams_min:20', 'grams_max:40'] },
   { id: 'milk_1', label: 'Молоко 1%', group: 'protein', proteinPer100: 3.2, fatPer100: 1, carbsPer100: 4.8, fiberPer100: 0, tags: ['food_cat:dairy', 'lactose', 'meal_role:protein', 'pairs:grain', 'suitable:breakfast', 'grams_max:300'] },
   { id: 'ryazhenka', label: 'Ряженка 2.5%', group: 'protein', proteinPer100: 3, fatPer100: 2.5, carbsPer100: 4.2, fiberPer100: 0, tags: ['food_cat:dairy', 'lactose', 'meal_role:protein', 'pairs:fruit', 'pairs:grain', 'suitable:breakfast'] },
-  { id: 'butter', label: 'Сливочное масло', group: 'fat', proteinPer100: 0.5, fatPer100: 82, carbsPer100: 0.5, fiberPer100: 0, tags: ['food_cat:dairy', 'lactose', 'meal_role:spread_dairy_fat', 'pairs:starchy', 'pairs:grain', 'grams_max:25'] },
+  { id: 'butter', label: 'Сливочное масло', group: 'fat', proteinPer100: 0.5, fatPer100: 82, carbsPer100: 0.5, fiberPer100: 0, tags: ['food_cat:dairy', 'lactose', 'meal_role:spread_dairy_fat', 'pairs:starchy', 'pairs:grain', 'grams_max:15'] },
 
   // —— Масла ——
   { id: 'sunflower_oil', label: 'Масло подсолнечное', group: 'fat', proteinPer100: 0, fatPer100: 100, carbsPer100: 0, fiberPer100: 0, tags: ['food_cat:oils', 'meal_role:oil_fat', 'pairs:salad', 'pairs:starchy', 'pairs:grain', 'grams_max:20'] },
@@ -67,12 +67,12 @@ export const NUTRITION_PRODUCT_CATALOG = [
   { id: 'pearl_barley', label: 'Перловка (варёная)', group: 'carbs', proteinPer100: 3, fatPer100: 0.4, carbsPer100: 22, fiberPer100: 3, tags: ['food_cat:grains', 'meal_role:starchy', 'grams_max:350'] },
 
   // —— Макароны / картофель ——
-  { id: 'pasta', label: 'Макароны (варёные)', group: 'carbs', proteinPer100: 5, fatPer100: 1, carbsPer100: 30, fiberPer100: 1.8, tags: ['food_cat:pasta', 'gluten', 'meal_role:starchy', 'grams_max:350'] },
-  { id: 'pasta_whole', label: 'Макароны цельнозерновые (варёные)', group: 'carbs', proteinPer100: 5.5, fatPer100: 1.2, carbsPer100: 27, fiberPer100: 4, tags: ['food_cat:pasta', 'gluten', 'meal_role:starchy', 'grams_max:350'] },
-  { id: 'potato', label: 'Картофель (варёный)', group: 'carbs', proteinPer100: 2, fatPer100: 0.1, carbsPer100: 17, fiberPer100: 1.5, tags: ['food_cat:potato', 'meal_role:starchy', 'grams_min:150', 'grams_max:400'] },
+  { id: 'pasta', label: 'Макароны (варёные)', group: 'carbs', proteinPer100: 5, fatPer100: 1, carbsPer100: 30, fiberPer100: 1.8, tags: ['food_cat:pasta', 'gluten', 'meal_role:starchy', 'grams_max:250'] },
+  { id: 'pasta_whole', label: 'Макароны цельнозерновые (варёные)', group: 'carbs', proteinPer100: 5.5, fatPer100: 1.2, carbsPer100: 27, fiberPer100: 4, tags: ['food_cat:pasta', 'gluten', 'meal_role:starchy', 'grams_max:250'] },
+  { id: 'potato', label: 'Картофель (варёный)', group: 'carbs', proteinPer100: 2, fatPer100: 0.1, carbsPer100: 17, fiberPer100: 1.5, tags: ['food_cat:potato', 'meal_role:starchy', 'grams_min:150', 'grams_max:250'] },
 
   // —— Хлеб ——
-  { id: 'bread_whole', label: 'Хлеб цельнозерновой', group: 'carbs', proteinPer100: 9, fatPer100: 3, carbsPer100: 43, fiberPer100: 7, tags: ['food_cat:bread', 'gluten', 'meal_role:grain', 'grams_max:120'] },
+  { id: 'bread_whole', label: 'Хлеб цельнозерновой', group: 'carbs', proteinPer100: 9, fatPer100: 3, carbsPer100: 43, fiberPer100: 7, tags: ['food_cat:bread', 'gluten', 'meal_role:grain', 'grams_max:80'] },
   { id: 'bread_rye', label: 'Хлеб ржаной', group: 'carbs', proteinPer100: 7, fatPer100: 1.5, carbsPer100: 40, fiberPer100: 6, tags: ['food_cat:bread', 'gluten', 'meal_role:grain', 'grams_max:120'] },
   { id: 'crispbread', label: 'Хлебцы', group: 'carbs', proteinPer100: 10, fatPer100: 2, carbsPer100: 65, fiberPer100: 12, tags: ['food_cat:bread', 'gluten', 'meal_role:grain', 'grams_max:60'] },
 
@@ -81,7 +81,7 @@ export const NUTRITION_PRODUCT_CATALOG = [
   { id: 'chickpeas', label: 'Нут (варёный)', group: 'carbs', proteinPer100: 8, fatPer100: 2.5, carbsPer100: 27, fiberPer100: 7, tags: ['food_cat:legumes', 'meal_role:starchy', 'pairs:salad', 'grams_max:250'] },
 
   // —— Овощи ——
-  { id: 'vegetables', label: 'Овощи (салат)', group: 'carbs', proteinPer100: 1.5, fatPer100: 0.2, carbsPer100: 5, fiberPer100: 2, tags: ['food_cat:vegetables', 'meal_role:salad', 'grams_max:350'] },
+  { id: 'vegetables', label: 'Овощи (салат)', group: 'carbs', proteinPer100: 1.5, fatPer100: 0.2, carbsPer100: 5, fiberPer100: 2, tags: ['food_cat:vegetables', 'meal_role:salad', 'grams_max:250'] },
   { id: 'cucumber', label: 'Огурец', group: 'carbs', proteinPer100: 0.8, fatPer100: 0.1, carbsPer100: 2.5, fiberPer100: 0.7, tags: ['food_cat:vegetables', 'meal_role:salad', 'grams_max:300'] },
   { id: 'tomato', label: 'Помидор', group: 'carbs', proteinPer100: 0.9, fatPer100: 0.2, carbsPer100: 3.9, fiberPer100: 1.2, tags: ['food_cat:vegetables', 'meal_role:salad', 'grams_max:300'] },
   { id: 'cabbage', label: 'Капуста белокочанная', group: 'carbs', proteinPer100: 1.8, fatPer100: 0.1, carbsPer100: 4.7, fiberPer100: 2.5, tags: ['food_cat:vegetables', 'meal_role:salad', 'grams_max:300'] },

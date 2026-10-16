@@ -33,6 +33,8 @@ CREATE TABLE users (
   club_id UUID REFERENCES clubs (id) ON DELETE SET NULL,
   linked_user_id UUID REFERENCES users (id) ON DELETE SET NULL,
   avatar_key TEXT,
+  offer_accepted_at TIMESTAMPTZ,
+  offer_version TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

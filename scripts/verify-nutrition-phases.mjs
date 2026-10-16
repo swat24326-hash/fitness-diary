@@ -37,6 +37,42 @@ const one = buildNutritionPlan(health, survey, catalog)
 ok(one.ok, 'single day builds')
 ok(one.plan?.dayPlan?.length === 4, '4 meals')
 
+const chickenPlan = buildNutritionPlan(health, { ...survey, proteinAccent: 'chicken' }, catalog)
+const fishPlan = buildNutritionPlan(health, { ...survey, proteinAccent: 'fish' }, catalog)
+const mains = (plan) =>
+  (plan?.dayPlan ?? [])
+    .filter((m) => m.label === 'Обед' || m.label === 'Ужин')
+    .map((m) => `${m.dishLabel}|${(m.items ?? []).map((i) => i.label).join(',')}`)
+    .join(' ;; ')
+const chickenMains = mains(chickenPlan.plan)
+const fishMains = mains(fishPlan.plan)
+ok(/Куриц|куриц|Индейк/i.test(chickenMains), `chicken accent on mains: ${chickenMains}`)
+ok(/рыб|Минтай|Белая рыба|Лосос|Тунец/i.test(fishMains), `fish accent on mains: ${fishMains}`)
+ok(chickenMains !== fishMains, 'chicken vs fish accents differ')
+
+const maxChicken = Math.max(
+  0,
+  ...(one.plan?.dayPlan ?? []).flatMap((m) =>
+    (m.items ?? []).filter((i) => /грудк|индейк|говядин/i.test(i.label)).map((i) => i.grams ?? 0),
+  ),
+)
+ok(maxChicken <= 220, `meat portion ≤220g (got ${maxChicken})`)
+
+const maxPasta = Math.max(
+  0,
+  ...(one.plan?.dayPlan ?? []).flatMap((m) =>
+    (m.items ?? []).filter((i) => /Макарон/i.test(i.label)).map((i) => i.grams ?? 0),
+  ),
+)
+ok(maxPasta <= 250, `pasta portion ≤250g (got ${maxPasta || 0})`)
+
+const lactosePlan = buildNutritionPlan(health, { ...survey, exclusions: ['lactose'] }, catalog)
+ok(lactosePlan.ok, 'lactose-free plan builds')
+const lactoseLabels = (lactosePlan.plan?.dayPlan ?? [])
+  .flatMap((m) => (m.items ?? []).map((i) => i.label))
+  .join('|')
+ok(!/масло сливочн|творог|йогурт|кефир|молоко|ряженк/i.test(lactoseLabels), `no dairy/lactose in plan: ${lactoseLabels}`)
+
 const swap = swapMealInPlan(one.plan, one.plan.dayPlan[0].slot, { survey, catalogMap: catalog })
 ok(swap.ok, 'swap meal ok')
 ok(

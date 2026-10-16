@@ -43,6 +43,7 @@ export function swapMealInPlan(plan, mealSlot, ctx) {
   const prevOffset = Number(meal.optionOffset) || 0
   const nextOffset = prevOffset + direction
 
+  const preferPrep = meal.prep === 'recipe' || meal.source === 'recipe' ? 'recipe' : 'base'
   const dish = buildMealForSlot({
     slotId: meal.slot,
     mealIndex,
@@ -51,6 +52,7 @@ export function swapMealInPlan(plan, mealSlot, ctx) {
     productIdsByGroup,
     catalogMap,
     proteinAccent: survey.proteinAccent ?? plan.proteinAccent,
+    preferPrep,
   })
   if (!dish?.items?.length) return { ok: false, error: 'build_failed' }
 
@@ -58,7 +60,8 @@ export function swapMealInPlan(plan, mealSlot, ctx) {
     ...meal,
     dishId: dish.dishId,
     dishLabel: dish.dishLabel,
-    source: dish.source ?? 'plate',
+    prep: dish.prep ?? preferPrep,
+    source: dish.source === 'recipe' ? 'recipe' : 'base',
     recipeId: dish.recipeId,
     recipeSteps: dish.recipeSteps,
     optionOffset: nextOffset,

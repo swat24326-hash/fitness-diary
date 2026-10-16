@@ -86,3 +86,47 @@ export function proteinAccentForWeek(sequence, anchorIso, todayIso) {
   const week = Math.max(0, Math.floor((t - a) / (7 * 86_400_000)))
   return seq[week % seq.length]
 }
+
+/**
+ * Рецепт «про акцент», если среди обязательных ингредиентов есть продукт акцента.
+ * @param {{ parts?: { productKey: string, optional?: boolean }[] }} recipe
+ * @param {NutritionProteinAccent | string} accent
+ */
+export function recipeMatchesAccent(recipe, accent) {
+  const a = normalizeProteinAccent(accent)
+  if (a === 'mixed') return true
+  const keys = ACCENT_PRODUCT_KEYS[a] ?? []
+  if (!keys.length) return true
+  const keySet = new Set(keys)
+  for (const part of recipe?.parts ?? []) {
+    if (part.optional) continue
+    const k = String(part.productKey ?? '')
+    if (keySet.has(k)) return true
+    if (a === 'chicken' && k.includes('chicken')) return true
+    if (a === 'fish' && (k.includes('fish') || k.includes('pollock') || k.includes('salmon') || k.includes('tuna'))) {
+      return true
+    }
+    if (a === 'turkey' && k.includes('turkey')) return true
+    if (a === 'beef' && k.includes('beef')) return true
+  }
+  return false
+}
+
+/**
+ * Сначала рецепты под акцент, остальные следом (для обеда/ужина).
+ * @template {{ parts?: { productKey: string, optional?: boolean }[] }} T
+ * @param {T[]} recipes
+ * @param {NutritionProteinAccent | string} accent
+ * @returns {T[]}
+ */
+export function orderRecipesByAccent(recipes, accent) {
+  const a = normalizeProteinAccent(accent)
+  if (a === 'mixed' || !recipes?.length) return [...(recipes ?? [])]
+  const preferred = []
+  const rest = []
+  for (const r of recipes) {
+    if (recipeMatchesAccent(r, a)) preferred.push(r)
+    else rest.push(r)
+  }
+  return preferred.length ? [...preferred, ...rest] : [...recipes]
+}

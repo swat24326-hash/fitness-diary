@@ -190,7 +190,8 @@ function finalizeItems(items, catalogMap) {
   return items.map((item) => {
     const p = resolveCatalogProduct(catalogMap, item.productId)
     if (!p) return item
-    const portion = formatProductPortion(p, item.grams)
+    const grams = clampProductGrams(item.productId, item.grams ?? 0, p)
+    const portion = formatProductPortion(p, grams)
     const m = macrosForGrams(p, portion.grams)
     return {
       productId: item.productId,

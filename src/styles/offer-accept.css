@@ -1,0 +1,197 @@
+/* Экран принятия оферты управляющим (SupervisorOfferGate). Монитор, роль admin. */
+
+.offer-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(var(--space-3, 0.75rem), env(safe-area-inset-top))
+    max(var(--space-3, 0.75rem), env(safe-area-inset-right))
+    max(var(--space-3, 0.75rem), env(safe-area-inset-bottom))
+    max(var(--space-3, 0.75rem), env(safe-area-inset-left));
+  overflow: auto;
+  background:
+    radial-gradient(
+      ellipse 80% 55% at 50% -10%,
+      color-mix(in srgb, var(--accent) 14%, transparent),
+      transparent 55%
+    ),
+    var(--bg);
+}
+
+.offer-gate--loading {
+  align-items: center;
+}
+
+.offer-gate__loading {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.offer-gate__card {
+  display: flex;
+  flex-direction: column;
+  width: min(36rem, 100%);
+  max-height: min(92vh, 44rem);
+  margin: auto;
+  padding: 0;
+  border-radius: var(--radius-md, 16px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, transparent) 0%, transparent 28%),
+    var(--bg-card, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  box-shadow: var(--shadow-soft, 0 12px 40px rgb(0 0 0 / 0.28));
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 1.1));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 1.1));
+  overflow: hidden;
+}
+
+.offer-gate__header {
+  flex-shrink: 0;
+  padding: var(--space-4, 1.25rem) var(--space-4, 1.25rem) 0.85rem;
+}
+
+.offer-gate__brand {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-bright, var(--accent));
+}
+
+.offer-gate__title {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.2vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.offer-gate__lead {
+  margin: 0.55rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text-muted, var(--muted));
+}
+
+.offer-gate__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  margin: 0 var(--space-4, 1.25rem);
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm, 12px);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.offer-gate__section + .offer-gate__section {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.offer-gate__h2 {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.offer-gate__body {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--text-muted, var(--muted));
+}
+
+.offer-gate__footer {
+  flex-shrink: 0;
+  padding: 1rem var(--space-4, 1.25rem) var(--space-4, 1.25rem);
+  border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--bg-card, var(--bg-elevated)) 92%, transparent);
+}
+
+.offer-gate__check {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin: 0 0 0.85rem;
+  padding: 0.35rem 0;
+  min-height: 44px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  cursor: pointer;
+  color: var(--text);
+  user-select: none;
+}
+
+.offer-gate__check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.offer-gate__check:has(input:disabled) {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.offer-gate__error {
+  margin: 0 0 0.75rem;
+  color: var(--danger);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.offer-gate__btn {
+  width: 100%;
+  min-height: 48px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.offer-gate__btn:disabled {
+  opacity: 0.55;
+}
+
+.offer-gate__full {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.offer-gate__full a {
+  color: var(--accent-bright, var(--accent));
+  text-underline-offset: 2px;
+}
+
+.offer-gate__full a:hover {
+  text-decoration: underline;
+}
+
+@media (max-height: 640px) {
+  .offer-gate {
+    align-items: flex-start;
+  }
+
+  .offer-gate__card {
+    max-height: none;
+    margin: 0.5rem auto 1rem;
+  }
+
+  .offer-gate__scroll {
+    max-height: 40vh;
+  }
+}

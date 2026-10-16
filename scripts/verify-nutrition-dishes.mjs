@@ -98,7 +98,7 @@ const survey = normalizeNutritionSurvey({
 })
 const built = buildNutritionPlan(health, survey, catalogMap)
 ok(built.ok, `full plan ok: ${built.errors?.join('; ') ?? ''}`)
-ok(built.plan?.version === 4, 'plan version 4 (dishes + recipes)')
+ok(built.plan?.version === 5, 'plan version 5 (dishes + recipes)')
 for (const m of built.plan?.dayPlan ?? []) {
   ok(Boolean(m.dishId && m.dishLabel), `${m.label}: has dish`)
   ok((m.items?.length ?? 0) >= 2, `${m.label}: ≥2 items`)

@@ -21,7 +21,7 @@ export function buildNutritionWeekPlan(health, survey, catalogMap, opts = {}) {
 
   let metaPlan = null
   for (let d = 0; d < dayCount; d++) {
-    const shifted = buildNutritionPlanWithDayOffset(health, survey, catalogMap, baseSeed + d * 11)
+    const shifted = buildNutritionPlanWithDayOffset(health, survey, catalogMap, baseSeed + d * 11, d)
     if (!shifted.ok || !shifted.plan) {
       errors.push(...(shifted.errors ?? [`День ${d + 1}: не собрался`]))
       continue
@@ -62,8 +62,12 @@ export function buildNutritionWeekPlan(health, survey, catalogMap, opts = {}) {
  * @param {Map} catalogMap
  * @param {number} dayOffset
  */
-export function buildNutritionPlanWithDayOffset(health, survey, catalogMap, dayOffset) {
-  return buildNutritionPlan(health, { ...survey, _mealIndexOffset: dayOffset }, catalogMap)
+export function buildNutritionPlanWithDayOffset(health, survey, catalogMap, dayOffset, dayIndex = 0) {
+  return buildNutritionPlan(
+    health,
+    { ...survey, _mealIndexOffset: dayOffset, _dayIndex: dayIndex },
+    catalogMap,
+  )
 }
 
 export { clampDayCount } from './nutritionDaysCountCore.js'

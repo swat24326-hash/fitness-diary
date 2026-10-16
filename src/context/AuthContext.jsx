@@ -129,6 +129,9 @@ function applyUserFromSession(session, profile, identityHint) {
     name: profile?.name ?? identityHint?.name ?? session.user.email,
     club_id: profile?.club_id ?? identityHint?.club_id ?? null,
     uses_tablet: usesTablet,
+    // оферта управляющего — только с сервера, не из identity-кэша
+    offer_accepted_at: profile?.offer_accepted_at ?? null,
+    offer_version: profile?.offer_version ?? null,
   }
   return identityHint ? mergeIdentityCacheIntoUser(identityHint, base) : base
 }
@@ -219,12 +222,32 @@ export function AuthProvider({ children }) {
   )
 
   const queryUserRow = useCallback(async (applyFilter) => {
-    const fields = 'role, name, email, phone, login, club_id, uses_tablet'
+    const fields = 'role, name, email, phone, login, club_id, uses_tablet, offer_accepted_at, offer_version'
     let q = supabase.from('users').select(fields)
     q = applyFilter(q)
     const { data, error } = await withSupabaseRetry(() => q.maybeSingle())
     if (error) {
       const m = String(error.message ?? '').toLowerCase()
+      // До миграции offer_* / uses_tablet — не ломаем вход; оферта дожмёт после выкатки колонок.
+      if (m.includes('offer_accepted') || m.includes('offer_version')) {
+        let q2 = supabase.from('users').select('role, name, email, phone, login, club_id, uses_tablet')
+        q2 = applyFilter(q2)
+        const { data: d2, error: e2 } = await withSupabaseRetry(() => q2.maybeSingle())
+        if (e2) {
+          const m2 = String(e2.message ?? '').toLowerCase()
+          if (m2.includes('uses_tablet')) {
+            let q3 = supabase.from('users').select('role, name, email, phone, login, club_id')
+            q3 = applyFilter(q3)
+            const { data: d3, error: e3 } = await withSupabaseRetry(() => q3.maybeSingle())
+            if (e3) throw e3
+            return d3 ? { ...d3, uses_tablet: true, offer_accepted_at: null, offer_version: null } : null
+          }
+          throw e2
+        }
+        return d2
+          ? { ...d2, uses_tablet: d2.uses_tablet !== false, offer_accepted_at: null, offer_version: null }
+          : null
+      }
       if (m.includes('uses_tablet')) {
         let q2 = supabase.from('users').select('role, name, email, phone, login, club_id')
         q2 = applyFilter(q2)

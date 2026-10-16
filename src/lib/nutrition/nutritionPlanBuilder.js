@@ -15,6 +15,8 @@ import {
 } from './nutritionSurveyProductsCore.js'
 import { normalizeProteinAccent } from './nutritionProteinAccentCore.js'
 import { clampDayCount } from './nutritionDaysCountCore.js'
+import { mealPrepModesForDay } from './nutritionMealPrepCore.js'
+import { topUpDayPlanTowardTargets } from './nutritionMealTopUpCore.js'
 
 /**
  * @typedef {object} NutritionSurvey
@@ -30,6 +32,7 @@ import { clampDayCount } from './nutritionDaysCountCore.js'
  * @property {number} [daysCount] — 3–7 дней рациона
  * @property {boolean} [nutritionAutoPush] — авто-выдача в /me при пересчёте
  * @property {number} [_mealIndexOffset] — внутренний сдвиг вариантов (неделя)
+ * @property {number} [_dayIndex] — индекс дня в неделе (маска база/рецепт)
  */
 
 /**
@@ -69,6 +72,7 @@ export function normalizeNutritionSurvey(raw) {
     daysCount,
     nutritionAutoPush: o.nutritionAutoPush === true,
     _mealIndexOffset: Number.isFinite(Number(o._mealIndexOffset)) ? Number(o._mealIndexOffset) : undefined,
+    _dayIndex: Number.isFinite(Number(o._dayIndex)) ? Number(o._dayIndex) : undefined,
   }
 }
 
@@ -154,11 +158,16 @@ export function buildNutritionPlan(health, survey, catalogMap) {
   const mealIndexOffset = Number(survey._mealIndexOffset) || 0
 
   const slots = getMealSlots(survey.mealsPerDay)
+  const dayIndex = Number.isFinite(Number(survey._dayIndex)) ? Number(survey._dayIndex) : 0
+  const prepModes = mealPrepModesForDay(survey.mealsPerDay, dayIndex)
   /** @type {object[]} */
-  const dayPlan = []
+  let dayPlan = []
+  /** @type {string[]} */
+  const usedDishIds = []
   for (let idx = 0; idx < slots.length; idx++) {
     const slot = slots[idx]
     const mealKcalBudget = Math.round(kcalTarget * slot.ratio)
+    const preferPrep = prepModes[idx] ?? 'base'
     const dish = buildMealForSlot({
       slotId: slot.id,
       mealIndex: idx + mealIndexOffset,
@@ -166,6 +175,8 @@ export function buildNutritionPlan(health, survey, catalogMap) {
       productIdsByGroup,
       catalogMap: catalog,
       proteinAccent,
+      avoidDishIds: usedDishIds,
+      preferPrep,
     })
     if (!dish?.items?.length) {
       return {
@@ -174,12 +185,14 @@ export function buildNutritionPlan(health, survey, catalogMap) {
         plan: null,
       }
     }
+    if (dish.dishId) usedDishIds.push(String(dish.dishId))
     dayPlan.push({
       slot: slot.id,
       label: slot.label,
       dishId: dish.dishId,
       dishLabel: dish.dishLabel,
-      source: dish.source ?? 'plate',
+      prep: dish.prep ?? (dish.source === 'recipe' ? 'recipe' : 'base'),
+      source: dish.source === 'recipe' ? 'recipe' : 'base',
       recipeId: dish.recipeId,
       recipeSteps: dish.recipeSteps,
       optionOffset: dish.optionOffset,
@@ -189,13 +202,18 @@ export function buildNutritionPlan(health, survey, catalogMap) {
     })
   }
 
+  dayPlan = topUpDayPlanTowardTargets(
+    dayPlan,
+    { kcalTarget, proteinAim: macros?.proteinG ?? referents?.protein?.aim },
+    catalog,
+  )
   const totals = sumItems(dayPlan.flatMap((m) => m.items))
 
   return {
     ok: true,
     errors: [],
     plan: {
-      version: 4,
+      version: 5,
       mealsPerDay: survey.mealsPerDay,
       proteinAccent,
       bmr: Math.round(bmr),

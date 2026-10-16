@@ -45,29 +45,60 @@ const INCOMPATIBLE_ROLE_PAIRS = [
   ['spread_dairy_fat', 'nut_fat'],
 ]
 
+/** Реалистичные порции домашней тарелки (не «залповые» граммы под любой бюджет). */
 /** @type {Record<string, { min?: number, max?: number }>} */
 export const PORTION_LIMITS = {
-  vegetables: { max: 350 },
-  potato: { min: 150, max: 400 },
-  rice: { max: 350 },
-  buckwheat: { max: 350 },
-  pasta: { max: 350 },
-  oats: { max: 120 },
-  bread_whole: { max: 120 },
-  banana: { max: 200 },
-  apple: { max: 300 },
-  berries: { max: 250 },
-  butter: { max: 25 },
-  sunflower_oil: { max: 20 },
-  olive_oil: { max: 20 },
-  peanut_butter: { max: 40 },
-  nuts_walnut: { max: 45 },
-  avocado: { max: 120 },
-  eggs: { max: 300 },
+  vegetables: { max: 250 },
+  cucumber: { max: 200 },
+  tomato: { max: 200 },
+  cabbage: { max: 200 },
+  broccoli: { max: 250 },
+  zucchini: { max: 250 },
+  potato: { min: 150, max: 250 },
+  rice: { max: 250 },
+  buckwheat: { max: 250 },
+  pasta: { max: 250 },
+  pasta_whole: { max: 250 },
+  millet: { max: 250 },
+  pearl_barley: { max: 250 },
+  oats: { max: 80 },
+  bread_whole: { max: 80 },
+  bread_rye: { max: 80 },
+  crispbread: { max: 50 },
+  banana: { max: 180 },
+  apple: { max: 250 },
+  berries: { max: 180 },
+  orange: { max: 200 },
+  pear: { max: 200 },
+  kiwi: { max: 150 },
+  butter: { max: 10 },
+  sunflower_oil: { max: 15 },
+  olive_oil: { max: 15 },
+  peanut_butter: { max: 30 },
+  nuts_walnut: { max: 30 },
+  nuts_almond: { max: 30 },
+  avocado: { max: 100 },
+  eggs: { max: 165 },
+  chicken_breast: { max: 220 },
+  chicken_thigh: { max: 220 },
+  turkey_breast: { max: 220 },
+  minced_turkey: { max: 220 },
+  beef_lean: { max: 200 },
+  fish_white: { max: 250 },
+  pollock: { max: 250 },
+  salmon: { max: 60 },
+  tuna_canned: { max: 180 },
+  cottage_cheese_5: { max: 200 },
+  cottage_cheese_0: { max: 200 },
+  yogurt: { max: 250 },
+  yogurt_greek: { max: 250 },
+  kefir: { max: 300 },
   protein_drink_hp: { max: 350 },
-  cottage_cheese_soft: { max: 150 },
-  cheese_light: { max: 80 },
+  cottage_cheese_soft: { max: 120 },
+  cheese_light: { max: 60 },
   whey_protein: { min: 20, max: 40 },
+  lentils: { max: 220 },
+  chickpeas: { max: 200 },
 }
 
 /**
@@ -186,9 +217,12 @@ export function pickFatProductId(carbId, fatIds, mealIndex, catalogMap) {
 export function clampProductGrams(productId, grams, product) {
   const fromTags = parseGramLimitsFromTags(product?.tags)
   const fromId = PORTION_LIMITS[productId] ?? {}
+  // Берём самое жёсткое: PORTION_LIMITS не должен раздуваться от grams_max в тегах.
+  const maxCandidates = [fromTags.max, fromId.max].filter((n) => n != null)
+  const minCandidates = [fromTags.min, fromId.min].filter((n) => n != null)
   const limits = {
-    min: fromTags.min ?? fromId.min,
-    max: fromTags.max ?? fromId.max,
+    min: minCandidates.length ? Math.max(...minCandidates) : undefined,
+    max: maxCandidates.length ? Math.min(...maxCandidates) : undefined,
   }
   let g = grams
   if (limits.max != null) g = Math.min(g, limits.max)

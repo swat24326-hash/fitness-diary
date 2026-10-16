@@ -36,7 +36,11 @@ const fatForSalad = pickFatProductId('vegetables', ['butter', 'olive_oil'], 0, c
 ok(fatForSalad === 'olive_oil', 'salad meal prefers oil')
 
 ok(clampProductGrams('potato', 80) >= 150, 'potato min 150g')
-ok(clampProductGrams('vegetables', 2000) <= 350, 'salad max 350g')
+ok(clampProductGrams('vegetables', 2000) <= 250, 'salad max 250g')
+ok(clampProductGrams('chicken_breast', 2000) <= 220, 'chicken max 220g')
+ok(clampProductGrams('potato', 2000) <= 250, 'potato max 250g')
+ok(clampProductGrams('pasta_whole', 2000, { tags: ['grams_max:350'] }) <= 250, 'pasta: PORTION_LIMITS жёстче tags')
+ok(clampProductGrams('butter', 2000, { tags: ['grams_max:25'] }) <= 15, 'butter: PORTION_LIMITS жёстче tags')
 
 const yogurtTags = buildProductTags({
   foodCategory: 'dairy',

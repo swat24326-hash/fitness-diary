@@ -1,4 +1,5 @@
 import { AlertTriangle, CircleHelp, RefreshCw } from 'lucide-react'
+import { LegalEntryLinks } from '../legal/LegalEntryLinks.jsx'
 import { HeaderStaffSettingsItems } from './HeaderStaffSettingsItems.jsx'
 
 /** Счётчик на кнопке журнала: ошибки и/или отложенное обновление. */
@@ -45,6 +46,7 @@ export function HeaderProfileSettings({ sync, items, recover, journal }) {
         </span>
         <JournalBadge errorCount={journal.errorCount} updatePending={journal.updatePending} />
       </button>
+      <LegalEntryLinks className="legal-entry-links--in-profile" />
     </>
   )
 }

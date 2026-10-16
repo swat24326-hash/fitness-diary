@@ -13,6 +13,12 @@ import { getNutritionProductById } from './nutritionProductCatalog.js'
 import { NUTRITION_RECIPE_CATALOG } from './nutritionRecipeCatalog.js'
 import { slotKindFromId } from './nutritionDishTemplatesCore.js'
 import { buildMealFromDish } from './nutritionDishBuildCore.js'
+import {
+  normalizeProteinAccent,
+  orderRecipesByAccent,
+  recipeMatchesAccent,
+} from './nutritionProteinAccentCore.js'
+import { getRecipePrep } from './nutritionMealPrepCore.js'
 
 function normalizeLabel(label) {
   return String(label ?? '')
@@ -45,6 +51,7 @@ const PRODUCT_KEY_FALLBACKS = {
   kefir: ['protein_drink_hp', 'yogurt'],
   fish_white: ['pollock', 'tuna_canned'],
   pollock: ['fish_white'],
+  salmon: ['tuna_canned', 'fish_white'],
   chicken_breast: ['chicken_thigh', 'turkey_breast'],
   pasta: ['pasta_whole'],
   pasta_whole: ['pasta'],
@@ -125,7 +132,8 @@ function finalizeItems(items, catalogMap) {
   return items.map((item) => {
     const p = resolveCatalogProduct(catalogMap, item.productId)
     if (!p) return item
-    const portion = formatProductPortion(p, item.grams)
+    const grams = clampProductGrams(item.productId, item.grams ?? 0, p)
+    const portion = formatProductPortion(p, grams)
     const m = macrosForGrams(p, portion.grams)
     return {
       productId: item.productId,
@@ -192,12 +200,14 @@ export function buildMealFromRecipe({ recipe, mealKcalBudget, productIdsByGroup,
     })
   }
 
+  const prep = getRecipePrep(recipe)
   return {
     dishId: recipe.id,
     dishLabel: recipe.label,
     recipeId: recipe.id,
     recipeSteps: [...(recipe.steps ?? [])],
-    source: /** @type {const} */ ('recipe'),
+    prep,
+    source: prep === 'recipe' ? /** @type {const} */ ('recipe') : /** @type {const} */ ('base'),
     items: scaleMealItemsToBudget(rawItems, mealKcalBudget, catalogMap),
   }
 }
@@ -213,7 +223,7 @@ export function countMealOptionsForSlot(slotId, productIdsByGroup, catalogMap) {
 }
 
 /**
- * Смесь: часть слотов — рецепт (если продукты позволяют), часть — простая тарелка.
+ * Сборка слота: preferPrep = 'recipe' | 'base' (в дне обычно 2+2).
  * @param {object} p
  * @param {string} p.slotId
  * @param {number} p.mealIndex
@@ -222,17 +232,35 @@ export function countMealOptionsForSlot(slotId, productIdsByGroup, catalogMap) {
  * @param {{ protein: string[], fat: string[], carbs: string[] }} p.productIdsByGroup
  * @param {Map<string, import('./nutritionCatalogResolve.js').ResolvedNutritionProduct>} p.catalogMap
  * @param {string} [p.proteinAccent]
+ * @param {string[]} [p.avoidDishIds] — уже использованные блюда в этот день (разнообразие)
+ * @param {import('./nutritionMealPrepCore.js').NutritionMealPrep} [p.preferPrep]
  */
 export function buildMealForSlot(p) {
-  const fitting = listFittingRecipes(p.slotId, p.productIdsByGroup, p.catalogMap)
-  // N рецептов + 1 «тарелка» → чередуем, чтобы оставался простой вариант.
-  const optionCount = fitting.length + 1
-  const offset = Number(p.optionOffset) || 0
-  const pick = Math.abs((Number(p.mealIndex) || 0) + offset) % optionCount
+  const accent = normalizeProteinAccent(p.proteinAccent)
+  const kind = slotKindFromId(p.slotId)
+  const preferPrep = p.preferPrep === 'recipe' ? 'recipe' : 'base'
+  let fitting = orderRecipesByAccent(
+    listFittingRecipes(p.slotId, p.productIdsByGroup, p.catalogMap),
+    accent,
+  )
+  const avoid = new Set((p.avoidDishIds ?? []).map(String))
+  if (avoid.size) {
+    const fresh = fitting.filter((r) => !avoid.has(r.id))
+    if (fresh.length) fitting = fresh
+  }
+  if (accent !== 'mixed' && (kind === 'lunch' || kind === 'dinner')) {
+    const preferred = fitting.filter((r) => recipeMatchesAccent(r, accent))
+    if (preferred.length) fitting = preferred
+  }
 
-  if (pick < fitting.length) {
+  const byPrep = fitting.filter((r) => getRecipePrep(r) === preferPrep)
+  const pool = byPrep.length ? byPrep : preferPrep === 'recipe' ? fitting : []
+  const offset = Number(p.optionOffset) || 0
+
+  if (preferPrep === 'recipe' && pool.length) {
+    const pick = Math.abs((Number(p.mealIndex) || 0) + offset) % pool.length
     const fromRecipe = buildMealFromRecipe({
-      recipe: fitting[pick],
+      recipe: pool[pick],
       mealKcalBudget: p.mealKcalBudget,
       productIdsByGroup: p.productIdsByGroup,
       catalogMap: p.catalogMap,
@@ -242,11 +270,29 @@ export function buildMealForSlot(p) {
     }
   }
 
-  const plate = buildMealFromDish({ ...p, proteinAccent: p.proteinAccent })
+  if (preferPrep === 'base' && pool.length) {
+    // База из книги (рис+курица и т.п.) + запасной «тарелка»
+    const optionCount = pool.length + 1
+    const pick = Math.abs((Number(p.mealIndex) || 0) + offset) % optionCount
+    if (pick < pool.length) {
+      const fromRecipe = buildMealFromRecipe({
+        recipe: pool[pick],
+        mealKcalBudget: p.mealKcalBudget,
+        productIdsByGroup: p.productIdsByGroup,
+        catalogMap: p.catalogMap,
+      })
+      if (fromRecipe?.items?.length) {
+        return { ...fromRecipe, optionOffset: offset }
+      }
+    }
+  }
+
+  const plate = buildMealFromDish({ ...p, proteinAccent: accent })
   if (!plate) return null
   return {
     ...plate,
-    source: /** @type {const} */ ('plate'),
+    prep: /** @type {const} */ ('base'),
+    source: /** @type {const} */ ('base'),
     recipeId: undefined,
     recipeSteps: undefined,
     optionOffset: offset,

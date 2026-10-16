@@ -25,7 +25,19 @@ const authProfileMemo = new Map()
 /** @type {Map<string, Promise<{ kind: string, profile: object | null, message: string | null }>>} */
 const authProfileInflight = new Map()
 
-const CALLER_PROFILE_FIELDS = 'id, role, email, club_id, name, phone, login, is_active'
+const CALLER_PROFILE_FIELDS_BASE = 'id, role, email, club_id, name, phone, login, is_active'
+const CALLER_PROFILE_FIELDS = `${CALLER_PROFILE_FIELDS_BASE}, offer_accepted_at, offer_version`
+
+/** Сбросить кэш профиля после записи (оферта и т.п.) — иначе до 30 с старые флаги. */
+export function invalidateAuthProfileMemo(userId) {
+  const id = String(userId ?? '').trim()
+  if (id) authProfileMemo.delete(id)
+}
+
+function isMissingOfferColumnError(message) {
+  const m = String(message ?? '').toLowerCase()
+  return m.includes('offer_accepted') || m.includes('offer_version')
+}
 
 function wait(ms) {
   return new Promise((resolve) => {
@@ -57,12 +69,17 @@ async function selectUsersProfile(supabaseAdmin, fields, apply) {
  * @param {{ id: string, email?: string }} user
  */
 async function loadCallerProfileOnce(supabaseAdmin, user) {
-  const byId = await selectUsersProfile(supabaseAdmin, CALLER_PROFILE_FIELDS, (q) => q.eq('id', user.id))
+  let fields = CALLER_PROFILE_FIELDS
+  let byId = await selectUsersProfile(supabaseAdmin, fields, (q) => q.eq('id', user.id))
+  if (byId.kind === 'query_error' && isMissingOfferColumnError(byId.message)) {
+    fields = CALLER_PROFILE_FIELDS_BASE
+    byId = await selectUsersProfile(supabaseAdmin, fields, (q) => q.eq('id', user.id))
+  }
   if (byId.kind === 'query_error') return byId
   let profile = byId.profile
   const callerEmailPattern = ilikeExactPattern(user.email)
   if (!profile?.role && callerEmailPattern) {
-    const byEmail = await selectUsersProfile(supabaseAdmin, CALLER_PROFILE_FIELDS, (q) =>
+    const byEmail = await selectUsersProfile(supabaseAdmin, fields, (q) =>
       q.ilike('email', callerEmailPattern),
     )
     if (byEmail.kind === 'query_error') return byEmail

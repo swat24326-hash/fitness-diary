@@ -22,14 +22,20 @@ function ok(cond, msg) {
 const catalogMap = buildNutritionCatalogMap([])
 
 ok(NUTRITION_RECIPE_CATALOG.length >= 18, `recipe catalog size (${NUTRITION_RECIPE_CATALOG.length})`)
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'oat_blini_savory_fish'), 'savory oat blini with fish')
+ok(NUTRITION_RECIPE_CATALOG.some((r) => /Простоквашино|греческ/i.test(r.steps?.join(' ') ?? '')), 'dairy brands in steps')
+const blenderNoise = NUTRITION_RECIPE_CATALOG.filter((r) =>
+  /блендер здесь не нужен|блендер не нужен/i.test(r.steps?.join(' ') ?? ''),
+)
+ok(blenderNoise.length === 0, 'no useless «blender not needed» lines')
 ok(
-  NUTRITION_RECIPE_CATALOG.some((r) => /блендер/i.test(r.steps?.join(' ') ?? '')),
-  'catalog mentions blender',
+  NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'chicken_cottage_pate' && /блендер/i.test(r.steps?.join(' ') ?? '')),
+  'blender only where useful (pate)',
 )
 const stoveish = NUTRITION_RECIPE_CATALOG.filter((r) =>
-  /сковород|духовк|отвар|кипят|плит/i.test(r.steps?.join(' ') ?? ''),
+  /сковород|духовк|отвар|кипят|плит|миску|тарелк|смеша/i.test(r.steps?.join(' ') ?? ''),
 )
-ok(stoveish.length >= NUTRITION_RECIPE_CATALOG.length * 0.7, 'most recipes lead with stove/pan/oven')
+ok(stoveish.length >= NUTRITION_RECIPE_CATALOG.length * 0.7, 'most recipes have clear how-to')
 const airFirst = NUTRITION_RECIPE_CATALOG.filter((r) => {
   const t = r.steps?.join(' ') ?? ''
   const air = t.search(/аэрогриль/i)
@@ -39,13 +45,22 @@ const airFirst = NUTRITION_RECIPE_CATALOG.filter((r) => {
 })
 ok(airFirst.length === 0, 'air fryer is not the primary path')
 ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'caesar_pp'), 'caesar_pp in catalog')
-ok(!NUTRITION_RECIPE_CATALOG.some((r) => /лосось|авокадо|арахис/i.test(`${r.label} ${r.steps?.join(' ')}`)), 'no salmon/avocado/peanut as recipe core')
+ok(
+  !NUTRITION_RECIPE_CATALOG.some((r) => /авокадо|арахис/i.test(`${r.label} ${r.steps?.join(' ')}`)),
+  'no avocado/peanut as recipe core',
+)
 ok(
   NUTRITION_RECIPE_CATALOG.every((r) =>
-    (r.parts ?? []).every((p) => p.productKey !== 'salmon' && p.productKey !== 'avocado' && p.productKey !== 'peanut_butter'),
+    (r.parts ?? []).every((p) => {
+      if (p.productKey === 'avocado' || p.productKey === 'peanut_butter') return false
+      if (p.productKey === 'salmon') return r.id === 'oat_blini_savory_fish'
+      return true
+    }),
   ),
-  'parts avoid salmon/avocado/peanut_butter',
+  'salmon only in savory oat blini; no avocado/peanut_butter parts',
 )
+const toast = NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'egg_bread_toast')
+ok(/цельнозернов|ломтик|жир/i.test(toast?.steps?.join(' ') ?? ''), 'french toast: bread + fat warning')
 
 const fullPools = {
   protein: [
@@ -86,16 +101,20 @@ const meal0 = buildMealForSlot({
   mealKcalBudget: 600,
   productIdsByGroup: fullPools,
   catalogMap,
+  preferPrep: 'recipe',
 })
-const mealLast = buildMealForSlot({
+const mealBasePlate = buildMealForSlot({
   slotId: 'lunch',
-  mealIndex: lunchFit.length,
+  mealIndex: 0,
+  optionOffset: 99,
   mealKcalBudget: 600,
   productIdsByGroup: fullPools,
   catalogMap,
+  preferPrep: 'base',
 })
 ok(meal0?.items?.length >= 2, 'slot meal 0 ok')
-ok(mealLast?.source === 'plate', `plate option at index N: ${mealLast?.source}`)
+ok(meal0?.prep === 'recipe' || meal0?.source === 'recipe', `recipe prefer: ${meal0?.dishLabel}`)
+ok(mealBasePlate?.prep === 'base' || mealBasePlate?.source === 'base', `base/plate option: ${mealBasePlate?.source}`)
 
 const clubRows = [
   { id: 'u-ch', club_id: 'c1', label: 'Куриная грудка', macro_group: 'protein', protein_per100: 23, fat_per100: 2, carbs_per100: 0, tags: [], is_active: true },
@@ -136,8 +155,11 @@ const survey = normalizeNutritionSurvey({
 })
 const built = buildNutritionPlan(health, survey, catalogMap)
 ok(built.ok, `full plan with recipes: ${built.errors?.join('; ') ?? ''}`)
-ok(built.plan?.version === 4, 'plan v4')
-ok(built.plan?.dayPlan?.some((m) => m.source === 'recipe'), 'day has at least one recipe')
+ok(built.plan?.version === 5, 'plan v5')
+const recipeMeals = (built.plan?.dayPlan ?? []).filter((m) => m.prep === 'recipe' || m.source === 'recipe')
+const baseMeals = (built.plan?.dayPlan ?? []).filter((m) => m.prep === 'base' || m.source === 'base')
+ok(recipeMeals.length === 2, `exactly 2 recipes in 4-meal day (got ${recipeMeals.length})`)
+ok(baseMeals.length === 2, `exactly 2 base meals (got ${baseMeals.length})`)
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

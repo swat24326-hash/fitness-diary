@@ -41,6 +41,7 @@ import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
 import { IskraPanelProvider } from './context/IskraPanelContext'
 import { HeartRateSessionsProvider } from './context/HeartRateSessionsContext'
 import { Login } from './pages/Login'
+import { SupervisorOfferGate } from './components/legal/SupervisorOfferGate.jsx'
 import { ClientCard } from './pages/trainer/ClientCard'
 import { TrainerHome } from './pages/trainer/TrainerHome'
 import { TrainerClients } from './pages/trainer/TrainerClients'
@@ -85,6 +86,9 @@ const PrivacyPolicyPage = lazy(() =>
 )
 const ChatRulesPage = lazy(() =>
   import('./pages/legal/ChatRulesPage.jsx').then((m) => ({ default: m.ChatRulesPage })),
+)
+const OfferPage = lazy(() =>
+  import('./pages/legal/OfferPage.jsx').then((m) => ({ default: m.OfferPage })),
 )
 const ClientMePage = lazy(() => import('./pages/client/ClientMePage.jsx').then((m) => ({ default: m.ClientMePage })))
 const ClientJoinPage = lazy(() => import('./pages/client/ClientJoinPage.jsx').then((m) => ({ default: m.ClientJoinPage })))
@@ -200,22 +204,24 @@ function LoggedInLayout() {
 
   return (
     <AppErrorBoundary>
-      <div className={`app-shell app-shell--${shellRole}`}>
-        <HeartRateSessionsProvider>
-          <IskraPanelProvider>
-            <AppChromeTop>
-              <AppHeader />
-              {role === 'trainer' ? <DraftTabsBar /> : null}
-            </AppChromeTop>
-            <BreadcrumbsBar />
-            <main className="app-main">
-              <Suspense fallback={null}>
-                <Outlet />
-              </Suspense>
-            </main>
-          </IskraPanelProvider>
-        </HeartRateSessionsProvider>
-      </div>
+      <SupervisorOfferGate>
+        <div className={`app-shell app-shell--${shellRole}`}>
+          <HeartRateSessionsProvider>
+            <IskraPanelProvider>
+              <AppChromeTop>
+                <AppHeader />
+                {role === 'trainer' ? <DraftTabsBar /> : null}
+              </AppChromeTop>
+              <BreadcrumbsBar />
+              <main className="app-main">
+                <Suspense fallback={null}>
+                  <Outlet />
+                </Suspense>
+              </main>
+            </IskraPanelProvider>
+          </HeartRateSessionsProvider>
+        </div>
+      </SupervisorOfferGate>
     </AppErrorBoundary>
   )
 }
@@ -314,6 +320,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/chat-rules" element={<ChatRulesPage />} />
+          <Route path="/offer" element={<OfferPage />} />
           <Route path="/me/*" element={<ClientAppRoutes />} />
           <Route path="/coach/*" element={<CoachAppRoutes />} />
           <Route element={<LoggedInLayout />}>

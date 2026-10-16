@@ -168,7 +168,7 @@ export function NutritionPlanDisplay({
           {displayPlan.dayPlan.map((meal) => (
             <article
               key={meal.slot}
-              className={`nutrition-meal-block${meal.source === 'recipe' || meal.recipeId ? ' nutrition-meal-block--recipe' : ''}`}
+              className={`nutrition-meal-block${meal.prep === 'recipe' || meal.source === 'recipe' ? ' nutrition-meal-block--recipe' : ' nutrition-meal-block--base'}`}
             >
               <header className="nutrition-meal-block__head">
                 <div className="nutrition-meal-block__title-row">
@@ -196,7 +196,7 @@ export function NutritionPlanDisplay({
               <NutritionTableBlock
                 rows={meal.items.map((item) => mapMealItem(meal, item))}
                 footer={{
-                  label: 'Подытог',
+                  label: 'КБЖУ',
                   kcal: meal.subtotal.kcal,
                   proteinG: meal.subtotal.proteinG,
                   fatG: meal.subtotal.fatG,

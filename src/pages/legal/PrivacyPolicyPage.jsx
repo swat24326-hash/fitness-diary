@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { OFFER_LINK_RU, OFFER_PATH } from '../../lib/legal/offerCore.js'
 import {
   CHAT_RULES_LINK_RU,
   CHAT_RULES_PATH,
@@ -55,6 +56,8 @@ export function PrivacyPolicyPage() {
 
       <p className="privacy-policy__back">
         <Link to={CHAT_RULES_PATH}>{CHAT_RULES_LINK_RU}</Link>
+        {' · '}
+        <Link to={OFFER_PATH}>{OFFER_LINK_RU}</Link>
         {' · '}
         <Link to="/login">Ко входу сотрудников</Link>
         {' · '}

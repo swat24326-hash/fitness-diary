@@ -157,6 +157,19 @@ async function clientWrites(c, browser, backend, chat) {
     await screenshot(page, 'client-chat-emoji-frequent')
     await page.getByTestId('chat-emoji-toggle').click()
     c.ok(await reaches(page.locator('.chat-day', { hasText: 'Сегодня' })), 'плашка дня «Сегодня»')
+    // Полоса дня на всю ширину с фоном: иначе липкая «Вчера» короче «1 октября» и по краям торчат цифры (INC-2026-10-16-01).
+    c.ok(
+      await page.locator('.chat-day').first().evaluate((el) => {
+        const row = globalThis.getComputedStyle(el)
+        const feed = el.closest('.chat-thread__feed')
+        const bg = row.backgroundColor
+        const solid = Boolean(bg && bg !== 'transparent' && !/^rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/.test(bg))
+        // Лента с padding 10px: полоса дня тянется на ширину содержимого, не на clientWidth ленты.
+        const inner = (feed?.clientWidth ?? 0) - 24
+        return row.position === 'sticky' && el.clientWidth >= inner && solid
+      }),
+      'плашка дня: полоса на всю ширину ленты с фоном — закрывает предыдущую дату',
+    )
     await screenshot(page, 'client-chat-sent')
   } catch (e) {
     await screenshot(page, 'client-chat-FAIL').catch(() => null)

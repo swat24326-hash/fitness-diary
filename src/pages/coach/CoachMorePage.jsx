@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LogOut, RefreshCw } from 'lucide-react'
 import { HeaderChatSoundSwitch } from '../../components/header/HeaderChatSoundSwitch.jsx'
+import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
 import { SignOutWarnDialog } from '../../components/screenCache/SignOutWarnDialog.jsx'
 import { fetchCoachMe } from '../../lib/coach/coachApiClient.js'
@@ -50,6 +51,7 @@ export function CoachMorePage() {
                 <RefreshCw size={18} aria-hidden />
                 Обновить
               </button>
+              <LegalEntryLinks className="legal-entry-links--in-profile" />
             </>
           }
         >

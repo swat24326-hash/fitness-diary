@@ -47,6 +47,9 @@ ok(/path="\/chat-rules"/.test(src('src/App.jsx')) && /ChatRulesPage/.test(src('s
 ok(/LegalEntryLinks/.test(src('src/pages/Login.jsx')), 'ссылки на /login')
 ok(/LegalEntryLinks/.test(src('src/pages/coach/CoachSignInPage.jsx')), 'ссылки на /coach')
 ok(/LegalEntryLinks/.test(src('src/pages/client/ClientMePage.jsx')), 'ссылки на /me')
+ok(/LegalEntryLinks/.test(src('src/pages/client/ClientSettingsSection.jsx')), 'ссылки в профиле клиента')
+ok(/LegalEntryLinks/.test(src('src/components/header/HeaderProfileSettings.jsx')), 'ссылки в профиле сотрудника')
+ok(/LegalEntryLinks/.test(src('src/pages/coach/CoachMorePage.jsx')), 'ссылки в /coach More')
 ok(/CHAT_RULES_PATH/.test(src('src/pages/legal/PrivacyPolicyPage.jsx')), 'политика ссылается на правила')
 ok(/PRIVACY_POLICY_PATH/.test(src('src/pages/legal/ChatRulesPage.jsx')), 'правила ссылаются на политику')
 

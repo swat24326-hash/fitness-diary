@@ -1,4 +1,5 @@
 import { Bell, Volume2 } from 'lucide-react'
+import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
 import { useChatSoundSetting } from '../../hooks/useChatSoundSetting.js'
 import { useClientApp } from './ClientAppContext.jsx'
 
@@ -8,7 +9,7 @@ const REMINDER_HINT = {
   none: 'Напоминания пока недоступны на этом телефоне.',
 }
 
-/** Настройки клиента: напоминания о тренировках, звуки сообщений — в «Мой профиль» и на /me/settings. */
+/** Настройки клиента: напоминания, звуки, ссылки политики — в «Мой профиль» (☰). */
 export function ClientSettingsSection() {
   const { push } = useClientApp()
   const sound = useChatSoundSetting('client')
@@ -66,6 +67,7 @@ export function ClientSettingsSection() {
           </button>
         </div>
       </section>
+      <LegalEntryLinks className="legal-entry-links--in-profile" />
     </>
   )
 }
