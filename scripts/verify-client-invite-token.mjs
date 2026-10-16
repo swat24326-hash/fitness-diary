@@ -35,7 +35,8 @@ ok(/ClientSignInPanel/.test(src('src/pages/client/ClientMePage.jsx')), 'ClientMe
 ok(/Войти по QR/.test(src('src/pages/client/ClientSignInPanel.jsx')), 'кнопка Войти по QR')
 ok(/ClientInstallHint/.test(src('src/pages/client/ClientSignInPanel.jsx')), 'шаг установки на экране входа')
 ok(/ClientQrScanSheet/.test(src('src/pages/client/ClientSignInPanel.jsx')), 'сканер')
-ok(/jsqr|jsQR/.test(src('src/pages/client/useClientQrScan.js')), 'декод кадра')
+ok(/useQrFrameScan/.test(src('src/pages/client/useClientQrScan.js')), 'общий сканер кадров')
+ok(/jsqr|jsQR/.test(src('src/hooks/useQrFrameScan.js')), 'декод кадра jsQR')
 ok(/redeemClientInvite/.test(src('src/pages/client/ClientQrScanSheet.jsx')), 'redeem после скана')
 
 if (failed) {

@@ -5,7 +5,7 @@ import { InstallSteps } from '../../components/install/InstallSteps.jsx'
 const TITLE = 'Значок на экран «Домой»'
 
 /** Шаг установки — строка как у тренера: шаги раскрываются по «Как?», на экране остаётся место под абонемент. */
-export function ClientInstallHint({ name, installer, onDone }) {
+export function ClientInstallHint({ name, installer, onDone, lastStep }) {
   const [open, setOpen] = useState(false)
   const canPrompt = installer.mode === 'prompt'
 
@@ -34,7 +34,9 @@ export function ClientInstallHint({ name, installer, onDone }) {
           Готово
         </button>
       </div>
-      {open && !canPrompt ? <InstallSteps mode={installer.mode} name={name} className="client-install__steps" /> : null}
+      {open && !canPrompt ? (
+        <InstallSteps mode={installer.mode} name={name} className="client-install__steps" lastStep={lastStep} />
+      ) : null}
     </section>
   )
 }

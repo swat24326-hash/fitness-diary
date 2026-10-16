@@ -52,9 +52,12 @@ export async function run(browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await page.goto(`${ORIGIN}/coach`)
+    c.ok(await reaches(page.getByRole('button', { name: 'Войти по QR' })), 'на входе — «Войти по QR»')
+    c.ok(await reaches(page.getByRole('region', { name: 'Значок на экран «Домой»' })), 'до входа — шаг установки значка')
+    await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     c.ok(await reaches(slot10(page)), 'первый телефон тренера входит сразу, без админа — Ежедневник с записью 10:00')
     const phone = coach.state.devices[0]
     c.ok(phone?.status === 'approved' && phone.device_id.startsWith('coach-'), 'на сервере первый телефон записан разрешённым, номер coach-…')
@@ -127,9 +130,10 @@ async function runAndroidManifest(browser, c) {
     page.evaluate(() => [...globalThis.document.querySelectorAll('link[rel="manifest"]')].map((l) => l.getAttribute('href')))
   try {
     await page.goto(`${ORIGIN}/coach`)
+    await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     await reaches(slot10(page))
     c.ok(JSON.stringify(await manifests()) === JSON.stringify([clubManifest]), 'Android: после входа manifest клуба — значок назовётся как клуб')
     const banner = page.getByRole('region', { name: 'Значок на экран «Домой»' })
@@ -167,9 +171,10 @@ async function runIconHandoff(browser, c) {
   const page = await safari.newPage()
   try {
     await page.goto(`${ORIGIN}/coach`)
+    await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     const banner = page.getByRole('region', { name: 'Значок на экран «Домой»' })
     await banner.getByRole('button', { name: 'Как?' }).click()
     c.ok(await reaches(banner.getByText('Откройте значок «E2E клуб»')), 'значок: подсказка в Safari (над Ежедневником) с названием клуба')
@@ -228,6 +233,7 @@ async function runQrJoin(browser, c) {
     await page.goto(`${ORIGIN}/coach/join#t=${token}`)
     c.ok(await reaches(page.getByText('Не получилось войти по QR')), 'QR: тот же код второй раз — понятный отказ')
     await page.getByRole('button', { name: 'Войти по логину и паролю' }).click()
+    await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
     c.ok(await reaches(page.getByLabel('Логин')), 'QR: из отказа — на вход по паролю')
   } catch (e) {
     await screenshot(page, 'coach-qr-FAIL').catch(() => null)
