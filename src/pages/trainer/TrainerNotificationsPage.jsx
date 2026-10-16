@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom'
 import { Bell, ChevronRight, ClipboardList, Salad } from 'lucide-react'
-import { StaffNotificationsSettingsBlock } from '../../components/notifications/StaffNotificationsSettingsBlock.jsx'
-import { useAuth } from '../../context/AuthContext'
 import { useTrainerNotifications } from './useTrainerNotifications.js'
 
 function NotifIcon({ kind }) {
@@ -9,26 +7,20 @@ function NotifIcon({ kind }) {
   return <ClipboardList size={20} />
 }
 
-/** /trainer/notifications — лента заданий/рационов + настройки push в одном экране. */
+/** /trainer/notifications — лента заданий/рационов от клиентов. Настройки push — в «Мой профиль». */
 export function TrainerNotificationsPage() {
-  const { user } = useAuth()
   const { items, status } = useTrainerNotifications()
 
   return (
     <div className="trainer-notif-page">
       <h1 className="section-title">Уведомления</h1>
-      <StaffNotificationsSettingsBlock
-        clubId={user?.club_id ?? ''}
-        showPush
-        showChatSound
-        showScheduleReminders
-      />
       <section className="staff-notif-feed" aria-label="События по клиентам">
-        <h2 className="staff-notif-settings__title">От клиентов</h2>
         {status === 'loading' && !items.length ? (
           <p className="client-me-muted">Загружаем…</p>
         ) : !items.length ? (
-          <p className="os-empty-card__hint">Пока тихо. Здесь появятся задания и рационы, которые ждут открытия или уже открыты клиентом.</p>
+          <p className="os-empty-card__hint">
+            Пока тихо. Здесь появятся задания и рационы, которые ждут открытия или уже открыты клиентом.
+          </p>
         ) : (
           <ol className="client-inbox">
             {items.map((it, i) => {
@@ -53,7 +45,7 @@ export function TrainerNotificationsPage() {
         )}
       </section>
       <p className="staff-notif-hint">
-        <Bell size={14} aria-hidden /> Сообщения клиентов — во вкладке «Сообщения», не здесь.
+        <Bell size={14} aria-hidden /> Push и звуки — в «Мой профиль» → «Уведомления». Сообщения клиентов — вкладка «Сообщения».
       </p>
     </div>
   )

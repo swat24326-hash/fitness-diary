@@ -4,26 +4,22 @@ import { CoachPhoneQrPanel } from '../coach/CoachPhoneQrPanel.jsx'
 import { HeaderPushSwitch } from './HeaderPushSwitch.jsx'
 import { HeaderChatSoundSwitch } from './HeaderChatSoundSwitch.jsx'
 import { HeaderInstallItem } from './HeaderInstallItem.jsx'
-import { NotificationsProfileLink } from './NotificationsProfileLink.jsx'
 import { NotificationsSettingsFold } from './NotificationsSettingsFold.jsx'
-import { TRAINER_NOTIFICATIONS_PATH } from '../../lib/trainer/trainerNotificationsCore.js'
 
 /**
  * Пункты сотрудника в «Мой профиль» → «Настройки»: push (тренер, менеджер), звуки переписки;
- * тренеру — ссылка на экран «Уведомления» (настройки + лента); остальным — складка в профиле.
+ * тренеру — напоминания Ежедневника и QR для приложения на телефоне (код раскрывается тут же, под строкой).
+ * Несколько переключателей уведомлений — за одной кнопкой «Уведомления».
  */
 export function HeaderStaffSettingsItems({ showPush, showChatSound, showPhoneQr, showScheduleReminders, clubId }) {
   const [qrOpen, setQrOpen] = useState(false)
   const foldNotify = showPush && showChatSound
-  const trainerHub = foldNotify && showScheduleReminders
   const push = showPush ? <HeaderPushSwitch clubId={clubId} scheduleReminders={showScheduleReminders} /> : null
   const sound = showChatSound ? <HeaderChatSoundSwitch /> : null
   return (
     <>
-      {trainerHub ? (
-        <NotificationsProfileLink to={TRAINER_NOTIFICATIONS_PATH} hint="Push, напоминания, звуки и лента" />
-      ) : foldNotify ? (
-        <NotificationsSettingsFold hint="Push и звуки">
+      {foldNotify ? (
+        <NotificationsSettingsFold hint={showScheduleReminders ? 'Push, напоминания, звуки' : 'Push и звуки'}>
           {push}
           {sound}
         </NotificationsSettingsFold>

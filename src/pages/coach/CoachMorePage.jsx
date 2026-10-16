@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { LogOut, RefreshCw } from 'lucide-react'
-import { NotificationsProfileLink } from '../../components/header/NotificationsProfileLink.jsx'
+import { HeaderChatSoundSwitch } from '../../components/header/HeaderChatSoundSwitch.jsx'
+import { NotificationsSettingsFold } from '../../components/header/NotificationsSettingsFold.jsx'
 import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
-import { COACH_NOTIFICATIONS_PATH } from '../../lib/trainer/trainerNotificationsCore.js'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
 import { SignOutWarnDialog } from '../../components/screenCache/SignOutWarnDialog.jsx'
 import { fetchCoachMe } from '../../lib/coach/coachApiClient.js'
@@ -10,6 +10,7 @@ import { coachRequest } from '../../lib/coach/coachSession.js'
 import { avatarApiOver } from '../../lib/profile/avatarApi.js'
 import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
+import { CoachMenuPushSwitch } from './CoachMenuPushSwitch.jsx'
 import { CoachShell } from './CoachShell.jsx'
 import { useCoachLoad } from './useCoachLoad.js'
 
@@ -46,7 +47,10 @@ export function CoachMorePage() {
           layout="phone"
           settings={
             <>
-              <NotificationsProfileLink to={COACH_NOTIFICATIONS_PATH} hint="Push, напоминания, звуки" />
+              <NotificationsSettingsFold>
+                <CoachMenuPushSwitch />
+                <HeaderChatSoundSwitch />
+              </NotificationsSettingsFold>
               <button type="button" className="app-header__menu-item" onClick={() => window.location.reload()}>
                 <RefreshCw size={18} aria-hidden />
                 Обновить

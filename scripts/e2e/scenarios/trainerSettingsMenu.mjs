@@ -5,7 +5,7 @@
  * «Профиль» шестерёнкой — обратно в то же окно.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
-import { ORIGIN, screenshot } from '../lib/e2eHarness.mjs'
+import { screenshot } from '../lib/e2eHarness.mjs'
 import { trainerClubSeed } from '../lib/fixtures.mjs'
 import { openTrainerSession } from '../lib/trainerSteps.mjs'
 
@@ -44,8 +44,14 @@ export async function run(browser) {
     c.ok(await reaches(settings), '«Мой профиль»: под фото — «Настройки»')
     c.ok((await sheet.getAttribute('data-layout')) === 'tablet', 'тренер на планшете — окно размера tablet')
     c.ok(await reaches(settings.getByRole('button', { name: 'Восстановить приложение' })), 'в настройках — «Восстановить приложение»')
-    const notifyLink = settings.getByTestId('notifications-fold')
-    c.ok(await reaches(notifyLink), 'в настройках — ссылка «Уведомления» на общий экран')
+    const notifyFold = settings.getByTestId('notifications-fold')
+    c.ok(await reaches(notifyFold), 'в настройках — одна кнопка «Уведомления»')
+    await notifyFold.click()
+    c.ok(await reaches(settings.getByRole('switch', { name: 'Уведомления' })), 'раскрыли — переключатель «Уведомления»')
+    c.ok(
+      await settings.getByRole('switch', { name: 'Напоминания из Ежедневника' }).isDisabled(),
+      'тренеру — «Напоминания из Ежедневника», без уведомлений неактивны',
+    )
     c.ok(await reaches(settings.getByRole('button', { name: /Помощь/ })), 'в настройках — «Помощь»')
     await settings.getByRole('button', { name: 'Восстановить приложение' }).scrollIntoViewIfNeeded()
     c.ok(await settings.getByRole('button', { name: 'QR для телефона' }).isVisible(), 'длинный профиль прокручивается — пункты доступны')
@@ -66,23 +72,9 @@ export async function run(browser) {
     c.ok(!(await qr.isVisible()), 'ещё нажатие — QR свернулся')
     c.ok(!(await menu.isVisible()), 'открыли профиль — бургер закрылся, не висит под окном')
 
-    await notifyLink.click()
-    await page.waitForURL(`${ORIGIN}/trainer/notifications`, { timeout: 10_000 })
-    c.ok(await reaches(page.getByRole('heading', { name: 'Уведомления', exact: true })), 'экран «Уведомления»')
-    c.ok(await reaches(page.getByRole('switch', { name: 'Уведомления' })), 'на экране — переключатель push')
-    c.ok(
-      await page.getByRole('switch', { name: 'Напоминания из Ежедневника' }).isDisabled(),
-      'тренеру — «Напоминания из Ежедневника», без уведомлений неактивны',
-    )
-    c.ok(await reaches(page.locator('a.client-notif-bell')), 'в шапке планшета — колокольчик')
-    await screenshot(page, 'settings-notifications-page')
-    await page.goto(`${ORIGIN}/trainer`, { waitUntil: 'domcontentloaded' })
-    await page.getByRole('button', { name: 'Меню аккаунта' }).click()
-    await page.getByTestId('profile-menu-user').click()
-    const sheet2 = page.getByTestId('profile-photo-sheet')
-    const statsLink = sheet2.getByTestId('profile-stats-link')
+    const statsLink = sheet.getByTestId('profile-stats-link')
     c.ok(await reaches(statsLink), 'тренеру в профиле — «Статистика и зарплата»')
-    await sheet2.evaluate((el) => el.scrollTo(0, 0))
+    await sheet.evaluate((el) => el.scrollTo(0, 0))
     const linkBox = await statsLink.boundingBox()
     c.ok(Boolean(linkBox) && linkBox.y + linkBox.height <= TABLET.viewport.height, '«Статистика и зарплата» видна сразу, без прокрутки')
     await statsLink.click()
