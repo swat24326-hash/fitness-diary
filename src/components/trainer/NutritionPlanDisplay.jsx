@@ -64,6 +64,38 @@ export function NutritionPlanDisplay({
   const brandClub = String(clubName ?? '').trim()
   const canSend = !exportBusy && !planUnsaved && !readOnly
   const weekDays = Array.isArray(displayPlan.days) ? displayPlan.days : null
+  const activeDayLabel = weekDays?.find((d) => d.dayIndex === activeDayIndex)?.label ?? 'Пн'
+  const refs = displayPlan.referents
+  const kpiItems = [
+    {
+      key: 'kcal',
+      label: 'ккал',
+      value: displayPlan.totals?.kcal ?? '—',
+      ref: refs ? `цель ~${refs.kcal.aim}` : displayPlan.kcalTarget ? `~${displayPlan.kcalTarget}` : null,
+      ok: referentCheck?.kcal,
+    },
+    {
+      key: 'p',
+      label: 'Б',
+      value: displayPlan.totals?.proteinG ?? '—',
+      ref: refs ? `${refs.protein.min}–${refs.protein.max}` : null,
+      ok: referentCheck?.protein,
+    },
+    {
+      key: 'f',
+      label: 'Ж',
+      value: displayPlan.totals?.fatG ?? '—',
+      ref: refs ? `${refs.fat.min}–${refs.fat.max}` : null,
+      ok: referentCheck?.fat,
+    },
+    {
+      key: 'c',
+      label: 'У',
+      value: displayPlan.totals?.carbsG ?? '—',
+      ref: refs ? `${refs.carbs.min}–${refs.carbs.max}` : null,
+      ok: referentCheck?.carbs,
+    },
+  ]
 
   return (
     <>
@@ -89,26 +121,20 @@ export function NutritionPlanDisplay({
             ) : null}
             {generatedAt && !planUnsaved ? ` · сохранён ${formatDateRu(generatedAt.slice(0, 10))}` : null}
           </p>
-          {displayPlan.referents ? (
-            <p className="nutrition-referents">
-              Референты: ккал <strong>{displayPlan.referents.kcal.min}–{displayPlan.referents.kcal.max}</strong>
-              {' '}(цель ~{displayPlan.referents.kcal.aim}) · Б{' '}
-              <strong>{displayPlan.referents.protein.min}–{displayPlan.referents.protein.max}</strong> г · Ж{' '}
-              <strong>{displayPlan.referents.fat.min}–{displayPlan.referents.fat.max}</strong> г · У{' '}
-              <strong>{displayPlan.referents.carbs.min}–{displayPlan.referents.carbs.max}</strong> г
-            </p>
-          ) : null}
-          <p className="nutrition-fact-line">
-            Факт: <strong>{displayPlan.totals?.kcal ?? '—'}</strong> ккал · Б {displayPlan.totals?.proteinG} · Ж{' '}
-            {displayPlan.totals?.fatG} · У {displayPlan.totals?.carbsG}
-            {referentCheck ? (
-              <span className="nutrition-referent-status">
-                {' '}
-                · в референтах: ккал {referentCheck.kcal ? '✓' : '—'} · Б {referentCheck.protein ? '✓' : '—'} · Ж{' '}
-                {referentCheck.fat ? '✓' : '—'} · У {referentCheck.carbs ? '✓' : '—'}
-              </span>
-            ) : null}
-          </p>
+          <div className="nutrition-kpi" role="group" aria-label="КБЖУ дня">
+            {kpiItems.map((item) => (
+              <div
+                key={item.key}
+                className={`nutrition-kpi__chip${
+                  item.ok === true ? ' nutrition-kpi__chip--ok' : item.ok === false ? ' nutrition-kpi__chip--off' : ''
+                }`}
+              >
+                <span className="nutrition-kpi__label">{item.label}</span>
+                <span className="nutrition-kpi__value">{item.value}</span>
+                {item.ref ? <span className="nutrition-kpi__ref">{item.ref}</span> : null}
+              </div>
+            ))}
+          </div>
           {hasPendingChanges ? (
             <p className="nutrition-unsaved-banner" role="status">
               {planUnsaved && !draftAligned
@@ -119,7 +145,7 @@ export function NutritionPlanDisplay({
               {!readOnly && onDiscard ? (
                 <button
                   type="button"
-                  className="btn btn-sm btn-ghost nutrition-unsaved-banner__btn"
+                  className="btn btn-touch btn-ghost nutrition-unsaved-banner__btn"
                   disabled={busy}
                   onClick={() => void onDiscard()}
                 >
@@ -129,39 +155,51 @@ export function NutritionPlanDisplay({
             </p>
           ) : null}
           {!readOnly && planUnsaved ? (
-            <p className="muted nutrition-edit-hint">Можно подправить граммы — изменения попадут в черновик до сохранения.</p>
+            <p className="muted nutrition-edit-hint">Меняйте граммы в блюдах — черновик обновится до сохранения.</p>
           ) : null}
         </div>
       </div>
 
       <div className="nutrition-plan-body">
         {weekDays && weekDays.length > 1 ? (
-          <div className="nutrition-week-days" role="tablist" aria-label="Дни рациона">
-            {weekDays.map((d) => (
-              <button
-                key={d.dayIndex}
-                type="button"
-                role="tab"
-                aria-selected={activeDayIndex === d.dayIndex}
-                className={`btn btn-sm${activeDayIndex === d.dayIndex ? '' : ' btn-ghost'}`}
-                disabled={readOnly && !onSelectDay}
-                onClick={() => onSelectDay?.(d.dayIndex)}
-              >
-                {d.label}
-              </button>
-            ))}
+          <div className="nutrition-week-bar">
+            <p className="nutrition-week-hint" role="status">
+              <strong>{weekDays.length} дн.</strong> · сейчас <strong>{activeDayLabel}</strong> — у каждого дня свои блюда
+            </p>
+            <div className="nutrition-week-days" role="tablist" aria-label="Дни рациона">
+              {weekDays.map((d) => (
+                <button
+                  key={d.dayIndex}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeDayIndex === d.dayIndex}
+                  className={`btn nutrition-week-day${activeDayIndex === d.dayIndex ? ' nutrition-week-day--active' : ' btn-ghost'}`}
+                  disabled={readOnly && !onSelectDay}
+                  onClick={() => onSelectDay?.(d.dayIndex)}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
 
         {daySummary.length > 0 ? (
-          <article className="nutrition-meal-block nutrition-day-summary">
-            <h3 className="nutrition-meal-title">Сводка на день</h3>
-            <NutritionTableBlock
-              rows={daySummary.map(mapSummaryRow)}
-              portionHeader="Всего"
-              tableClassName="nutrition-table--summary"
-            />
-          </article>
+          <details className="nutrition-meal-block nutrition-day-summary">
+            <summary className="nutrition-day-summary__toggle">
+              <h3 className="nutrition-meal-title">
+                Сводка продуктов
+                {weekDays?.length > 1 ? ` · ${activeDayLabel}` : ''}
+              </h3>
+            </summary>
+            <div className="nutrition-day-summary__body">
+              <NutritionTableBlock
+                rows={daySummary.map(mapSummaryRow)}
+                portionHeader="Всего"
+                tableClassName="nutrition-table--summary"
+              />
+            </div>
+          </details>
         ) : null}
 
         <div className="nutrition-day-table">
@@ -181,12 +219,12 @@ export function NutritionPlanDisplay({
                   {!readOnly && onSwapMeal ? (
                     <button
                       type="button"
-                      className="btn btn-sm btn-ghost nutrition-meal-swap"
+                      className="btn btn-touch btn-ghost nutrition-meal-swap"
                       disabled={busy}
                       title="Другое блюдо в этом приёме"
                       onClick={() => onSwapMeal(meal.slot)}
                     >
-                      <RefreshCw size={14} aria-hidden />
+                      <RefreshCw size={16} aria-hidden />
                       Другое блюдо
                     </button>
                   ) : null}
@@ -211,19 +249,17 @@ export function NutritionPlanDisplay({
           ))}
         </div>
 
-        <div className="nutrition-totals-card" role="status">
-          <strong>Итого за день:</strong> {displayPlan.totals.kcal} ккал (референт ~{displayPlan.kcalTarget}) · Б{' '}
-          {displayPlan.totals.proteinG} · Ж {displayPlan.totals.fatG} · У {displayPlan.totals.carbsG}
-        </div>
         <p className="nutrition-plan-disclaimer muted">{displayPlan.disclaimer}</p>
       </div>
 
       {!readOnly ? (
-        <div className="nutrition-share-actions homework-preview__actions--sticky">
+        <div
+          className={`nutrition-share-actions${planUnsaved ? '' : ' homework-preview__actions--sticky'}`}
+        >
           <div className="homework-preview__send-row">
             <button
               type="button"
-              className="btn btn-touch homework-preview__send"
+              className={`btn btn-touch${planUnsaved ? ' btn-ghost' : ' homework-preview__send'}`}
               disabled={!canSend}
               onClick={() => void onExportMax?.()}
             >

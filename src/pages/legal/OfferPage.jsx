@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { LegalCrossLink } from '../../components/legal/LegalCrossLink.jsx'
 import { LegalPageShell } from '../../components/legal/LegalPageShell.jsx'
 import {
   OFFER_PARTY,
@@ -28,7 +28,7 @@ export function OfferPage() {
       <p className="privacy-policy__lead">
         Договор‑оферта на доступ клуба к программе «{PRODUCT_BRAND_NAME}». Это не замена консультации юриста.
         Принимает управляющий клуба при первом входе. Политика персональных данных —{' '}
-        <Link to={PRIVACY_POLICY_PATH}>{PRIVACY_POLICY_LINK_RU}</Link>.
+        <LegalCrossLink to={PRIVACY_POLICY_PATH}>{PRIVACY_POLICY_LINK_RU}</LegalCrossLink>.
       </p>
 
       <p className="privacy-policy__body">

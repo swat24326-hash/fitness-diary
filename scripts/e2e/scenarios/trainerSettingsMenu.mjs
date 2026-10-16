@@ -42,6 +42,7 @@ export async function run(browser) {
     const sheet = page.getByTestId('profile-photo-sheet')
     const settings = sheet.getByTestId('profile-settings')
     c.ok(await reaches(settings), '«Мой профиль»: под фото — «Настройки»')
+    c.ok((await sheet.getAttribute('data-layout')) === 'tablet', 'тренер на планшете — окно размера tablet')
     c.ok(await reaches(settings.getByRole('button', { name: 'Восстановить приложение' })), 'в настройках — «Восстановить приложение»')
     const notifyFold = settings.getByTestId('notifications-fold')
     c.ok(await reaches(notifyFold), 'в настройках — одна кнопка «Уведомления»')

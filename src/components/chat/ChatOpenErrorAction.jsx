@@ -5,7 +5,7 @@ import { chatErrorRetryable } from '../../lib/chat/chatUiCore.js'
 export function ChatOpenErrorAction({ errorStatus, onRetry, backTo }) {
   if (!chatErrorRetryable(errorStatus)) {
     return (
-      <Link to={backTo} className="btn btn-secondary btn-touch">
+      <Link to={backTo} replace className="btn btn-secondary btn-touch">
         К диалогам
       </Link>
     )

@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isAppOnline } from '../lib/syncService'
@@ -30,6 +30,7 @@ import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
 import { TRAINER_INBOX_OPEN_EVENT } from '../lib/admin/trainerInboxEvents.js'
 import { recoverApp } from '../lib/appLifecycle'
 import { subscribeAppUpdatePending } from '../lib/appUpdateState'
+import { consumeReopenMyProfileState } from '../lib/profile/myProfileEvents.js'
 
 const GeminiAnalyticsPanel = lazy(() =>
   import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
@@ -46,6 +47,7 @@ function menuNavClass({ isActive }) {
 export function AppHeader() {
   const { user, signOut, isAdmin, isSalesManager, isSupervisor, supabaseReady, refreshUserProfile, refreshSessionOnWake } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [menuOpen, setMenuOpen] = useState(false)
@@ -53,6 +55,10 @@ export function AppHeader() {
   const [profileOpen, setProfileOpen] = useState(false)
   const openProfile = useCallback(() => setProfileOpen(true), [])
   const closeProfile = useCallback(() => setProfileOpen(false), [])
+
+  useEffect(() => {
+    consumeReopenMyProfileState(location, navigate)
+  }, [location, navigate])
   const myName = user?.name ?? user?.email ?? ''
   const myAvatar = useMyAvatar(staffAvatarApi, `u:${user?.id ?? ''}`)
   const {

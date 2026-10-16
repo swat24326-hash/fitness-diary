@@ -236,7 +236,13 @@ export function SalesPnk() {
           </section>
         ) : null}
         <div className="pnk-funnel__toolbar-actions">
-          <Link to={backTo} className="btn btn-ghost btn-sm btn-icon-square btn-touch" title="Назад" aria-label="Назад">
+          <Link
+            to={backTo}
+            replace
+            className="btn btn-ghost btn-sm btn-icon-square btn-touch"
+            title="Назад"
+            aria-label="Назад"
+          >
             <ArrowLeft size={16} aria-hidden />
           </Link>
           <button

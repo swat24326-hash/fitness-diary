@@ -22,10 +22,11 @@ function release(image) {
  * Портал в body: шапка и меню с position:fixed / blur запирали бы окно в своей рамке. mousedown не выпускаем —
  * иначе меню под окном закрылось бы вместе с ним.
  * links — переходы своего приложения сразу под фото, чтобы не листать до них (тренеру — «Статистика и зарплата»).
+ * layout: phone — клиент и телефон тренера; tablet — тренер на планшете; desk — менеджер / управляющий / админ на мониторе.
  * @param {{ open: boolean, onClose: () => void, name: string, avatar: ReturnType<typeof import('../../hooks/useMyAvatar.js').useMyAvatar>,
- *   settings?: import('react').ReactNode, links?: import('react').ReactNode }} props
+ *   settings?: import('react').ReactNode, links?: import('react').ReactNode, layout?: 'phone' | 'tablet' | 'desk' }} props
  */
-export function ProfilePhotoSheet({ open, onClose, name, avatar, settings = null, links = null }) {
+export function ProfilePhotoSheet({ open, onClose, name, avatar, settings = null, links = null, layout = 'phone' }) {
   const titleId = useId()
   const fileRef = useRef(null)
   const [image, setImage] = useState(null)
@@ -78,51 +79,60 @@ export function ProfilePhotoSheet({ open, onClose, name, avatar, settings = null
 
   return createPortal(
     <div className="modal-overlay profile-photo-overlay" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={close} onMouseDown={(e) => e.stopPropagation()}>
-      <div className="modal-panel profile-photo" onClick={(e) => e.stopPropagation()} data-testid="profile-photo-sheet">
+      <div
+        className={`modal-panel profile-photo profile-photo--${layout}`}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="profile-photo-sheet"
+        data-layout={layout}
+      >
         <ModalHeader titleId={titleId} title="Мой профиль" onClose={close} closeDisabled={busy} />
         {image ? (
           <AvatarCropper image={image} busy={busy} onCancel={() => setImage(null)} onDone={(crop) => void done(crop)} />
         ) : (
-          <>
-            <div className="profile-photo__hero">
-              <span className="profile-photo__circle" aria-hidden>
-                <AvatarPhoto src={avatar.photo} fallback={chatInitials(name) || '?'} />
-              </span>
-              <strong className="profile-photo__name">
-                {name || 'Без имени'} <ProfileStatusMark emoji={avatar.status?.emoji} />
-              </strong>
-              <small className="muted">Фото видят в переписке клуба</small>
-            </div>
-            {avatar.ready ? (
-              <div className="row td-modal-actions profile-photo__actions">
-                <button type="button" className="btn btn-primary btn-touch" disabled={busy} onClick={() => fileRef.current?.click()}>
-                  <Camera size={18} aria-hidden />
-                  {avatar.photo ? 'Сменить фото' : 'Выбрать фото'}
-                </button>
-                {avatar.photo ? (
-                  <button type="button" className="btn btn-ghost btn-touch profile-photo__remove" disabled={busy} onClick={() => void avatar.remove()}>
-                    <Trash2 size={18} aria-hidden />
-                    Удалить
-                  </button>
-                ) : null}
+          <div className="profile-photo__body">
+            <div className="profile-photo__main">
+              <div className="profile-photo__hero">
+                <span className="profile-photo__circle" aria-hidden>
+                  <AvatarPhoto src={avatar.photo} fallback={chatInitials(name) || '?'} />
+                </span>
+                <strong className="profile-photo__name">
+                  {name || 'Без имени'} <ProfileStatusMark emoji={avatar.status?.emoji} />
+                </strong>
+                <small className="muted">Фото видят в переписке клуба</small>
               </div>
-            ) : (
-              <p className="muted profile-photo__note">{AVATAR_UNAVAILABLE_RU}</p>
-            )}
-            {links ? <div className="profile-photo__links">{links}</div> : null}
-            <ProfileStatusPicker avatar={avatar} />
-          </>
+              {avatar.ready ? (
+                <div className="row td-modal-actions profile-photo__actions">
+                  <button type="button" className="btn btn-primary btn-touch" disabled={busy} onClick={() => fileRef.current?.click()}>
+                    <Camera size={18} aria-hidden />
+                    {avatar.photo ? 'Сменить фото' : 'Выбрать фото'}
+                  </button>
+                  {avatar.photo ? (
+                    <button type="button" className="btn btn-ghost btn-touch profile-photo__remove" disabled={busy} onClick={() => void avatar.remove()}>
+                      <Trash2 size={18} aria-hidden />
+                      Удалить
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="muted profile-photo__note">{AVATAR_UNAVAILABLE_RU}</p>
+              )}
+              {links ? <div className="profile-photo__links">{links}</div> : null}
+            </div>
+            <div className="profile-photo__side">
+              <ProfileStatusPicker avatar={avatar} />
+            </div>
+            {settings ? (
+              <section className="profile-photo__settings" aria-label="Настройки" data-testid="profile-settings">
+                <h3 className="profile-photo__settings-title">Настройки</h3>
+                <div className="profile-photo__settings-items">{settings}</div>
+              </section>
+            ) : null}
+          </div>
         )}
         {error ? (
           <p className="profile-photo__error" role="alert">
             {error}
           </p>
-        ) : null}
-        {settings && !image ? (
-          <section className="profile-photo__settings" aria-label="Настройки" data-testid="profile-settings">
-            <h3 className="profile-photo__settings-title">Настройки</h3>
-            <div className="profile-photo__settings-items">{settings}</div>
-          </section>
         ) : null}
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void pick(e)} data-testid="profile-photo-input" />
       </div>

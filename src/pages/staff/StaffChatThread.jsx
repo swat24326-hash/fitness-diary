@@ -20,7 +20,13 @@ export function StaffChatThread() {
         kind={kind}
         backTo={back}
         back={
-          <Link to={back} className="btn btn-ghost btn-icon-square btn-touch" aria-label="Карточка клиента" title="Карточка клиента">
+          <Link
+            to={back}
+            replace
+            className="btn btn-ghost btn-icon-square btn-touch"
+            aria-label="Карточка клиента"
+            title="Карточка клиента"
+          >
             <ArrowLeft size={20} aria-hidden />
           </Link>
         }

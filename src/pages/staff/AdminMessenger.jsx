@@ -62,7 +62,7 @@ export function AdminMessenger({ chatList }) {
       if (key === STAFF_VIEW_ALL) next.delete('view')
       else next.set('view', key)
       return next
-    })
+    }, { replace: true })
   }
 
   return (

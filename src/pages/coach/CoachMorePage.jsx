@@ -44,6 +44,7 @@ export function CoachMorePage() {
           name={me.data?.name || 'Тренер'}
           api={coachAvatarApi}
           cacheKey="coach"
+          layout="phone"
           settings={
             <>
               <NotificationsSettingsFold>

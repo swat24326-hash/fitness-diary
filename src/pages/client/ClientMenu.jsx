@@ -78,7 +78,7 @@ export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, r
   return (
     <>
       {clientName ? (
-        <ProfileMenuUser name={clientName} api={clientAvatarApi} cacheKey="client" settings={<ClientSettingsSection />} />
+        <ProfileMenuUser name={clientName} api={clientAvatarApi} cacheKey="client" layout="phone" settings={<ClientSettingsSection />} />
       ) : null}
       {installer.mode !== 'none' ? (
         <button

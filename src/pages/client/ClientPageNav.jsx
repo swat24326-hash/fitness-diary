@@ -28,13 +28,23 @@ export function ClientPageMenuItems({ onRefresh = null, refreshing = false }) {
   return <ClientMenuItems {...menu} onRefresh={onRefresh} refreshing={refreshing} />
 }
 
-/** Заголовок вложенного экрана: «Назад» слева от названия — одно место на всех экранах. Экран-вкладка — back={false}. */
+/**
+ * Заголовок вложенного экрана: «Назад» слева от названия.
+ * replace — жест системы «назад» не возвращает снова на этот экран.
+ * Экран-вкладка — back={false}.
+ */
 export function ClientPageTitle({ title, to = CLIENT_HOME, back = true }) {
   const navigate = useNavigate()
   return (
     <div className="client-page-title">
       {back ? (
-        <button type="button" className="btn btn-ghost btn-icon-square btn-touch" onClick={() => navigate(to)} title="Назад" aria-label="Назад">
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon-square btn-touch"
+          onClick={() => navigate(to, { replace: true })}
+          title="Назад"
+          aria-label="Назад"
+        >
           <ArrowLeft size={20} aria-hidden />
         </button>
       ) : null}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, UtensilsCrossed, X } from 'lucide-react'
 import { NutritionPlanDisplay } from '../../components/trainer/NutritionPlanDisplay.jsx'
 import { NutritionAvoidCategories } from '../../components/trainer/NutritionAvoidCategories.jsx'
 import {
@@ -33,6 +33,10 @@ import {
   saveNutritionPlan,
   toggleProductId,
 } from '../../lib/nutrition/nutritionPlanService.js'
+import {
+  nutritionAgeFromClient,
+  seedNutritionSurveyFromClientHealth,
+} from '../../lib/nutrition/nutritionSurveySeedCore.js'
 import { assessTotalsAgainstReferents } from '../../lib/nutrition/nutritionReferentsCore.js'
 import { attachSurveyKeyToPlan, planMatchesSurvey } from '../../lib/nutrition/nutritionPlanSessionCore.js'
 import {
@@ -48,7 +52,7 @@ import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { resolveClubDisplayName } from '../../lib/dataAccess'
 
 const STEPS = [
-  { id: 'profile', label: 'Профиль' },
+  { id: 'profile', label: 'Активность' },
   { id: 'meals', label: 'Приёмы' },
   { id: 'exclusions', label: 'Ограничения' },
   { id: 'avoid', label: 'Не ем' },
@@ -163,7 +167,11 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     await reloadCatalog()
     const st = await loadClientNutritionState(client.id)
     const surveyFromDb = nutritionSurveyFromStorage(st.health?.nutrition_survey)
-    const baselineSurvey = surveyFromDb ?? defaultNutritionSurvey()
+    const baselineSurvey = seedNutritionSurveyFromClientHealth(surveyFromDb ?? defaultNutritionSurvey(), {
+      client,
+      health: st.health,
+      forceGoal: !surveyFromDb,
+    })
 
     setHealth(st.health)
     setSavedSurvey(baselineSurvey)
@@ -179,7 +187,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     setPlanHistory(st.planHistory ?? [])
     setGeneratedAt(st.generatedAt)
     return st
-  }, [client?.id, reloadCatalog])
+  }, [client?.id, client?.birth_date, reloadCatalog])
 
   useEffect(() => {
     surveyLoadedRef.current = false
@@ -236,9 +244,16 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     setError(null)
   }
 
+  const freshSurveyFromCard = () =>
+    seedNutritionSurveyFromClientHealth(defaultNutritionSurvey(), {
+      client,
+      health,
+      forceGoal: true,
+    })
+
   const startCompose = () => {
     if (readOnly || !healthReady) return
-    setSurvey(defaultNutritionSurvey())
+    setSurvey(freshSurveyFromCard())
     surveyLoadedRef.current = true
     setDraftPlan(null)
     setPlanUnsaved(false)
@@ -292,8 +307,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       setSavedPlan(null)
       setDraftPlan(null)
       setPlanUnsaved(false)
-      setSurvey(defaultNutritionSurvey())
-      setSavedSurvey(defaultNutritionSurvey())
+      const fresh = freshSurveyFromCard()
+      setSurvey(fresh)
+      setSavedSurvey(fresh)
       surveyLoadedRef.current = true
       setPageView(PAGE_VIEWS.compose)
       setStep(0)
@@ -366,7 +382,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     if (!Number.isFinite(grams) || grams <= 0) return
     const base = draftPlan ?? savedPlan
     if (!base) return
-    const next = setPlanItemGrams(base, catalogMap, mealSlot, productId, grams)
+    const next = setPlanItemGrams(base, catalogMap, mealSlot, productId, grams, {
+      dayIndex: activeDayIndex,
+    })
     setDraftPlan(next)
     setPlanUnsaved(true)
     setError(null)
@@ -421,12 +439,20 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     setBusy(true)
     setError(null)
     try {
-      const result = await previewNutritionPlan(health, survey, clubId)
+      const surveyForBuild = seedNutritionSurveyFromClientHealth(survey, { client, health })
+      if (surveyForBuild.age !== survey.age) setSurvey(surveyForBuild)
+      if (nutritionAgeFromClient(client) == null) {
+        setError('Укажите дату рождения в карточке клиента — возраст нужен для расчёта КБЖУ.')
+        setStep(0)
+        return
+      }
+      const result = await previewNutritionPlan(health, surveyForBuild, clubId)
       if (!result.ok) {
         setError(result.errors.join('\n'))
         return
       }
-      setDraftPlan(result.plan)
+      setDraftPlan(attachSurveyKeyToPlan(result.plan, surveyForBuild))
+      setActiveDayIndex(0)
       setPlanUnsaved(true)
       setStep(RESULT_STEP)
     } catch (e) {
@@ -462,7 +488,8 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
         setStep(0)
         return
       }
-      setDraftPlan(result.plan)
+      setDraftPlan(attachSurveyKeyToPlan(result.plan, baseSurvey))
+      setActiveDayIndex(0)
       setPlanUnsaved(true)
       setStep(RESULT_STEP)
     } catch (e) {
@@ -774,15 +801,14 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       ) : null}
 
       {healthReady && pageView === PAGE_VIEWS.ration && !savedPlan && !planUnsaved ? (
-        <section className="card nutrition-panel nutrition-empty">
-          <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-            Рацион ещё не составлен
-          </h2>
-          <p className="muted" style={{ marginTop: 0 }}>
+        <section className="os-empty-card nutrition-empty" role="status">
+          <UtensilsCrossed size={28} aria-hidden className="os-empty-card__icon" />
+          <h2 className="os-empty-card__title">Рацион ещё не составлен</h2>
+          <p className="os-empty-card__hint">
             Нажмите кнопку ниже — откроется опросник. Чтобы изменить ответы позже, составьте рацион заново.
           </p>
           {!readOnly ? (
-            <button type="button" className="btn btn-touch" style={{ marginTop: 12 }} disabled={busy} onClick={() => startCompose()}>
+            <button type="button" className="btn btn-touch nutrition-empty__cta" disabled={busy} onClick={() => startCompose()}>
               Начать составление рациона
             </button>
           ) : null}
@@ -823,11 +849,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
 
       {healthReady && pageView === PAGE_VIEWS.history ? (
         <section className="card nutrition-panel">
-          <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-            Предыдущие рационы
-          </h2>
+          <h2 className="section-title">Предыдущие рационы</h2>
           {planHistory.length === 0 ? (
-            <p className="muted" style={{ marginTop: 0 }}>
+            <p className="muted">
               Пока нет сохранённых версий. При каждом новом сохранении рациона старая версия попадает сюда.
             </p>
           ) : (
@@ -865,13 +889,13 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
         <>
           {composeSurveyLocked ? (
             <section className="card nutrition-draft-lock-banner" role="status">
-              <p style={{ margin: 0 }}>
+              <p>
                 {stepId === 'result'
                   ? 'Черновик собран. Можно править граммы или сбросить черновик, чтобы изменить ответы опросника.'
                   : 'Черновик собран. Чтобы изменить ответы — сбросьте черновик и пройдите опросник заново.'}
               </p>
               {!readOnly && stepId !== 'result' ? (
-                <button type="button" className="btn btn-touch btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={() => void resetComposeDraft()}>
+                <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void resetComposeDraft()}>
                   Сбросить черновик
                 </button>
               ) : null}
@@ -895,35 +919,45 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
 
           {stepId === 'profile' && (
             <section className="card nutrition-panel">
-              <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-                Профиль для расчёта
-              </h2>
-              <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-                Пол берётся из карты здоровья. <Link to={healthTabHref}>Изменить в «Здоровье»</Link>
+              <h2 className="section-title">Что уже есть в карте</h2>
+              <ul className="nutrition-from-card">
+                <li>
+                  <span className="nutrition-from-card__label">Возраст</span>
+                  <strong>
+                    {nutritionAgeFromClient(client) != null
+                      ? `${nutritionAgeFromClient(client)} лет`
+                      : 'не указан'}
+                  </strong>
+                  <span className="muted nutrition-from-card__src">
+                    {client?.birth_date ? (
+                      'из даты рождения в карточке'
+                    ) : (
+                      <>
+                        укажите дату рождения в карточке клиента
+                      </>
+                    )}
+                  </span>
+                </li>
+                <li>
+                  <span className="nutrition-from-card__label">Цель в анкете</span>
+                  <strong>{health?.goal ? String(health.goal).split(/[—–]/)[0].trim() : 'не указана'}</strong>
+                  <span className="muted nutrition-from-card__src">
+                    <Link to={healthTabHref}>открыть «Здоровье»</Link>
+                  </span>
+                </li>
+                <li>
+                  <span className="nutrition-from-card__label">Пол · вес · рост</span>
+                  <strong>из «Здоровье»</strong>
+                  <span className="muted nutrition-from-card__src">
+                    <Link to={healthTabHref}>проверить</Link>
+                  </span>
+                </li>
+              </ul>
+
+              <p className="nutrition-field-label">Цель питания для расчёта КБЖУ</p>
+              <p className="muted nutrition-hint">
+                Подставили из анкеты — поменяйте здесь, только если для рациона нужна другая цель.
               </p>
-              <div className="nutrition-form-grid">
-                <label className="nutrition-field">
-                  <span>Возраст</span>
-                  <input
-                    className="input"
-                    type="number"
-                    min={14}
-                    max={90}
-                    value={survey.age ?? ''}
-                    disabled={readOnly || composeSurveyLocked}
-                    onChange={(e) => {
-                      const raw = e.target.value
-                      if (raw === '') {
-                        patchSurvey({ age: undefined })
-                        return
-                      }
-                      const n = Number(raw)
-                      patchSurvey({ age: Number.isFinite(n) ? n : undefined })
-                    }}
-                  />
-                </label>
-              </div>
-              <p className="nutrition-field-label">Цель питания</p>
               <div className="nutrition-chips">
                 {NUTRITION_GOAL_OPTIONS.map((o) => (
                   <button
@@ -937,7 +971,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                   </button>
                 ))}
               </div>
+
               <p className="nutrition-field-label">Двигательная активность</p>
+              <p className="muted nutrition-hint">Это единственное, чего нет в анкете — выберите, как клиент двигается сейчас.</p>
               <div className="nutrition-chips nutrition-chips--stack">
                 {NUTRITION_ACTIVITY_OPTIONS.map((o) => (
                   <button
@@ -956,9 +992,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
 
           {stepId === 'meals' && (
             <section className="card nutrition-panel">
-              <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-                Сколько приёмов пищи в день?
-              </h2>
+              <h2 className="section-title">Сколько приёмов пищи в день?</h2>
               <div className="nutrition-chips">
                 {NUTRITION_MEALS_PER_DAY_OPTIONS.map((n) => (
                   <button
@@ -985,7 +1019,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                   <button
                     key={o.id}
                     type="button"
-                    className={`nutrition-chip${(survey.daysCount ?? 1) === o.id ? ' nutrition-chip--active' : ''}`}
+                    className={`nutrition-chip${Number(survey.daysCount ?? 1) === o.id ? ' nutrition-chip--active' : ''}`}
                     disabled={readOnly || composeSurveyLocked}
                     onClick={() => patchSurvey({ daysCount: o.id })}
                   >
@@ -1010,7 +1044,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 ))}
               </div>
 
-              <label className="nutrition-field" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label className="nutrition-field nutrition-field--row">
                 <input
                   type="checkbox"
                   checked={survey.nutritionAutoPush === true}
@@ -1024,9 +1058,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
 
           {stepId === 'exclusions' && (
             <section className="card nutrition-panel">
-              <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-                Ограничения
-              </h2>
+              <h2 className="section-title">Ограничения</h2>
               <div className="nutrition-chips">
                 {NUTRITION_EXCLUSION_OPTIONS.map((o) => {
                   const on = (survey.exclusions ?? []).includes(o.id)
@@ -1052,9 +1084,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
 
           {stepId === 'avoid' && (
             <section className="card nutrition-panel">
-              <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-                Что клиент не ест
-              </h2>
+              <h2 className="section-title">Что клиент не ест</h2>
               <p className="muted nutrition-hint">
                 Откройте категорию (молочка, мясо, рыба…) и отметьте отказы. «Не ем всё» — сразу всю
                 группу. Подсвеченный чип = не едим. По умолчанию в рацион идёт весь справочник.
@@ -1116,7 +1146,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       ) : null}
 
       {healthReady && isComposing && stepId !== 'result' ? (
-        <div className="nutrition-nav">
+        <div className="nutrition-nav nutrition-nav--sticky">
           <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={goPrev}>
             <ChevronLeft size={18} aria-hidden />
             {step === 0 ? 'К рациону' : 'Назад'}
@@ -1129,7 +1159,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       ) : null}
 
       {healthReady && isComposing && stepId === 'result' && !readOnly && (canSavePlan || composeSurveyLocked) ? (
-        <div className="nutrition-nav">
+        <div className="nutrition-nav nutrition-nav--sticky">
           {composeSurveyLocked ? (
             <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void resetComposeDraft()}>
               Сбросить черновик
@@ -1144,7 +1174,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       ) : null}
 
       {healthReady && pageView === PAGE_VIEWS.ration && !readOnly && (savedPlan || planUnsaved) ? (
-        <div className="nutrition-nav">
+        <div className="nutrition-nav nutrition-nav--sticky">
           {!hasPendingChanges && savedPlan ? (
             <>
               <button

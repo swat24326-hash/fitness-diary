@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { LegalCrossLink } from '../../components/legal/LegalCrossLink.jsx'
 import { LegalPageShell } from '../../components/legal/LegalPageShell.jsx'
 import {
   CHAT_RULES_TITLE,
@@ -24,7 +24,7 @@ export function ChatRulesPage() {
       <p className="privacy-policy__lead">
         Краткие правила общения в мессенджере клуба внутри «{PRODUCT_BRAND_NAME}». Это не договор и не политика
         персональных данных —{' '}
-        <Link to={PRIVACY_POLICY_PATH}>{PRIVACY_POLICY_LINK_RU}</Link>.
+        <LegalCrossLink to={PRIVACY_POLICY_PATH}>{PRIVACY_POLICY_LINK_RU}</LegalCrossLink>.
       </p>
 
       {chatRulesSections().map((s) => (

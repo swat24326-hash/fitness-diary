@@ -1,27 +1,32 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CloseButton } from '../CloseButton.jsx'
-import { legalPageCloseAction } from '../../lib/legal/legalPageCloseCore.js'
+import { resolveLegalClose } from '../../lib/legal/legalPageCloseCore.js'
 
 /**
- * Оболочка /privacy, /chat-rules, /offer: крестик вместо «аэропорта» ссылок на все входы.
+ * Оболочка /privacy, /chat-rules, /offer: крестик возвращает на страницу из state (не слепой back).
+ * reopenMyProfile уходит в state целевого маршрута — шапка/меню откроют окно после монтирования.
  */
 export function LegalPageShell({ children }) {
   const navigate = useNavigate()
+  const location = useLocation()
 
   function onClose() {
-    const action = legalPageCloseAction({
-      historyLength: typeof window !== 'undefined' ? window.history.length : 0,
+    const decided = resolveLegalClose({
+      state: location.state,
       hasOpener: typeof window !== 'undefined' && Boolean(window.opener),
     })
-    if (action === 'back') {
-      navigate(-1)
-      return
-    }
-    if (action === 'close') {
+    if (decided.action === 'close') {
       window.close()
       return
     }
-    navigate('/login')
+    if (decided.action === 'return' && decided.to) {
+      navigate(decided.to, {
+        replace: true,
+        state: decided.reopenMyProfile ? { reopenMyProfile: true } : undefined,
+      })
+      return
+    }
+    navigate(decided.to || '/', { replace: true })
   }
 
   return (

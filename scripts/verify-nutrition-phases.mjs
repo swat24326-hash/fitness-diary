@@ -9,6 +9,7 @@ import { orderProteinIdsByAccent, proteinAccentForWeek } from '../src/lib/nutrit
 import { rescaleNutritionPlanToHealth } from '../src/lib/nutrition/nutritionPlanRescaleCore.js'
 import { shouldAutoPushNutritionPlan } from '../src/lib/nutrition/nutritionAutoPushCore.js'
 import { NUTRITION_PRODUCT_CATALOG } from '../src/lib/nutrition/nutritionProductCatalog.js'
+import { setPlanItemGrams } from '../src/lib/nutrition/nutritionPlanEditCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -88,6 +89,20 @@ ok(week.plan?.days?.length === 5, '5 days')
 ok(week.plan.weekDistinct === true || daysAreDistinct(week.plan.days), 'days distinct')
 const day2 = pickWeekDayPlan(week.plan, 2)
 ok(day2.dayPlan?.length > 0, 'pick day 2')
+const week7 = buildNutritionWeekPlan(health, { ...survey, daysCount: 7 }, catalog)
+ok(week7.ok && week7.plan?.days?.length === 7, '7-day week (Неделя)')
+ok(daysAreDistinct(week7.plan?.days ?? []), '7 days not clones of Monday')
+const monItem = week7.plan.days[0].dayPlan[0]?.items?.[0]
+if (monItem) {
+  const edited = setPlanItemGrams(week7.plan, catalog, week7.plan.days[0].dayPlan[0].slot, monItem.productId, 55, {
+    dayIndex: 0,
+  })
+  ok(edited.days?.[0]?.dayPlan?.[0]?.items?.some((i) => i.productId === monItem.productId && i.grams === 55), 'gram edit syncs into days[0]')
+  ok(
+    edited.days?.[1]?.dayPlan?.[0]?.items?.[0]?.grams === week7.plan.days[1].dayPlan[0]?.items?.[0]?.grams,
+    'gram edit does not wipe other week days',
+  )
+}
 
 const ordered = orderProteinIdsByAccent(
   ['beef_lean', 'chicken_breast', 'fish_white'],

@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { OfferLink } from './OfferLink.jsx'
 import {
-  OFFER_PATH,
   OFFER_VERSION,
   hasAcceptedCurrentOffer,
   offerGateLeadRu,
@@ -109,9 +108,7 @@ export function SupervisorOfferGate({ children }) {
             {busy ? 'Сохраняем…' : 'Принимаю и продолжаю'}
           </button>
           <p className="offer-gate__full muted">
-            <Link to={OFFER_PATH} target="_blank" rel="noopener noreferrer">
-              Открыть полный текст оферты
-            </Link>
+            <OfferLink>Открыть полный текст оферты</OfferLink>
           </p>
         </footer>
       </div>

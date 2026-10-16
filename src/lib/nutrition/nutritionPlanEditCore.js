@@ -54,17 +54,43 @@ export function recalcPlanTotals(plan) {
  * @param {string} mealSlot
  * @param {string} productId
  * @param {number} grams
+ * @param {{ dayIndex?: number }} [opts] — для недельного плана: писать в days[dayIndex]
  */
-export function setPlanItemGrams(plan, catalogMap, mealSlot, productId, grams) {
-  const next = { ...plan, dayPlan: plan.dayPlan.map((m) => ({ ...m, items: [...(m.items ?? [])] })) }
+export function setPlanItemGrams(plan, catalogMap, mealSlot, productId, grams, opts = {}) {
+  const working =
+    Array.isArray(plan?.days) && plan.days.length
+      ? (() => {
+          const di = Math.max(
+            0,
+            Math.min(plan.days.length - 1, Number(opts.dayIndex ?? plan.activeDayIndex) || 0),
+          )
+          const day = plan.days[di]
+          return { ...plan, activeDayIndex: di, dayPlan: day?.dayPlan ?? plan.dayPlan }
+        })()
+      : plan
+
+  const next = {
+    ...working,
+    dayPlan: (working.dayPlan ?? []).map((m) => ({ ...m, items: [...(m.items ?? [])] })),
+  }
   const meal = next.dayPlan.find((m) => m.slot === mealSlot)
-  if (!meal) return recalcPlanTotals(next)
+  if (!meal) return syncWeekDayTotals(recalcPlanTotals(next))
   const idx = meal.items.findIndex((i) => i.productId === productId)
-  if (idx < 0) return recalcPlanTotals(next)
+  if (idx < 0) return syncWeekDayTotals(recalcPlanTotals(next))
   const item = recalcItemFromGrams(catalogMap, productId, grams)
-  if (!item) return recalcPlanTotals(next)
+  if (!item) return syncWeekDayTotals(recalcPlanTotals(next))
   meal.items[idx] = { ...item, userEdited: true }
-  return recalcPlanTotals(next)
+  return syncWeekDayTotals(recalcPlanTotals(next))
+}
+
+/** После правки дня — записать dayPlan/totals обратно в days[]. */
+function syncWeekDayTotals(plan) {
+  if (!plan?.days?.length) return plan
+  const di = Math.max(0, Math.min(plan.days.length - 1, Number(plan.activeDayIndex) || 0))
+  const days = plan.days.map((d, i) =>
+    i === di ? { ...d, dayPlan: plan.dayPlan, totals: plan.totals } : d,
+  )
+  return { ...plan, days }
 }
 
 /**

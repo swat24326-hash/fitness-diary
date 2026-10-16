@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { LegalCrossLink } from '../../components/legal/LegalCrossLink.jsx'
 import { LegalPageShell } from '../../components/legal/LegalPageShell.jsx'
 import { OFFER_LINK_RU, OFFER_PATH } from '../../lib/legal/offerCore.js'
 import {
@@ -29,9 +29,9 @@ export function PrivacyPolicyPage() {
         Этот текст объясняет, как программа «{PRODUCT_BRAND_NAME}» обрабатывает персональные данные. Это не замена
         консультации юриста. Оператор ваших данных как клиента клуба — ваш клуб; мы — обработчик по его поручению.
         Правила общения в мессенджере клуба — отдельно:{' '}
-        <Link to={CHAT_RULES_PATH}>{CHAT_RULES_LINK_RU}</Link>
+        <LegalCrossLink to={CHAT_RULES_PATH}>{CHAT_RULES_LINK_RU}</LegalCrossLink>
         {' · '}
-        <Link to={OFFER_PATH}>{OFFER_LINK_RU}</Link>.
+        <LegalCrossLink to={OFFER_PATH}>{OFFER_LINK_RU}</LegalCrossLink>.
       </p>
 
       {privacyPolicySections().map((s) => (

@@ -63,10 +63,19 @@ export function MessengerPick({ title, hint }) {
   )
 }
 
-/** «←» к списку слева в шапке диалога — видна только на телефоне, где список и диалог не помещаются рядом. */
+/**
+ * «←» к списку — replace: жест «назад» на планшете/телефоне не открывает диалог снова
+ * (иначе push кладёт список поверх диалога, и history.back возвращает в диалог).
+ */
 export function MessengerBack({ to }) {
   return (
-    <Link to={to} className="btn btn-ghost btn-icon-square btn-touch msgr__back" aria-label="К списку" title="К списку">
+    <Link
+      to={to}
+      replace
+      className="btn btn-ghost btn-icon-square btn-touch msgr__back"
+      aria-label="К списку"
+      title="К списку"
+    >
       <ArrowLeft size={20} aria-hidden />
     </Link>
   )

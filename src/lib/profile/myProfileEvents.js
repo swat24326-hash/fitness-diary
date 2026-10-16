@@ -7,3 +7,11 @@ export const MY_AVATAR_CHANGED_EVENT = 'fd:my-avatar-changed'
 export function openMyProfile() {
   window.dispatchEvent(new Event(MY_PROFILE_OPEN_EVENT))
 }
+
+/** Вернулись с /privacy|/chat-rules|/offer — снова открыть «Мой профиль» (state с крестика). */
+export function consumeReopenMyProfileState(location, navigate) {
+  if (!location?.state?.reopenMyProfile || typeof navigate !== 'function') return false
+  openMyProfile()
+  navigate(`${location.pathname}${location.search || ''}`, { replace: true, state: {} })
+  return true
+}

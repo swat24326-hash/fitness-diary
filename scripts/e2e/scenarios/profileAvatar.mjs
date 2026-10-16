@@ -59,12 +59,13 @@ async function statusFlow(c, page, sheet, row, label, shot, readStatus, peek) {
  * Окно открыто: выбрать фото, подвигать, «Готово», убедиться что легло; затем «Удалить»; затем статус.
  * peek(check) — посмотреть строку меню: у клиента она под окном, у планшета бургер закрыт — закрыть окно, открыть бургер, вернуться.
  */
-async function photoFlow(c, page, row, label, shot, readRow, peek = (check) => check()) {
+async function photoFlow(c, page, row, label, shot, readRow, { layout = 'phone', peek = (check) => check() } = {}) {
   const readKey = () => readRow()?.avatar_key
   const readStatus = readRow
   await row.click()
   const sheet = page.getByTestId('profile-photo-sheet')
   c.ok(await sheet.isVisible(), `${label}: «Мой профиль» открылся`)
+  c.ok((await sheet.getAttribute('data-layout')) === layout, `${label}: размер окна «${layout}»`)
   c.ok(
     await sheet
       .getByRole('button', { name: 'Выбрать фото' })
@@ -124,7 +125,7 @@ async function client(c, browser) {
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Меню', exact: true }).click()
     await row.waitFor({ timeout: 10_000 })
-    await photoFlow(c, page, row, 'клиент', 'profile-avatar-client', me)
+    await photoFlow(c, page, row, 'клиент', 'profile-avatar-client', me, { layout: 'phone' })
     c.ok(pageErrors.length === 0, `клиент: без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {
     await screenshot(page, 'profile-avatar-client-FAIL').catch(() => null)
@@ -153,7 +154,7 @@ async function trainer(c, browser) {
       await row.click()
       await sheet.waitFor({ timeout: 10_000 })
     }
-    await photoFlow(c, page, row, 'тренер', 'profile-avatar-trainer', me, peek)
+    await photoFlow(c, page, row, 'тренер', 'profile-avatar-trainer', me, { layout: 'tablet', peek })
     c.ok(!(await page.locator('#app-header-account-menu').isVisible()), 'тренер: окно поверх, бургер под ним закрыт')
     c.ok(pageErrors.length === 0, `тренер: без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {

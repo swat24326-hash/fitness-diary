@@ -78,7 +78,7 @@ export function StaffMessenger({ chats, inbox }) {
         <ChatFolders
           folders={folders.map((f) => ({ ...f, icon: ICON[f.id] }))}
           active={folderId}
-          onChange={(id) => setParams(staffMessengerParams(params, { folder: id }))}
+          onChange={(id) => setParams(staffMessengerParams(params, { folder: id }), { replace: true })}
         />
       }
       list={<StaffMessengerList key={folderId} folder={folder} chats={chats} inbox={inbox} open={open} href={href} />}

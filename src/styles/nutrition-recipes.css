@@ -8,8 +8,8 @@
 
 .nutrition-avoid-cat {
   border-radius: var(--radius-md, 12px);
-  border: 1px solid color-mix(in srgb, var(--text-muted, #94a3b8) 28%, transparent);
-  background: color-mix(in srgb, var(--bg-elevated, #0f172a) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 28%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
   overflow: hidden;
 }
 
@@ -34,8 +34,8 @@
   margin-left: auto;
   width: 0.55em;
   height: 0.55em;
-  border-right: 2px solid var(--text-muted, #94a3b8);
-  border-bottom: 2px solid var(--text-muted, #94a3b8);
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
   transform: rotate(45deg);
   flex-shrink: 0;
   transition: transform 0.15s ease;
@@ -49,7 +49,7 @@
 .nutrition-avoid-cat__title {
   font-weight: 700;
   font-size: 1rem;
-  color: var(--text, #e2e8f0);
+  color: var(--text);
 }
 
 .nutrition-avoid-cat__meta {
@@ -76,7 +76,7 @@
 .nutrition-chip--avoid {
   border-color: color-mix(in srgb, var(--danger, #f87171) 55%, transparent);
   background: color-mix(in srgb, var(--danger, #f87171) 14%, transparent);
-  color: var(--text, #e2e8f0);
+  color: var(--text);
   text-decoration: line-through;
   text-decoration-color: color-mix(in srgb, var(--danger, #f87171) 70%, transparent);
 }
@@ -103,19 +103,19 @@
 }
 
 .nutrition-meal-title__slot {
-  color: var(--accent-bright, var(--accent, #34d399));
+  color: var(--accent-bright, var(--accent));
   font-weight: 600;
   font-size: 0.92em;
 }
 
 .nutrition-meal-title__dish {
-  color: var(--text, #e2e8f0);
+  color: var(--text);
   font-weight: 700;
   font-size: 1.05em;
 }
 
 .nutrition-meal-block--recipe {
-  border-color: color-mix(in srgb, var(--accent, #34d399) 28%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .nutrition-meal-mode {
@@ -125,34 +125,34 @@
 }
 
 .nutrition-meal-mode--recipe {
-  color: var(--accent, #34d399);
+  color: var(--accent);
   font-weight: 600;
 }
 
 .nutrition-meal-mode--base {
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-weight: 600;
 }
 
 .nutrition-meal-block--base {
-  border-color: color-mix(in srgb, var(--text-muted, #94a3b8) 22%, transparent);
+  border-color: color-mix(in srgb, var(--text-muted) 22%, transparent);
 }
 
 .nutrition-recipe--base {
-  background: color-mix(in srgb, var(--text-muted, #94a3b8) 8%, transparent);
-  border-color: color-mix(in srgb, var(--text-muted, #94a3b8) 22%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+  border-color: color-mix(in srgb, var(--text-muted) 22%, transparent);
 }
 
 .nutrition-recipe__badge--base {
-  color: var(--text-muted, #94a3b8);
-  background: color-mix(in srgb, var(--text-muted, #94a3b8) 16%, transparent);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
 }
 
 .nutrition-recipe {
   margin: 0;
   border-radius: var(--radius-md, 12px);
-  background: color-mix(in srgb, var(--accent, #34d399) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent, #34d399) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
   overflow: hidden;
 }
 
@@ -177,8 +177,8 @@
   margin-left: auto;
   width: 0.55em;
   height: 0.55em;
-  border-right: 2px solid var(--text-muted, #94a3b8);
-  border-bottom: 2px solid var(--text-muted, #94a3b8);
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
   transform: rotate(45deg);
   transition: transform 0.15s ease;
   flex-shrink: 0;
@@ -199,14 +199,14 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--accent, #34d399);
-  background: color-mix(in srgb, var(--accent, #34d399) 16%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .nutrition-recipe__hint {
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--text, #e2e8f0);
+  color: var(--text);
 }
 
 .nutrition-recipe__steps {
@@ -215,13 +215,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 0.92rem;
   line-height: 1.45;
 }
 
 .nutrition-recipe__steps li::marker {
-  color: var(--accent, #34d399);
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -237,14 +237,62 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.nutrition-week-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm, 12px);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--bg) 88%, var(--accent));
+  backdrop-filter: blur(10px);
+}
+
+.nutrition-week-hint {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.nutrition-week-hint strong {
+  color: var(--text);
 }
 
 .nutrition-week-days {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 12px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.nutrition-week-day {
+  flex: 1 1 0;
+  min-width: 2.75rem;
+  min-height: 48px;
+  font-weight: 650;
+  font-size: 0.95rem;
+  justify-content: center;
+  border-radius: var(--radius-sm, 12px);
+  touch-action: manipulation;
+}
+
+.nutrition-week-day--active {
+  font-weight: 800;
+  border-color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-bright) 35%, transparent);
 }
 
 .client-plan__recipe {

@@ -198,9 +198,46 @@
   color: var(--text-muted);
 }
 
-/* Окно «Мой профиль» */
-.profile-photo {
-  max-width: 420px;
+/* Окно «Мой профиль»: phone (клиент / телефон тренера), tablet (тренер на планшете), desk (менеджер / админ).
+   Скролл — у тела, не у всей панели: на мониторе две колонки не «прыгают» при листании статуса. */
+.modal-panel.profile-photo {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(100%, 420px);
+  max-width: min(100%, 420px);
+}
+
+.modal-panel.profile-photo--phone {
+  width: min(100%, 420px);
+  max-height: min(92dvh, 900px);
+}
+
+.modal-panel.profile-photo--tablet {
+  width: min(560px, 92vw);
+  max-width: min(560px, 92vw);
+  max-height: min(88dvh, 820px);
+}
+
+.modal-panel.profile-photo--desk {
+  width: min(780px, 94vw);
+  max-width: min(780px, 94vw);
+  max-height: min(90dvh, 860px);
+}
+
+.profile-photo__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.profile-photo__main,
+.profile-photo__side {
+  min-width: 0;
 }
 
 .profile-photo__hero {
@@ -214,13 +251,78 @@
 .profile-photo__circle {
   display: grid;
   place-items: center;
-  width: 140px;
-  height: 140px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background: linear-gradient(160deg, var(--accent-bright), var(--accent-dim));
   color: color-mix(in srgb, var(--accent-dim) 25%, black);
-  font-size: 2.6rem;
+  font-size: 2.2rem;
   font-weight: 700;
+}
+
+.profile-photo--tablet .profile-photo__circle {
+  width: 140px;
+  height: 140px;
+  font-size: 2.6rem;
+}
+
+.profile-photo--desk .profile-photo__circle {
+  width: 152px;
+  height: 152px;
+  font-size: 2.8rem;
+}
+
+/* Монитор: слева фото и ссылки, справа статус; настройки на всю ширину снизу. */
+@media (min-width: 720px) {
+  .profile-photo--desk .profile-photo__body {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.95fr) minmax(300px, 1.15fr);
+    grid-template-areas:
+      'main side'
+      'settings settings';
+    gap: 8px 24px;
+    align-items: start;
+  }
+
+  .profile-photo--desk .profile-photo__main {
+    grid-area: main;
+  }
+
+  .profile-photo--desk .profile-photo__side {
+    grid-area: side;
+  }
+
+  .profile-photo--desk .profile-photo__settings {
+    grid-area: settings;
+    margin-top: 8px;
+  }
+
+  .profile-photo--desk .profile-photo__side .profile-status {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .profile-photo--desk .profile-status__durations {
+    flex-wrap: nowrap;
+  }
+
+  .profile-photo--desk .profile-status__durations .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* Телефон: компактнее сетка статуса, отступ под safe-area. */
+.profile-photo--phone .profile-status__emoji {
+  min-height: 36px;
+}
+
+@media (max-width: 380px) {
+  .profile-photo--phone .profile-photo__circle {
+    width: 104px;
+    height: 104px;
+    font-size: 1.9rem;
+  }
 }
 
 .profile-photo__name {

@@ -1223,7 +1223,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             >
               <Phone size={16} aria-hidden />
             </Link>
-            <Link to="/sales" className="btn btn-ghost btn-sm btn-icon-square btn-touch" title="На главную" aria-label="На главную продаж">
+            <Link
+              to="/sales"
+              replace
+              className="btn btn-ghost btn-sm btn-icon-square btn-touch"
+              title="На главную"
+              aria-label="На главную продаж"
+            >
               <ArrowLeft size={16} aria-hidden />
             </Link>
           </div>
