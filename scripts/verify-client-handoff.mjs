@@ -153,7 +153,17 @@ try {
   ok(handoffLaunchAction({ standalone: true, hasSession: false, token: TOKEN }) === 'redeem', 'значок без входа — входим')
   ok(handoffLaunchAction({ standalone: true, hasSession: true, token: TOKEN }) === 'strip', 'значок уже вошёл — только чистим адрес')
   ok(handoffLaunchAction({ standalone: false, hasSession: true, token: TOKEN }) === 'none', 'Safari: адрес не трогаем')
+  ok(
+    handoffLaunchAction({ standalone: false, hasSession: false, token: TOKEN }) === 'redeem',
+    'ярлык без standalone и без сессии — тоже входим (своё хранилище iPhone)',
+  )
   ok(handoffLaunchAction({ standalone: true, hasSession: false, token: '' }) === 'none', 'без токена — ничего')
+  const appCtx = readFileSync(new URL('../src/pages/client/ClientAppContext.jsx', import.meta.url), 'utf8')
+  ok(
+    /useClientHandoff\(\{\s*active:\s*signedIn\s*&&\s*installer\.mode\s*===\s*['"]ios['"]\s*\}\)/.test(appCtx) &&
+      !/onboarding\.step\s*===\s*['"]install['"]/.test(appCtx),
+    'handoff на iPhone пока не standalone — не только на шаге баннера установки',
+  )
   ok(reusableHandoff({ token: TOKEN, expires_at: new Date(NOW + 5 * 3600e3).toISOString() }, NOW) === TOKEN, 'живой токен переиспользуем')
   ok(reusableHandoff({ token: TOKEN, expires_at: new Date(NOW + 30 * 60e3).toISOString() }, NOW) === null, 'меньше часа до конца — берём новый')
   ok(reusableHandoff({ token: 'x', expires_at: 'garbage' }, NOW) === null && reusableHandoff(null, NOW) === null, 'мусор — новый')

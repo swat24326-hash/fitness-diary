@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import {
   isSafeLegalReturnTo,
   legalLinkNavState,
+  legalNeedsAppEntry,
   legalPageCloseAction,
   resolveLegalClose,
 } from '../src/lib/legal/legalPageCloseCore.js'
@@ -57,8 +58,14 @@ ok(
 )
 
 ok(resolveLegalClose({ state: null, hasOpener: true }).action === 'close', 'вкладка с opener — закрыть')
-ok(resolveLegalClose({ state: null, hasOpener: false }).action === 'home', 'прямой заход → /')
-ok(resolveLegalClose({ state: null, hasOpener: false }).to === '/', 'fallback путь /')
+ok(resolveLegalClose({ state: null, hasOpener: false }).action === 'home', 'прямой заход → home')
+ok(resolveLegalClose({ state: null, hasOpener: false }).to === '/', 'fallback по умолчанию /')
+ok(
+  resolveLegalClose({ state: null, hasOpener: false, fallbackHome: '/me/' }).to === '/me/',
+  'ярлык с правил → /me/',
+)
+ok(legalNeedsAppEntry({ hasReturnTo: false }) === true, 'без return state — кнопка в приложение')
+ok(legalNeedsAppEntry({ hasReturnTo: true }) === false, 'со state — кнопки нет')
 ok(!isSafeLegalReturnTo('https://evil') && !isSafeLegalReturnTo('//evil'), 'чужие URL отсекаем')
 ok(legalPageCloseAction({ historyLength: 1, hasOpener: false }) === 'login', 'legacy без истории')
 
@@ -89,7 +96,10 @@ for (const page of ['PrivacyPolicyPage', 'ChatRulesPage', 'OfferPage']) {
   ok(/LegalCrossLink/.test(t), `${page}: cross-link сохраняет state`)
   ok(!/Ко входу сотрудников/.test(t), `${page}: без аэропорта`)
 }
-ok(/resolveLegalClose/.test(src('src/components/legal/LegalPageShell.jsx')), 'shell: resolveLegalClose')
+const shell = src('src/components/legal/LegalPageShell.jsx')
+ok(/resolveLegalClose/.test(shell), 'shell: resolveLegalClose')
+ok(/LegalAppEntryBar/.test(shell), 'shell: выход в приложение с ярлыка')
+ok(/CLIENT_HOME/.test(shell), 'shell: fallback клиента /me/')
 ok(/consumeReopenMyProfileState/.test(src('src/components/AppHeader.jsx')), 'шапка: reopen профиль')
 ok(/consumeReopenMyProfileState/.test(src('src/components/profile/ProfileMenuUser.jsx')), 'меню phone: reopen')
 

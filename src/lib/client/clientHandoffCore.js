@@ -24,12 +24,16 @@ export function withHandoffManifest(manifestUrl, token) {
 
 /**
  * Что делать при запуске с ?h=…
- * @returns {'redeem' | 'strip' | 'none'} redeem — значок без входа; strip — вход уже есть, убрать из адреса;
- *   none — Safari: адрес не трогаем, его запомнит «На экран Домой».
+ * @returns {'redeem' | 'strip' | 'none'}
+ *   redeem — нет сессии (значок «Домой» со своим хранилищем, в т.ч. без display-mode standalone);
+ *   strip — сессия уже есть и это standalone: убрать токен из адреса;
+ *   none — Safari с живой сессией: адрес не трогаем, его запомнит «На экран Домой».
  */
 export function handoffLaunchAction({ standalone, hasSession, token }) {
-  if (!token || !standalone) return 'none'
-  return hasSession ? 'strip' : 'redeem'
+  if (!token) return 'none'
+  if (!hasSession) return 'redeem'
+  if (standalone) return 'strip'
+  return 'none'
 }
 
 /** Сохранённое приглашение ещё годится (с запасом в час), иначе берём новое. */

@@ -1,0 +1,26 @@
+/* Выход в /me с юр.страницы, открытой ярлыком «Домой» */
+
+.legal-app-entry {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: stretch;
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+}
+
+.legal-app-entry__btn {
+  width: 100%;
+  min-height: 48px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.legal-app-entry__hint {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: center;
+}

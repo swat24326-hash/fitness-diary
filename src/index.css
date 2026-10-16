@@ -44,6 +44,7 @@
 @import './styles/client-trainings.css';
 @import './styles/client-plans.css';
 @import './styles/client-notifications.css';
+@import './styles/client-rating.css';
 @import './styles/homework-auto.css';
 @import './styles/health-screening.css';
 @import './styles/homework-library-admin.css';
@@ -61,6 +62,7 @@
 @import './styles/coach-clients.css';
 @import './styles/sign-out-warn.css';
 @import './styles/privacy-policy.css';
+@import './styles/legal-app-entry.css';
 @import './styles/offer-accept.css';
 @import './styles/survey-points.css';
 @import './styles/nutrition.css';

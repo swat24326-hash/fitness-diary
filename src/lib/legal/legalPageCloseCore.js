@@ -24,10 +24,15 @@ export function legalLinkNavState({ pathname = '/', search = '', fromProfile = f
 }
 
 /**
- * @param {{ state?: { legalReturnTo?: string, reopenMyProfile?: boolean } | null, hasOpener?: boolean }} p
+ * @param {{
+ *   state?: { legalReturnTo?: string, reopenMyProfile?: boolean } | null,
+ *   hasOpener?: boolean,
+ *   fallbackHome?: string,
+ * }} p
+ *   fallbackHome — куда при прямом заходе (ярлык с /privacy|/chat-rules): клиент с сессией/кэшем → /me/, иначе «/».
  * @returns {{ action: 'return' | 'close' | 'home', to?: string, reopenMyProfile?: boolean }}
  */
-export function resolveLegalClose({ state = null, hasOpener = false } = {}) {
+export function resolveLegalClose({ state = null, hasOpener = false, fallbackHome = '/' } = {}) {
   const raw = typeof state?.legalReturnTo === 'string' ? state.legalReturnTo.trim() : ''
   if (isSafeLegalReturnTo(raw)) {
     return {
@@ -37,8 +42,13 @@ export function resolveLegalClose({ state = null, hasOpener = false } = {}) {
     }
   }
   if (hasOpener) return { action: 'close' }
-  /* Прямой заход на /privacy: «/» → роль домой или на вход через LoggedInLayout. */
-  return { action: 'home', to: '/' }
+  const home = isSafeLegalReturnTo(fallbackHome) ? fallbackHome.trim() : '/'
+  return { action: 'home', to: home }
+}
+
+/** Прямой заход на юр.страницу (ярлык «Домой» с правил) — показать выход в приложение клиента. */
+export function legalNeedsAppEntry({ hasReturnTo }) {
+  return !hasReturnTo
 }
 
 /** @deprecated — см. resolveLegalClose */

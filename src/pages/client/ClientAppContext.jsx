@@ -20,7 +20,9 @@ export function ClientAppProvider({ children }) {
   useClientHandoffLaunch({ standalone: installer.installed })
   const push = useClientPush({ active: signedIn, standalone: installer.installed })
   const onboarding = useClientOnboarding({ installMode: installer.mode, pushMode: push.mode })
-  const handoffToken = useClientHandoff({ active: signedIn && installer.mode === 'ios' && onboarding.step === 'install' })
+  /* iPhone: токен в /me/?h=… пока не поставили значок — не только на шаге баннера (иначе «Готово» /
+   * «Позже» или уход в правила переписки срывают вход со значка). */
+  const handoffToken = useClientHandoff({ active: signedIn && installer.mode === 'ios' })
   return (
     <ClientAppContext.Provider value={{ installer, push, onboarding, handoffToken }}>{children}</ClientAppContext.Provider>
   )
