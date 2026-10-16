@@ -11,7 +11,7 @@ import {
 
 /** @typedef {'immediate' | 'prompt' | 'defer'} UpdateDecision */
 /**
- * @typedef {'wait_auth' | 'defer' | 'prompt' | 'auto_apply' | 'manual_only' | 'hard_recover' | 'apply'}
+ * @typedef {'wait_auth' | 'defer' | 'prompt' | 'auto_apply' | 'manual_only' | 'hard_recover' | 'apply' | 'applying'}
  * PwaUpdateAction
  */
 
@@ -72,6 +72,13 @@ export function pwaUpdateBannerCopy(ctx = {}) {
       secondary: 'Позже',
     }
   }
+  if (ctx.action === 'applying') {
+    return {
+      text: 'Обновляем приложение… Подождите несколько секунд.',
+      primary: 'Обновление…',
+      secondary: 'Позже',
+    }
+  }
   if (ctx.action === 'defer') {
     return {
       text: 'Доступна новая версия. Черновик тренировки сохраним на устройство, затем обновим. Можно нажать сейчас — не обязательно ждать конца занятия.',
@@ -98,10 +105,11 @@ export function pwaUpdateBannerCopy(ctx = {}) {
 }
 
 /**
- * Ручное обновление: новая версия так и не взяла управление (ждёт, пока закроется другая копия
- * приложения, или ещё качалась), а на сервере сборка новее — обычный reload вернёт старую.
- * @param {{ manual?: boolean, controllerChanged?: boolean, remoteStale?: boolean }} ctx
+ * Новая версия не взяла управление (другая копия приложения держит старую, или SW ещё
+ * не докачался), а на сервере сборка новее — обычный reload вернёт старую. И для auto, и
+ * для ручного: иначе первый шаг почти всегда «пустой», а садится только «ещё раз».
+ * @param {{ controllerChanged?: boolean, remoteStale?: boolean }} ctx
  */
 export function shouldHardResetAfterUpdateAttempt(ctx = {}) {
-  return ctx.manual === true && ctx.controllerChanged !== true && ctx.remoteStale === true
+  return ctx.controllerChanged !== true && ctx.remoteStale === true
 }

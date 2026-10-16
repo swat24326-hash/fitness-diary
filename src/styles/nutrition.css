@@ -556,8 +556,9 @@
 
 .nutrition-table {
   width: 100%;
-  min-width: 520px;
+  min-width: 560px;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 0.88rem;
 }
 
@@ -639,6 +640,31 @@
   text-align: left;
   border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 12%, transparent);
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Продукт — оставшаяся ширина; порция и КБЖУ — равные «окна» */
+.nutrition-table th:nth-child(1),
+.nutrition-table td:nth-child(1) {
+  width: auto;
+}
+
+.nutrition-table th:nth-child(2),
+.nutrition-table td:nth-child(2) {
+  width: 7rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.nutrition-table th:nth-child(n + 3),
+.nutrition-table td:nth-child(n + 3) {
+  width: 4.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-left: 4px;
+  padding-right: 10px;
 }
 
 .nutrition-table th {
@@ -661,6 +687,10 @@
   font-weight: 650;
 }
 
+.nutrition-table tfoot td:first-child {
+  text-align: left;
+}
+
 .nutrition-totals {
   margin: 14px 0 8px;
   font-size: 0.95rem;
@@ -669,16 +699,20 @@
 .nutrition-grams-edit {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
 }
 
 .nutrition-grams-input {
-  width: 88px;
+  width: 4.25rem;
+  max-width: 100%;
   min-height: 44px;
-  padding: 8px 10px;
+  padding: 8px 8px;
   text-align: right;
   font-size: 1rem;
   font-weight: 650;
+  font-variant-numeric: tabular-nums;
   border-radius: var(--radius-sm, 12px);
 }
 
@@ -798,9 +832,19 @@
 }
 
 @media (max-width: 640px) {
+  .nutrition-table {
+    min-width: 520px;
+  }
+
+  .nutrition-table th:nth-child(2),
+  .nutrition-table td:nth-child(2) {
+    width: 6.25rem;
+  }
+
   .nutrition-table th:nth-child(n + 3),
   .nutrition-table td:nth-child(n + 3) {
+    width: 3.75rem;
     font-size: 0.8rem;
-    padding: 8px 4px;
+    padding: 8px 6px;
   }
 }

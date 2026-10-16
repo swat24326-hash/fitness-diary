@@ -1,12 +1,13 @@
 import { Smartphone } from 'lucide-react'
 
-/** «В приложение» рядом с «В Max»: задание / рацион уходит клиенту в приложение клуба (useClientPlanSend). */
-export function ClientPlanAppButton({ app, disabled = false, onClick }) {
+/** «В приложение»: задание / рацион уходит клиенту в приложение клуба (useClientPlanSend). */
+export function ClientPlanAppButton({ app, disabled = false, onClick, primary = false }) {
   if (!app?.canSend) return null
+  const tone = primary && !disabled ? ' homework-preview__send' : ' btn-ghost homework-preview__send-other'
   return (
     <button
       type="button"
-      className="btn btn-touch btn-ghost homework-preview__send-other"
+      className={`btn btn-touch${tone}`}
       disabled={disabled || app.busy}
       onClick={() => void onClick?.()}
       title="Клиент увидит на главной своего приложения и получит уведомление"

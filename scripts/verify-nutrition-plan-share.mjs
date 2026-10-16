@@ -1,4 +1,5 @@
 import { buildNutritionPlanShareMessages, buildNutritionPlanShareText } from '../src/lib/nutrition/nutritionPlanShareCore.js'
+import { buildNutritionExportView } from '../src/lib/nutrition/nutritionPlanExportViewCore.js'
 import { resolveMaxPngOpenTarget } from '../src/lib/trainer/trainerPngShareCore.js'
 
 let failed = 0
@@ -18,6 +19,33 @@ const msgs = buildNutritionPlanShareMessages({
 ok(msgs.shareTitle === 'FIT-CITY Клинцы · мерный рацион для Елена', 'greeting name in title')
 ok(msgs.shareText.includes('на картинке'), 'full text for other messenger')
 ok(msgs.shareTitle.length < msgs.shareText.length, 'Max caption shorter than other text')
+
+const weekMsgs = buildNutritionPlanShareMessages({
+  clubName: 'FIT-CITY',
+  clientName: 'Иванов',
+  daysCount: 7,
+})
+ok(weekMsgs.shareText.includes('7 дн'), 'week share mentions days')
+ok(weekMsgs.shareText.includes('приложении'), 'week share points to app for grams')
+
+const dayView = buildNutritionExportView({
+  dayPlan: [{ label: 'Завтрак', dishLabel: 'Овсянка', subtotal: { kcal: 400 } }],
+  totals: { kcal: 1700 },
+})
+ok(dayView.mode === 'day', 'single day export mode')
+ok(dayView.headline.includes('ДЕНЬ'), 'day headline')
+
+const weekView = buildNutritionExportView({
+  days: [
+    { label: 'Пн', dayPlan: [{ label: 'Завтрак', dishLabel: 'А', subtotal: { kcal: 1 } }], totals: { kcal: 10 } },
+    { label: 'Вт', dayPlan: [{ label: 'Завтрак', dishLabel: 'Б', subtotal: { kcal: 2 } }], totals: { kcal: 20 } },
+  ],
+  dayPlan: [{ label: 'Завтрак', dishLabel: 'А', subtotal: { kcal: 1 } }],
+})
+ok(weekView.mode === 'week', 'week export mode when days[]')
+ok(weekView.daysCount === 2, 'week days count')
+ok(weekView.days[0].meals[0].title.includes('А'), 'week meal lines from dish')
+ok(weekView.headline.includes('2 ДН'), 'week headline')
 
 const maxTarget = resolveMaxPngOpenTarget({ maxChatUrl: 'https://max.ru/u/abc123' })
 ok(maxTarget.mode === 'direct_chat', 'max png opens direct chat')

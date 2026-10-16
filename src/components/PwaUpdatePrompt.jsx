@@ -84,7 +84,6 @@ export function PwaUpdatePrompt() {
     async ({ manual = false } = {}) => {
       if (updating) return
       setUpdating(true)
-      setAutoBlocked(true)
       try {
         const result = await applyPwaUpdate({ manual, updateServiceWorker })
         if (result.mode === 'reload' || result.mode === 'hard_recover') {
@@ -92,8 +91,11 @@ export function PwaUpdatePrompt() {
           setBuildStale(false)
           return
         }
+        // Реальная неудача (не старт попытки) — тогда «Обновить ещё раз».
+        setAutoBlocked(true)
         setUpdating(false)
       } catch {
+        setAutoBlocked(true)
         setUpdating(false)
       }
     },
@@ -123,9 +125,10 @@ export function PwaUpdatePrompt() {
   const deferUpdate = updateDecision === 'defer'
   const salesDraftBlocksUpdate =
     deferUpdate && isOnSalesReportPage(location.pathname) && hasFreshSalesDraftInStorage()
-  const actionForCopy =
-    salesDraftBlocksUpdate
-      ? 'prompt'
+  const actionForCopy = salesDraftBlocksUpdate
+    ? 'prompt'
+    : updating
+      ? 'applying'
       : autoBlocked || planned === 'manual_only'
         ? 'manual_only'
         : planned === 'defer'

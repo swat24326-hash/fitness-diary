@@ -1,4 +1,4 @@
-import { RefreshCw, Send, Share2 } from 'lucide-react'
+import { RefreshCw, Share2 } from 'lucide-react'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 import { NutritionTableBlock } from './NutritionTableBlock.jsx'
 import { NutritionMealRecipeBlock } from './NutritionMealRecipeBlock.jsx'
@@ -44,8 +44,7 @@ export function NutritionPlanDisplay({
   readOnly,
   exportBusy,
   exportStatus = '',
-  onExportMax,
-  onExportOther,
+  onExportMessengers,
   onItemGramsChange,
   onSwapMeal,
   onSelectDay,
@@ -257,25 +256,17 @@ export function NutritionPlanDisplay({
           className={`nutrition-share-actions${planUnsaved ? '' : ' homework-preview__actions--sticky'}`}
         >
           <div className="homework-preview__send-row">
-            <button
-              type="button"
-              className={`btn btn-touch${planUnsaved ? ' btn-ghost' : ' homework-preview__send'}`}
-              disabled={!canSend}
-              onClick={() => void onExportMax?.()}
-            >
-              <Send size={18} aria-hidden />
-              {exportBusy ? 'Готовим…' : 'В Max'}
-            </button>
+            <ClientPlanAppButton app={app} disabled={!canSend} primary={!planUnsaved} onClick={onSendApp} />
             <button
               type="button"
               className="btn btn-touch btn-ghost homework-preview__send-other"
               disabled={!canSend}
-              onClick={() => void onExportOther?.()}
+              onClick={() => void onExportMessengers?.()}
+              title="Max и другие — через «Поделиться»"
             >
               <Share2 size={18} aria-hidden />
-              Другой мессенджер
+              {exportBusy ? 'Готовим…' : 'Мессенджеры'}
             </button>
-            <ClientPlanAppButton app={app} disabled={!canSend} onClick={onSendApp} />
           </div>
           <ClientPlanAppStatus app={app} />
           {planUnsaved ? (
@@ -284,7 +275,15 @@ export function NutritionPlanDisplay({
             <p className="muted nutrition-share-actions__hint" role="status">
               {exportStatus}
             </p>
-          ) : null}
+          ) : (
+            <p className="muted nutrition-share-actions__hint">
+              В приложение — полный рацион. Мессенджеры (Max и др.) — картинка
+              {Array.isArray(displayPlan.days) && displayPlan.days.length > 1
+                ? ` меню на ${displayPlan.days.length} дн.`
+                : ' на день'}
+              .
+            </p>
+          )}
         </div>
       ) : null}
     </>

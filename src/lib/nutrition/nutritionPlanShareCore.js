@@ -17,16 +17,21 @@ import { renderNutritionPlanPng } from './nutritionPlanExportCanvas.js'
  *   client?: { name?: string },
  *   clientName?: string,
  *   clubName?: string,
+ *   daysCount?: number,
  * }} ctx
  * @returns {{ shareTitle: string, shareText: string }}
  */
 export function buildNutritionPlanShareMessages(ctx = {}) {
   const greeting = resolveClientGreetingName(ctx.client ?? ctx.clientName, ctx.outreachName)
   const clubName = String(ctx.clubName ?? '').trim()
+  const daysCount = Number(ctx.daysCount) > 1 ? Number(ctx.daysCount) : 1
   const head = clubName ? `${clubName} · мерный рацион` : 'Мерный рацион'
   const who = greeting ? ` для ${greeting}` : ''
   const shareTitle = `${head}${who}`
-  const shareText = `${shareTitle}.\n\nОриентировочный рацион на день — на картинке.`
+  const shareText =
+    daysCount > 1
+      ? `${shareTitle}.\n\nРацион на ${daysCount} дн. — меню по дням на картинке. Граммы и рецепты — в приложении.`
+      : `${shareTitle}.\n\nОриентировочный рацион на день — на картинке.`
   return { shareTitle, shareText, clientLabel: greeting || String(ctx.clientName ?? ctx.client?.name ?? '').trim() }
 }
 
@@ -52,11 +57,14 @@ export async function sendNutritionPlanPng(plan, ctx = {}, opts = {}) {
   const channel = opts.channel === 'other' ? 'other' : 'max'
   const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const clubName = String(ctx.clubName ?? '').trim()
+  const daysCount =
+    Array.isArray(plan.days) && plan.days.length > 1 ? plan.days.length : Number(plan.daysCount) || 1
   const { shareTitle, shareText, clientLabel } = buildNutritionPlanShareMessages({
     client: ctx.client,
     clientName,
     clubName,
     outreachName: ctx.client?.outreach_name,
+    daysCount,
   })
 
   let blob

@@ -20,6 +20,7 @@ import { checkRemoteBundleStale } from './appBuildInfo.js'
 const SKIP_WAITING_RACE_MS = 2_500
 const CONTROLLER_CHANGE_WAIT_MS = 5_000
 const INSTALLING_WAIT_MS = 20_000
+const WAITING_POLL_MS = 250
 
 async function probeRemoteStale() {
   try {
@@ -52,6 +53,30 @@ async function waitForInstallingWorker(registration, timeoutMs = INSTALLING_WAIT
     worker.addEventListener('statechange', onState)
     setTimeout(done, timeoutMs)
   })
+}
+
+/**
+ * buildStale часто раньше, чем SW скачал waiting: update() + дождаться waiting/installing.
+ * @returns {Promise<boolean>} есть ли waiting к моменту выхода
+ */
+async function ensureWaitingWorker(registration, timeoutMs = INSTALLING_WAIT_MS) {
+  if (!registration) return false
+  if (registration.waiting) return true
+  try {
+    await registration.update?.()
+  } catch {
+    /* ignore */
+  }
+  const deadline = Date.now() + Math.max(0, timeoutMs)
+  while (Date.now() < deadline) {
+    if (registration.waiting) return true
+    if (registration.installing) {
+      await waitForInstallingWorker(registration, Math.max(0, deadline - Date.now()))
+      if (registration.waiting) return true
+    }
+    await new Promise((r) => setTimeout(r, WAITING_POLL_MS))
+  }
+  return Boolean(registration.waiting)
 }
 
 /** @returns {Promise<boolean>} сменился ли service worker, управляющий страницей */
@@ -106,7 +131,7 @@ export async function applyPwaUpdate(opts = {}) {
 
     const registration =
       typeof navigator !== 'undefined' ? await navigator.serviceWorker?.getRegistration?.() : null
-    await waitForInstallingWorker(registration)
+    await ensureWaitingWorker(registration)
     postSkipWaiting(registration)
 
     if (typeof updateServiceWorker === 'function') {
@@ -124,9 +149,9 @@ export async function applyPwaUpdate(opts = {}) {
     markAppUpdateApplied()
     clearAppUpdatePending()
 
-    if (manual && !controllerChanged) {
+    if (!controllerChanged) {
       const { remoteStale } = await probeRemoteStale()
-      if (shouldHardResetAfterUpdateAttempt({ manual, controllerChanged, remoteStale })) {
+      if (shouldHardResetAfterUpdateAttempt({ controllerChanged, remoteStale })) {
         clearPwaUpdateReloadGuardSession()
         await hardResetAppShell()
         return { ok: true, mode: 'hard_recover' }

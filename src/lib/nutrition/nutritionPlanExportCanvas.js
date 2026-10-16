@@ -1,10 +1,12 @@
 /**
  * Рендер мерного рациона в PNG (canvas, без сторонних серверов).
+ * Неделя → компактное меню по дням; один день → полные продукты.
  * @param {object} plan
  * @param {{ clientName?: string, goalKindLabel?: string, weightKg?: number | string }} meta
  * @returns {Promise<Blob>}
  */
 import { buildDayProductSummary } from './nutritionPlanEditCore.js'
+import { buildNutritionExportView } from './nutritionPlanExportViewCore.js'
 
 const WIDTH = 840
 const PADDING = 28
@@ -55,76 +57,46 @@ const SUMMARY_COLS = [
 ]
 
 export async function renderNutritionPlanPng(plan, meta = {}) {
-  const dayPlan = Array.isArray(plan?.dayPlan) ? plan.dayPlan : []
-  const daySummary = buildDayProductSummary(plan)
-  const height = estimateHeight(dayPlan, daySummary)
+  const view = buildNutritionExportView(plan)
+  if (view.mode === 'week') return renderWeekPng(plan, meta, view)
+  return renderDayPng(plan, meta, view)
+}
 
-  const canvas = document.createElement('canvas')
-  canvas.width = WIDTH
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas недоступен')
+async function renderWeekPng(plan, meta, view) {
+  const height = estimateWeekHeight(view)
+  const { canvas, ctx } = createCanvas(height)
+  let y = drawPngHeader(ctx, plan, meta, view.headline)
 
-  const bg = ctx.createLinearGradient(0, 0, 0, height)
-  bg.addColorStop(0, C.bg)
-  bg.addColorStop(1, C.bgSoft)
-  ctx.fillStyle = bg
-  ctx.fillRect(0, 0, WIDTH, height)
-
-  const glow = ctx.createRadialGradient(WIDTH - 80, 40, 10, WIDTH - 120, 100, 280)
-  glow.addColorStop(0, 'rgba(46, 255, 184, 0.12)')
-  glow.addColorStop(1, 'rgba(0,0,0,0)')
-  ctx.fillStyle = glow
-  ctx.fillRect(WIDTH / 2, 0, WIDTH / 2, 320)
-
-  let y = PADDING
-
-  ctx.fillStyle = C.accentNeon
-  ctx.beginPath()
-  ctx.arc(PADDING + 8, y + 12, 7, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = C.accentNeon
-  ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText('FIT-CITY', PADDING + 26, y + 18)
-  y += 36
+  for (const day of view.days) {
+    y = drawWeekDayCard(ctx, day, y)
+  }
 
   ctx.fillStyle = C.muted
-  ctx.font = '700 13px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText('МЕРНЫЙ РАЦИОН НА ДЕНЬ', PADDING, y + 12)
-  y += 28
-
-  if (meta.clientName) {
-    ctx.fillStyle = C.text
-    ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
-    ctx.fillText(String(meta.clientName), PADDING, y + 18)
-    y += 32
-  }
-
-  const macroLine = `~${plan.kcalTarget} ккал · ${plan.mealsPerDay} приёма · Б ${plan.macros?.proteinG}  Ж ${plan.macros?.fatG}  У ${plan.macros?.carbsG}`
-  const chips = []
-  if (meta.weightKg != null && meta.weightKg !== '') chips.push(`вес ${meta.weightKg} кг`)
-  if (meta.goalKindLabel) chips.push(String(meta.goalKindLabel))
-  chips.push(macroLine)
+  ctx.font = '600 12px system-ui, sans-serif'
+  wrapText(
+    ctx,
+    'На картинке — меню по дням. Граммы, КБЖУ продуктов и рецепты — в приложении клиента.',
+    PADDING,
+    y + 10,
+    CONTENT_W,
+    16,
+  )
+  y += 42
 
   ctx.fillStyle = C.dim
-  ctx.font = '600 13px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText(chips.join('  ·  '), PADDING, y + 14)
-  y += 24
+  ctx.font = '11px system-ui, sans-serif'
+  const disc = plan.disclaimer ?? 'Ориентировочный рацион, не медицинское назначение.'
+  wrapText(ctx, disc, PADDING, y + 10, CONTENT_W, 14)
 
-  if (plan.referents) {
-    const ref = plan.referents
-    const refLine = `Референты: ккал ${ref.kcal.min}–${ref.kcal.max} (цель ~${ref.kcal.aim}) · Б ${ref.protein.min}–${ref.protein.max} · Ж ${ref.fat.min}–${ref.fat.max} · У ${ref.carbs.min}–${ref.carbs.max} г`
-    ctx.fillStyle = C.muted
-    ctx.font = '12px "Segoe UI", system-ui, sans-serif'
-    wrapText(ctx, refLine, PADDING, y + 12, CONTENT_W, 17)
-    y += 32
-  } else {
-    y += 6
-  }
+  return canvasToBlob(canvas)
+}
 
-  ctx.fillStyle = C.accent
-  ctx.fillRect(PADDING, y, 72, 3)
-  y += 16
+async function renderDayPng(plan, meta, view) {
+  const dayPlan = view.days[0]?.dayPlan ?? []
+  const daySummary = buildDayProductSummary(plan)
+  const height = estimateHeight(dayPlan, daySummary)
+  const { canvas, ctx } = createCanvas(height)
+  let y = drawPngHeader(ctx, plan, meta, view.headline)
 
   if (daySummary.length > 0) {
     const summaryRows = daySummary.map((row) => ({
@@ -191,12 +163,146 @@ export async function renderNutritionPlanPng(plan, meta = {}) {
   const disc = plan.disclaimer ?? 'Ориентировочный рацион, не медицинское назначение.'
   wrapText(ctx, disc, PADDING, y + 10, CONTENT_W, 14)
 
+  return canvasToBlob(canvas)
+}
+
+function drawWeekDayCard(ctx, day, y) {
+  const meals = day.meals ?? []
+  const lineH = 26
+  const tot = day.totals
+  const cardH = TITLE_H + meals.length * lineH + (tot ? 28 : 0) + CARD_PAD * 2
+  drawRoundedRect(ctx, PADDING, y, CONTENT_W, cardH, 12, C.summaryBg, C.summaryBorder)
+  ctx.fillStyle = C.accentSoft
+  ctx.fillRect(PADDING, y + 12, 3, cardH - 24)
+
+  ctx.fillStyle = C.accentSoft
+  ctx.font = 'bold 15px system-ui, sans-serif'
+  ctx.fillText(day.label, PADDING + CARD_PAD + 6, y + CARD_PAD + 16)
+
+  let rowY = y + CARD_PAD + TITLE_H
+  meals.forEach((m, idx) => {
+    if (idx % 2 === 1) {
+      ctx.fillStyle = C.rowAlt
+      ctx.fillRect(PADDING + 8, rowY - 4, CONTENT_W - 16, lineH)
+    }
+    ctx.fillStyle = C.textSoft
+    ctx.font = '13px system-ui, sans-serif'
+    ctx.textAlign = 'left'
+    const left = truncateText(ctx, m.title, CONTENT_W - 140)
+    ctx.fillText(left, PADDING + CARD_PAD + 6, rowY + 14)
+    if (m.kcal != null) {
+      ctx.textAlign = 'right'
+      ctx.fillStyle = C.muted
+      ctx.fillText(`${m.kcal} ккал`, PADDING + CONTENT_W - CARD_PAD, rowY + 14)
+      ctx.textAlign = 'left'
+    }
+    rowY += lineH
+  })
+
+  if (tot) {
+    ctx.fillStyle = C.text
+    ctx.font = 'bold 13px system-ui, sans-serif'
+    ctx.fillText(
+      `Итого: ${tot.kcal ?? '—'} ккал · Б ${tot.proteinG ?? '—'} · Ж ${tot.fatG ?? '—'} · У ${tot.carbsG ?? '—'}`,
+      PADDING + CARD_PAD + 6,
+      rowY + 16,
+    )
+  }
+
+  return y + cardH + CARD_GAP
+}
+
+function createCanvas(height) {
+  const canvas = document.createElement('canvas')
+  canvas.width = WIDTH
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas недоступен')
+
+  const bg = ctx.createLinearGradient(0, 0, 0, height)
+  bg.addColorStop(0, C.bg)
+  bg.addColorStop(1, C.bgSoft)
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, WIDTH, height)
+
+  const glow = ctx.createRadialGradient(WIDTH - 80, 40, 10, WIDTH - 120, 100, 280)
+  glow.addColorStop(0, 'rgba(46, 255, 184, 0.12)')
+  glow.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(WIDTH / 2, 0, WIDTH / 2, 320)
+
+  return { canvas, ctx }
+}
+
+function drawPngHeader(ctx, plan, meta, headline) {
+  let y = PADDING
+
+  ctx.fillStyle = C.accentNeon
+  ctx.beginPath()
+  ctx.arc(PADDING + 8, y + 12, 7, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = C.accentNeon
+  ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText('FIT-CITY', PADDING + 26, y + 18)
+  y += 36
+
+  ctx.fillStyle = C.muted
+  ctx.font = '700 13px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(headline, PADDING, y + 12)
+  y += 28
+
+  if (meta.clientName) {
+    ctx.fillStyle = C.text
+    ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
+    ctx.fillText(String(meta.clientName), PADDING, y + 18)
+    y += 32
+  }
+
+  const macroLine = `~${plan.kcalTarget} ккал · ${plan.mealsPerDay} приёма · Б ${plan.macros?.proteinG}  Ж ${plan.macros?.fatG}  У ${plan.macros?.carbsG}`
+  const chips = []
+  if (meta.weightKg != null && meta.weightKg !== '') chips.push(`вес ${meta.weightKg} кг`)
+  if (meta.goalKindLabel) chips.push(String(meta.goalKindLabel))
+  chips.push(macroLine)
+
+  ctx.fillStyle = C.dim
+  ctx.font = '600 13px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(chips.join('  ·  '), PADDING, y + 14)
+  y += 24
+
+  if (plan.referents) {
+    const ref = plan.referents
+    const refLine = `Референты: ккал ${ref.kcal.min}–${ref.kcal.max} (цель ~${ref.kcal.aim}) · Б ${ref.protein.min}–${ref.protein.max} · Ж ${ref.fat.min}–${ref.fat.max} · У ${ref.carbs.min}–${ref.carbs.max} г`
+    ctx.fillStyle = C.muted
+    ctx.font = '12px "Segoe UI", system-ui, sans-serif'
+    wrapText(ctx, refLine, PADDING, y + 12, CONTENT_W, 17)
+    y += 32
+  } else {
+    y += 6
+  }
+
+  ctx.fillStyle = C.accent
+  ctx.fillRect(PADDING, y, 72, 3)
+  y += 16
+  return y
+}
+
+function canvasToBlob(canvas) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob)
       else reject(new Error('Не удалось создать изображение'))
     }, 'image/png')
   })
+}
+
+function estimateWeekHeight(view) {
+  let h = PADDING + 140
+  for (const day of view.days) {
+    const meals = day.meals?.length ?? 0
+    h += TITLE_H + meals * 26 + (day.totals ? 28 : 0) + CARD_PAD * 2 + CARD_GAP
+  }
+  h += 110 + PADDING
+  return h
 }
 
 function estimateHeight(dayPlan, daySummary) {

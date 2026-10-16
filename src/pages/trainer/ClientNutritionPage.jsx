@@ -599,8 +599,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       return snap.ok ? snap : { ok: false, message: NUTRITION_APP_SEND_ERRORS_RU[snap.error] }
     })
 
-  const exportPng = async (channel = 'max') => {
-    const plan = displayPlan ?? savedPlan
+  const exportPng = async (channel = 'other') => {
+    // Полный план с days[], не выбранный день экрана — иначе неделя уезжает одной «тарелкой».
+    const plan = (planUnsaved ? draftPlan : null) ?? savedPlan ?? displayPlan
     if (!plan) return
     setExportBusy(true)
     setExportStatus('')
@@ -829,8 +830,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
             readOnly={readOnly}
             exportBusy={exportBusy}
             exportStatus={exportStatus}
-            onExportMax={() => exportPng('max')}
-            onExportOther={() => exportPng('other')}
+            onExportMessengers={() => exportPng('other')}
             app={planApp}
             onSendApp={sendToApp}
             clubName={clubName}
@@ -1120,8 +1120,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 readOnly={readOnly}
                 exportBusy={exportBusy}
                 exportStatus={exportStatus}
-                onExportMax={() => exportPng('max')}
-                onExportOther={() => exportPng('other')}
+                onExportMessengers={() => exportPng('other')}
                 app={planApp}
                 onSendApp={sendToApp}
                 clubName={clubName}

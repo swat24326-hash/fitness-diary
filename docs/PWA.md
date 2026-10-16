@@ -1,6 +1,6 @@
 # PWA — установка и обновление на планшете
 
-**Актуально:** 2026-10-13. Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+**Актуально:** 2026-10-16 (INC-2026-10-16-02: hard reset с первой попытки, без ложного «прервалось»). Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
 
 ---
 
@@ -58,7 +58,7 @@ needRefresh / buildStale
 | План действия | `appUpdatePlanCore.js` | wait_auth / auto / manual_only / hard_recover |
 | Анти-цикл reload | `appUpdateReloadGuard.js` | 90 с без повторного auto; 2-й тап → hard recover |
 | In-flight | `appUpdateInFlightCore.js` | после reload не мигать login 120 с |
-| Apply | `appUpdateApplyService.js` | flush черновиков тренировок → ждёт докачки новой версии (до 20 с) → SW + пауза sync + reload / `viteChunkReload`. Ручное («Восстановить», «Обновить сейчас»): версия не сменилась, а на сервере новее (другая копия приложения держит старую) → сброс оболочки `hardResetAppShell` (кэш + SW, IndexedDB цела) — `shouldHardResetAfterUpdateAttempt` (INC-2026-10-14-01) |
+| Apply | `appUpdateApplyService.js` | flush черновиков → `registration.update` + ожидание waiting (до 20 с) → SKIP_WAITING → controllerchange → reload / `viteChunkReload`. Если контроллер не сменился, а на сервере новее → `hardResetAppShell` (кэш + SW, IndexedDB цела) уже с первой попытки — `shouldHardResetAfterUpdateAttempt` (INC-2026-10-14-01, INC-2026-10-16-02) |
 | Черновик тренировки | `trainingDraftDurableStorage.js`, `trainingDraftUpdateFlush.js`, `trainingDraftDurableHydrate.js`, `trainingDraftCleanup.js` | localStorage + flush перед reload; после обновления — восстановление в IDB / вкладки; **удаление draft** снимает durable (иначе hydrate воскрешает). См. [SYNC.md](./SYNC.md) §3c |
 | UI | `PwaUpdatePrompt.jsx`, `AppUpdatedBanner.jsx` | баннер / «Приложение обновлено» |
 | Auth | `AuthContext.jsx`, `Login.jsx`, `App.jsx` | splash «Обновляем…», дольше getSession |
@@ -67,9 +67,10 @@ needRefresh / buildStale
 
 1. Есть новая версия → баннер (или auto на home/login, если политика immediate и auth готов).
 2. На **тренировке**, при **свежем черновике тренировки** (в т.ч. ушли с формы, но durable ещё есть) или свежем черновике **отчёта продаж** — auto не крутим. Баннер всё равно даёт **«Обновить сейчас»** (черновик пишется на диск перед reload). После **Удалить** черновик durable очищается — PWA-hydrate не должен снова создать строку (pending delete / tombstone).
-3. **Слабый планшет:** если auto-reload сорвался (login↔главная), auto **не крутится** 90 с; кнопка **«Обновить ещё раз»** (повтор → сброс SW/кэша).
-4. Во время смены SW — splash «Обновляем приложение…», не форма входа с «…».
-5. Успех → «Приложение обновлено» + можно работать.
+3. **Слабый планшет:** если auto-reload сорвался (login↔главная), auto **не крутится** 90 с; кнопка **«Обновить ещё раз»** (повтор → сброс SW/кэша). Текст «прервалось» — только после реальной неудачи, не во время первой попытки.
+4. Если SW не сменил контроллер, а на сервере уже новая сборка — **сброс оболочки** (`hardResetAppShell`) уже с первой попытки (и auto, и ручное), без обязательного второго тапа. Перед apply ждём `waiting` SW (до 20 с), если баннер пришёл только от сверки `index.html`.
+5. Во время смены SW — splash «Обновляем приложение…», не форма входа с «…».
+6. Успех → «Приложение обновлено» + можно работать.
 
 ### Ошибка `Failed to fetch … PwaUpdatePrompt-….js` (или другой chunk)
 

@@ -135,21 +135,22 @@ ok(!shouldAutoApplyUpdate('defer'), 'no auto on defer')
   ok(pwaUpdateBannerCopy({ action: 'defer' }).primary === 'Обновить сейчас', 'defer banner still has update button')
   ok(planPwaUpdateAction({ decision: 'immediate', manual: true, guard: first, now: t0 + 1_000 }) === 'hard_recover', 'plan: hard recover')
   ok(pwaUpdateBannerCopy({ action: 'manual_only' }).primary === 'Обновить ещё раз', 'copy: retry')
+  ok(pwaUpdateBannerCopy({ action: 'applying' }).primary === 'Обновление…', 'copy: applying')
   ok(
-    shouldHardResetAfterUpdateAttempt({ manual: true, controllerChanged: false, remoteStale: true }),
-    'ручное: новая версия не встала, на сервере новее — сброс оболочки',
+    shouldHardResetAfterUpdateAttempt({ controllerChanged: false, remoteStale: true }),
+    'версия не встала, на сервере новее — сброс оболочки (и auto, и ручное)',
   )
   ok(
-    !shouldHardResetAfterUpdateAttempt({ manual: true, controllerChanged: true, remoteStale: true }),
-    'ручное: версия сменилась — обычный reload',
+    !shouldHardResetAfterUpdateAttempt({ controllerChanged: true, remoteStale: true }),
+    'версия сменилась — обычный reload',
   )
   ok(
-    !shouldHardResetAfterUpdateAttempt({ manual: true, controllerChanged: false, remoteStale: false }),
-    'ручное: на сервере та же версия — без сброса',
+    !shouldHardResetAfterUpdateAttempt({ controllerChanged: false, remoteStale: false }),
+    'на сервере та же версия — без сброса',
   )
   ok(
-    !shouldHardResetAfterUpdateAttempt({ manual: false, controllerChanged: false, remoteStale: true }),
-    'авто: без сброса оболочки',
+    shouldHardResetAfterUpdateAttempt({ manual: false, controllerChanged: false, remoteStale: true }),
+    'авто: тоже сброс, если иначе останется старая оболочка',
   )
   const inflight = parsePwaUpdateInFlight(JSON.stringify({ at: t0 }))
   ok(isPwaUpdateInFlightStamp(inflight, t0 + 1_000), 'in-flight active')
