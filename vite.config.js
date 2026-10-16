@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => ({
           host: '127.0.0.1',
           port: 5173,
           strictPort: true,
+          // Временные папки с ffmpeg и т.п. — иначе EBUSY на watch (.tmp-video-frames).
+          watch: { ignored: ['**/.tmp-*/**', '**/.tmp-video-frames/**'] },
           proxy: Object.fromEntries(
             ['/api', '/auth/v1', '/rest/v1'].map((path) => [
               path,

@@ -1,19 +1,24 @@
 /**
  * Лента персональных уведомлений клиента (/me/notifications).
- * Фаза 1 — виртуальная: из сводки plans ответа /api/client-me (client_plans).
- * Прочитано = client_seen_at / seen у плана; отдельной таблицы нет.
- * Закладка kinds: rate_training, rate_membership — когда появится UI оценки → таблица.
+ * Планы (client_plans) + запросы оценки (client_ratings).
  */
 import { CLIENT_PLAN_ROUTES, clientHomeworkTitle, planFootRu } from './clientPlanUiCore.js'
+import { CLIENT_RATING_KINDS } from './clientRatingCore.js'
 
 export const CLIENT_NOTIFICATIONS_PATH = '/me/notifications'
 
-/** Реальные kinds фазы 1 + закладки (ещё не собираются в ленту). */
 export const CLIENT_NOTIFICATION_KINDS = Object.freeze({
   homework_sent: 'homework_sent',
   nutrition_sent: 'nutrition_sent',
-  rate_training: 'rate_training',
   rate_membership: 'rate_membership',
+  rate_homework: 'rate_homework',
+  rate_nutrition: 'rate_nutrition',
+})
+
+const RATING_KIND_TO_NOTIF = Object.freeze({
+  [CLIENT_RATING_KINDS.membership]: CLIENT_NOTIFICATION_KINDS.rate_membership,
+  [CLIENT_RATING_KINDS.homework]: CLIENT_NOTIFICATION_KINDS.rate_homework,
+  [CLIENT_RATING_KINDS.nutrition]: CLIENT_NOTIFICATION_KINDS.rate_nutrition,
 })
 
 const PLAN_KIND_TO_NOTIF = Object.freeze({
@@ -56,6 +61,38 @@ export function buildClientNotificationsFromPlans(plans, { timeZone } = {}) {
   }
   out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
   return out
+}
+
+/**
+ * Сводка ratings из /api/client-me → элементы ленты.
+ * @param {Array<{ id: string, kind: string, title: string, body: string, deep_link: string, created_at: string, read_at: string|null }>|null|undefined} ratings
+ */
+export function buildClientNotificationsFromRatings(ratings) {
+  const out = []
+  for (const r of ratings ?? []) {
+    if (!r?.id || !r.created_at) continue
+    const kind = RATING_KIND_TO_NOTIF[r.kind] ?? CLIENT_NOTIFICATION_KINDS.rate_membership
+    out.push({
+      id: `rating:${r.id}`,
+      kind,
+      title: r.title || 'Оцените прошедшие тренировки',
+      body: r.body || '',
+      deep_link: r.deep_link,
+      created_at: String(r.created_at),
+      read_at: r.read_at ? String(r.read_at) : null,
+    })
+  }
+  return out
+}
+
+/** Планы + оценки, новые сверху. */
+export function buildClientNotifications(plans, ratings, opts) {
+  const items = [
+    ...buildClientNotificationsFromPlans(plans, opts),
+    ...buildClientNotificationsFromRatings(ratings),
+  ]
+  items.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+  return items
 }
 
 export function clientNotificationsUnreadCount(items) {

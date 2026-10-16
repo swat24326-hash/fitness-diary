@@ -41,7 +41,10 @@ export function ClientMePage() {
 
   const actions = (
     <span className="client-me__actions">
-      <ClientNotificationsEntry plans={data?.plans ?? readClientMeCache()?.data?.plans} />
+      <ClientNotificationsEntry
+        plans={data?.plans ?? readClientMeCache()?.data?.plans}
+        ratings={data?.ratings ?? readClientMeCache()?.data?.ratings}
+      />
       <ClientMenu
         clientName={data?.client?.name || ''}
         onRefresh={spark.refresh}

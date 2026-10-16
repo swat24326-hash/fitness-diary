@@ -1,0 +1,88 @@
+/* Оценка клиентом: 5★ с половинами (/me/rate/:id). */
+
+.client-rating-page {
+  display: grid;
+  gap: 16px;
+  padding: 8px 0 24px;
+}
+
+.client-rating-page__lead {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.client-star-rating {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 12px 0;
+}
+
+.client-star-rating__track {
+  display: flex;
+  gap: 4px;
+  touch-action: none;
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 4px;
+}
+
+.client-star-rating__track--off {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.client-star-rating__star {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 2.4rem;
+  line-height: 2.5rem;
+  text-align: center;
+}
+
+.client-star-rating__ghost {
+  color: color-mix(in srgb, var(--border) 80%, var(--text-muted));
+}
+
+.client-star-rating__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.client-star-rating__value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.client-rating-page__comment {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated, var(--bg));
+  color: var(--text);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.client-rating-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.client-rating-page__actions .btn {
+  flex: 1 1 140px;
+  min-height: 48px;
+}

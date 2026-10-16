@@ -39,9 +39,9 @@ const nu = {
 
 ok(CLIENT_NOTIFICATIONS_PATH === '/me/notifications', 'путь ленты')
 ok(
-  CLIENT_NOTIFICATION_KINDS.rate_training === 'rate_training' &&
-    CLIENT_NOTIFICATION_KINDS.rate_membership === 'rate_membership',
-  'закладка kinds оценки',
+  CLIENT_NOTIFICATION_KINDS.rate_membership === 'rate_membership' &&
+    CLIENT_NOTIFICATION_KINDS.rate_homework === 'rate_homework',
+  'kinds оценки абонемента и ДЗ',
 )
 
 const empty = buildClientNotificationsFromPlans(null)

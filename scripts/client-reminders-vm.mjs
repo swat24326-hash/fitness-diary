@@ -7,6 +7,7 @@
  */
 import { runClientReminders } from '../api/_lib/clientPortal/clientReminderJob.js'
 import { runClientPlanNotices } from '../api/_lib/clientPlans/clientPlanNotify.js'
+import { runClientRatingNotices } from '../api/_lib/clientRatings/clientRatingJob.js'
 import { runHomeworkAutoSend } from '../api/_lib/homeworkAuto/homeworkAutoJob.js'
 import { createServiceDataClient } from '../api/_lib/pgRest/serviceClient.js'
 
@@ -32,6 +33,13 @@ if (!process.argv.includes('--dry-run')) {
   } catch (e) {
     failed = true
     console.error('client-plan-notices: ошибка', e?.code || '', e?.message || e)
+  }
+  try {
+    const ratings = await runClientRatingNotices({ db: createServiceDataClient() })
+    if (!ratings.skipped && ratings.pending) console.log('client-rating-notices:', JSON.stringify(ratings))
+  } catch (e) {
+    failed = true
+    console.error('client-rating-notices: ошибка', e?.code || '', e?.message || e)
   }
 }
 process.exit(failed ? 1 : 0)

@@ -18,3 +18,5 @@ bridge/
 
 qa-local.log
 my-qa-local.log
+.tmp-*/
+.tmp-video-frames/

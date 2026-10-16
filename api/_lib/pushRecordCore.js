@@ -35,6 +35,7 @@ import { isSaleClipMissingLinkFkError, saleClipPushWhenClientMissing } from '../
 import { cancelAwaitingSaleClipsForClient, prepareSaleClipUpdateForPush } from './saleClipClientGone.js'
 import { normalizeClientPlanPushPayload } from '../../src/lib/clientPlans/clientPlanCore.js'
 import { notifyClientPlanSent } from './clientPlans/clientPlanNotify.js'
+import { scheduleMembershipRatingAsk } from './clientRatings/clientRatingJob.js'
 import { normalizeHomeworkAutoRow } from '../../src/lib/homework/auto/homeworkAutoScheduleCore.js'
 import { normalizeHealthScreeningRow } from '../../src/lib/health/healthScreeningCore.js'
 import { normalizeHomeworkLibraryRow } from '../../src/lib/homework/library/homeworkLibraryOverridesCore.js'
@@ -505,6 +506,9 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'client_plans') {
         notifyClientPlanSent(sideEffectsAdmin, payload).catch((e) => console.warn('[client-plan-push]', e?.message || e))
       }
+      if (table_name === 'memberships') {
+        scheduleMembershipRatingAsk(sideEffectsAdmin, payload)
+      }
       return { ok: true }
     }
 
@@ -650,6 +654,9 @@ export async function executePushRecord(ctx, item) {
           after: { ...lifeBefore, ...payload, id: remote_id },
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
         })
+      }
+      if (table_name === 'memberships') {
+        scheduleMembershipRatingAsk(sideEffectsAdmin, { ...payload, id: remote_id })
       }
       return { ok: true }
     }

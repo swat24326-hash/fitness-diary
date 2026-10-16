@@ -1,6 +1,6 @@
 import { Link, Navigate } from 'react-router-dom'
-import { Bell, ChevronRight, ClipboardList, Salad } from 'lucide-react'
-import { CLIENT_NOTIFICATION_KINDS, buildClientNotificationsFromPlans } from '../../lib/client/clientNotificationsCore.js'
+import { Bell, ChevronRight, ClipboardList, Salad, Star } from 'lucide-react'
+import { CLIENT_NOTIFICATION_KINDS, buildClientNotifications } from '../../lib/client/clientNotificationsCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
@@ -10,15 +10,22 @@ import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function NotifIcon({ kind }) {
   if (kind === CLIENT_NOTIFICATION_KINDS.nutrition_sent) return <Salad size={20} />
+  if (
+    kind === CLIENT_NOTIFICATION_KINDS.rate_membership ||
+    kind === CLIENT_NOTIFICATION_KINDS.rate_homework ||
+    kind === CLIENT_NOTIFICATION_KINDS.rate_nutrition
+  ) {
+    return <Star size={20} />
+  }
   return <ClipboardList size={20} />
 }
 
-/** /me/notifications — персональные события (ДЗ, рацион). Не путать с «Сообщениями». */
+/** /me/notifications — персональные события (ДЗ, рацион, оценка). Не путать с «Сообщениями». */
 export function ClientNotificationsPage() {
   const { data, status, error, reload } = useClientMe()
   if (!hasClientSession() || status === 'signed_out') return <Navigate to={CLIENT_HOME} replace />
 
-  const items = buildClientNotificationsFromPlans(data?.plans)
+  const items = buildClientNotifications(data?.plans, data?.ratings)
   const club = data?.club ?? readClientMeCache()?.data?.club ?? null
 
   let list
@@ -29,7 +36,7 @@ export function ClientNotificationsPage() {
       <ClientMeStatus
         icon={Bell}
         title="Пока тихо"
-        hint="Здесь появятся задание и рацион от тренера. Сообщения клуба — во вкладке «Сообщения»."
+        hint="Здесь появятся задание, рацион и просьба оценить тренировки. Сообщения клуба — во вкладке «Сообщения»."
       />
     )
   } else {

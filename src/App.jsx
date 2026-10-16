@@ -103,6 +103,9 @@ const ClientPlanPage = lazy(() => import('./pages/client/ClientPlanPage.jsx').th
 const ClientNotificationsPage = lazy(() =>
   import('./pages/client/ClientNotificationsPage.jsx').then((m) => ({ default: m.ClientNotificationsPage })),
 )
+const ClientRatingPage = lazy(() =>
+  import('./pages/client/ClientRatingPage.jsx').then((m) => ({ default: m.ClientRatingPage })),
+)
 const ClientInboxPage = lazy(() => import('./pages/client/ClientInboxPage.jsx').then((m) => ({ default: m.ClientInboxPage })))
 const ClientInboxItemPage = lazy(() =>
   import('./pages/client/ClientInboxItemPage.jsx').then((m) => ({ default: m.ClientInboxItemPage })),
@@ -155,6 +158,7 @@ function ClientAppRoutes() {
           <Route path="task" element={<ClientPlanPage key="homework" kind="homework" />} />
           <Route path="nutrition" element={<ClientPlanPage key="nutrition" kind="nutrition" />} />
           <Route path="notifications" element={<ClientNotificationsPage />} />
+          <Route path="rate/:id" element={<ClientRatingPage />} />
           <Route path="inbox" element={<ClientInboxPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />
           <Route path="chat/:kind" element={<ClientChatPage />} />
