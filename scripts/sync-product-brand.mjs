@@ -20,6 +20,7 @@ const {
   PRODUCT_BRAND_LOCKUP,
   PRODUCT_BRAND_PWA_DESCRIPTION,
   PRODUCT_BRAND_TAGLINE,
+  PRODUCT_BRAND_ASSETS_VERSION,
   productBrandIconPath,
 } = brand
 
@@ -30,6 +31,7 @@ function write(rel, content) {
 }
 
 const icon192 = productBrandIconPath(192)
+const markInner = productBrandMarkInnerSvg().replaceAll('currentColor', '#2effb8')
 
 const indexHtml = `<!DOCTYPE html>
 <html lang="ru" dir="ltr">
@@ -38,14 +40,50 @@ const indexHtml = `<!DOCTYPE html>
     <link rel="icon" type="image/png" href="${icon192}" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <script src="/manifest-boot.js"></script>
-    <meta name="theme-color" content="#070908" />
+    <meta name="theme-color" content="#030806" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="${PRODUCT_BRAND_SHORT}" />
     <link rel="apple-touch-icon" href="${icon192}" />
     <title>${PRODUCT_BRAND_NAME}</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #030806; }
+      #yadro-boot-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: grid; place-items: center;
+        background: #030806; pointer-events: none;
+      }
+      #yadro-boot-splash__mark {
+        width: min(42vw, 168px); height: min(42vw, 168px);
+        color: #2effb8;
+        transform-origin: center;
+        animation: yadro-boot-zoom 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      #yadro-boot-splash__mark svg { display: block; width: 100%; height: 100%; }
+      @keyframes yadro-boot-zoom {
+        0% { transform: scale(2.55); }
+        70% { transform: scale(1.04); }
+        100% { transform: scale(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #yadro-boot-splash__mark { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="yadro-boot-splash" data-started-at="" aria-hidden="true">
+      <div id="yadro-boot-splash__mark">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+          ${markInner}
+        </svg>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var el = document.getElementById('yadro-boot-splash');
+        if (el) el.setAttribute('data-started-at', String(Date.now()));
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
@@ -61,8 +99,8 @@ const manifest = {
   description: PRODUCT_BRAND_PWA_DESCRIPTION,
   start_url: '/',
   display: 'standalone',
-  theme_color: '#0a0a0a',
-  background_color: '#0a0a0a',
+  theme_color: '#030806',
+  background_color: '#030806',
   orientation: 'portrait',
   icons: iconSizes.map((size) => ({
     src: productBrandIconPath(size),
@@ -83,5 +121,17 @@ const lockup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 120" fi
 write('public/brand/os-lockup.svg', lockup)
 
 write('public/brand/os-mark.svg', productBrandMarkFileSvg({ title: PRODUCT_BRAND_NAME }))
+
+const bootPath = path.join(root, 'public/manifest-boot.js')
+const bootSrc = fs.readFileSync(bootPath, 'utf8')
+const bootNext = bootSrc.replace(
+  /\/manifest\.json\?v=\d+/,
+  `/manifest.json?v=${PRODUCT_BRAND_ASSETS_VERSION}`,
+)
+if (bootNext !== bootSrc) {
+  write('public/manifest-boot.js', bootNext)
+} else {
+  console.log('OK: public/manifest-boot.js (версия уже совпадает)')
+}
 
 console.log(`sync-product-brand: ${PRODUCT_BRAND_NAME} / ${PRODUCT_BRAND_LOCKUP} (${PRODUCT_BRAND_TAGLINE})`)

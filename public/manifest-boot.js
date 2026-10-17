@@ -26,6 +26,6 @@
   }
   var link = doc.createElement('link')
   link.rel = 'manifest'
-  link.href = '/manifest.json?v=4'
+  link.href = '/manifest.json?v=5'
   doc.head.appendChild(link)
 })(document, location.pathname, navigator.userAgent)

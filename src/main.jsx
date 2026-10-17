@@ -30,3 +30,10 @@ if (isSupabaseConfigured()) {
 createRoot(document.getElementById('root')).render(
   import.meta.env.PROD ? <App /> : <StrictMode><App /></StrictMode>,
 )
+
+/* Если splash не смонтировался — не оставляем boot навсегда. */
+window.setTimeout(() => {
+  import('./lib/welcomeSplashBoot.js')
+    .then((m) => m.discardWelcomeBootSplash())
+    .catch(() => {})
+}, 5000)

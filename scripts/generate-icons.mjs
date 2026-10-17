@@ -11,18 +11,19 @@ await fs.mkdir(brandDir, { recursive: true })
 
 const MARK_INNER = productBrandMarkInnerSvg()
 
-/** PWA: тёмный canvas + знак по центру, без надписи — подпись под значком телефон берёт из названия приложения (клуб). */
+/**
+ * PWA / системный splash: ровный тёмный холст + знак по центру.
+ * Без скруглённой «плитки» внутри — иначе на Android на долю секунды видна подложка,
+ * а потом наш React-splash без неё (скачок). Фон = --premium-bg / theme-color.
+ */
 function iconSvg(size) {
-  const pad = size * 0.14
-  const markBox = size * 0.5
+  const markBox = size * 0.58
   const mx = (size - markBox) / 2
   const my = (size - markBox) / 2
   const s = markBox / 32
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" fill="#070b09"/>
-  <rect x="${pad}" y="${pad}" width="${size - pad * 2}" height="${size - pad * 2}"
-        rx="${size * 0.06}" fill="#0c1410"/>
+  <rect width="${size}" height="${size}" fill="#030806"/>
   <g transform="translate(${mx} ${my}) scale(${s})" fill="#2effb8" color="#2effb8">${MARK_INNER.replaceAll('currentColor', '#2effb8')}</g>
 </svg>
 `.trim()

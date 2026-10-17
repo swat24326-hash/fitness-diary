@@ -1,5 +1,6 @@
 import {
   formatWelcomeGreeting,
+  looksLikeRussianSurname,
   resolveWelcomeGreetingName,
 } from '../src/lib/welcomeSplashGreeting.js'
 import {
@@ -16,9 +17,16 @@ function ok(cond, msg) {
   console.log('ok:', msg)
 }
 
+ok(looksLikeRussianSurname('Семенов'), 'Семенов — фамилия')
+ok(looksLikeRussianSurname('Смирнова'), 'Смирнова — фамилия')
+ok(!looksLikeRussianSurname('Дмитрий'), 'Дмитрий — не фамилия')
+ok(!looksLikeRussianSurname('Мария'), 'Мария — не фамилия')
+
 ok(resolveWelcomeGreetingName('Дмитрий') === 'Дмитрий', 'одно имя')
+ok(resolveWelcomeGreetingName('Семенов') === '', 'одна фамилия — не в приветствие')
 ok(resolveWelcomeGreetingName('Плетнёв Дмитрий') === 'Дмитрий', 'Фамилия Имя → имя')
 ok(resolveWelcomeGreetingName('Плетнёв Дмитрий Иванович') === 'Дмитрий', 'ФИО → имя')
+ok(resolveWelcomeGreetingName('Дмитрий Семенов') === 'Дмитрий', 'Имя Фамилия → имя')
 ok(resolveWelcomeGreetingName('dmitry@club.ru') === 'dmitry', 'email → локальная часть')
 ok(resolveWelcomeGreetingName('+7 900 111-22-33') === '', 'телефон не в приветствие')
 ok(resolveWelcomeGreetingName('') === '', 'пусто')

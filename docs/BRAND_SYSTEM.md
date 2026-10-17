@@ -144,7 +144,7 @@ node scripts/verify-product-brand.mjs
 
 | # | Экран | Проверить |
 |---|--------|-----------|
-| 1 | Splash | Системная иконка → наш знак с зумом вниз (≥~2 с, `useWelcomeSplashHold`); «Приветствуем, …»; без tagline / «ЯДРО» / овального glow |
+| 1 | Splash | Иконка без плитки + boot-зум в `index.html` → React «Приветствуем» (≥~2 с); без tagline / «ЯДРО» / овального glow |
 | 2 | Trainer home | Emerald; в шапке **клуб** + микро-Ядро |
 | 3 | Sales home | Cyan–teal; «Продажи» + клуб |
 | 4 | Admin home | Champagne; в шапке **клуб** + микро-Ядро |

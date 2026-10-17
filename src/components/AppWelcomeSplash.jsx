@@ -1,6 +1,11 @@
+import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { OsMark } from './brand/OsMark.jsx'
 import { PRODUCT_BRAND_NAME } from '../lib/productBrand.js'
+import {
+  peekWelcomeBootSplash,
+  scheduleWelcomeBootSplashRemove,
+} from '../lib/welcomeSplashBoot.js'
 import {
   formatWelcomeGreeting,
   resolveWelcomeGreetingName,
@@ -9,6 +14,7 @@ import {
 /** Экран при старте сессии / во время входа вместо сухого «Загрузка…». */
 export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
   const { user } = useAuth()
+  const [fromBoot] = useState(() => peekWelcomeBootSplash().hadBoot)
   const fromProp = String(displayNameProp ?? '').trim()
   const isStatus = /восстанавливаем|обновляем/i.test(fromProp)
   const rawName = isStatus ? '' : fromProp || String(user?.name ?? '').trim()
@@ -17,11 +23,17 @@ export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
   const hint = isStatus ? fromProp : 'Открываем'
   const ariaLabel = `${PRODUCT_BRAND_NAME}. ${greetingLine}`
 
+  useEffect(() => {
+    const { hadBoot, startedAt } = peekWelcomeBootSplash()
+    if (!hadBoot) return undefined
+    return scheduleWelcomeBootSplashRemove({ startedAt })
+  }, [])
+
   return (
     <div className="app-loading-shell app-welcome-shell">
       <div className="app-welcome" role="status" aria-live="polite" aria-label={ariaLabel}>
         <div className="app-welcome__stage" aria-hidden>
-          <div className="app-welcome__mark">
+          <div className={`app-welcome__mark${fromBoot ? ' app-welcome__mark--from-boot' : ''}`}>
             <OsMark size={96} />
           </div>
         </div>

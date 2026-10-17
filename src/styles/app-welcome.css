@@ -46,6 +46,11 @@
     welcome-mark-tilt 5.5s ease-in-out 1.15s infinite;
 }
 
+/* Зум уже сыграл в #yadro-boot-splash — не запускаем второй раз. */
+.app-welcome__mark--from-boot {
+  animation: welcome-mark-tilt 5.5s ease-in-out infinite;
+}
+
 .app-welcome__mark .os-mark__orbit-spin--outer,
 .app-welcome__mark .os-mark__orbit-spin--inner {
   transform-origin: center;
@@ -144,6 +149,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-welcome__mark,
+  .app-welcome__mark--from-boot,
   .app-welcome__mark .os-mark__orbit-spin--outer,
   .app-welcome__mark .os-mark__orbit-spin--inner,
   .app-welcome__greeting,
