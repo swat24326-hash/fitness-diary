@@ -5,7 +5,7 @@ import {
   PRODUCT_BRAND_NAME,
   PRODUCT_BRAND_PWA_DESCRIPTION,
   PRODUCT_BRAND_SHORT,
-  productBrandIconPath,
+  productBrandManifestIcons,
 } from './src/lib/productBrand.js'
 import { dropManifestLinks } from './src/lib/pwaHtmlCore.js'
 
@@ -63,6 +63,14 @@ export default defineConfig(({ mode }) => ({
         'icons/icon-192.png',
         'icons/icon-384.png',
         'icons/icon-512.png',
+        'icons/icon-72-maskable.png',
+        'icons/icon-96-maskable.png',
+        'icons/icon-128-maskable.png',
+        'icons/icon-144-maskable.png',
+        'icons/icon-152-maskable.png',
+        'icons/icon-192-maskable.png',
+        'icons/icon-384-maskable.png',
+        'icons/icon-512-maskable.png',
         'icons/badge-96.png',
         'chat/pattern-fitness.svg',
         'stickers/art/*.webp',
@@ -76,11 +84,7 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#000000',
         background_color: '#000000',
         orientation: 'portrait',
-        icons: [72, 96, 128, 144, 152, 192, 384, 512].map((size) => ({
-          src: productBrandIconPath(size),
-          sizes: `${size}x${size}`,
-          type: 'image/png',
-        })),
+        icons: productBrandManifestIcons([72, 96, 128, 144, 152, 192, 384, 512]),
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

@@ -120,9 +120,28 @@ ok(manifest.short_name === PRODUCT_BRAND_SHORT, 'manifest.short_name synced')
 const lockup = fs.readFileSync(path.join(root, 'public/brand/os-lockup.svg'), 'utf8')
 ok(lockup.includes(`>${PRODUCT_BRAND_LOCKUP}</text>`), 'os-lockup.svg lockup synced')
 
-const { PRODUCT_BRAND_ASSETS_VERSION, productBrandIconPath } = brand
+const { PRODUCT_BRAND_ASSETS_VERSION, productBrandIconPath, productBrandManifestIcons } = brand
 ok(String(PRODUCT_BRAND_ASSETS_VERSION).length > 0, 'assets version set')
-ok(productBrandIconPath(192).includes(`v=${PRODUCT_BRAND_ASSETS_VERSION}`), 'icon path cache-bust')
-ok(indexHtml.includes(productBrandIconPath(192)), 'index.html icon cache-bust')
+ok(productBrandIconPath(192, 'any').includes('icon-192.png'), 'any icon path')
+ok(productBrandIconPath(192, 'maskable').includes('icon-192-maskable.png'), 'maskable icon path')
+ok(productBrandIconPath(192, 'maskable').includes(`v=${PRODUCT_BRAND_ASSETS_VERSION}`), 'icon path cache-bust')
+ok(indexHtml.includes(productBrandIconPath(192, 'maskable')), 'index.html favicon maskable cache-bust')
+
+const manifestIcons = productBrandManifestIcons([192])
+ok(
+  manifestIcons.some((i) => i.purpose === 'any') && manifestIcons.some((i) => i.purpose === 'maskable'),
+  'manifest icons dual purpose',
+)
+ok(
+  Array.isArray(manifest.icons) &&
+    manifest.icons.some((i) => i.purpose === 'any') &&
+    manifest.icons.some((i) => i.purpose === 'maskable'),
+  'public manifest dual purpose',
+)
+ok(manifest.background_color === '#000000', 'manifest splash background black')
+
+const any192 = path.join(root, 'public/icons/icon-192.png')
+const mask192 = path.join(root, 'public/icons/icon-192-maskable.png')
+ok(fs.existsSync(any192) && fs.existsSync(mask192), 'icon-192 any+maskable files exist')
 
 console.log('verify-product-brand: all passed')

@@ -22,6 +22,7 @@ const {
   PRODUCT_BRAND_TAGLINE,
   PRODUCT_BRAND_ASSETS_VERSION,
   productBrandIconPath,
+  productBrandManifestIcons,
 } = brand
 
 function write(rel, content) {
@@ -30,7 +31,8 @@ function write(rel, content) {
   console.log('OK:', rel)
 }
 
-const icon192 = productBrandIconPath(192)
+/* Favicon / apple-touch — maskable (непрозрачный), splash берёт purpose any. */
+const icon192 = productBrandIconPath(192, 'maskable')
 const markInner = productBrandMarkInnerSvg().replaceAll('currentColor', '#2effb8')
 
 const indexHtml = `<!DOCTYPE html>
@@ -103,11 +105,7 @@ const manifest = {
   theme_color: '#000000',
   background_color: '#000000',
   orientation: 'portrait',
-  icons: iconSizes.map((size) => ({
-    src: productBrandIconPath(size),
-    sizes: `${size}x${size}`,
-    type: 'image/png',
-  })),
+  icons: productBrandManifestIcons(iconSizes),
 }
 write('public/manifest.json', `${JSON.stringify(manifest, null, 2)}\n`)
 

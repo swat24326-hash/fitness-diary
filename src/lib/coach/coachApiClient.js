@@ -15,7 +15,7 @@ export const fetchCoachSchedule = () => coachRequest({ view: 'schedule' })
 
 /**
  * Ежедневник за период (не больше 62 дней).
- * @returns {Promise<{ entries: object[], clientNameById: Record<string, string>, trainingById: Record<string, { status: string }>, clients: Array<{ id: string, name: string }> }>}
+ * @returns {Promise<{ entries: object[], clientNameById: Record<string, string>, clientInfoById?: Record<string, { name?: string, cardNumber?: string, membershipLabel?: string }>, trainingById: Record<string, { status: string }>, clients: Array<{ id: string, name: string }> }>}
  */
 export const fetchCoachScheduleRange = (from, to) => coachRequest({ view: 'schedule-range', from, to })
 

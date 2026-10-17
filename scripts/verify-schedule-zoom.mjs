@@ -8,6 +8,7 @@ import {
   SCHEDULE_ZOOM_MIN,
   clampScheduleZoom,
   formatScheduleZoomPercent,
+  isScheduleEntryMetaVisible,
   isScheduleEntryOneLine,
   parseStoredScheduleZoom,
   resolvePinchScheduleZoom,
@@ -85,6 +86,9 @@ ok(isScheduleEntryOneLine(60 * 0.6 - 4), 'час на мелком масшта�
 ok(isScheduleEntryOneLine(26, { compact: true }), 'неделя, мелкий масштаб — одна строка')
 ok(!isScheduleEntryOneLine(36, { compact: true }), 'неделя, обычная высота — две строки')
 ok(isScheduleEntryOneLine(50, { withTrainer: true }), 'админ: имя тренера не влезает третьей строкой — одна строка')
+ok(isScheduleEntryMetaVisible(60 - 4), 'час на телефоне (60px) — мета карты/абона влезает')
+ok(!isScheduleEntryMetaVisible(50), 'ниже часа — мету на плитке не режем обрубком')
+ok(!isScheduleEntryMetaVisible(80, { compact: true }), '3 дня / неделя — меты на плитке нет')
 ok(formatScheduleZoomPercent(1.4, 1.4) === '100%', 'умолчание экрана = 100%')
 ok(formatScheduleZoomPercent(2, 1) === '200%', 'телефон 2 px/мин = 200%')
 

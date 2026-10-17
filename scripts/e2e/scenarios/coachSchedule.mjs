@@ -26,8 +26,12 @@ const GROUP = Array.from({ length: 15 }, (_, i) => `Группа Участни�
 
 function setup() {
   const seed = trainerClubSeed()
+  const typeId = 'e2e-mem-type-vip2'
+  seed.clients[0].card_number = '3334'
+  seed.membership_types = [{ id: typeId, club_id: CLUB_ID, code: 'Vip 2', name: 'Vip 2' }]
+  seed.memberships[0].membership_type_id = typeId
   for (const name of GROUP) {
-    seed.clients.push({ ...seed.clients[0], id: `e2e-group-${name.slice(-2)}`, name, phone: null })
+    seed.clients.push({ ...seed.clients[0], id: `e2e-group-${name.slice(-2)}`, name, phone: null, card_number: null })
   }
   const backend = createFakeBackend(seed)
   const chat = createFakeChat(backend.state)
@@ -139,7 +143,7 @@ function addIsFab(page) {
     const body = d.querySelector('.trainer-schedule-day__body')?.getBoundingClientRect()
     if (!add || !card || !body || add.closest('.trainer-schedule-day__head')) return false
     const b = add.getBoundingClientRect()
-    return b.width <= 40 && body.right - b.right <= 20 && body.bottom - b.bottom <= 20 && b.top > card.top + card.height / 2
+    return b.width <= 46 && body.right - b.right <= 20 && body.bottom - b.bottom <= 20 && b.top > card.top + card.height / 2
   })
 }
 
@@ -160,9 +164,10 @@ export async function run(browser) {
   const at = (min) => schedule.filter((e) => e.start_minutes === min && e.day_date === isoDay(0))
   try {
     await page.goto(`${ORIGIN}/coach`)
+    await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
     await page.getByLabel('Логин').fill(TRAINER_LOGIN)
     await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     await page.locator('.trainer-schedule-day__board').waitFor({ timeout: 15_000 })
     await scrollBoardTo(page, 9 * 60)
     c.ok(await entryAt(page, '10:00').isVisible(), 'день: запись 10:00 с сервера')
@@ -247,7 +252,15 @@ export async function run(browser) {
     await scrollBoardTo(page, 14 * 60)
     await entryAt(page, '15:00').click()
     const edit = page.getByRole('dialog')
+    await edit.waitFor({ state: 'visible', timeout: 10_000 })
+    const metaShown = await edit
+      .getByText('№3334 · Vip 2')
+      .waitFor({ state: 'visible', timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false)
+    c.ok(metaShown, 'просмотр: номер карты и тип абона, как на планшете')
     await edit.getByRole('button', { name: 'Изменить' }).click()
+    await edit.getByLabel('Время').waitFor({ state: 'visible', timeout: 10_000 })
     const row = at(900)[0]
     row.duration_minutes = 90
     row.updated_at = new Date(Date.now() + 1000).toISOString()
@@ -306,7 +319,10 @@ export async function run(browser) {
         })
         .map((l) => l.textContent)
     })
-    c.ok(visibleLines.length >= 2 && visibleLines[1] === 'Группа У.', `3 дня: в плитке видно несколько клиентов коротко (${visibleLines.slice(0, 3).join(' | ')})`)
+    c.ok(
+      visibleLines.length >= 2 && /^Группа У\./.test(visibleLines[1]),
+      `3 дня: в плитке видно несколько клиентов коротко (${visibleLines.slice(0, 3).join(' | ')})`,
+    )
     await screenshot(page, 'coach-calendar-group-tile')
     await tile.click()
     const groupView = page.getByRole('dialog')

@@ -2,11 +2,14 @@ import { useNavigate } from 'react-router-dom'
 import { Check, CloudOff, Play } from 'lucide-react'
 import { SCHEDULE_UNSENT_TITLE, isScheduleEntryUnsent } from '../../lib/trainer/trainerScheduleDeliveryCore.js'
 import { buildScheduleEntryClientRows } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
+import { isScheduleEntryMetaVisible } from '../../lib/trainer/scheduleZoomCore.js'
 import {
   buildScheduleEntryLabel,
   formatScheduleMinutes,
   formatScheduleTimeRange,
+  normalizeScheduleClientIds,
 } from '../../lib/trainer/trainerScheduleCore.js'
+import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import {
   resolveScheduleTrainingStart,
   scheduleEntryTrainingStatusLabel,
@@ -57,7 +60,14 @@ export function TrainerScheduleEntryBlock({
   const nav = useNavigate()
   const ghost = variant === 'ghost'
   const label = buildScheduleEntryLabel(entry, clientNameById)
-  const showMeta = !compact && !oneLine
+  const clientIds = normalizeScheduleClientIds(entry?.client_ids)
+  const heightPx = Number(style?.height) || 0
+  /** На плитке: мета только у одного клиента и когда высота часа её вмещает (иначе — шторка просмотра). */
+  const showMeta =
+    !compact &&
+    !oneLine &&
+    clientIds.length === 1 &&
+    isScheduleEntryMetaVisible(heightPx, { withTrainer: Boolean(trainerName) })
   const rows = buildScheduleEntryClientRows(entry, clientNameById, clientInfoById, {
     short: compact,
     withMeta: showMeta,
@@ -73,7 +83,7 @@ export function TrainerScheduleEntryBlock({
       ))}
     </span>
   )
-  const hasClients = (entry.client_ids ?? []).length > 0
+  const hasClients = clientIds.length > 0
   const linkedTraining = entry.linked_training_id ? trainingById[entry.linked_training_id] : null
   const trainingChip = scheduleEntryTrainingStatusLabel(entry, linkedTraining)
   const start = resolveScheduleTrainingStart(entry, { trainingById, workoutsBase: '/trainer/workouts' })
@@ -81,9 +91,10 @@ export function TrainerScheduleEntryBlock({
   const kindLabel = scheduleKindLabel(kind)
   const state = resolveScheduleEntryState(entry, linkedTraining, now)
   const titleParts = [formatScheduleTimeRange(entry), kindLabel, trainerName, label].filter(Boolean)
-  if (showMeta) {
-    for (const row of rows) {
-      if (row.meta) titleParts.push(row.meta)
+  if (!compact && !oneLine) {
+    for (const id of clientIds) {
+      const meta = formatScheduleClientCardMeta(clientInfoById[id] ?? {})
+      if (meta) titleParts.push(meta)
     }
   }
   const unsent = !readOnly && !ghost && isScheduleEntryUnsent(entry)

@@ -47,11 +47,34 @@ export const REFERENCE_CLUB_NAME = 'FIT-CITY'
  * Версия ассетов знака/иконок — для сброса кэша PWA при смене логотипа.
  * Увеличивайте при смене геометрии знака (не при каждой смене имени).
  */
-export const PRODUCT_BRAND_ASSETS_VERSION = '7'
+export const PRODUCT_BRAND_ASSETS_VERSION = '8'
 
-/** Путь к иконке PWA с cache-bust */
-export function productBrandIconPath(size) {
-  return `/icons/icon-${size}.png?v=${PRODUCT_BRAND_ASSETS_VERSION}`
+/**
+ * Путь к иконке PWA с cache-bust.
+ * @param {number} size
+ * @param {'any'|'maskable'} [kind='any'] — any: прозрачный (splash без плитки); maskable: чёрный холст (домашний экран)
+ */
+export function productBrandIconPath(size, kind = 'any') {
+  const file = kind === 'maskable' ? `icon-${size}-maskable.png` : `icon-${size}.png`
+  return `/icons/${file}?v=${PRODUCT_BRAND_ASSETS_VERSION}`
+}
+
+/** Записи icons для manifest (any + maskable). */
+export function productBrandManifestIcons(sizes = [72, 96, 128, 144, 152, 192, 384, 512]) {
+  return sizes.flatMap((size) => [
+    {
+      src: productBrandIconPath(size, 'any'),
+      sizes: `${size}x${size}`,
+      type: 'image/png',
+      purpose: 'any',
+    },
+    {
+      src: productBrandIconPath(size, 'maskable'),
+      sizes: `${size}x${size}`,
+      type: 'image/png',
+      purpose: 'maskable',
+    },
+  ])
 }
 
 /**

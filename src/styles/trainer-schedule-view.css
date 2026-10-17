@@ -42,7 +42,14 @@
   text-overflow: ellipsis;
   font-size: 0.92em;
   font-weight: 500;
-  opacity: 0.85;
+  color: var(--text-muted);
+}
+
+/* `.muted` иначе подменяет кегль на 0.9rem — оставляем размер плитки, цвет уже задан. */
+.trainer-schedule-day__entry-card.muted {
+  font-size: 0.92em;
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 .trainer-schedule-day__entry-kind {
@@ -167,6 +174,17 @@
 .trainer-schedule-view__client-meta {
   font-size: 0.85rem;
   font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.trainer-schedule-view__client-meta.muted {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 .trainer-schedule-view__note {

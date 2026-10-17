@@ -103,7 +103,7 @@ function setMediaTrack(track) {
     ms.metadata = new window.MediaMetadata({
       title: track.title || 'Голосовое',
       artist: 'Голосовое сообщение',
-      artwork: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
+      artwork: [{ src: '/icons/icon-192-maskable.png', sizes: '192x192', type: 'image/png' }],
     })
   } catch {
     /* без MediaMetadata — просто без подписи */

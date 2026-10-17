@@ -1,8 +1,11 @@
 /**
  * Ежедневник телефона: GET ?view=schedule-range&from&to и POST op schedule-save | schedule-delete | schedule-copies.
- * Только свои записи и свои клиенты; на телефон — имя клиента без телефона и карты, у тренировки — только статус.
+ * Только свои записи и свои клиенты; телефоны в ответ не кладём.
+ * Карта и тип абона — в clientInfoById (как на планшете), в список выбора клиентов — только id и имя.
  */
-import { COACH_SCHEDULE_RANGE_RU, resolveCoachScheduleRange } from '../../../src/lib/trainer/coachScheduleEditCore.js'
+import { todayInTimeZoneIso } from '../../../src/lib/dateRu.js'
+import { resolveCoachScheduleRange, COACH_SCHEDULE_RANGE_RU } from '../../../src/lib/trainer/coachScheduleEditCore.js'
+import { buildScheduleClientInfoById } from '../../../src/lib/trainer/trainerScheduleClientInfoCore.js'
 import { normalizeTrainerScheduleEntry } from '../../../src/lib/trainer/trainerScheduleCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { loadInChunks } from '../batchCore.js'
@@ -11,11 +14,28 @@ import { COACH_SCHEDULE_ROW_FIELDS, COACH_SCHEDULE_WRITE_OPS, runCoachScheduleWr
 
 export { COACH_SCHEDULE_WRITE_OPS }
 
+const CLIENT_COLS = 'id, name, card_number'
+const MEM_COLS = 'id, client_id, membership_type_id, start_date, end_date, total_trainings, used_trainings'
+
+/**
+ * @param {object[]} clients
+ * @returns {Map<string, object>}
+ */
+function clientsByIdMap(clients) {
+  const map = new Map()
+  for (const c of clients ?? []) {
+    const id = String(c?.id ?? '').trim()
+    if (id) map.set(id, c)
+  }
+  return map
+}
+
 export async function sendCoachScheduleRange(ctx, req, res) {
   const range = resolveCoachScheduleRange(req.query?.from, req.query?.to)
   if (!range) return sendJson(res, 400, { error: COACH_SCHEDULE_RANGE_RU })
   const db = ctx.supabaseAdmin
   const uid = ctx.user.id
+  const clubId = String(ctx.profile?.club_id ?? '').trim()
   const [raw, active] = await Promise.all([
     rows(
       db
@@ -25,15 +45,35 @@ export async function sendCoachScheduleRange(ctx, req, res) {
         .gte('day_date', range.from)
         .lte('day_date', range.to),
     ),
-    rows(db.from('clients').select('id, name').eq('trainer_id', uid).is('archived_at', null).order('name')),
+    rows(db.from('clients').select(CLIENT_COLS).eq('trainer_id', uid).is('archived_at', null).order('name')),
   ])
   const entries = raw.map(normalizeTrainerScheduleEntry).filter(Boolean).map(({ synced: _s, ...e }) => e)
-  const names = Object.fromEntries(active.map((c) => [String(c.id), String(c.name ?? '')]))
-  const missing = [...new Set(entries.flatMap((e) => e.client_ids))].filter((id) => !(id in names))
+  const byId = clientsByIdMap(active)
+  const missing = [...new Set(entries.flatMap((e) => e.client_ids))].filter((id) => !byId.has(id))
   const archived = await loadInChunks(missing, (part) =>
-    rows(db.from('clients').select('id, name').eq('trainer_id', uid).in('id', part)),
+    rows(db.from('clients').select(CLIENT_COLS).eq('trainer_id', uid).in('id', part)),
   )
-  for (const c of archived) names[String(c.id)] = String(c.name ?? '')
+  for (const c of archived) byId.set(String(c.id), c)
+
+  const clientIds = [...byId.keys()]
+  /** @type {Record<string, object[]>} */
+  const membershipsByClientId = {}
+  let membershipTypes = []
+  if (clubId && clientIds.length) {
+    const mems = await loadInChunks(clientIds, (part) =>
+      rows(db.from('memberships').select(MEM_COLS).eq('club_id', clubId).in('client_id', part)),
+    )
+    for (const m of mems) {
+      const cid = String(m?.client_id ?? '').trim()
+      if (!cid) continue
+      if (!membershipsByClientId[cid]) membershipsByClientId[cid] = []
+      membershipsByClientId[cid].push(m)
+    }
+    membershipTypes = await rows(db.from('membership_types').select('id, code, name').eq('club_id', clubId))
+  }
+
+  const clientsList = [...byId.values()]
+  const names = Object.fromEntries(clientsList.map((c) => [String(c.id), String(c.name ?? '')]))
   const trainingIds = [...new Set(entries.map((e) => e.linked_training_id).filter(Boolean))]
   const trainings = await loadInChunks(trainingIds, (part) =>
     rows(db.from('trainings').select('id, status').eq('trainer_id', uid).in('id', part)),
@@ -41,6 +81,7 @@ export async function sendCoachScheduleRange(ctx, req, res) {
   sendJson(res, 200, {
     entries,
     clientNameById: names,
+    clientInfoById: buildScheduleClientInfoById(clientsList, membershipsByClientId, membershipTypes, todayInTimeZoneIso()),
     trainingById: Object.fromEntries(trainings.map((t) => [String(t.id), { status: String(t.status ?? '') }])),
     clients: active.map((c) => ({ id: String(c.id), name: String(c.name ?? '') })),
   })

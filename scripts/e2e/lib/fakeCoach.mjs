@@ -10,6 +10,7 @@ import { buildCoachClub } from '../../../api/_lib/coach/coachManifestCore.js'
 import { buildCoachClients } from '../../../api/_lib/coach/coachClientsCore.js'
 import { COACH_SCHEDULE_WRITE_OPS, runCoachScheduleWrite } from '../../../api/_lib/coach/coachScheduleWriteCore.js'
 import { resolveCoachScheduleRange } from '../../../src/lib/trainer/coachScheduleEditCore.js'
+import { buildScheduleClientInfoById } from '../../../src/lib/trainer/trainerScheduleClientInfoCore.js'
 import { normalizeTrainerScheduleEntry } from '../../../src/lib/trainer/trainerScheduleCore.js'
 
 const DENIED = { status: 401, json: { error: 'Вход с телефона закончился — войдите снова' } }
@@ -171,7 +172,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
     return { status: 200, json: { token, expires_at: new Date(Date.now() + 72 * 3600_000).toISOString() } }
   }
 
-  /** Ежедневник за период — как coachScheduleHandler: свои записи, имена своих клиентов, статусы тренировок. */
+  /** Ежедневник за период — как coachScheduleHandler: записи, имена, карта/абон, статусы тренировок. */
   function scheduleRange(q) {
     const range = resolveCoachScheduleRange(q.get('from'), q.get('to'))
     if (!range) return { status: 400, json: { error: 'Некорректный период Ежедневника' } }
@@ -180,6 +181,14 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       .map(normalizeTrainerScheduleEntry)
       .filter(Boolean)
       .map(({ synced: _s, ...e }) => e)
+    const allOwn = ownClients()
+    const membershipsByClientId = {}
+    for (const m of state.memberships ?? []) {
+      const cid = String(m?.client_id ?? '').trim()
+      if (!cid || !allOwn.some((c) => String(c.id) === cid)) continue
+      if (!membershipsByClientId[cid]) membershipsByClientId[cid] = []
+      membershipsByClientId[cid].push(m)
+    }
     const trainingById = Object.fromEntries(
       entries.filter((e) => trainings[e.linked_training_id]).map((e) => [e.linked_training_id, { status: trainings[e.linked_training_id] }]),
     )
@@ -187,9 +196,10 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       status: 200,
       json: {
         entries,
-        clientNameById: Object.fromEntries(ownClients().map((c) => [c.id, c.name])),
+        clientNameById: Object.fromEntries(allOwn.map((c) => [c.id, c.name])),
+        clientInfoById: buildScheduleClientInfoById(allOwn, membershipsByClientId, state.membership_types ?? [], today),
         trainingById,
-        clients: ownClients().filter((c) => !c.archived_at).map((c) => ({ id: c.id, name: c.name })),
+        clients: allOwn.filter((c) => !c.archived_at).map((c) => ({ id: c.id, name: c.name })),
       },
     }
   }

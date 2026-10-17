@@ -66,12 +66,28 @@ export function resolveScheduleEntryMinHeight(base, zoom) {
 const ENTRY_TWO_LINE_MIN_PX = { compact: 32, normal: 44, withTrainer: 58 }
 
 /**
+ * Высота, с которой под именем ещё читается «№карты · тип абона» (не серый обрубок под overflow).
+ * Узкие колонки (compact) мету не показывают — порог не нужен.
+ */
+const ENTRY_META_MIN_PX = { normal: 56, withTrainer: 72 }
+
+/**
  * Ниже порога запись рисуется в одну строку — только имя (время читается по сетке), иначе имя обрезается и видно только время.
  * @param {number} heightPx @param {{ compact?: boolean, withTrainer?: boolean }} [opts]
  */
 export function isScheduleEntryOneLine(heightPx, { compact = false, withTrainer = false } = {}) {
   const need = withTrainer ? ENTRY_TWO_LINE_MIN_PX.withTrainer : compact ? ENTRY_TWO_LINE_MIN_PX.compact : ENTRY_TWO_LINE_MIN_PX.normal
   return Number(heightPx) < need
+}
+
+/**
+ * Можно ли рисовать строку карты/абона на плитке (не в «3 днях» / неделе).
+ * @param {number} heightPx @param {{ compact?: boolean, withTrainer?: boolean }} [opts]
+ */
+export function isScheduleEntryMetaVisible(heightPx, { compact = false, withTrainer = false } = {}) {
+  if (compact) return false
+  const need = withTrainer ? ENTRY_META_MIN_PX.withTrainer : ENTRY_META_MIN_PX.normal
+  return Number(heightPx) >= need
 }
 
 /** «100%» в меню — относительно масштаба экрана по умолчанию. @param {number} zoom @param {number} base */

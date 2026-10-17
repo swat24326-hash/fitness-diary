@@ -116,6 +116,12 @@
   letter-spacing: -0.01em;
 }
 
+/* Имя в узкой колонке — перенос, а не обрезка после 6 букв (сильнее `.entry-name { nowrap }`). */
+.coach-schedule .trainer-schedule-day__entry--compact .trainer-schedule-day__entry-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* Листание пальцем вбок (как в Google Календаре): вертикаль отдаём браузеру, вбок ведёт JS; уехавшее за край обрезаем. */
 .coach-schedule .trainer-schedule-day--swipe,
 .coach-schedule .trainer-schedule-month--swipe {
@@ -185,4 +191,12 @@
 
 .coach-schedule-layer .trainer-schedule-modal__panel {
   max-height: calc(100dvh - 24px - env(safe-area-inset-top));
+}
+
+/* Карандаш / удалить / закрыть в шторке — зона касания 44px, глобальный btn-icon-square не трогаем. */
+.coach-schedule-layer .trainer-schedule-view__tools .btn.btn-icon-square {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
 }

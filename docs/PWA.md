@@ -1,6 +1,6 @@
 # PWA — установка и обновление на планшете
 
-**Актуально:** 2026-10-17 (splash: иконки без плитки + boot-зум в `index.html` до React). Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+**Актуально:** 2026-10-17 (splash: прозрачный `purpose: any` + чёрный `background_color`, maskable на домашний экран; boot-зум в `index.html` до React). Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
 
 ---
 

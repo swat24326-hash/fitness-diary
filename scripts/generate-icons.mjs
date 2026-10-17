@@ -11,20 +11,34 @@ await fs.mkdir(brandDir, { recursive: true })
 
 const MARK_INNER = productBrandMarkInnerSvg()
 
-/**
- * PWA / системный splash: чисто чёрный холст + крупный знак.
- * Не #030806 — на Android тёмно-зелёный читается как «плитка» под логотипом.
- * Фон splash/manifest тоже #000000 (sync-product-brand + vite), чтобы маска иконки слилась с экраном.
- */
-function iconSvg(size) {
-  const markBox = size * 0.82
+function markGroup(size, markFrac) {
+  const markBox = size * markFrac
   const mx = (size - markBox) / 2
   const my = (size - markBox) / 2
   const s = markBox / 32
+  return `<g transform="translate(${mx} ${my}) scale(${s})" fill="#2effb8" color="#2effb8">${MARK_INNER.replaceAll('currentColor', '#2effb8')}</g>`
+}
+
+/**
+ * Splash / purpose «any»: только знак, без фона (прозрачный PNG).
+ * Android рисует background_color манифеста (#000) — без серой «плитки» вокруг логотипа (как у VK).
+ */
+function iconAnySvg(size) {
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  ${markGroup(size, 0.82)}
+</svg>
+`.trim()
+}
+
+/**
+ * Домашний экран / purpose «maskable»: чёрный холст + знак (адаптивная иконка).
+ */
+function iconMaskableSvg(size) {
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <rect width="${size}" height="${size}" fill="#000000"/>
-  <g transform="translate(${mx} ${my}) scale(${s})" fill="#2effb8" color="#2effb8">${MARK_INNER.replaceAll('currentColor', '#2effb8')}</g>
+  ${markGroup(size, 0.72)}
 </svg>
 `.trim()
 }
@@ -32,8 +46,8 @@ function iconSvg(size) {
 const sizes = [72, 96, 128, 144, 152, 192, 384, 512]
 
 for (const s of sizes) {
-  const out = path.join(outDir, `icon-${s}.png`)
-  await sharp(Buffer.from(iconSvg(s))).png().toFile(out)
+  await sharp(Buffer.from(iconAnySvg(s))).png().toFile(path.join(outDir, `icon-${s}.png`))
+  await sharp(Buffer.from(iconMaskableSvg(s))).png().toFile(path.join(outDir, `icon-${s}-maskable.png`))
 }
 
 /** Значок push в строке состояния Android: система берёт только прозрачность, поэтому без фона — иначе белый квадрат. */
@@ -51,7 +65,7 @@ function badgeSvg(size) {
 await sharp(Buffer.from(badgeSvg(96))).png().toFile(path.join(outDir, 'badge-96.png'))
 
 const master = path.join(brandDir, 'os-icon-1024.png')
-await sharp(Buffer.from(iconSvg(1024))).png().toFile(master)
+await sharp(Buffer.from(iconMaskableSvg(1024))).png().toFile(master)
 
-console.log(`Generated ${PRODUCT_BRAND_NAME} icons (ядро + орбиты) in`, outDir)
+console.log(`Generated ${PRODUCT_BRAND_NAME} icons (any=прозрачный splash, maskable=чёрный) in`, outDir)
 console.log('Master:', master)
