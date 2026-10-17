@@ -50,6 +50,7 @@ export function ClientMePage() {
       <ClientNotificationsEntry
         plans={data?.plans ?? readClientMeCache()?.data?.plans}
         ratings={data?.ratings ?? readClientMeCache()?.data?.ratings}
+        membershipNotices={data?.membership_notices ?? readClientMeCache()?.data?.membership_notices}
         inboxAttention={data?.inbox_attention ?? readClientMeCache()?.data?.inbox_attention}
       />
       <ClientMenu

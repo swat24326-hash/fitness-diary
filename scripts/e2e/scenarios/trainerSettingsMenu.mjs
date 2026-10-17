@@ -36,6 +36,7 @@ export async function run(browser) {
     c.ok(await reaches(row), 'сверху меню — своё имя, «Мой профиль и настройки»')
     c.ok((await menu.getByRole('button', { name: /^Настройки/ }).count()) === 0, 'отдельного пункта «Настройки» в меню нет')
     c.ok(!(await page.getByRole('button', { name: 'Восстановить приложение' }).isVisible()), 'служебные пункты не в меню')
+    c.ok(await reaches(menu.getByTestId('header-journal-menu')), 'в бургере — «Помощь»')
     c.ok(await reaches(page.getByRole('button', { name: 'Выйти' })), '«Выйти» в меню')
 
     await row.click()
@@ -52,7 +53,7 @@ export async function run(browser) {
       await settings.getByRole('switch', { name: 'Напоминания из Ежедневника' }).isDisabled(),
       'тренеру — «Напоминания из Ежедневника», без уведомлений неактивны',
     )
-    c.ok(await reaches(settings.getByRole('button', { name: /Помощь/ })), 'в настройках — «Помощь»')
+    c.ok((await settings.getByRole('button', { name: /Помощь/ }).count()) === 0, '«Помощь» не в профиле — только в бургере')
     await settings.getByRole('button', { name: 'Восстановить приложение' }).scrollIntoViewIfNeeded()
     c.ok(await settings.getByRole('button', { name: 'QR для телефона' }).isVisible(), 'длинный профиль прокручивается — пункты доступны')
     await screenshot(page, 'settings-menu-open')

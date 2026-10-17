@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { Bell, ChevronRight, ClipboardList, Gift, Megaphone, Salad, Star } from 'lucide-react'
+import { Bell, ChevronRight, ClipboardList, Gift, Megaphone, Salad, Star, Ticket } from 'lucide-react'
 import { CLIENT_NOTIFICATION_KINDS, buildClientNotifications } from '../../lib/client/clientNotificationsCore.js'
 import { inboxPointsLineRu } from '../../lib/client/clientInboxUiCore.js'
-import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
+import { hasClientSession, patchClientMeCache, readClientMeCache } from '../../lib/client/clientSession.js'
+import { markMembershipNoticeRead } from '../../lib/client/clientMembershipNoticeService.js'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
@@ -12,6 +14,7 @@ import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
 function NotifIcon({ kind }) {
   if (kind === CLIENT_NOTIFICATION_KINDS.nutrition_sent) return <Salad size={20} />
+  if (kind === CLIENT_NOTIFICATION_KINDS.membership_expiring) return <Ticket size={20} />
   if (kind === CLIENT_NOTIFICATION_KINDS.club_survey || kind === CLIENT_NOTIFICATION_KINDS.club_notice) {
     return <Megaphone size={20} />
   }
@@ -25,18 +28,46 @@ function NotifIcon({ kind }) {
   return <ClipboardList size={20} />
 }
 
-/** /me/notifications — одна лента: ДЗ, рацион, оценки, опросы и объявления клуба. */
+/** /me/notifications — одна лента: ДЗ, рацион, оценки, абонемент, опросы и объявления клуба. */
 export function ClientNotificationsPage() {
   const { data, status, error, reload: reloadMe } = useClientMe()
   const inbox = useClientInbox()
+  const [busyId, setBusyId] = useState('')
   if (!hasClientSession() || status === 'signed_out' || inbox.status === 'signed_out') {
     return <Navigate to={CLIENT_HOME} replace />
   }
 
-  const items = buildClientNotifications(data?.plans, data?.ratings, { inboxItems: inbox.items ?? [] })
+  const items = buildClientNotifications(data?.plans, data?.ratings, {
+    inboxItems: inbox.items ?? [],
+    membershipNotices: data?.membership_notices,
+  })
   const club = data?.club ?? readClientMeCache()?.data?.club ?? null
   const pointsLine = inboxPointsLineRu(inbox.points)
   const loading = (!data && status === 'loading') || (inbox.items == null && inbox.status === 'loading')
+
+  /** Тап по непрочитанному «абонемент» — сразу read_at, бейдж гаснет (как у тренера). */
+  const markMembershipIfNeeded = async (it, e) => {
+    if (it.kind !== CLIENT_NOTIFICATION_KINDS.membership_expiring || it.read_at || !it.sourceId) return
+    e.preventDefault()
+    if (busyId) return
+    setBusyId(it.id)
+    try {
+      const notice = await markMembershipNoticeRead(it.sourceId)
+      const at = notice?.read_at || new Date().toISOString()
+      patchClientMeCache((prev) => {
+        const list = Array.isArray(prev?.membership_notices) ? prev.membership_notices : []
+        return {
+          ...prev,
+          membership_notices: list.map((n) => (String(n.id) === String(it.sourceId) ? { ...n, read_at: at } : n)),
+        }
+      })
+      await reloadMe()
+    } catch {
+      /* сеть — точка останется до следующего обновления */
+    } finally {
+      setBusyId('')
+    }
+  }
 
   let list
   if (loading && !items.length) {
@@ -46,7 +77,7 @@ export function ClientNotificationsPage() {
       <ClientMeStatus
         icon={Bell}
         title="Пока тихо"
-        hint="Здесь появятся задание, рацион, просьба оценить и объявления клуба. Переписка — во вкладке «Сообщения»."
+        hint="Здесь появятся задание, рацион, просьба оценить, напоминание об абонементе и объявления клуба. Переписка — во вкладке «Сообщения»."
       />
     )
   } else {
@@ -59,6 +90,8 @@ export function ClientNotificationsPage() {
               <Link
                 to={it.deep_link}
                 className={`client-inbox__row${fresh ? ' client-inbox__row--new' : ''}`}
+                aria-busy={busyId === it.id || undefined}
+                onClick={(e) => void markMembershipIfNeeded(it, e)}
               >
                 <span className="client-inbox__icon" aria-hidden>
                   <NotifIcon kind={it.kind} />

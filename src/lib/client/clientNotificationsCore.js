@@ -17,6 +17,7 @@ export const CLIENT_NOTIFICATION_KINDS = Object.freeze({
   rate_nutrition: 'rate_nutrition',
   club_survey: 'club_survey',
   club_notice: 'club_notice',
+  membership_expiring: 'membership_expiring',
 })
 
 const RATING_KIND_TO_NOTIF = Object.freeze({
@@ -112,9 +113,32 @@ export function buildClientNotificationsFromInbox(inboxItems) {
 }
 
 /**
- * Планы + оценки + рассылки клуба, новые сверху.
+ * Оповещения об абонементе (client_membership_notices).
+ * @param {Array<{ id: string, kind?: string, title?: string, body?: string, deep_link?: string, created_at?: string, read_at?: string|null }>|null|undefined} notices
+ */
+export function buildClientNotificationsFromMembershipNotices(notices) {
+  const out = []
+  for (const n of notices ?? []) {
+    if (!n?.id || !n.created_at) continue
+    out.push({
+      id: `membership-notice:${n.id}`,
+      kind: CLIENT_NOTIFICATION_KINDS.membership_expiring,
+      title: n.title || 'Абонемент заканчивается',
+      body: n.body || '',
+      deep_link: n.deep_link || CLIENT_NOTIFICATIONS_PATH,
+      created_at: String(n.created_at),
+      read_at: n.read_at ? String(n.read_at) : null,
+      sourceId: String(n.id),
+    })
+  }
+  return out
+}
+
+/**
+ * Планы + оценки + рассылки клуба + оповещения об абонементе, новые сверху.
  * @param {object} [opts]
  * @param {object[]} [opts.inboxItems]
+ * @param {object[]} [opts.membershipNotices]
  * @param {string} [opts.timeZone]
  */
 export function buildClientNotifications(plans, ratings, opts = {}) {
@@ -122,6 +146,7 @@ export function buildClientNotifications(plans, ratings, opts = {}) {
     ...buildClientNotificationsFromPlans(plans, { timeZone: opts?.timeZone }),
     ...buildClientNotificationsFromRatings(ratings),
     ...buildClientNotificationsFromInbox(opts?.inboxItems),
+    ...buildClientNotificationsFromMembershipNotices(opts?.membershipNotices),
   ]
   items.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
   return items
@@ -135,8 +160,10 @@ export function clientNotificationsUnreadCount(items) {
  * Число на колокольчике: непрочитанные планы/оценки + inbox_attention с /api/client-me
  * (список рассылок может ещё не быть загружен).
  */
-export function clientNotificationsBellCount({ plans, ratings, inboxAttention } = {}) {
-  const personal = clientNotificationsUnreadCount(buildClientNotifications(plans, ratings))
+export function clientNotificationsBellCount({ plans, ratings, inboxAttention, membershipNotices } = {}) {
+  const personal = clientNotificationsUnreadCount(
+    buildClientNotifications(plans, ratings, { membershipNotices }),
+  )
   return personal + Math.max(0, Number(inboxAttention) || 0)
 }
 

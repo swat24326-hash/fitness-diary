@@ -1,10 +1,12 @@
 /**
  * Смайлики переписки в стиле Telegram: одинаковые картинки Noto на всех устройствах вместо шрифта телефона,
- * крупные — анимацией (Lottie). Файлы с CDN Google; нет сети или смайлика в каталоге — обычный символ. Без React.
+ * крупные — анимацией (Lottie). Файлы — зеркало в public/chat-emoji/ (те же Noto Animated Emoji, CC BY 4.0);
+ * нет файла или смайлика в каталоге — обычный символ. Без React.
  */
 import { CHAT_EMOJI_CATALOG } from './chatEmojiCatalog.js'
 
-export const NOTO_EMOJI_BASE = 'https://fonts.gstatic.com/s/e/notoemoji/latest/'
+/** Same-origin: раздаём со своего сервера (сеть клубов), не с Google CDN. Зеркало — scripts/mirror-chat-emoji.mjs */
+export const NOTO_EMOJI_BASE = '/chat-emoji/'
 
 const EMOJI_MOD = '(?:\\u{FE0F}|\\p{Emoji_Modifier})*'
 const EMOJI_ONE = `\\p{Extended_Pictographic}${EMOJI_MOD}(?:\\u{200D}\\p{Extended_Pictographic}${EMOJI_MOD})*`

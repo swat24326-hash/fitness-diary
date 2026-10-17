@@ -4,9 +4,9 @@ import '../../styles/chat-emoji.css'
 
 /**
  * Смайлик картинкой Noto (одинаково на всех телефонах); нет в каталоге или картинка не загрузилась — символ.
- * @param {{ emoji: string, emojiKey?: string|null, className?: string }} props
+ * @param {{ emoji: string, emojiKey?: string|null, className?: string, loading?: 'lazy' | 'eager' }} props
  */
-export function ChatEmojiGlyph({ emoji, emojiKey, className = 'chat-emoji-glyph' }) {
+export function ChatEmojiGlyph({ emoji, emojiKey, className = 'chat-emoji-glyph', loading = 'lazy' }) {
   const key = emojiKey ?? notoEmojiKey(emoji)
   const [failed, setFailed] = useState(false)
   if (!key || failed) return <span className={`${className} ${className}--text`}>{emoji}</span>
@@ -15,9 +15,8 @@ export function ChatEmojiGlyph({ emoji, emojiKey, className = 'chat-emoji-glyph'
       className={className}
       src={notoEmojiStaticUrl(key)}
       alt={emoji}
-      crossOrigin="anonymous"
       draggable={false}
-      loading="lazy"
+      loading={loading}
       decoding="async"
       onError={() => setFailed(true)}
     />

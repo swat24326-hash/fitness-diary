@@ -16,6 +16,11 @@ homework-library.csv
 .local/
 bridge/
 
+# Noto Animated Emoji: качается `npm run mirror:chat-emoji` (~50 МБ). В git — только NOTICE.
+# Сборка (`npm run build`) докачивает перед vite; клиенты берут уже с app-core.ru.
+public/chat-emoji/**
+!public/chat-emoji/NOTICE.txt
+
 qa-local.log
 my-qa-local.log
 .tmp-*/

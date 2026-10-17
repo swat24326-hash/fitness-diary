@@ -20,7 +20,8 @@ const GROUPS = [
 ]
 const SKIN_TONE = /(^|_)1f3f[b-f](_|$)/
 /** Переписка клуба с клиентами — без грубых жестов. */
-const EXCLUDE = new Set(['1f595'])
+/** 🖕 — грубый жест; ©️®️ — в Noto Animated нет файлов (рисуются шрифтом). */
+const EXCLUDE = new Set(['1f595', 'a9', 'a9_fe0f', 'ae', 'ae_fe0f'])
 
 const res = await fetch(API)
 if (!res.ok) throw new Error(`api.json: HTTP ${res.status}`)

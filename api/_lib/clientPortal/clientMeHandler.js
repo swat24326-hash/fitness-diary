@@ -10,6 +10,7 @@
  * POST /api/client-me { action: 'chat-list' | 'chat-thread' | 'chat-send' } — переписка с тренером и клубом (../chat/chatClientHandler.js).
  * POST /api/client-me { action: 'plan-list' | 'plan-item' } — задание от тренера и рацион (../clientPlans/clientPlansClientHandler.js).
  * POST /api/client-me { action: 'rating-get' | 'rating-answer' | 'rating-dismiss' } — оценка после абонемента (../clientRatings/clientRatingHandler.js).
+ * POST /api/client-me { action: 'membership-notice-read' } — прочитано оповещение об абонементе.
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -23,6 +24,10 @@ import { handleClientChatPost, loadClientChatAttention } from '../chat/chatClien
 import { VIDEO_OPS_CLIENT, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
 import { handleClientPlansPost, loadClientPlansSummary } from '../clientPlans/clientPlansClientHandler.js'
 import { handleClientRatingPost, loadClientRatingsSummary } from '../clientRatings/clientRatingHandler.js'
+import {
+  handleClientMembershipNoticePost,
+  loadClientMembershipNoticesSummary,
+} from './clientMembershipNoticeHandler.js'
 import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
@@ -78,16 +83,19 @@ export async function clientMeHandler(req, res) {
     else if (String(body?.action ?? '').startsWith('chat-')) await handleClientChatPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('plan-')) await handleClientPlansPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('rating-')) await handleClientRatingPost(createServiceDataClient(), ctx, body, res)
-    else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
+    else if (String(body?.action ?? '').startsWith('membership-notice-')) {
+      await handleClientMembershipNoticePost(createServiceDataClient(), ctx, body, res)
+    } else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }
   const db = createServiceDataClient()
-  const [me, inbox_attention, chat_attention, plans, ratings] = await Promise.all([
+  const [me, inbox_attention, chat_attention, plans, ratings, membership_notices] = await Promise.all([
     loadClientMe(db, ctx.client),
     loadClientInboxAttention(db, ctx.clientId),
     loadClientChatAttention(db, ctx.client),
     loadClientPlansSummary(db, ctx.clientId),
     loadClientRatingsSummary(db, ctx.clientId),
+    loadClientMembershipNoticesSummary(db, ctx.clientId),
   ])
-  sendJson(res, 200, { ...me, inbox_attention, chat_attention, plans, ratings })
+  sendJson(res, 200, { ...me, inbox_attention, chat_attention, plans, ratings, membership_notices })
 }

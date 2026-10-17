@@ -5,12 +5,13 @@ import {
 } from '../../lib/client/clientNotificationsCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
 
-/** Колокольчик в шапке /me: ДЗ, рацион, оценки и рассылки клуба. */
-export function ClientNotificationsEntry({ plans, ratings, inboxAttention }) {
+/** Колокольчик в шапке /me: ДЗ, рацион, оценки, абонемент и рассылки клуба. */
+export function ClientNotificationsEntry({ plans, ratings, inboxAttention, membershipNotices }) {
   const cached = readClientMeCache()?.data
   const unread = clientNotificationsBellCount({
     plans: plans ?? cached?.plans,
     ratings: ratings ?? cached?.ratings,
+    membershipNotices: membershipNotices ?? cached?.membership_notices,
     inboxAttention: inboxAttention ?? cached?.inbox_attention,
   })
   return <NotificationsBellLink to={CLIENT_NOTIFICATIONS_PATH} unread={unread} />

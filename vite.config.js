@@ -117,13 +117,12 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
-            /* Смайлики переписки (Noto, Google CDN): свой кэш, чтобы 600 картинок не вытесняли файлы приложения. */
-            urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com' && url.pathname.startsWith('/s/e/notoemoji/'),
+            /* Смайлики переписки (Noto, своё зеркало /chat-emoji/): отдельный кэш, чтобы не вытеснять бандл. */
+            urlPattern: ({ url }) => url.pathname.startsWith('/chat-emoji/'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'chat-emoji',
-              expiration: { maxEntries: 700, maxAgeSeconds: 60 * 60 * 24 * 90 },
-              /* Только 200 (картинки с crossorigin): непрозрачный ответ браузер считает за ~7 МБ квоты. */
+              expiration: { maxEntries: 1400, maxAgeSeconds: 60 * 60 * 24 * 90 },
               cacheableResponse: { statuses: [200] },
             },
           },

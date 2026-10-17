@@ -15,7 +15,8 @@ as_app npm ci --no-audit --no-fund --loglevel=error || fail "npm ci"
 as_app node --env-file=.env scripts/pg-migrate-all.mjs --with-policies >/tmp/fd-stand-migrate.log 2>&1 \
   || { tail -20 /tmp/fd-stand-migrate.log; fail "миграции"; }
 echo "миграции: ок (${SECONDS} с)"
-as_app npm run build --silent >/tmp/fd-build.log 2>&1 || { tail -20 /tmp/fd-build.log; fail "сборка"; }
+# Смайлики Noto в public/chat-emoji/ (не в git): докачать при первой сборке / недостаче, потом vite.
+as_app npm run build --silent >/tmp/fd-build.log 2>&1 || { tail -40 /tmp/fd-build.log; fail "сборка (mirror:chat-emoji + vite)"; }
 echo "сборка: ок (${SECONDS} с)"
 systemctl restart os-hybrid
 for _ in $(seq 1 15); do

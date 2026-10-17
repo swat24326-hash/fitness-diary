@@ -2,10 +2,12 @@
  * Напоминания клиентам о завтрашней тренировке. Запускает cron на ВМ (scripts/client-reminders-install-vm.sh)
  * каждые 15 минут; окно 19:00–22:00 по часам клуба и журнал без дублей проверяет сам код.
  * Заодно — push о задании / рационе от тренера, отправленных в тихие часы (утром после 9:00),
- * воскресное авто-ДЗ (docs/HOMEWORK_AUTO.md) и авто-рацион при смене веса ≥ 3 кг (docs/NUTRITION_AUTO.md).
+ * воскресное авто-ДЗ (docs/HOMEWORK_AUTO.md), авто-рацион при смене веса ≥ 3 кг (docs/NUTRITION_AUTO.md)
+ * и оповещение «абонемент заканчивается» (окно 10:00–12:00 по часам клуба).
  * Вручную на ВМ: sudo bash scripts/client-reminders-vm.sh [--dry-run]
  */
 import { runClientReminders } from '../api/_lib/clientPortal/clientReminderJob.js'
+import { runClientMembershipExpiringNotices } from '../api/_lib/clientPortal/clientMembershipNoticeJob.js'
 import { runClientPlanNotices } from '../api/_lib/clientPlans/clientPlanNotify.js'
 import { runClientRatingNotices } from '../api/_lib/clientRatings/clientRatingJob.js'
 import { runHomeworkAutoSend } from '../api/_lib/homeworkAuto/homeworkAutoJob.js'
@@ -48,6 +50,13 @@ if (!process.argv.includes('--dry-run')) {
   } catch (e) {
     failed = true
     console.error('client-rating-notices: ошибка', e?.code || '', e?.message || e)
+  }
+  try {
+    const membership = await runClientMembershipExpiringNotices({ db: createServiceDataClient() })
+    if (!membership.skipped) console.log('client-membership-notices:', JSON.stringify(membership))
+  } catch (e) {
+    failed = true
+    console.error('client-membership-notices: ошибка', e?.code || '', e?.message || e)
   }
 }
 process.exit(failed ? 1 : 0)

@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "dev:vercel": "vercel dev",
-    "build": "vite build",
+    "build": "node scripts/mirror-chat-emoji.mjs && vite build",
     "preview": "vite preview",
     "start": "node server/index.js",
     "db:migrate:pg": "node scripts/pg-migrate-all.mjs",
@@ -57,6 +57,8 @@
     "check:volume": "node scripts/check-data-volume.mjs",
     "sync:brand": "node scripts/sync-product-brand.mjs",
     "gen:icons": "node scripts/sync-product-brand.mjs && node scripts/generate-icons.mjs",
+    "mirror:chat-emoji": "node scripts/mirror-chat-emoji.mjs",
+    "mirror:chat-emoji:check": "node scripts/mirror-chat-emoji.mjs --check",
     "qa": "node scripts/agent-qa.mjs",
     "qa:local": "node scripts/agent-qa.mjs --skip-prod",
     "qa:fast": "node scripts/qa-fast.mjs",

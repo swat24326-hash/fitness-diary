@@ -52,7 +52,12 @@ export function PrivacyPolicyPage() {
               <a href={`mailto:${contact}`}>{contact}</a>.
             </>
           ) : (
-            <> Реквизиты ИП и прямой контакт — в договоре клуба с «{PRODUCT_BRAND_NAME}».</>
+            <>
+              {' '}
+              Реквизиты ИП — в{' '}
+              <LegalCrossLink to={OFFER_PATH}>{OFFER_LINK_RU}</LegalCrossLink> и в договоре клуба с «
+              {PRODUCT_BRAND_NAME}».
+            </>
           )}
         </p>
       </section>

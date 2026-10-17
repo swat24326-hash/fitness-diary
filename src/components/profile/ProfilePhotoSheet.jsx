@@ -96,26 +96,27 @@ export function ProfilePhotoSheet({ open, onClose, name, avatar, settings = null
                   <AvatarPhoto src={avatar.photo} fallback={chatInitials(name) || '?'} />
                 </span>
                 <strong className="profile-photo__name">
-                  {name || 'Без имени'} <ProfileStatusMark emoji={avatar.status?.emoji} />
+                  {name || 'Без имени'}
+                  {avatar.status?.emoji ? <ProfileStatusMark emoji={avatar.status.emoji} /> : null}
                 </strong>
                 <small className="muted">Фото видят в переписке клуба</small>
-              </div>
-              {avatar.ready ? (
-                <div className="row td-modal-actions profile-photo__actions">
-                  <button type="button" className="btn btn-primary btn-touch" disabled={busy} onClick={() => fileRef.current?.click()}>
-                    <Camera size={18} aria-hidden />
-                    {avatar.photo ? 'Сменить фото' : 'Выбрать фото'}
-                  </button>
-                  {avatar.photo ? (
-                    <button type="button" className="btn btn-ghost btn-touch profile-photo__remove" disabled={busy} onClick={() => void avatar.remove()}>
-                      <Trash2 size={18} aria-hidden />
-                      Удалить
+                {avatar.ready ? (
+                  <div className="profile-photo__actions">
+                    <button type="button" className="btn btn-primary btn-touch" disabled={busy} onClick={() => fileRef.current?.click()}>
+                      <Camera size={18} aria-hidden />
+                      {avatar.photo ? 'Сменить фото' : 'Выбрать фото'}
                     </button>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="muted profile-photo__note">{AVATAR_UNAVAILABLE_RU}</p>
-              )}
+                    {avatar.photo ? (
+                      <button type="button" className="btn btn-ghost btn-touch profile-photo__remove" disabled={busy} onClick={() => void avatar.remove()}>
+                        <Trash2 size={18} aria-hidden />
+                        Удалить
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="muted profile-photo__note">{AVATAR_UNAVAILABLE_RU}</p>
+                )}
+              </div>
               {links ? <div className="profile-photo__links">{links}</div> : null}
             </div>
             <div className="profile-photo__side">

@@ -8,6 +8,7 @@ import { BarChart3, CalendarDays, Inbox, LayoutDashboard, LogOut, Menu, RefreshC
 import { HeaderClubSwitcher } from './header/HeaderClubSwitcher.jsx'
 import { HeaderProfileSheet } from './header/HeaderProfileSheet.jsx'
 import { HeaderProfileSettings } from './header/HeaderProfileSettings.jsx'
+import { HeaderJournalMenuItem } from './header/HeaderJournalMenuItem.jsx'
 import { ProfileMenuRow } from './profile/ProfileMenuRow.jsx'
 import { staffAvatarApi } from '../lib/profile/staffAvatarApi.js'
 import { useMyAvatar } from '../hooks/useMyAvatar.js'
@@ -682,6 +683,15 @@ export function AppHeader() {
                 </>
               )}
             </div>
+            <HeaderJournalMenuItem
+              isAdmin={isAdmin}
+              errorCount={persistentErrorCount}
+              updatePending={updatePending}
+              onOpen={() => {
+                setMenuOpen(false)
+                openErrorJournal()
+              }}
+            />
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>
               <LogOut size={18} aria-hidden />
               Выйти
@@ -718,15 +728,6 @@ export function AppHeader() {
               clubId: String(user?.club_id ?? '').trim(),
             }}
             recover={{ busy: recoverBusy, run: () => void doRecoverApp() }}
-            journal={{
-              isAdmin,
-              errorCount: persistentErrorCount,
-              updatePending,
-              open: () => {
-                closeProfile()
-                openErrorJournal()
-              },
-            }}
           />
         }
       />

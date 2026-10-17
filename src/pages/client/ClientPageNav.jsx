@@ -21,6 +21,7 @@ export function ClientPageActions({ onRefresh = null, refreshing = false }) {
       <ClientNotificationsEntry
         plans={readClientMeCache()?.data?.plans}
         ratings={readClientMeCache()?.data?.ratings}
+        membershipNotices={readClientMeCache()?.data?.membership_notices}
         inboxAttention={readClientMeCache()?.data?.inbox_attention}
       />
       <ClientMenu {...menu} onRefresh={onRefresh} refreshing={refreshing} />

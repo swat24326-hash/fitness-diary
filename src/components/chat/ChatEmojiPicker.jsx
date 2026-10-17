@@ -75,7 +75,7 @@ export function ChatEmojiPicker({ onPick, onSticker, sending }) {
         <div className="chat-emoji__grid" role="tabpanel" aria-label={tab.label}>
           {tab.items.map((e) => (
             <button key={e} type="button" className="chat-emoji__item" onClick={() => onPick(e)} aria-label={e}>
-              <ChatEmojiGlyph emoji={e} />
+              <ChatEmojiGlyph emoji={e} loading="eager" />
             </button>
           ))}
         </div>

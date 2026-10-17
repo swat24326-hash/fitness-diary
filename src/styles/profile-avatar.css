@@ -243,9 +243,21 @@
 .profile-photo__hero {
   display: grid;
   justify-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 12px 0 4px;
   text-align: center;
+}
+
+/* Кнопки внутри hero — та же ось, что круг и имя (без .row / .td-modal-actions). */
+.profile-photo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
 }
 
 .profile-photo__circle {
@@ -285,7 +297,15 @@
   }
 
   .profile-photo--desk .profile-photo__main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     grid-area: main;
+  }
+
+  .profile-photo--desk .profile-photo__hero,
+  .profile-photo--desk .profile-photo__links {
+    width: 100%;
   }
 
   .profile-photo--desk .profile-photo__side {
@@ -326,11 +346,11 @@
 }
 
 .profile-photo__name {
-  font-size: 1.1rem;
-}
-
-.profile-photo__actions {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  gap: 0.25em;
+  font-size: 1.1rem;
 }
 
 .profile-photo__remove {
@@ -338,7 +358,7 @@
 }
 
 .profile-photo__note {
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   text-align: center;
 }
 

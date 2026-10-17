@@ -30,7 +30,10 @@ ok(notoEmojiKey('😀') === '1f600', 'ключ Noto: 😀 → 1f600')
 ok(notoEmojiKey('❤️') === '2764_fe0f' && notoEmojiKey('❤') === '2764_fe0f', 'ключ Noto: сердце с FE0F и без — один смайлик')
 ok(notoEmojiKey('🙂‍↕️') === '1f642_200d_2195_fe0f', 'ключ Noto: составной смайлик (ZWJ)')
 ok(notoEmojiKey('🖕') === null && notoEmojiKey('a') === null, 'нет в каталоге — null (символ остаётся текстом)')
-ok(notoEmojiStaticUrl('1f600').endsWith('/1f600/emoji.svg') && notoEmojiLottieUrl('1f600').endsWith('/1f600/lottie.json'), 'адреса картинки и анимации')
+ok(
+  notoEmojiStaticUrl('1f600') === '/chat-emoji/1f600/emoji.svg' && notoEmojiLottieUrl('1f600') === '/chat-emoji/1f600/lottie.json',
+  'адреса со своего origin (/chat-emoji/), не Google CDN',
+)
 
 const parts = splitEmojiText('Привет 👋 как дела?💪')
 ok(
