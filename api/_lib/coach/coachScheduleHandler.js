@@ -69,7 +69,13 @@ export async function sendCoachScheduleRange(ctx, req, res) {
       if (!membershipsByClientId[cid]) membershipsByClientId[cid] = []
       membershipsByClientId[cid].push(m)
     }
-    membershipTypes = await rows(db.from('membership_types').select('id, code, name').eq('club_id', clubId))
+    /* У типов абона есть code, колонки name нет — select name ронял весь schedule-range 500 (INC-2026-10-17-04). */
+    try {
+      membershipTypes = await rows(db.from('membership_types').select('id, code').eq('club_id', clubId))
+    } catch (e) {
+      console.warn('[coach] membership_types for schedule meta', e?.message || e)
+      membershipTypes = []
+    }
   }
 
   const clientsList = [...byId.values()]

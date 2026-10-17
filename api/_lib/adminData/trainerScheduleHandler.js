@@ -197,9 +197,10 @@ export async function handleTrainerScheduleGet(ctx, req, res) {
       }
     }
 
+    /* membership_types: code есть, name нет (как в coachScheduleHandler). */
     const { data: membershipTypes, error: mte } = await supabaseAdmin
       .from('membership_types')
-      .select('id, code, name')
+      .select('id, code')
       .eq('club_id', clubId)
     if (mte) {
       sendJson(res, 400, { error: mte.message })
