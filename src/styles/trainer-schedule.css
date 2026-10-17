@@ -255,27 +255,51 @@
   position: relative;
 }
 
-.trainer-schedule-day .trainer-schedule-day__add.trainer-schedule-day__add--fab {
+/* FAB «+»: тихое стекло, не neon btn-primary. */
+.trainer-schedule-day .btn.trainer-schedule-day__add.trainer-schedule-day__add--fab {
   position: absolute;
-  right: 14px;
+  /* Отступ от края + ширина полосы прокрутки сетки (useScrollbarWidthVar). */
+  right: calc(14px + var(--schedule-scrollbar, 0px));
   bottom: 14px;
   z-index: 20;
-  width: 40px;
-  height: 40px;
-  min-width: 0;
-  min-height: 0;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   margin: 0;
   padding: 0;
   justify-content: center;
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  color: var(--accent-bright);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 
-/* Палец промахивается мимо 40px — зона нажатия добирается до 48px. */
-.trainer-schedule-day__add--fab::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
+.trainer-schedule-day .btn.trainer-schedule-day__add.trainer-schedule-day__add--fab:hover {
+  filter: none;
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.trainer-schedule-day .btn.trainer-schedule-day__add.trainer-schedule-day__add--fab:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.trainer-schedule-day .btn.trainer-schedule-day__add.trainer-schedule-day__add--fab:active {
+  background: color-mix(in srgb, var(--accent) 38%, var(--bg-elevated));
+}
+
+.trainer-schedule-day .btn.trainer-schedule-day__add.trainer-schedule-day__add--fab svg {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  color: inherit;
 }
 
 /* --- Month --- */
@@ -575,6 +599,7 @@
 }
 
 .trainer-schedule-day__hours {
+  position: relative;
   padding-top: 0;
 }
 
@@ -634,10 +659,44 @@
   width: 100%;
 }
 
-.trainer-schedule-day__entry-start {
+/* Старт тренировки на плитке: тихое стекло, не глобальный neon btn-primary. */
+.btn.trainer-schedule-day__entry-start {
   flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 4px;
+  align-self: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-muted));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent-bright);
+  box-shadow: none;
+}
+
+.btn.trainer-schedule-day__entry-start:hover {
+  filter: none;
+  background: color-mix(in srgb, var(--accent) 28%, var(--bg-muted));
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+  box-shadow: none;
+}
+
+.btn.trainer-schedule-day__entry-start:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.btn.trainer-schedule-day__entry-start:active {
+  background: color-mix(in srgb, var(--accent) 36%, var(--bg-muted));
+}
+
+.btn.trainer-schedule-day__entry-start svg {
+  width: 18px;
+  height: 18px;
+  margin: 0;
 }
 
 .trainer-schedule-day__entry-chip {

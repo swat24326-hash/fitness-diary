@@ -15,6 +15,7 @@ import { swapMealInPlan } from '../../lib/nutrition/nutritionMealSwapCore.js'
 import { rescaleNutritionPlanToHealth } from '../../lib/nutrition/nutritionPlanRescaleCore.js'
 import { pickWeekDayPlan } from '../../lib/nutrition/nutritionWeekPlanCore.js'
 import { shouldAutoPushNutritionPlan } from '../../lib/nutrition/nutritionAutoPushCore.js'
+import { nutritionAutoUpcomingSunday } from '../../lib/nutrition/nutritionAutoScheduleCore.js'
 import { buildNutritionCatalogMap, catalogSourceLabel } from '../../lib/nutrition/nutritionCatalogResolve.js'
 import { isNutritionHealthReady } from '../../lib/nutrition/nutritionPlanBuilder.js'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
@@ -29,10 +30,12 @@ import {
   loadClientNutritionState,
   nutritionSurveyFromStorage,
   previewNutritionPlan,
+  saveClientNutrition,
   removeNutritionHistoryEntry,
   saveNutritionPlan,
   toggleProductId,
 } from '../../lib/nutrition/nutritionPlanService.js'
+import { NutritionAutoScheduleCard } from './NutritionAutoScheduleCard.jsx'
 import {
   nutritionAgeFromClient,
   seedNutritionSurveyFromClientHealth,
@@ -47,7 +50,7 @@ import { sendNutritionPlanPng } from '../../lib/nutrition/nutritionPlanShareCore
 import { buildNutritionAppSnapshot, NUTRITION_APP_SEND_ERRORS_RU } from '../../lib/nutrition/nutritionAppSendCore.js'
 import { useClientPlanSend } from './useClientPlanSend.js'
 import { buildDayProductSummary, setPlanItemGrams } from '../../lib/nutrition/nutritionPlanEditCore.js'
-import { formatDateRu } from '../../lib/dateRu'
+import { calendarDayInTimeZoneIso, formatDateRu } from '../../lib/dateRu'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { resolveClubDisplayName } from '../../lib/dataAccess'
 
@@ -599,6 +602,26 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
       return snap.ok ? snap : { ok: false, message: NUTRITION_APP_SEND_ERRORS_RU[snap.error] }
     })
 
+  const nutritionAutoSunday = useMemo(() => nutritionAutoUpcomingSunday(), [])
+  const nutritionLastManualDay = planApp.mark?.sent_at ? calendarDayInTimeZoneIso(planApp.mark.sent_at) : null
+
+  const persistNutritionAutoSurvey = async (patch) => {
+    if (readOnly || !client?.id || !health) return
+    const next = { ...savedSurvey, ...patch }
+    setBusy(true)
+    setError(null)
+    try {
+      const row = await saveClientNutrition(client.id, health, next, savedPlan, { surveyOnly: true })
+      setHealth(row)
+      setSurvey(next)
+      setSavedSurvey(next)
+    } catch (e) {
+      setError(e?.message ?? 'Не удалось сохранить авто-отправку')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const exportPng = async (channel = 'other') => {
     // Полный план с days[], не выбранный день экрана — иначе неделя уезжает одной «тарелкой».
     const plan = (planUnsaved ? draftPlan : null) ?? savedPlan ?? displayPlan
@@ -814,6 +837,26 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
             </button>
           ) : null}
         </section>
+      ) : null}
+
+      {healthReady && pageView === PAGE_VIEWS.ration && !isComposing ? (
+        <NutritionAutoScheduleCard
+          client={client}
+          health={health}
+          survey={savedSurvey}
+          plan={savedPlan}
+          sunday={nutritionAutoSunday}
+          lastManualDay={nutritionLastManualDay}
+          readOnly={readOnly}
+          busy={busy}
+          onToggle={(enabled) =>
+            void persistNutritionAutoSurvey({
+              nutritionAutoPush: enabled,
+              nutritionAutoSkipDate: enabled ? null : savedSurvey.nutritionAutoSkipDate ?? null,
+            })
+          }
+          onSkip={() => void persistNutritionAutoSurvey({ nutritionAutoPush: true, nutritionAutoSkipDate: nutritionAutoSunday })}
+        />
       ) : null}
 
       {healthReady && pageView === PAGE_VIEWS.ration && (savedPlan || (planUnsaved && draftPlan)) ? (
@@ -1044,15 +1087,9 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 ))}
               </div>
 
-              <label className="nutrition-field nutrition-field--row">
-                <input
-                  type="checkbox"
-                  checked={survey.nutritionAutoPush === true}
-                  disabled={readOnly || composeSurveyLocked}
-                  onChange={(e) => patchSurvey({ nutritionAutoPush: e.target.checked })}
-                />
-                <span>После пересчёта КБЖУ сами отправлять рацион в приложение клиента</span>
-              </label>
+              <p className="muted nutrition-auto-compose-hint">
+                Авто-пересчёт по воскресеньям (при смене веса на 3 кг и больше) включается на вкладке «Текущий рацион».
+              </p>
             </section>
           )}
 

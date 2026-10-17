@@ -133,6 +133,7 @@
 | [ACADEMY_BRIDGE.md](./ACADEMY_BRIDGE.md) | 📋 после §5.7 | Академия (обучение): отдельный VPS + мост результатов в карточку тренера |
 | [PRODUCT_MODULES.md](./PRODUCT_MODULES.md) | карта | Питание, ДЗ, outreach, ИСКРА — куда код и docs |
 | [NUTRITION_DIARY.md](./NUTRITION_DIARY.md) | 📋 ТЗ | Дневник «что съел» + отчёт тренеру (фаза 9) |
+| [NUTRITION_AUTO.md](./NUTRITION_AUTO.md) | 🔧 в репо | Авто-рацион: воскресенье + пересчёт КБЖУ при смене веса ≥ 3 кг |
 | [HOMEWORK_AUTO.md](./HOMEWORK_AUTO.md) | 🔧 в репо | Авто-ДЗ по воскресеньям: решения, этапы, библиотека упражнений с метками |
 | [HEALTH_SCREENING.md](./HEALTH_SCREENING.md) | 🔧 в репо | Анкета здоровья «Да / Нет» у тренера: допуск, зоны тела, образ жизни; метки на тренировке, ограничения для авто-ДЗ |
 | [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md) | 📋 ориентир | Чеклист vs DDX: есть / частично / позже (в т.ч. турникет) |

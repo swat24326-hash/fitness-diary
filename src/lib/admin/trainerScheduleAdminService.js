@@ -30,6 +30,7 @@ export async function loadClubTrainerScheduleRange({ clubId, trainerId = '', day
     ok: true,
     entries: Array.isArray(data.entries) ? data.entries : [],
     clientNameById: data.clientNameById ?? {},
+    clientInfoById: data.clientInfoById ?? {},
     trainerNameById: data.trainerNameById ?? {},
     trainingById: data.trainingById ?? {},
     truncated: Boolean(data.truncated),

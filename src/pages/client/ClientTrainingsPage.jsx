@@ -96,6 +96,7 @@ export function ClientTrainingsPage() {
           training={view.training}
           trainerName={view.training.trainer_name || undefined}
           dateLabel={trainingViewTitle(view.training.date)}
+          enableCopy
           onClose={view.close}
         />
       ) : null}

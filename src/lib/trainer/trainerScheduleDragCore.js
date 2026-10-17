@@ -1,6 +1,11 @@
 /**
  * Ежедневник: перенос записи долгим нажатием (чистая логика, без DOM).
  */
+import {
+  SCHEDULE_DEFAULT_DURATION_MIN,
+  SCHEDULE_MIN_DURATION_MIN,
+  formatScheduleMinutes,
+} from './trainerScheduleCore.js'
 
 /** Удержание пальца до «подъёма» записи — короче скролл, длиннее случайный тап. */
 export const SCHEDULE_DRAG_HOLD_MS = 400
@@ -106,4 +111,30 @@ export function isScheduleMoveNoop(entry, dayIso, startMinutes) {
     String(entry?.day_date ?? '').slice(0, 10) === String(dayIso ?? '').slice(0, 10) &&
     Number(entry?.start_minutes) === Number(startMinutes)
   )
+}
+
+/**
+ * Метки точного времени в колонке часов при переносе (как в Google Календаре).
+ * @param {{ startMinutes?: number, entry?: { duration_minutes?: number } } | null | undefined} preview
+ * @param {{ dayStartMin?: number, pxPerMin?: number }} [opts]
+ * @returns {{ startLabel: string, endLabel: string, startTopPx: number, endTopPx: number, showEnd: boolean } | null}
+ */
+export function resolveScheduleDragTimeHints(preview, opts = {}) {
+  if (!preview || preview.startMinutes == null) return null
+  const start = Number(preview.startMinutes)
+  if (!Number.isFinite(start)) return null
+  const duration = Math.max(
+    SCHEDULE_MIN_DURATION_MIN,
+    Number(preview.entry?.duration_minutes) || SCHEDULE_DEFAULT_DURATION_MIN,
+  )
+  const end = Math.min(24 * 60 - SCHEDULE_DRAG_SNAP_MIN, start + duration)
+  const ppm = Number(opts.pxPerMin) > 0 ? Number(opts.pxPerMin) : 1
+  const base = Number(opts.dayStartMin) || 0
+  return {
+    startLabel: formatScheduleMinutes(start),
+    endLabel: formatScheduleMinutes(end),
+    startTopPx: (start - base) * ppm,
+    endTopPx: (end - base) * ppm,
+    showEnd: (end - start) * ppm >= 28,
+  }
 }

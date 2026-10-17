@@ -25,6 +25,7 @@ import {
   resolveScheduleDragDayIndex,
   resolveScheduleDragPolicy,
   resolveScheduleDragStartMinutes,
+  resolveScheduleDragTimeHints,
   resolveScheduleEdgeFlip,
   snapScheduleMinutes,
 } from '../src/lib/trainer/trainerScheduleDragCore.js'
@@ -121,6 +122,23 @@ ok(snapScheduleMinutes(1500) === 1425, 'snap clamps at 23:45')
 ok(
   resolveScheduleDragStartMinutes({ pointerY: 1000, grabOffsetY: 20, trackTop: 140, pxPerMin: 1.4 }) === 600,
   'drag start from pointer: (1000−20−140)/1.4 = 600 → 10:00',
+)
+ok(resolveScheduleDragTimeHints(null) == null, 'drag time hints: no preview')
+{
+  const hints = resolveScheduleDragTimeHints(
+    { startMinutes: 15 * 60 + 15, entry: { duration_minutes: 60 } },
+    { dayStartMin: 0, pxPerMin: 1 },
+  )
+  ok(hints?.startLabel === '15:15' && hints?.endLabel === '16:15', 'drag time hints: start/end labels')
+  ok(hints?.startTopPx === 915 && hints?.endTopPx === 975, 'drag time hints: top px')
+  ok(hints?.showEnd === true, 'drag time hints: show end when tall enough')
+}
+ok(
+  resolveScheduleDragTimeHints(
+    { startMinutes: 600, entry: { duration_minutes: 15 } },
+    { pxPerMin: 0.5 },
+  )?.showEnd === false,
+  'drag time hints: hide end when too short on screen',
 )
 {
   const rects = [

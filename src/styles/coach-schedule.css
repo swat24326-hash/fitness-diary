@@ -69,7 +69,7 @@
 
 /* У карточки отступ 10px — «+» ближе к краю сетки, чтобы от угла экрана было как раньше. */
 .coach-schedule .trainer-schedule-day .trainer-schedule-day__add.trainer-schedule-day__add--fab {
-  right: 4px;
+  right: calc(4px + var(--schedule-scrollbar, 0px));
   bottom: 4px;
 }
 

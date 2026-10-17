@@ -91,13 +91,21 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true })
   }, [trainerFilter, searchParams, setSearchParams])
 
-  const { entries, clientNameById, trainerNameById, trainingById, loading, error, truncated } =
-    useClubTrainerScheduleData({
-      clubId,
-      trainerId: trainerFilter,
-      dayFrom: loadRange.dayFrom,
-      dayTo: loadRange.dayTo,
-    })
+  const {
+    entries,
+    clientNameById,
+    clientInfoById,
+    trainerNameById,
+    trainingById,
+    loading,
+    error,
+    truncated,
+  } = useClubTrainerScheduleData({
+    clubId,
+    trainerId: trainerFilter,
+    dayFrom: loadRange.dayFrom,
+    dayTo: loadRange.dayTo,
+  })
 
   const countsByDay = useMemo(
     () => countScheduleEntriesByDay(entries, monthCursor.year, monthCursor.month),
@@ -179,6 +187,7 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
               anchorDayIso={selectedDay}
               entries={entries}
               clientNameById={clientNameById}
+              clientInfoById={clientInfoById}
               trainerNameById={trainerNameById}
               trainingById={trainingById}
               readOnly
@@ -205,6 +214,7 @@ export function ClubTrainerSchedulePage({ accessMode = 'admin' } = {}) {
         trainerId={String(nav.modalDraft?.trainer_id ?? '')}
         clients={[]}
         clientNameById={clientNameById}
+        clientInfoById={clientInfoById}
         trainerNameById={trainerNameById}
         trainingById={trainingById}
         readOnly

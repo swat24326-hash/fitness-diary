@@ -28,6 +28,7 @@ const HOURS = Array.from({ length: SCHEDULE_DAY_END_HOUR - SCHEDULE_DAY_START_HO
  *   canStartTraining: boolean,
  *   showTrainerName: boolean,
  *   clientNameById: Record<string, string>,
+ *   clientInfoById?: Record<string, object>,
  *   trainerNameById: Record<string, string>,
  *   trainingById: Record<string, object>,
  *   now: { todayIso: string, nowMinutes: number },
@@ -48,6 +49,7 @@ export function TrainerScheduleDayTrack({
   canStartTraining,
   showTrainerName,
   clientNameById,
+  clientInfoById = {},
   trainerNameById,
   trainingById,
   now,
@@ -120,6 +122,7 @@ export function TrainerScheduleDayTrack({
             laneCount={laneCount}
             trainerName={trainerName}
             clientNameById={clientNameById}
+            clientInfoById={clientInfoById}
             trainingById={trainingById}
             now={now}
             readOnly={readOnly}
@@ -141,6 +144,7 @@ export function TrainerScheduleDayTrack({
           oneLine={oneLine(preview.entry)}
           laneCount={1}
           clientNameById={clientNameById}
+          clientInfoById={clientInfoById}
           trainingById={trainingById}
           now={now}
           readOnly

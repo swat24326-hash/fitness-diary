@@ -30,7 +30,8 @@ import { topUpDayPlanTowardTargets } from './nutritionMealTopUpCore.js'
  * @property {{ protein?: string[], fat?: string[], carbs?: string[] }} [pickedProducts] — устаревший opt-in
  * @property {import('./nutritionProteinAccentCore.js').NutritionProteinAccent} [proteinAccent]
  * @property {number} [daysCount] — 3–7 дней рациона
- * @property {boolean} [nutritionAutoPush] — авто-выдача в /me при пересчёте
+ * @property {boolean} [nutritionAutoPush] — авто-выдача в /me (воскресенье / после пересчёта)
+ * @property {string} [nutritionAutoSkipDate] — ISO воскресенья, которое пропускаем
  * @property {number} [_mealIndexOffset] — внутренний сдвиг вариантов (неделя)
  * @property {number} [_dayIndex] — индекс дня в неделе (маска база/рецепт)
  */
@@ -71,6 +72,10 @@ export function normalizeNutritionSurvey(raw) {
     proteinAccent: normalizeProteinAccent(o.proteinAccent),
     daysCount,
     nutritionAutoPush: o.nutritionAutoPush === true,
+    nutritionAutoSkipDate:
+      typeof o.nutritionAutoSkipDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.nutritionAutoSkipDate)
+        ? o.nutritionAutoSkipDate
+        : undefined,
     _mealIndexOffset: Number.isFinite(Number(o._mealIndexOffset)) ? Number(o._mealIndexOffset) : undefined,
     _dayIndex: Number.isFinite(Number(o._dayIndex)) ? Number(o._dayIndex) : undefined,
   }

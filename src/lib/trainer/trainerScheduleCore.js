@@ -162,11 +162,19 @@ export function buildScheduleEntryLabel(entry, clientNameById = {}) {
   return title || 'Заметка'
 }
 
-/** «Ефрюшин Вячеслав Александрович» → «Ефрюшин В.» — для узких колонок сетки. @param {unknown} name */
+/** «Ефрюшин Вячеслав Александрович» → «Ефрюшин В. А.» — для узких колонок сетки. @param {unknown} name */
 export function shortScheduleClientName(name) {
   const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean)
   if (parts.length < 2) return parts[0] ?? ''
-  return `${parts[0]} ${parts[1].charAt(0).toUpperCase()}.`
+  const initials = parts
+    .slice(1)
+    .map((p) => {
+      const ch = String(p).charAt(0)
+      return ch ? `${ch.toUpperCase()}.` : ''
+    })
+    .filter(Boolean)
+    .join(' ')
+  return initials ? `${parts[0]} ${initials}` : parts[0]
 }
 
 /**

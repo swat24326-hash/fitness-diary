@@ -13,6 +13,7 @@ export function defaultNutritionSurvey() {
     proteinAccent: /** @type {const} */ ('mixed'),
     daysCount: 1,
     nutritionAutoPush: false,
+    nutritionAutoSkipDate: null,
   }
 }
 

@@ -8,6 +8,7 @@ import { loadClubTrainerScheduleRange } from '../lib/admin/trainerScheduleAdminS
 export function useClubTrainerScheduleData({ clubId, trainerId = '', dayFrom, dayTo }) {
   const [entries, setEntries] = useState([])
   const [clientNameById, setClientNameById] = useState({})
+  const [clientInfoById, setClientInfoById] = useState({})
   const [trainerNameById, setTrainerNameById] = useState({})
   const [trainingById, setTrainingById] = useState({})
   const [loading, setLoading] = useState(true)
@@ -21,6 +22,7 @@ export function useClubTrainerScheduleData({ clubId, trainerId = '', dayFrom, da
     if (!cid || !from || !to) {
       setEntries([])
       setClientNameById({})
+      setClientInfoById({})
       setTrainerNameById({})
       setTrainingById({})
       setTruncated(false)
@@ -40,6 +42,7 @@ export function useClubTrainerScheduleData({ clubId, trainerId = '', dayFrom, da
       if (!res.ok) {
         setEntries([])
         setClientNameById({})
+        setClientInfoById({})
         setTrainerNameById({})
         setTrainingById({})
         setTruncated(false)
@@ -48,6 +51,7 @@ export function useClubTrainerScheduleData({ clubId, trainerId = '', dayFrom, da
       }
       setEntries(res.entries)
       setClientNameById(res.clientNameById)
+      setClientInfoById(res.clientInfoById ?? {})
       setTrainerNameById(res.trainerNameById)
       setTrainingById(res.trainingById)
       setTruncated(Boolean(res.truncated))
@@ -63,5 +67,15 @@ export function useClubTrainerScheduleData({ clubId, trainerId = '', dayFrom, da
     void reload()
   }, [reload])
 
-  return { entries, clientNameById, trainerNameById, trainingById, loading, error, truncated, reload }
+  return {
+    entries,
+    clientNameById,
+    clientInfoById,
+    trainerNameById,
+    trainingById,
+    loading,
+    error,
+    truncated,
+    reload,
+  }
 }

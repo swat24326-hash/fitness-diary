@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Clock, Pencil, StickyNote, Trash2, User, Users, X } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
+import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import {
   formatScheduleTimeRange,
   normalizeScheduleClientIds,
@@ -15,6 +16,7 @@ import { resolveScheduleEntryKind, scheduleKindLabel } from '../../lib/trainer/t
  *   draft: object,
  *   trainerName?: string,
  *   clientNameById?: Record<string, string>,
+ *   clientInfoById?: Record<string, { cardNumber?: string, membershipLabel?: string }>,
  *   clientsBase?: string,
  *   trainingChip?: string,
  *   busy?: boolean,
@@ -29,6 +31,7 @@ export function TrainerScheduleEntryReadonly({
   draft,
   trainerName = '',
   clientNameById = {},
+  clientInfoById = {},
   clientsBase = '',
   trainingChip = '',
   busy = false,
@@ -95,17 +98,22 @@ export function TrainerScheduleEntryReadonly({
                 {clientIds.length === 1 ? 'Клиент' : `Клиентов: ${clientIds.length}`}
               </span>
               <ul className="trainer-schedule-view__client-list">
-                {clientIds.map((cid) => (
-                  <li key={cid}>
-                    {clientsBase ? (
-                      <Link to={`${clientsBase}/${cid}`} className="u-no-decoration">
-                        {clientNameById[cid] ?? 'Клиент'}
-                      </Link>
-                    ) : (
-                      clientNameById[cid] ?? 'Клиент'
-                    )}
-                  </li>
-                ))}
+                {clientIds.map((cid) => {
+                  const name = clientNameById[cid] ?? 'Клиент'
+                  const meta = formatScheduleClientCardMeta(clientInfoById[cid] ?? {})
+                  return (
+                    <li key={cid}>
+                      {clientsBase ? (
+                        <Link to={`${clientsBase}/${cid}`} className="u-no-decoration">
+                          {name}
+                        </Link>
+                      ) : (
+                        name
+                      )}
+                      {meta ? <span className="trainer-schedule-view__client-meta muted">{meta}</span> : null}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           </div>

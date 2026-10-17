@@ -144,7 +144,7 @@ node scripts/verify-product-brand.mjs
 
 | # | Экран | Проверить |
 |---|--------|-----------|
-| 1 | Splash | Ядро + знак + tagline |
+| 1 | Splash | Знак + орбиты; приветствие «Приветствуем, …» с именем; без tagline / «ЯДРО» / овального glow (`AppWelcomeSplash`, `app-welcome.css`) |
 | 2 | Trainer home | Emerald; в шапке **клуб** + микро-Ядро |
 | 3 | Sales home | Cyan–teal; «Продажи» + клуб |
 | 4 | Admin home | Champagne; в шапке **клуб** + микро-Ядро |

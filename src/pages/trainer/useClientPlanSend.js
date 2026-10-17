@@ -59,6 +59,7 @@ export function useClientPlanSend(kind, client, readOnly = false) {
     busy,
     status: error || clientPlanMarkText(mark),
     isError: Boolean(error),
+    mark,
     send,
   }
 }

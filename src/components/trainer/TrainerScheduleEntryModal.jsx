@@ -22,6 +22,7 @@ import { TrainerScheduleClientPicker } from './TrainerScheduleClientPicker.jsx'
  *   trainerId: string,
  *   clients: object[],
  *   clientNameById?: Record<string, string>,
+ *   clientInfoById?: Record<string, object>,
  *   trainerNameById?: Record<string, string>,
  *   trainingById?: Record<string, object>,
  *   readOnly?: boolean,
@@ -42,6 +43,7 @@ export function TrainerScheduleEntryModal({
   trainerId,
   clients,
   clientNameById = {},
+  clientInfoById = {},
   trainerNameById = {},
   trainingById = {},
   readOnly = false,
@@ -152,6 +154,7 @@ export function TrainerScheduleEntryModal({
         draft={draft}
         trainerName={readOnly ? trainerNameById[String(draft?.trainer_id ?? trainerId ?? '')] ?? '' : ''}
         clientNameById={clientNameById}
+        clientInfoById={clientInfoById}
         clientsBase={readOnly || canStartTraining ? clientsBase : ''}
         trainingChip={trainingChip}
         busy={busy}

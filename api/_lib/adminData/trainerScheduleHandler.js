@@ -9,6 +9,7 @@ import {
   resolveTrainerScheduleAdminClubId,
   validateTrainerScheduleDateRange,
 } from '../../../src/lib/admin/trainerScheduleAdminCore.js'
+import { buildScheduleClientInfoById } from '../../../src/lib/trainer/trainerScheduleClientInfoCore.js'
 import { normalizeTrainerScheduleEntry } from '../../../src/lib/trainer/trainerScheduleCore.js'
 import {
   filterScheduleEntriesByClubId,
@@ -175,13 +176,50 @@ export async function handleTrainerScheduleGet(ctx, req, res) {
       for (const t of trainings ?? []) trainingById[t.id] = t
     }
 
+    /** @type {Record<string, object[]>} */
+    const membershipsByClientId = {}
+    for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
+      const chunk = clientIds.slice(i, i + IN_CHUNK)
+      const { data: memberships, error: me } = await supabaseAdmin
+        .from('memberships')
+        .select('id, client_id, membership_type_id, start_date, end_date, total_trainings, used_trainings')
+        .eq('club_id', clubId)
+        .in('client_id', chunk)
+      if (me) {
+        sendJson(res, 400, { error: me.message })
+        return
+      }
+      for (const m of memberships ?? []) {
+        const cid = String(m?.client_id ?? '').trim()
+        if (!cid) continue
+        if (!membershipsByClientId[cid]) membershipsByClientId[cid] = []
+        membershipsByClientId[cid].push(m)
+      }
+    }
+
+    const { data: membershipTypes, error: mte } = await supabaseAdmin
+      .from('membership_types')
+      .select('id, code, name')
+      .eq('club_id', clubId)
+    if (mte) {
+      sendJson(res, 400, { error: mte.message })
+      return
+    }
+
+    const clientsList = Object.values(clientsById)
     sendJson(res, 200, {
       entries,
       trainersById,
       clientsById,
       trainingById,
       trainerNameById: buildTrainerNameById(Object.values(trainersById)),
-      clientNameById: buildScheduleClientNameById(Object.values(clientsById)),
+      clientNameById: buildScheduleClientNameById(clientsList),
+      clientInfoById: buildScheduleClientInfoById(
+        clientsList,
+        membershipsByClientId,
+        membershipTypes ?? [],
+        dayTo,
+      ),
       totalCount: entries.length,
       truncated,
       club_id: clubId,

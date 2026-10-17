@@ -8,7 +8,10 @@ import {
   formatScheduleViewRangeLabel,
 } from '../../lib/trainer/trainerScheduleCore.js'
 import { resolveScheduleInitialScrollMinutes } from '../../lib/trainer/trainerScheduleNowCore.js'
-import { resolveScheduleDragPolicy } from '../../lib/trainer/trainerScheduleDragCore.js'
+import {
+  resolveScheduleDragPolicy,
+  resolveScheduleDragTimeHints,
+} from '../../lib/trainer/trainerScheduleDragCore.js'
 import { resolveScheduleEntryMinHeight } from '../../lib/trainer/scheduleZoomCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 import { useTrainerScheduleNow } from '../../hooks/useTrainerScheduleNow.js'
@@ -45,6 +48,7 @@ function cleanDays(list) {
  *   anchorDayIso?: string,
  *   entries: object[],
  *   clientNameById?: Record<string, string>,
+ *   clientInfoById?: Record<string, object>,
  *   trainerNameById?: Record<string, string>,
  *   trainingById?: Record<string, object>,
  *   readOnly?: boolean,
@@ -80,6 +84,7 @@ export function TrainerScheduleMultiDayAgenda({
   anchorDayIso = '',
   entries,
   clientNameById = {},
+  clientInfoById = {},
   trainerNameById = {},
   trainingById = {},
   readOnly = false,
@@ -139,6 +144,10 @@ export function TrainerScheduleMultiDayAgenda({
     onEdgeFlip: carousel ? (dir) => flipRef.current(dir > 0 ? 'next' : 'prev') : undefined,
   })
   const preview = drag.preview
+  const dragTimeHints = resolveScheduleDragTimeHints(preview, {
+    dayStartMin: DAY_START_MIN,
+    pxPerMin,
+  })
   const previewRef = useRef(preview)
   previewRef.current = preview
   const swipe = useScheduleSwipe({
@@ -176,13 +185,16 @@ export function TrainerScheduleMultiDayAgenda({
     !readOnly && addDefaultDay ? (
       <button
         type="button"
-        className={['btn btn-primary btn-sm trainer-schedule-day__add', addFab ? 'trainer-schedule-day__add--fab' : '']
+        className={[
+          'btn btn-sm trainer-schedule-day__add',
+          addFab ? 'trainer-schedule-day__add--fab' : 'btn-secondary',
+        ]
           .filter(Boolean)
           .join(' ')}
         onClick={() => onAddAt(addDefaultDay, 10 * 60)}
         aria-label="Новая запись"
       >
-        <Plus size={addFab ? 20 : 18} aria-hidden />
+        <Plus size={addFab ? 20 : 18} strokeWidth={addFab ? 2.5 : 2} aria-hidden />
         {addFab ? null : <span className="trainer-schedule-day__add-label">Запись</span>}
       </button>
     ) : null
@@ -275,6 +287,24 @@ export function TrainerScheduleMultiDayAgenda({
                 {formatScheduleMinutes(h * 60)}
               </div>
             ))}
+            {dragTimeHints ? (
+              <>
+                <span
+                  className="trainer-schedule-day__drag-time trainer-schedule-day__drag-time--start"
+                  style={{ top: dragTimeHints.startTopPx }}
+                >
+                  {dragTimeHints.startLabel}
+                </span>
+                {dragTimeHints.showEnd ? (
+                  <span
+                    className="trainer-schedule-day__drag-time trainer-schedule-day__drag-time--end"
+                    style={{ top: dragTimeHints.endTopPx }}
+                  >
+                    {dragTimeHints.endLabel}
+                  </span>
+                ) : null}
+              </>
+            ) : null}
           </div>
           <div className="trainer-schedule-day__viewport">
             <div className={stripClass} ref={tracksStripRef}>
@@ -293,6 +323,7 @@ export function TrainerScheduleMultiDayAgenda({
                       canStartTraining={canStartTraining}
                       showTrainerName={showTrainerName}
                       clientNameById={clientNameById}
+                      clientInfoById={clientInfoById}
                       trainerNameById={trainerNameById}
                       trainingById={trainingById}
                       now={now}

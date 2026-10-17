@@ -157,8 +157,9 @@ ok(
 )
 ok(buildScheduleEntryLabel({ client_ids: [], title: 'Созвон' }) === 'Созвон', 'label note')
 
-ok(shortScheduleClientName('Ефрюшин Вячеслав Александрович') === 'Ефрюшин В.', 'short name: surname + initial')
+ok(shortScheduleClientName('Ефрюшин Вячеслав Александрович') === 'Ефрюшин В. А.', 'short name: surname + initials')
 ok(shortScheduleClientName('Мишина') === 'Мишина', 'short name: single word as is')
+ok(shortScheduleClientName('Листратенко Валентин Юрьевич') === 'Листратенко В. Ю.', 'short name: both initials')
 const pair = { client_ids: ['c1', 'c2'] }
 const pairNames = { c1: 'Ефрюшин Вячеслав', c2: 'Ковалёва Анна' }
 ok(buildScheduleEntryGridLines(pair, pairNames).join('|') === 'Ефрюшин Вячеслав|Ковалёва Анна', 'grid lines: each client own line')

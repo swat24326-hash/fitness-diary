@@ -4,6 +4,7 @@ import { CheckCircle2, Heart, Timer } from 'lucide-react'
 import { CloseButton } from '../CloseButton'
 import { TrainingExercisesReadonly } from '../TrainingExercisesReadonly'
 import { TrainingHrSessionSummary } from './TrainingHrSessionSummary'
+import { TrainingViewCopyMenu } from './TrainingViewCopyMenu.jsx'
 import { formatDateRu } from '../../lib/dateRu'
 import { normalizeHrSessionSnapshot } from '../../lib/hr/hrSessionAgg.js'
 
@@ -16,8 +17,10 @@ import { normalizeHrSessionSnapshot } from '../../lib/hr/hrSessionAgg.js'
  *   trainerName?: string,
  *   membership?: { tone?: string, label?: string } | null,
  *   dateLabel: string,
+ *   enableCopy?: boolean,
  *   onClose: () => void,
  * }} props
+ * enableCopy — для приложения клиента: тихий бургер «Скопировать» (Whoop и др.).
  */
 export function TrainingViewModal({
   training,
@@ -25,6 +28,7 @@ export function TrainingViewModal({
   trainerName,
   membership,
   dateLabel,
+  enableCopy = false,
   onClose,
 }) {
   useEffect(() => {
@@ -84,7 +88,10 @@ export function TrainingViewModal({
               <span>{trainerName ?? 'Тренер'}</span>
             </p>
           </div>
-          <CloseButton onClick={onClose} size={20} />
+          <div className="training-view__head-actions">
+            {enableCopy ? <TrainingViewCopyMenu training={training} /> : null}
+            <CloseButton onClick={onClose} size={20} />
+          </div>
         </header>
 
         <div className="training-view__badges">

@@ -7,7 +7,7 @@
 | **ПНК** | ✅ прод | `src/lib/pnk/`, `components/pnk/`, `api/_lib/adminData/pnkHandlers.js` | [PNK_FUNNEL.md](./PNK_FUNNEL.md) |
 | **Продажи** | ✅ прод | `src/lib/admin/sales*`, `AdminSales`, salesHandlers | [SALES_MANAGER.md](./SALES_MANAGER.md) |
 | **Оплаты (домен платежа)** | 📋 ТЗ; **⏸ код после РФ (R3+)** | — (импорт Excel = мост) | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md), [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md), [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md), [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) §4 |
-| **Питание** | ✅ в карточке; v5: 2 база + 2 рецепт/день, КБЖУ после приёма, добор к цели; каталог ~55+ полок; смена блюда; 3–7 дней; акцент белка; пересчёт; авто-выдача; дневник 📋 | `nutrition*Core`, `AdminNutritionProducts`, `AdminNutritionRecipes` | verify `verify-nutrition-meal-prep`, phases, recipes; ТЗ [NUTRITION_DIARY.md](./NUTRITION_DIARY.md) |
+| **Питание** | ✅ в карточке; v5: 2 база + 2 рецепт/день, КБЖУ после приёма, добор к цели; каталог ~55+ полок; смена блюда; 3–7 дней; акцент белка; пересчёт; авто по воскресеньям (≥3 кг); дневник 📋 | `nutrition*Core`, `AdminNutritionProducts`, `AdminNutritionRecipes` | [NUTRITION_AUTO.md](./NUTRITION_AUTO.md); verify `verify-nutrition-auto`; ТЗ [NUTRITION_DIARY.md](./NUTRITION_DIARY.md) |
 | **ДЗ (домашние)** | ✅ в карточке | `src/lib/homework/*`, store `homework_presets` | вкладка «ДЗ»; push в allowlist |
 | **Ежедневник тренера** | ✅ MVP | `src/lib/trainer/trainerSchedule*`, `/trainer/calendar` | [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md); sync + pull |
 | **Max / outreach / call-центр** | Max ✅; SMS/звонок MVP; цель КЦ — VISION §2.4 | `outreach_log`, фильтры тренера, `club-sms`, `club_call_log` | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md), [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md), [PRODUCT_VISION.md](./PRODUCT_VISION.md) §2.4 |
@@ -27,7 +27,8 @@
 - Справочники продуктов / пресетов ДЗ тянутся через `admin-data` (actions `nutrition-products`, `homework-presets`) и синхронизируются в allowlist push. Структура: **Питание** = продукты клуба (добавление с обязательной пищевой группой `food_cat` для опроса «Не ем»); **Рецепты** = просмотр общей книги (пока без CRUD в БД).
 - План рациона и ДЗ живут в карточке клиента; в воронке ПНК — отдельные шаги мастера (можно пропустить питание/ДЗ по сценарию).
 - Отправка клиенту: PNG в Max / «Поделиться» или кнопка «В приложение» — снимок в `client_plans`, у клиента вкладка «От тренера» (задание и питание) в `/me` (🔧 в репо 12.10.2026) — [CLIENT_APP.md](./CLIENT_APP.md) § «ДЗ и питание от тренера».
-- Авто-ДЗ по воскресеньям (генератор по цели клиента): библиотека упражнений `src/lib/homework/library/` 🔧, генератор и автоотправка 📋 — [HOMEWORK_AUTO.md](./HOMEWORK_AUTO.md).
+- Авто-ДЗ по воскресеньям (генератор по цели клиента): библиотека упражнений `src/lib/homework/library/` — [HOMEWORK_AUTO.md](./HOMEWORK_AUTO.md).
+- Авто-рацион по воскресеньям: пересчёт КБЖУ при смене веса ≥ 3 кг → `client_plans` — [NUTRITION_AUTO.md](./NUTRITION_AUTO.md).
 - Отдельного длинного ТЗ нет: при фиче — `*Core.js` + verify, не раздувать `ClientCard.jsx`.
 - Инварианты модулей (что сохраняется в карту здоровья, что живёт только в сессии, PNG и шаринг) — правило `.cursor/rules/fitness-diary-client-plans.mdc`; пульс — `fitness-diary-hr.mdc` + [TRAINING_HR.md](./TRAINING_HR.md).
 

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { todayLocalIso } from '../lib/dateRu.js'
+import { listClientsByTrainerId, listMembershipsMapByClientIds } from '../lib/localDbClubQuery'
+import { listMembershipTypesForClub } from '../lib/membershipTypesService.js'
+import { buildScheduleClientInfoById } from '../lib/trainer/trainerScheduleClientInfoCore.js'
 import { isScheduleEntryUnsent } from '../lib/trainer/trainerScheduleDeliveryCore.js'
-import { listClientsByTrainerId } from '../lib/localDbClubQuery'
 import { listTrainerScheduleEntries } from '../lib/trainer/trainerScheduleService'
 import { loadTrainingsByIds } from '../lib/trainer/trainerScheduleTrainingService.js'
 import {
@@ -17,6 +20,7 @@ const UNSENT_RECHECK_MS = 5000
 export function useTrainerScheduleData(trainerId, clubId) {
   const [entries, setEntries] = useState([])
   const [clients, setClients] = useState([])
+  const [clientInfoById, setClientInfoById] = useState({})
   const [trainingById, setTrainingById] = useState({})
   const [loading, setLoading] = useState(true)
 
@@ -26,6 +30,7 @@ export function useTrainerScheduleData(trainerId, clubId) {
     if (!tid) {
       setEntries([])
       setClients([])
+      setClientInfoById({})
       setTrainingById({})
       setLoading(false)
       return
@@ -39,14 +44,21 @@ export function useTrainerScheduleData(trainerId, clubId) {
       const cid = String(clubId ?? '').trim()
       const linkedIds = scheduleRows.map((e) => e.linked_training_id).filter(Boolean)
       const trainings = await loadTrainingsByIds(linkedIds)
+      const activeClients = (clientRows ?? [])
+        .filter((c) => !cid || String(c?.club_id) === cid)
+        .filter((c) => !c?.archived_at)
+        .sort((a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'ru'))
+      const scheduleClientIds = [
+        ...new Set(scheduleRows.flatMap((e) => e.client_ids ?? []).map((id) => String(id ?? '').trim()).filter(Boolean)),
+      ]
+      const [membershipsMap, types] = await Promise.all([
+        listMembershipsMapByClientIds(scheduleClientIds),
+        cid ? listMembershipTypesForClub(cid) : Promise.resolve([]),
+      ])
       setEntries(scheduleRows)
       setTrainingById(trainings)
-      setClients(
-        (clientRows ?? [])
-          .filter((c) => !cid || String(c?.club_id) === cid)
-          .filter((c) => !c?.archived_at)
-          .sort((a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'ru')),
-      )
+      setClients(activeClients)
+      setClientInfoById(buildScheduleClientInfoById(activeClients, membershipsMap, types, todayLocalIso()))
     } finally {
       setLoading(false)
     }
@@ -81,5 +93,5 @@ export function useTrainerScheduleData(trainerId, clubId) {
     return map
   }, [clients])
 
-  return { entries, clients, clientNameById, trainingById, loading, reload }
+  return { entries, clients, clientNameById, clientInfoById, trainingById, loading, reload }
 }

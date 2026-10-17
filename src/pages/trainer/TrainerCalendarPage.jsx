@@ -23,10 +23,8 @@ export function TrainerCalendarPage() {
   const { view, selectedDay, monthCursor, agendaDays } = nav
   const zoom = useScheduleZoom('tablet')
 
-  const { entries, clients, clientNameById, trainingById, loading, reload } = useTrainerScheduleData(
-    user?.id,
-    user?.club_id,
-  )
+  const { entries, clients, clientNameById, clientInfoById, trainingById, loading, reload } =
+    useTrainerScheduleData(user?.id, user?.club_id)
 
   const move = useTrainerScheduleMove({
     onSaved: () => void reload({ silent: true }),
@@ -82,6 +80,7 @@ export function TrainerCalendarPage() {
           anchorDayIso={selectedDay}
           entries={entries}
           clientNameById={clientNameById}
+          clientInfoById={clientInfoById}
           trainingById={trainingById}
           pxPerMin={zoom.zoom}
           onZoom={zoom.setZoom}
@@ -108,6 +107,7 @@ export function TrainerCalendarPage() {
         trainerId={String(user?.id ?? '')}
         clients={clients}
         clientNameById={clientNameById}
+        clientInfoById={clientInfoById}
         trainingById={trainingById}
         entries={entries}
         onClose={nav.closeModal}

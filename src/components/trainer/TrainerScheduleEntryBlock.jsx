@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { Check, CloudOff, Play } from 'lucide-react'
 import { SCHEDULE_UNSENT_TITLE, isScheduleEntryUnsent } from '../../lib/trainer/trainerScheduleDeliveryCore.js'
+import { buildScheduleEntryClientRows } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import {
-  buildScheduleEntryGridLines,
   buildScheduleEntryLabel,
   formatScheduleMinutes,
   formatScheduleTimeRange,
@@ -27,6 +27,7 @@ import {
  *   laneCount: number,
  *   trainerName?: string,
  *   clientNameById?: Record<string, string>,
+ *   clientInfoById?: Record<string, { name?: string, cardNumber?: string, membershipLabel?: string }>,
  *   trainingById?: Record<string, object>,
  *   now: { todayIso: string, nowMinutes: number },
  *   readOnly?: boolean,
@@ -44,6 +45,7 @@ export function TrainerScheduleEntryBlock({
   laneCount,
   trainerName = '',
   clientNameById = {},
+  clientInfoById = {},
   trainingById = {},
   now,
   readOnly = false,
@@ -55,12 +57,18 @@ export function TrainerScheduleEntryBlock({
   const nav = useNavigate()
   const ghost = variant === 'ghost'
   const label = buildScheduleEntryLabel(entry, clientNameById)
-  const lines = buildScheduleEntryGridLines(entry, clientNameById, { short: compact })
+  const showMeta = !compact && !oneLine
+  const rows = buildScheduleEntryClientRows(entry, clientNameById, clientInfoById, {
+    short: compact,
+    withMeta: showMeta,
+  })
+  const lineNames = rows.map((r) => r.name)
   const linesEl = (
     <span className="trainer-schedule-day__entry-label trainer-schedule-day__entry-lines">
-      {lines.map((line, i) => (
+      {rows.map((row, i) => (
         <span key={i} className="trainer-schedule-day__entry-line">
-          {line}
+          <span className="trainer-schedule-day__entry-name">{row.name}</span>
+          {row.meta ? <span className="trainer-schedule-day__entry-card muted">{row.meta}</span> : null}
         </span>
       ))}
     </span>
@@ -70,8 +78,14 @@ export function TrainerScheduleEntryBlock({
   const trainingChip = scheduleEntryTrainingStatusLabel(entry, linkedTraining)
   const start = resolveScheduleTrainingStart(entry, { trainingById, workoutsBase: '/trainer/workouts' })
   const kind = resolveScheduleEntryKind(entry)
+  const kindLabel = scheduleKindLabel(kind)
   const state = resolveScheduleEntryState(entry, linkedTraining, now)
-  const titleParts = [formatScheduleTimeRange(entry), scheduleKindLabel(kind), trainerName, label].filter(Boolean)
+  const titleParts = [formatScheduleTimeRange(entry), kindLabel, trainerName, label].filter(Boolean)
+  if (showMeta) {
+    for (const row of rows) {
+      if (row.meta) titleParts.push(row.meta)
+    }
+  }
   const unsent = !readOnly && !ghost && isScheduleEntryUnsent(entry)
   if (unsent) titleParts.push(SCHEDULE_UNSENT_TITLE)
   const doneMark = (
@@ -95,10 +109,19 @@ export function TrainerScheduleEntryBlock({
     !ghost &&
     (start.kind === 'open' || start.kind === 'new' || start.kind === 'pick_client')
 
+  const timeLabel = showMeta ? (
+    <>
+      {formatScheduleTimeRange(entry)}
+      <span className="trainer-schedule-day__entry-kind"> · {kindLabel}</span>
+    </>
+  ) : (
+    formatScheduleTimeRange(entry)
+  )
+
   const body = oneLine ? (
     <>
       {doneMark}
-      <span className="trainer-schedule-day__entry-label">{lines.join(', ')}</span>
+      <span className="trainer-schedule-day__entry-label">{lineNames.join(', ')}</span>
       {trainerName && !compact ? <span className="trainer-schedule-day__entry-time">{trainerName}</span> : null}
     </>
   ) : compact ? (
@@ -115,14 +138,14 @@ export function TrainerScheduleEntryBlock({
         <span className="trainer-schedule-day__entry-meta">
           <span className="trainer-schedule-day__entry-time">
             {doneMark}
-            {formatScheduleTimeRange(entry)}
+            {timeLabel}
           </span>
           <span className="trainer-schedule-day__entry-trainer">{trainerName}</span>
         </span>
       ) : (
         <span className="trainer-schedule-day__entry-time">
           {doneMark}
-          {formatScheduleTimeRange(entry)}
+          {timeLabel}
         </span>
       )}
       {linesEl}
@@ -175,7 +198,7 @@ export function TrainerScheduleEntryBlock({
       {showStart ? (
         <button
           type="button"
-          className="btn btn-icon-square btn-primary trainer-schedule-day__entry-start"
+          className="btn btn-icon-square trainer-schedule-day__entry-start"
           title={start.label}
           aria-label={start.label}
           onClick={(ev) => {
@@ -184,7 +207,7 @@ export function TrainerScheduleEntryBlock({
             else nav(start.path)
           }}
         >
-          <Play size={16} aria-hidden />
+          <Play fill="currentColor" strokeWidth={0} aria-hidden />
         </button>
       ) : null}
     </div>
