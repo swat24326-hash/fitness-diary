@@ -1,4 +1,5 @@
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
+import { clientHasActiveAppSession } from '../../../src/lib/client/clientAppPresenceCore.js'
 
 const CLIENT_FIELDS = 'id, name, club_id, trainer_id, archived_at'
 
@@ -99,16 +100,20 @@ export const clientPortalStore = {
     return data ?? null
   },
 
-  /** Живой вход в /me — можно писать в переписку, а не только приглашать. */
+  /**
+   * Живой вход в /me с признаком использования (refresh или сессия младше часа).
+   * Разовый QR без дальнейшего захода не считается — иначе ложные «ещё не открыл» во Входящих.
+   */
   async hasLiveSession(clientId) {
     const { data, error } = await createServiceDataClient()
       .from('client_sessions')
-      .select('id')
+      .select('id, revoked_at, created_at, last_refresh_at')
       .eq('client_id', clientId)
       .is('revoked_at', null)
-      .limit(1)
+      .order('created_at', { ascending: false })
+      .limit(20)
     if (error) throw error
-    return Array.isArray(data) && data.length > 0
+    return clientHasActiveAppSession(data)
   },
 
   async touchSession(sid) {
