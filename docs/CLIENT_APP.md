@@ -111,7 +111,9 @@
 
 **Что сделано:** в шапке `/me` — колокольчик (серый; при непрочитанных — accent и число). Экран `/me/notifications` — **одна лента**: задание и рацион (`plans`), просьба оценить (`ratings`), опросы и объявления клуба (`inbox`). Без вкладок. Тап по заданию/рациону → `/me/task` или `/me/nutrition`; по оценке → `/me/rate/:id`; по опросу/объявлению → `/me/inbox/:id` (форма или текст), «Назад» — в уведомления. Число на колокольчике = непрочитанные планы/оценки + `inbox_attention`. Прочитано у планов = `client_seen_at`; у оценки = ответ отправлен; у рассылки = открыл / прошёл опрос. Push оценки — после последней тренировки пакета. Оценка ДЗ/рациона — закладка kinds, UI позже.
 
-**Код:** `src/lib/client/clientNotificationsCore.js`, `clientRatingCore.js`, `ClientNotificationsPage.jsx`, `ClientRatingPage.jsx`, `ClientStarRating.jsx`, `api/_lib/clientRatings/`, миграция `20261101120000_client_ratings.sql`. Проверка — `scripts/verify-client-notifications.mjs`, `verify-client-ratings.mjs` + сценарий `clientTrainerPlans` в `qa:screens`.
+**Админ / управляющий:** вкладка «Оценки» в «Опросы и объявления» (`/admin/inbox?tab=ratings`, `/club/inbox?tab=ratings`) — список и деталь; оценка строго ниже 4★ — push на эту вкладку. Тренеру не показываем.
+
+**Код:** `src/lib/client/clientNotificationsCore.js`, `clientRatingCore.js`, `clientRatingAdminCore.js`, `ClientNotificationsPage.jsx`, `ClientRatingPage.jsx`, `ClientStarRating.jsx`, `AdminInboxRatings*.jsx`, `api/_lib/clientRatings/`, миграция `20261101120000_client_ratings.sql`. Проверка — `scripts/verify-client-notifications.mjs`, `verify-client-ratings.mjs` + сценарий `clientTrainerPlans` в `qa:screens`.
 
 «Сообщения» (`/me/inbox`) — только диалоги; красное число = `chat_attention`. Рассылки клуба — в «Уведомлениях» (см. выше); старый `/me/inbox?tab=news` → редирект. Числа обновляются сами: раз в минуту, при возврате и при push (`useClientMe.js`). Канон рассылок — [INBOX.md](./INBOX.md).
 

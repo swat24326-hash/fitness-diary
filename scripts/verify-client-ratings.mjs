@@ -1,5 +1,5 @@
 /**
- * Оценка после последней тренировки абонемента: триггер, score 0.5, тексты, лента.
+ * Оценка после последней тренировки абонемента: триггер, score 0.5, тексты, лента, staff alert.
  */
 import {
   CLIENT_RATING_COPY,
@@ -10,6 +10,13 @@ import {
   scoreFromStarRatio,
   shouldAskMembershipRating,
 } from '../src/lib/client/clientRatingCore.js'
+import {
+  CLIENT_RATING_STAFF_ALERT_BELOW,
+  adminInboxRatingsPath,
+  buildStaffRatingAlertPush,
+  publicAdminRatingRow,
+  shouldAlertStaffOnClientRating,
+} from '../src/lib/client/clientRatingAdminCore.js'
 import {
   CLIENT_NOTIFICATION_KINDS,
   buildClientNotifications,
@@ -81,5 +88,50 @@ ok(clientNotificationsUnreadCount(feed) === 1, 'unread только оценка
 
 const push = buildMembershipRatingPushPayload({ clubName: 'Ядро', ratingId: 'r1' })
 ok(push.body === 'Оцените прошедшие тренировки' && push.url === '/me/rate/r1', 'push payload')
+
+ok(CLIENT_RATING_STAFF_ALERT_BELOW === 4, 'порог staff alert = 4')
+ok(shouldAlertStaffOnClientRating(3.5), '3,5 → push персоналу')
+ok(shouldAlertStaffOnClientRating(3), '3 → push персоналу')
+ok(!shouldAlertStaffOnClientRating(4), '4 → без push')
+ok(!shouldAlertStaffOnClientRating(4.5), '4,5 → без push')
+ok(!shouldAlertStaffOnClientRating(null), 'без score → без push')
+
+const adminRow = publicAdminRatingRow({
+  id: 'r1',
+  kind: 'membership',
+  client_id: 'c1',
+  client_name: 'Анна',
+  club_id: 'cl1',
+  club_name: 'Ядро',
+  score: 3.5,
+  comment: 'Мало внимания',
+  answered_at: '2026-10-16T13:00:00Z',
+})
+ok(adminRow?.low && adminRow.score_label === '3,5' && adminRow.client_name === 'Анна', 'строка админки low')
+
+const okRow = publicAdminRatingRow({
+  id: 'r2',
+  kind: 'membership',
+  client_name: 'Игорь',
+  score: 5,
+  answered_at: '2026-10-16T14:00:00Z',
+})
+ok(okRow && !okRow.low, '5★ не low')
+
+ok(adminInboxRatingsPath('/admin/inbox', { rid: 'r1' }) === '/admin/inbox?tab=ratings&rid=r1', 'путь admin')
+ok(adminInboxRatingsPath('/club/inbox', { rid: 'r1' }) === '/club/inbox?tab=ratings&rid=r1', 'путь club')
+
+const staffPush = buildStaffRatingAlertPush({
+  clientName: 'Анна',
+  score: 3.5,
+  comment: 'Мало внимания',
+  url: '/admin/inbox?tab=ratings&rid=r1',
+})
+ok(
+  staffPush.title === 'Оценка абонемента' &&
+    staffPush.body.includes('3,5') &&
+    staffPush.url.includes('tab=ratings'),
+  'staff push payload',
+)
 
 console.log('verify-client-ratings: ok')

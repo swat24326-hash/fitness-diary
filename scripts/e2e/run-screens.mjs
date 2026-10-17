@@ -21,6 +21,7 @@ import * as coachApp from './scenarios/coachApp.mjs'
 import * as coachSchedule from './scenarios/coachSchedule.mjs'
 import * as coachClients from './scenarios/coachClients.mjs'
 import * as coachContacts from './scenarios/coachContacts.mjs'
+import * as clientCardChatInvite from './scenarios/clientCardChatInvite.mjs'
 import * as staffDm from './scenarios/staffDm.mjs'
 import * as staffGroup from './scenarios/staffGroup.mjs'
 import * as linkedStaff from './scenarios/linkedStaff.mjs'
@@ -36,7 +37,7 @@ import * as staffHeader from './scenarios/staffHeader.mjs'
 import * as profileAvatar from './scenarios/profileAvatar.mjs'
 import * as screenCache from './scenarios/screenCacheOffline.mjs'
 
-const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, chatVoice, chatAttach, chatVideo, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, linkedStaff, settingsMenu, profileAvatar, screenCache]
+const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientSparkShake, staffInbox, clientChat, clientCardChatInvite, chatVoice, chatAttach, chatVideo, clientTrainerPlans, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, linkedStaff, settingsMenu, profileAvatar, screenCache]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS

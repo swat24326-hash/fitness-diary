@@ -9,6 +9,7 @@ import {
   normalizeRatingScore,
   publicClientRating,
 } from '../../../src/lib/client/clientRatingCore.js'
+import { scheduleStaffLowClientRatingPush } from './clientRatingStaffPush.js'
 
 async function rows(query) {
   const { data, error } = await query
@@ -126,7 +127,9 @@ export async function handleClientRatingPost(db, ctx, body, res) {
       sendJson(res, 200, { rating: publicClientRating(again[0]), already: true })
       return
     }
-    sendJson(res, 200, { rating: publicClientRating(updated[0]) })
+    const saved = updated[0]
+    sendJson(res, 200, { rating: publicClientRating(saved) })
+    scheduleStaffLowClientRatingPush(db, saved)
     return
   }
 

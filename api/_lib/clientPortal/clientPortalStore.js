@@ -99,6 +99,18 @@ export const clientPortalStore = {
     return data ?? null
   },
 
+  /** Живой вход в /me — можно писать в переписку, а не только приглашать. */
+  async hasLiveSession(clientId) {
+    const { data, error } = await createServiceDataClient()
+      .from('client_sessions')
+      .select('id')
+      .eq('client_id', clientId)
+      .is('revoked_at', null)
+      .limit(1)
+    if (error) throw error
+    return Array.isArray(data) && data.length > 0
+  },
+
   async touchSession(sid) {
     await createServiceDataClient()
       .from('client_sessions')

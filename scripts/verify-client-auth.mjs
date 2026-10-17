@@ -18,6 +18,7 @@ import {
 } from '../api/_lib/clientPortal/clientAuthCore.js'
 import { createClientAuthHandler } from '../api/_lib/clientPortal/clientAuthHandler.js'
 import { canStaffInviteClient } from '../api/_lib/clientPortal/clientInviteCore.js'
+import { issueClientInvite } from '../api/_lib/clientPortal/clientInviteHandler.js'
 import { requireClientUser } from '../api/_lib/clientPortal/requireClientUser.js'
 
 let failed = 0
@@ -77,10 +78,21 @@ function memoryStore() {
     async loadSession(sid) {
       return sessions.get(sid) ?? null
     },
+    async hasLiveSession(clientId) {
+      for (const s of sessions.values()) {
+        if (s.client_id === clientId && !s.revoked_at) return true
+      }
+      return false
+    },
     async touchSession() {},
     async revokeSession(sid, clientId) {
       const s = sessions.get(sid)
       if (s && s.client_id === clientId) s.revoked_at = new Date().toISOString()
+    },
+    async revokeAllForClient(clientId) {
+      for (const s of sessions.values()) {
+        if (s.client_id === clientId) s.revoked_at = new Date().toISOString()
+      }
     },
   }
 }
@@ -158,6 +170,24 @@ try {
   ok(!canStaffInviteClient({ profile: { club_id: CLUB } }, row).ok, 'пустая роль: нет')
   ok(canStaffInviteClient({ isAdmin: true }, { ...row, archived_at: 'x' }).status === 409, 'архивный клиент: 409')
   ok(canStaffInviteClient({ isAdmin: true }, null).status === 404, 'нет клиента: 404')
+
+  // --- status: есть ли приложение (для конвертика в карточке) ---
+  const statusStore = memoryStore()
+  const adminCtx = { isAdmin: true, user: { id: 'admin' } }
+  const st0 = await issueClientInvite(adminCtx, { client_id: CLIENT, action: 'status' }, statusStore)
+  ok(st0.status === 200 && st0.body.has_app === false, 'status без сессии → has_app false')
+  await statusStore.createSession(CLIENT)
+  const st1 = await issueClientInvite(adminCtx, { client_id: CLIENT, action: 'status' }, statusStore)
+  ok(st1.status === 200 && st1.body.has_app === true, 'status с живой сессией → has_app true')
+  await statusStore.revokeAllForClient(CLIENT)
+  const st2 = await issueClientInvite(adminCtx, { client_id: CLIENT, action: 'status' }, statusStore)
+  ok(st2.status === 200 && st2.body.has_app === false, 'status после revoke → has_app false')
+  const stForbid = await issueClientInvite(
+    { isTrainer: true, user: { id: 'other' }, profile: { club_id: CLUB } },
+    { client_id: CLIENT, action: 'status' },
+    statusStore,
+  )
+  ok(stForbid.status === 403, 'status чужому тренеру — 403')
 
   // --- Обработчик client-auth ---
   const store = memoryStore()

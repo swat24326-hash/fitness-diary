@@ -78,6 +78,7 @@ import {
 import { handleInboxAdminGet, handleInboxAdminPost } from './_lib/inbox/inboxAdminHandler.js'
 import { handleStaffInboxGet, handleStaffInboxPost } from './_lib/inbox/inboxStaffHandler.js'
 import { handleSurveyPointsGet, handleSurveyPointsPost } from './_lib/inbox/inboxPointsHandler.js'
+import { handleClientRatingsAdminGet } from './_lib/clientRatings/clientRatingAdminHandler.js'
 import { handleStaffChatGet, handleStaffChatPost } from './_lib/chat/chatStaffHandler.js'
 import { VIDEO_OPS_STAFF, isVideoUpload, videoSendBody } from './_lib/chat/chatVideoHandler.js'
 import { handleTrainerDeviceSetPost, handleTrainerDevicesGet } from './_lib/trainerDevicesAdmin.js'
@@ -377,6 +378,12 @@ async function handler(req, res) {
     const ctx = await requireAuthUser(req, res)
     if (!ctx) return
     return handleInboxAdminGet(ctx, req, res)
+  }
+
+  if (action === 'client-ratings') {
+    const ctx = await requireAuthUser(req, res)
+    if (!ctx) return
+    return handleClientRatingsAdminGet(ctx, req, res)
   }
 
   if (action === 'my-inbox') {

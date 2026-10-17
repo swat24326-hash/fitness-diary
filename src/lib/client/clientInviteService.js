@@ -45,3 +45,13 @@ export async function createClientInvite(clientId) {
 export async function revokeClientAppAccess(clientId) {
   await postInvite({ client_id: clientId, action: 'revoke' })
 }
+
+/** Есть ли у клиента живой вход в /me. Без сети / ошибки — false (сначала пригласить). */
+export async function fetchClientAppStatus(clientId) {
+  try {
+    const data = await postInvite({ client_id: clientId, action: 'status' })
+    return { has_app: Boolean(data?.has_app) }
+  } catch {
+    return { has_app: false }
+  }
+}

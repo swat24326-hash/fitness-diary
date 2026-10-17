@@ -3,7 +3,6 @@ import { MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
 import { ChatHeadBar } from './ChatHeadBar.jsx'
 import { ChatOpenErrorAction } from './ChatOpenErrorAction.jsx'
 import { ChatThreadView } from './ChatThreadView.jsx'
-import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
 import { chatStaffReadOnlyRu } from '../../lib/chat/chatUiCore.js'
 import { useStaffChatThread } from '../../hooks/useStaffChat.js'
 
@@ -22,7 +21,7 @@ export function StaffChatPane({ clientId, kind, backTo, back = null, onSent }) {
   }
   return (
     <>
-      <ChatHeadBar back={back} icon={MessageCircle} photo={meta?.client?.photo} status={meta?.client?.status} title={meta?.client?.name || 'Клиент'} subtitle={chatKindLabelRu(kind)} searchHostRef={setSearchHost} />
+      <ChatHeadBar back={back} icon={MessageCircle} photo={meta?.client?.photo} status={meta?.client?.status} title={meta?.client?.name || 'Клиент'} searchHostRef={setSearchHost} />
       {!chat.messages ? (
         <div className="card staff-inbox__status" role="status">
           {chat.status === 'error' ? <WifiOff size={28} aria-hidden /> : <RefreshCw size={28} aria-hidden className="icon-spin" />}

@@ -2,6 +2,7 @@
  * Подменный сервер для автотестов экрана: Auth, `/api/*`, `/rest/v1` в памяти.
  * Не ходит в сеть; состояние — обычные массивы, тест читает их напрямую.
  */
+import { canStaffInviteClient } from '../../../api/_lib/clientPortal/clientInviteCore.js'
 
 function b64url(obj) {
   return Buffer.from(JSON.stringify(obj)).toString('base64url')
@@ -158,7 +159,41 @@ export function createFakeBackend(seed) {
     pushLog: [],
     requestLog: [],
   }
+  state.client_sessions ??= []
+  state.client_invites ??= []
   const backend = { state, cloudDown: false, pullFails: false, clientMe: null, adminData: null, coach: null }
+
+  function staffInviteCtx(user) {
+    return {
+      isAdmin: user.role === 'admin',
+      isTrainer: user.role === 'trainer',
+      isSupervisor: user.role === 'supervisor',
+      isSalesManager: user.role === 'sales_manager',
+      user: { id: user.id },
+      profile: { club_id: user.club_id },
+    }
+  }
+
+  /** Как /api/client-invite: status / create / revoke — права через canStaffInviteClient. */
+  function handleClientInvite(user, body) {
+    const clientId = String(body?.client_id ?? '').trim()
+    const client = state.clients.find((c) => c.id === clientId)
+    const gate = canStaffInviteClient(staffInviteCtx(user), client)
+    if (!gate.ok) return { status: gate.status, json: { error: gate.error } }
+    if (body?.action === 'status') {
+      const hasApp = (state.client_sessions ?? []).some((s) => s.client_id === clientId && !s.revoked_at)
+      return { status: 200, json: { has_app: hasApp } }
+    }
+    if (body?.action === 'revoke') {
+      for (const s of state.client_sessions ?? []) {
+        if (s.client_id === clientId) s.revoked_at = new Date().toISOString()
+      }
+      return { status: 200, json: { ok: true } }
+    }
+    const token = `e2eCardInvite_${state.client_invites.length + 1}_0123456789abcdef`
+    state.client_invites.push({ client_id: clientId, token, created_by: user.id })
+    return { status: 200, json: { token, expires_at: new Date(Date.now() + 72 * 3600_000).toISOString() } }
+  }
 
   /**
    * @param {{ method: string, path: string, searchParams: URLSearchParams, headers: Record<string,string>, body: any }} req
@@ -216,6 +251,9 @@ export function createFakeBackend(seed) {
         status: 200,
         json: { client, memberships: own(state.memberships), trainings: own(state.trainings), health_cards: own(state.health_cards), scope: searchParams.get('scope') },
       }
+    }
+    if (path === '/api/client-invite' && method === 'POST') {
+      return handleClientInvite(user, body)
     }
     if (path === '/api/push-record' && method === 'POST') {
       return { status: 200, json: applyPush(state, body) }

@@ -8,7 +8,6 @@ import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { useChatThread } from '../../hooks/useChatThread.js'
 import { coachChatVoice, fetchCoachChatThread, reactCoachChatMessage, searchCoachChat, sendCoachChatMessage } from '../../lib/coach/coachApiClient.js'
 import { hasCoachSession } from '../../lib/coach/coachSession.js'
-import { chatKindLabelRu } from '../../lib/chat/chatAccessCore.js'
 import { chatStaffReadOnlyRu } from '../../lib/chat/chatUiCore.js'
 import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
@@ -50,7 +49,6 @@ export function CoachChatPage() {
           photo={meta?.client?.photo}
           status={meta?.client?.status}
           title={name}
-          subtitle={chatKindLabelRu(kind)}
           searchHostRef={setSearchHost}
         />
       }

@@ -428,6 +428,121 @@
   flex: 1;
 }
 
+/* Вкладки: Рассылки | Оценки */
+.admin-inbox__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.admin-inbox__tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm, 10px);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-inbox__tab:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.admin-inbox__tab--on {
+  color: var(--accent-bright, var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+}
+
+.admin-inbox__kind--rating {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.admin-inbox__kind--low {
+  color: var(--danger, #c44);
+  background: color-mix(in srgb, var(--danger, #c44) 12%, transparent);
+}
+
+.admin-inbox__row--low {
+  border-color: color-mix(in srgb, var(--danger, #c44) 28%, var(--border));
+}
+
+.admin-inbox__score {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.admin-inbox__score--low,
+.admin-inbox__rating-score--low {
+  color: var(--danger, #c44);
+}
+
+.admin-inbox__rating-card {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-inbox__rating-card--low {
+  border-color: color-mix(in srgb, var(--danger, #c44) 35%, var(--border));
+}
+
+.admin-inbox__rating-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin-inbox__rating-name {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+}
+
+.admin-inbox__rating-meta {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.admin-inbox__rating-score {
+  margin: 0 0 0 auto;
+  font-size: 1.6rem;
+  font-weight: 750;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.admin-inbox__rating-comment h3 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.admin-inbox__rating-comment p {
+  margin: 0;
+  white-space: pre-line;
+  line-height: 1.45;
+}
+
+.admin-inbox__rating-alert {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger, #c44) 10%, transparent);
+  color: var(--danger, #c44);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .admin-inbox__row2 {
     grid-template-columns: 1fr;

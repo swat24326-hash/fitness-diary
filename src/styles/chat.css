@@ -602,14 +602,10 @@ html[data-chat-fit] body {
 }
 
 .chat-card-links {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-}
-
-.chat-card-links > svg {
-  color: var(--accent);
+  gap: 4px;
 }
 
 @keyframes chat-msg-in {

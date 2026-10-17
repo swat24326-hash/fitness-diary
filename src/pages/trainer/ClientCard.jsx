@@ -624,10 +624,13 @@ export function ClientCard() {
     )
   }
 
+  /** Конвертик у шапки с QR; в desk/lite/multi-hall шапки нет — конвертик остаётся в блоке ниже. */
+  const surveySection = <ClientSurveyPointsSection client={client} />
+  const chatLinks = <ClientChatLinks client={client} disabled={isArchived} />
   const clubSections = (
     <>
-      <ClientChatLinks client={client} />
-      <ClientSurveyPointsSection client={client} />
+      {chatLinks}
+      {surveySection}
     </>
   )
 
@@ -805,7 +808,7 @@ export function ClientCard() {
           </Link>
         </p>
       ) : null}
-      {clubSections}
+      {surveySection}
       {hydrateError ? (
         <p className="muted admin-inline-note" role="alert">
           Данные с сервера подгрузились не полностью: {hydrateError}. Показано из локального кэша.
@@ -941,7 +944,12 @@ export function ClientCard() {
             <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
               <Pencil size={16} aria-hidden />
             </button>
-            {isOpenPnkClient(client) ? null : <ClientAppInviteButton client={client} disabled={isArchived} />}
+            {isOpenPnkClient(client) ? null : (
+              <>
+                <ClientAppInviteButton client={client} disabled={isArchived} />
+                {chatLinks}
+              </>
+            )}
             {canManageClubClients && client?.club_id ? (
               <AdminClientCallHistoryButton
                 variant="icon"
