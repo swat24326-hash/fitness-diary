@@ -809,7 +809,7 @@
   font-size: 0.9rem;
 }
 
-/* --- Modal --- */
+/* --- Modal: строже, симметрия, список клиентов забирает свободную высоту --- */
 .trainer-schedule-modal {
   position: fixed;
   inset: 0;
@@ -819,39 +819,77 @@
   align-items: flex-end;
   justify-content: center;
   padding: 12px;
+  box-sizing: border-box;
 }
 
 @media (min-width: 640px) {
   .trainer-schedule-modal {
     align-items: center;
+    padding: 16px;
   }
 }
 
 .trainer-schedule-modal__panel {
+  display: flex;
+  flex-direction: column;
   width: min(100%, 520px);
-  max-height: min(92vh, 760px);
-  overflow: auto;
-  padding: 14px 14px 16px;
+  max-height: min(92dvh, 820px);
+  overflow: hidden;
+  padding: 16px;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+}
+
+@media (min-width: 768px) {
+  .trainer-schedule-modal__panel {
+    width: min(100%, 560px);
+    max-height: min(90dvh, 900px);
+  }
 }
 
 .trainer-schedule-modal__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 12px;
+  flex: 0 0 auto;
+  margin: 0 0 12px;
 }
 
 .trainer-schedule-modal__title {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: 1.05rem;
   font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .trainer-schedule-modal__form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 10px;
+}
+
+.trainer-schedule-modal__form-top,
+.trainer-schedule-modal__form-foot {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.trainer-schedule-modal__form-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.trainer-schedule-modal__form-body > .trainer-schedule-modal__clients-wrap,
+.trainer-schedule-modal__form-body > .trainer-schedule-modal__field--wide {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .trainer-schedule-modal__row {
@@ -864,12 +902,21 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  min-width: 0;
+}
+
+.trainer-schedule-modal__field--wide {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .trainer-schedule-modal__field--wide textarea {
-  min-height: 84px;
-  resize: vertical;
+  flex: 1 1 auto;
+  min-height: 96px;
+  resize: none;
 }
 
 .trainer-schedule-modal__field > span {
@@ -898,7 +945,7 @@
 
 .trainer-schedule-modal__duration-hint {
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
 }
 
 .trainer-schedule-modal__field input,
@@ -910,6 +957,7 @@
   font: inherit;
   font-size: 1rem;
   color-scheme: dark;
+  border-radius: var(--radius-sm);
 }
 
 .trainer-schedule-modal__modes {
@@ -920,21 +968,23 @@
 
 .trainer-schedule-modal__mode {
   min-height: 44px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
   color: inherit;
   font-weight: 600;
 }
 
 .trainer-schedule-modal__mode--active {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .trainer-schedule-modal__clients-wrap {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   gap: 8px;
 }
 
@@ -942,22 +992,27 @@
   width: 100%;
   flex: 0 0 auto;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-sm);
-  background: rgba(10, 14, 12, 0.85);
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 .trainer-schedule-modal__search:focus-within {
   border-color: color-mix(in srgb, var(--accent) 48%, transparent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .trainer-schedule-modal__clients {
-  max-height: 220px;
+  flex: 1 1 auto;
+  min-height: 140px;
   overflow: auto;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
+  overscroll-behavior: contain;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  padding: 4px 0;
+  background: transparent;
 }
 
 .trainer-schedule-modal__client-list {
@@ -966,21 +1021,49 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
 }
 
 .trainer-schedule-modal__client-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 4px 0;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 2px;
   cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trainer-schedule-modal__client-list li:last-child .trainer-schedule-modal__client-item {
+  border-bottom: 0;
 }
 
 .trainer-schedule-modal__client-item:has(input:disabled) {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.trainer-schedule-modal__client-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.trainer-schedule-modal__client-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.trainer-schedule-modal__client-meta {
+  font-size: 0.8rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .trainer-schedule-modal__clients-empty {
@@ -991,12 +1074,12 @@
 .trainer-schedule-modal__hint,
 .trainer-schedule-modal__preview {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 .trainer-schedule-modal__link-row {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
 }
 
 .trainer-schedule-modal__chip {
@@ -1013,9 +1096,9 @@
 }
 
 .trainer-schedule-modal__pick-clients {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 .trainer-schedule-modal__pick-list {
@@ -1035,16 +1118,31 @@
 
 .trainer-schedule-modal__actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: stretch;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  margin-top: 2px;
 }
 
-.trainer-schedule-modal__actions-right {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
+/* Удалить / Отмена / Сохранить — симметрия: одна высота и равная ширина. */
+.trainer-schedule-modal__actions > .btn {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  width: 0;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border-width: 1px;
+  box-shadow: none !important;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.trainer-schedule-modal__actions--new > .btn {
+  flex: 1 1 0;
 }
 
 .btn-danger-outline {

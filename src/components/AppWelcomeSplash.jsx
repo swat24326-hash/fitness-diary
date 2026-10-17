@@ -7,6 +7,10 @@ import {
   scheduleWelcomeBootSplashRemove,
 } from '../lib/welcomeSplashBoot.js'
 import {
+  WELCOME_COPY_OFFSET_PX,
+  WELCOME_MARK_PX,
+} from '../lib/welcomeSplashLayoutCore.js'
+import {
   formatWelcomeGreeting,
   resolveWelcomeGreetingName,
 } from '../lib/welcomeSplashGreeting.js'
@@ -30,22 +34,30 @@ export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
   }, [])
 
   return (
-    <div className="app-loading-shell app-welcome-shell">
+    <div
+      className="app-loading-shell app-welcome-shell"
+      style={{
+        '--welcome-mark-px': `${WELCOME_MARK_PX}px`,
+        '--welcome-copy-offset': `${WELCOME_COPY_OFFSET_PX}px`,
+      }}
+    >
       <div className="app-welcome" role="status" aria-live="polite" aria-label={ariaLabel}>
         <div className="app-welcome__stage" aria-hidden>
           <div className={`app-welcome__mark${fromBoot ? ' app-welcome__mark--from-boot' : ''}`}>
-            <OsMark size={96} />
+            <OsMark size={WELCOME_MARK_PX} />
           </div>
         </div>
-        <p className="app-welcome__greeting">
-          <span className="app-welcome__greeting-lead">Приветствуем</span>
-          {greetingName ? (
-            <>
-              , <span className="app-welcome__greeting-name">{greetingName}</span>
-            </>
-          ) : null}
-        </p>
-        <p className="app-welcome__hint">{hint}</p>
+        <div className="app-welcome__copy">
+          <p className="app-welcome__greeting">
+            <span className="app-welcome__greeting-lead">Приветствуем</span>
+            {greetingName ? (
+              <>
+                , <span className="app-welcome__greeting-name">{greetingName}</span>
+              </>
+            ) : null}
+          </p>
+          <p className="app-welcome__hint">{hint}</p>
+        </div>
       </div>
     </div>
   )

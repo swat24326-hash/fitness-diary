@@ -73,7 +73,7 @@ console.log('входы — state / без target=_blank на оферту')
 const entries = [
   ['src/pages/Login.jsx', 'LegalEntryLinks', 'вход сотрудников'],
   ['src/pages/coach/CoachSignInPage.jsx', 'LegalEntryLinks', 'вход /coach'],
-  ['src/pages/client/ClientMePage.jsx', 'LegalEntryLinks', 'вход /me'],
+  ['src/pages/client/ClientSignInPanel.jsx', 'LegalEntryLinks', 'вход /me'],
   ['src/pages/client/ClientSettingsSection.jsx', 'legal-entry-links--in-profile', 'профиль клиента'],
   ['src/components/header/HeaderProfileSettings.jsx', 'legal-entry-links--in-profile', 'профиль сотрудника'],
   ['src/pages/coach/CoachMorePage.jsx', 'legal-entry-links--in-profile', 'профиль /coach More'],

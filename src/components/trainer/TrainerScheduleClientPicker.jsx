@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
+import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import { SCHEDULE_MAX_CLIENTS, buildTrainerScheduleClientPickerList } from '../../lib/trainer/trainerScheduleCore.js'
 
 /**
  * Выбор клиентов слота: поиск + список с галочками.
- * @param {{ clients: object[], selectedIds: string[], onToggle: (id: string) => void }} props
+ * @param {{
+ *   clients: object[],
+ *   selectedIds: string[],
+ *   onToggle: (id: string) => void,
+ *   clientInfoById?: Record<string, { cardNumber?: string, membershipLabel?: string }>,
+ * }} props
  */
-export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle }) {
+export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, clientInfoById = {} }) {
   const [query, setQuery] = useState('')
   const picker = useMemo(
     () => buildTrainerScheduleClientPickerList(clients, query, selectedIds),
@@ -38,11 +44,15 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle }) 
           {picker.map((c) => {
             const id = String(c.id)
             const checked = selectedIds.includes(id)
+            const meta = formatScheduleClientCardMeta(clientInfoById[id] ?? {})
             return (
               <li key={id}>
                 <label className="trainer-schedule-modal__client-item">
                   <input type="checkbox" checked={checked} disabled={full && !checked} onChange={() => onToggle(id)} />
-                  <span>{c.name}</span>
+                  <span className="trainer-schedule-modal__client-text">
+                    <span className="trainer-schedule-modal__client-name">{c.name}</span>
+                    {meta ? <span className="trainer-schedule-modal__client-meta muted">{meta}</span> : null}
+                  </span>
                 </label>
               </li>
             )

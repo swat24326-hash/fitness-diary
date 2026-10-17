@@ -13,6 +13,12 @@ const brand = await import(brandUrl)
 const { productBrandMarkFileSvg, productBrandMarkInnerSvg } = await import(
   pathToFileURL(path.join(root, 'src/lib/productBrandMark.js')).href
 )
+const {
+  WELCOME_MARK_PX,
+  WELCOME_BOOT_ZOOM_FROM,
+  WELCOME_BOOT_ZOOM_MS,
+  WELCOME_BOOT_ZOOM_EASE,
+} = await import(pathToFileURL(path.join(root, 'src/lib/welcomeSplashLayoutCore.js')).href)
 
 const {
   PRODUCT_BRAND_NAME,
@@ -55,21 +61,21 @@ const indexHtml = `<!DOCTYPE html>
         display: grid; place-items: center;
         background: #000000; pointer-events: none;
       }
-      /* Сразу крупный (как системный splash), потом в рабочий размер — без скачка «сначала мелкая иконка». */
+      /* Тот же финал, что React OsMark (WELCOME_MARK_PX): крупный → 96px, центр viewport. */
       #yadro-boot-splash__mark {
-        width: min(58vw, 220px); height: min(58vw, 220px);
+        width: ${WELCOME_MARK_PX}px; height: ${WELCOME_MARK_PX}px;
         color: #2effb8;
         transform-origin: center;
-        transform: scale(1);
-        animation: yadro-boot-zoom 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transform: scale(${WELCOME_BOOT_ZOOM_FROM});
+        animation: yadro-boot-zoom ${WELCOME_BOOT_ZOOM_MS}ms ${WELCOME_BOOT_ZOOM_EASE} forwards;
       }
       #yadro-boot-splash__mark svg { display: block; width: 100%; height: 100%; }
       @keyframes yadro-boot-zoom {
-        0% { transform: scale(1); }
-        100% { transform: scale(0.44); }
+        0% { transform: scale(${WELCOME_BOOT_ZOOM_FROM}); }
+        100% { transform: scale(1); }
       }
       @media (prefers-reduced-motion: reduce) {
-        #yadro-boot-splash__mark { animation: none; transform: scale(0.44); }
+        #yadro-boot-splash__mark { animation: none; transform: scale(1); }
       }
     </style>
   </head>

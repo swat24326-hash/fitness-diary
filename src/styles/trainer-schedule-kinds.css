@@ -48,18 +48,19 @@
   gap: 6px;
 }
 
+/* Цвет точки (--kind) не трогаем; только плотность и радиус. */
 .trainer-schedule-kinds__chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
@@ -67,7 +68,7 @@
 
 .trainer-schedule-kinds__chip--on {
   border-color: var(--kind);
-  background: color-mix(in srgb, var(--kind) 30%, transparent);
+  background: color-mix(in srgb, var(--kind) 28%, transparent);
 }
 
 /* --- Легенда под сеткой --- */

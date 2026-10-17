@@ -25,19 +25,34 @@ const own = (id, name, extra = {}) => ({ id, name, trainer_id: TRAINER_ID, club_
 Object.assign(backend.state.clients[0], { phone: '+7 999 111-22-33', card_number: '5870' })
 backend.state.clients.push(
   own('p-boris', 'Борис Продлеваев', { card_number: '3334', phone: '+7 999 222-33-44' }),
-  own('p-vera', 'Вера Новая', { lifecycle: 'pnk', birth_date: `1990-${isoDay(1).slice(5)}` }),
+  own('p-vera', 'Вера Новая', { lifecycle: 'pnk', card_number: '4412', birth_date: `1990-${isoDay(1).slice(5)}` }),
 )
-const mem = (id, clientId, start, end, total, used) => ({
-  id, client_id: clientId, start_date: isoDay(start), end_date: isoDay(end), total_trainings: total, used_trainings: used, membership_type_id: 'p-type',
+const mem = (id, clientId, start, end, total, used, typeId = 'p-type') => ({
+  id, client_id: clientId, start_date: isoDay(start), end_date: isoDay(end), total_trainings: total, used_trainings: used, membership_type_id: typeId,
 })
+backend.state.membership_types = [
+  { id: 'p-type', club_id: CLUB_ID, code: 'ПЗ 10', name: 'ПЗ 10' },
+  { id: 'p-type-vip', club_id: CLUB_ID, code: 'Vip 2', name: 'Vip 2' },
+]
+backend.state.memberships = [
+  mem('p-m1', CLIENT_ID, -20, 3, 10, 3),
+  mem('p-m0', CLIENT_ID, -80, -21, 8, 8),
+  mem('p-m2', 'p-boris', -10, 40, 10, 6, 'p-type-vip'),
+  mem('p-m3', 'p-vera', -5, 25, 8, 1, 'p-type-vip'),
+]
 const coach = createFakeCoach(backend.state, chat, {
   trainerId: TRAINER_ID,
   today: isoDay(0),
-  schedule: [slot('p1', 0, 600), slot('p2', 0, 780, { title: 'Групповая', client_ids: [] }), slot('p3', 1, 1080)],
+  schedule: [
+    slot('p1', 0, 600),
+    slot('p-vera', 0, 16 * 60, { client_ids: ['p-vera'] }),
+    slot('p2', 0, 780, { title: 'Групповая', client_ids: [] }),
+    slot('p3', 1, 1080),
+  ],
   clientsData: {
-    memberships: [mem('p-m1', CLIENT_ID, -20, 3, 10, 3), mem('p-m0', CLIENT_ID, -80, -21, 8, 8), mem('p-m2', 'p-boris', -60, -5, 10, 6)],
+    memberships: backend.state.memberships,
     trainings: [{ client_id: CLIENT_ID, date: isoDay(-2), status: 'completed' }],
-    typeCodeById: { 'p-type': 'ПЗ 10' },
+    typeCodeById: { 'p-type': 'ПЗ 10', 'p-type-vip': 'Vip 2' },
   },
 })
 backend.coach = coach.handle

@@ -1,9 +1,11 @@
 /**
  * Мгновенный boot-splash в index.html (до React): тот же знак и зум.
- * React снимает его после зума и не запускает зум второй раз.
+ * React снимает его после зума; геометрия совпадает с AppWelcomeSplash (без дёрганья).
  */
 
-export const WELCOME_BOOT_ZOOM_MS = 1150
+import { WELCOME_BOOT_ZOOM_MS } from './welcomeSplashLayoutCore.js'
+
+export { WELCOME_BOOT_ZOOM_MS }
 
 const BOOT_ID = 'yadro-boot-splash'
 

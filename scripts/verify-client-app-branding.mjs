@@ -36,7 +36,13 @@ const IPAD_DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/
 const m = buildClientManifest('  FIT-CITY  ')
 ok(m.name === 'FIT-CITY' && m.short_name === 'FIT-CITY', 'manifest: название клуба на значке')
 ok(m.start_url === '/me' && m.scope === '/me' && m.id === '/me/', 'manifest: только /me, не рабочее приложение')
-ok(m.display === 'standalone' && m.icons.length === 2, 'manifest: standalone + иконки')
+ok(
+  m.display === 'standalone' &&
+    m.icons.length === 4 &&
+    m.icons.some((i) => i.purpose === 'any') &&
+    m.icons.some((i) => i.purpose === 'maskable'),
+  'manifest: standalone + иконки',
+)
 ok(buildClientManifest('').name === CLIENT_APP_FALLBACK_NAME, 'клуб без названия — «Результат Плюс»')
 ok(buildClientManifest(null).name === CLIENT_APP_FALLBACK_NAME, 'клуб не найден — «Результат Плюс»')
 ok(!/Ядро/.test(JSON.stringify(m)), 'в manifest клиента нет имени продукта')

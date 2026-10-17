@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Trash2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { trainerScheduleLocalActions } from '../../lib/trainer/trainerScheduleLocalActions.js'
 import {
   resolveScheduleTrainingStart,
@@ -187,115 +187,121 @@ export function TrainerScheduleEntryModal({
         </div>
 
         <form className="trainer-schedule-modal__form" onSubmit={onSubmit}>
-          <div className="trainer-schedule-modal__row">
-            <label className="trainer-schedule-modal__field">
-              <span>Время</span>
-              <input className="input" type="time" value={form.time} onChange={(ev) => form.setTime(ev.target.value)} required />
-            </label>
-            <label className="trainer-schedule-modal__field">
-              <span>Длительность</span>
-              <span className="trainer-schedule-modal__duration">
-                <input
-                  className="input"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={form.duration}
-                  onChange={(ev) => form.setDuration(ev.target.value)}
-                  onFocus={(ev) => ev.target.select()}
-                  aria-label="Длительность в минутах"
-                  data-testid="schedule-duration"
-                />
-                <span className="trainer-schedule-modal__duration-unit" aria-hidden>
-                  мин
+          <div className="trainer-schedule-modal__form-top">
+            <div className="trainer-schedule-modal__row">
+              <label className="trainer-schedule-modal__field">
+                <span>Время</span>
+                <input className="input" type="time" value={form.time} onChange={(ev) => form.setTime(ev.target.value)} required />
+              </label>
+              <label className="trainer-schedule-modal__field">
+                <span>Длительность</span>
+                <span className="trainer-schedule-modal__duration">
+                  <input
+                    className="input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={form.duration}
+                    onChange={(ev) => form.setDuration(ev.target.value)}
+                    onFocus={(ev) => ev.target.select()}
+                    aria-label="Длительность в минутах"
+                    data-testid="schedule-duration"
+                  />
+                  <span className="trainer-schedule-modal__duration-unit" aria-hidden>
+                    мин
+                  </span>
                 </span>
-              </span>
-              <small className="trainer-schedule-modal__duration-hint">{form.endLabel ? `до ${form.endLabel}` : 'от 15 до 480'}</small>
-            </label>
+                <small className="trainer-schedule-modal__duration-hint">{form.endLabel ? `до ${form.endLabel}` : 'от 15 до 480'}</small>
+              </label>
+            </div>
+
+            <TrainerScheduleKindPicker value={form.kind} onChange={form.pickKind} />
+
+            {form.formMode === 'either' ? (
+              <div className="trainer-schedule-modal__modes" role="tablist" aria-label="Тип записи">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === 'note'}
+                  className={mode === 'note' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
+                  onClick={() => form.setMode('note')}
+                >
+                  Заметка
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === 'clients'}
+                  className={mode === 'clients' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
+                  onClick={() => form.setMode('clients')}
+                >
+                  Клиенты
+                </button>
+              </div>
+            ) : null}
           </div>
 
-          <TrainerScheduleKindPicker value={form.kind} onChange={form.pickKind} />
-
-          {form.formMode === 'either' ? (
-            <div className="trainer-schedule-modal__modes" role="tablist" aria-label="Тип записи">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'note'}
-                className={mode === 'note' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
-                onClick={() => form.setMode('note')}
-              >
-                Заметка
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'clients'}
-                className={mode === 'clients' ? 'trainer-schedule-modal__mode trainer-schedule-modal__mode--active' : 'trainer-schedule-modal__mode'}
-                onClick={() => form.setMode('clients')}
-              >
-                Клиенты
-              </button>
-            </div>
-          ) : null}
-
-          {mode === 'note' ? (
-            <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
-              <span>Текст</span>
-              <textarea
-                className="textarea"
-                value={form.title}
-                onChange={(ev) => form.setTitle(ev.target.value)}
-                rows={3}
-                placeholder="Например: обед, созвон, подготовка зала"
-                maxLength={240}
-              />
-            </label>
-          ) : (
-            <TrainerScheduleClientPicker clients={clients} selectedIds={selectedIds} onToggle={form.toggleClient} />
-          )}
-
-          <TrainerScheduleRepeatFields
-            enabled={repeat.on}
-            onToggle={repeat.setOn}
-            weekdays={repeat.weekdays}
-            onWeekdays={repeat.setWeekdays}
-            weeks={repeat.weeks}
-            onWeeks={repeat.setWeeks}
-            plan={repeat.plan}
-          />
-
-          <p className="trainer-schedule-modal__preview muted">
-            Будет: <strong>{form.previewLabel}</strong>
-            {trainingChip ? <> · <span className="trainer-schedule-modal__chip">{trainingChip}</span></> : null}
-          </p>
-
-          <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />
-
-          {singleClientId ? (
-            <p className="trainer-schedule-modal__link-row">
-              <Link to={`/trainer/clients/${singleClientId}`} className="u-no-decoration">
-                Открыть карточку клиента
-              </Link>
-            </p>
-          ) : null}
-
-          {error ? (
-            <p className="trainer-schedule-modal__error" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="trainer-schedule-modal__actions">
-            {draft?.id ? (
-              <button type="button" className="btn btn-secondary btn-danger-outline" disabled={busy} onClick={() => void onDelete()}>
-                <Trash2 size={16} aria-hidden />
-                Удалить
-              </button>
+          <div className="trainer-schedule-modal__form-body">
+            {mode === 'note' ? (
+              <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
+                <span>Текст</span>
+                <textarea
+                  className="textarea"
+                  value={form.title}
+                  onChange={(ev) => form.setTitle(ev.target.value)}
+                  rows={4}
+                  placeholder="Например: обед, созвон, подготовка зала"
+                  maxLength={240}
+                />
+              </label>
             ) : (
-              <span />
+              <TrainerScheduleClientPicker
+                clients={clients}
+                selectedIds={selectedIds}
+                onToggle={form.toggleClient}
+                clientInfoById={clientInfoById}
+              />
             )}
-            <div className="trainer-schedule-modal__actions-right">
+          </div>
+
+          <div className="trainer-schedule-modal__form-foot">
+            <TrainerScheduleRepeatFields
+              enabled={repeat.on}
+              onToggle={repeat.setOn}
+              weekdays={repeat.weekdays}
+              onWeekdays={repeat.setWeekdays}
+              weeks={repeat.weeks}
+              onWeeks={repeat.setWeeks}
+              plan={repeat.plan}
+            />
+
+            <p className="trainer-schedule-modal__preview muted">
+              Будет: <strong>{form.previewLabel}</strong>
+              {trainingChip ? <> · <span className="trainer-schedule-modal__chip">{trainingChip}</span></> : null}
+            </p>
+
+            <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />
+
+            {singleClientId ? (
+              <p className="trainer-schedule-modal__link-row">
+                <Link to={`/trainer/clients/${singleClientId}`} className="u-no-decoration">
+                  Открыть карточку клиента
+                </Link>
+              </p>
+            ) : null}
+
+            {error ? (
+              <p className="trainer-schedule-modal__error" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            <div className={`trainer-schedule-modal__actions${draft?.id ? '' : ' trainer-schedule-modal__actions--new'}`}>
+              {draft?.id ? (
+                <button type="button" className="btn btn-secondary btn-danger-outline" disabled={busy} onClick={() => void onDelete()}>
+                  Удалить
+                </button>
+              ) : null}
               <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
                 Отмена
               </button>

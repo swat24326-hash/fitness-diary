@@ -183,12 +183,19 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       .map(({ synced: _s, ...e }) => e)
     const allOwn = ownClients()
     const membershipsByClientId = {}
-    for (const m of state.memberships ?? []) {
+    const memRows = [...(state.memberships ?? []), ...(clientsData.memberships ?? [])]
+    for (const m of memRows) {
       const cid = String(m?.client_id ?? '').trim()
       if (!cid || !allOwn.some((c) => String(c.id) === cid)) continue
       if (!membershipsByClientId[cid]) membershipsByClientId[cid] = []
       membershipsByClientId[cid].push(m)
     }
+    const typesFromCodes = Object.entries(clientsData.typeCodeById ?? {}).map(([id, code]) => ({
+      id,
+      code: String(code ?? ''),
+      name: String(code ?? ''),
+    }))
+    const membershipTypes = (state.membership_types?.length ? state.membership_types : typesFromCodes) ?? []
     const trainingById = Object.fromEntries(
       entries.filter((e) => trainings[e.linked_training_id]).map((e) => [e.linked_training_id, { status: trainings[e.linked_training_id] }]),
     )
@@ -197,7 +204,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       json: {
         entries,
         clientNameById: Object.fromEntries(allOwn.map((c) => [c.id, c.name])),
-        clientInfoById: buildScheduleClientInfoById(allOwn, membershipsByClientId, state.membership_types ?? [], today),
+        clientInfoById: buildScheduleClientInfoById(allOwn, membershipsByClientId, membershipTypes, today),
         trainingById,
         clients: allOwn.filter((c) => !c.archived_at).map((c) => ({ id: c.id, name: c.name })),
       },
