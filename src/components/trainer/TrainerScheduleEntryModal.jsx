@@ -187,7 +187,8 @@ export function TrainerScheduleEntryModal({
           </button>
         </div>
 
-        <form className="trainer-schedule-modal__form" onSubmit={onSubmit}>
+        {/* noValidate: Safari/iPhone иначе тихо блокирует submit (time/required) — без нашей ошибки на русском. */}
+        <form className="trainer-schedule-modal__form" onSubmit={onSubmit} noValidate>
           <div className="trainer-schedule-modal__form-top">
             <div className="trainer-schedule-modal__row">
               <label className="trainer-schedule-modal__field">
@@ -195,9 +196,9 @@ export function TrainerScheduleEntryModal({
                 <input
                   className="input"
                   type="time"
+                  step={60}
                   value={form.time}
                   onChange={(ev) => form.setTime(normalizeScheduleTimeInput(ev.target.value))}
-                  required
                 />
               </label>
               <label className="trainer-schedule-modal__field">

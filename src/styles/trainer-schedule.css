@@ -870,14 +870,33 @@
   flex: 1 1 auto;
   min-height: 0;
   gap: 10px;
+  overflow: hidden;
 }
 
-.trainer-schedule-modal__form-top,
+/*
+ * На телефоне верх (категории) + низ (Сохранить) вместе выше экрана —
+ * раньше оба были flex: 0 0 auto → низ обрезался overflow:hidden панели, «Сохранить» не достать.
+ * Верх сжимается и листается; низ с кнопками всегда на месте.
+ */
+.trainer-schedule-modal__form-top {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 42%;
+  gap: 10px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .trainer-schedule-modal__form-foot {
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
   gap: 10px;
+  padding-top: 4px;
+  background: color-mix(in srgb, var(--surface, var(--bg)) 92%, transparent);
 }
 
 .trainer-schedule-modal__form-body {
@@ -895,23 +914,12 @@
   min-height: 0;
 }
 
+/* Симметрия: две равные колонки; на iPhone узкие fixed-width ломали type=time. */
 .trainer-schedule-modal__row {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   align-items: start;
-}
-
-/* Компактные «Время» / «Длительность» — не делят экран пополам и не наезжают. */
-.trainer-schedule-modal__row > .trainer-schedule-modal__field:first-child {
-  flex: 0 0 auto;
-  width: 7.5rem;
-}
-
-.trainer-schedule-modal__row > .trainer-schedule-modal__field:last-child {
-  flex: 0 1 auto;
-  width: 7rem;
-  min-width: 0;
 }
 
 .trainer-schedule-modal__field {

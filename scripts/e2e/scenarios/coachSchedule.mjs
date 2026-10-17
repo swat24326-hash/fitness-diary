@@ -220,6 +220,14 @@ export async function run(browser) {
     await scrollBoardTo(page, 14 * 60)
     await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 15:00"]').click()
     const dialog = page.getByRole('dialog')
+    /* Узкий телефон: «Сохранить» не должно уезжать за край окна (INC-2026-10-17-04). */
+    const saveVisible = await dialog.getByRole('button', { name: 'Сохранить' }).evaluate((btn) => {
+      const r = btn.getBoundingClientRect()
+      const panel = btn.closest('.trainer-schedule-modal__panel')?.getBoundingClientRect()
+      if (!panel || r.height < 8) return false
+      return r.bottom <= panel.bottom + 1 && r.top >= panel.top - 1 && r.width > 0
+    })
+    c.ok(saveVisible, 'кнопка «Сохранить» видна внутри окна записи')
     await dialog.getByLabel(CLIENT_NAME).check()
     c.ok((await dialog.getByRole('button', { name: /Начать|Продолжить/ }).count()) === 0, 'в форме нет запуска тренировки')
     const durationInput = dialog.getByTestId('schedule-duration')
