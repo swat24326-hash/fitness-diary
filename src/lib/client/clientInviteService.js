@@ -46,12 +46,15 @@ export async function revokeClientAppAccess(clientId) {
   await postInvite({ client_id: clientId, action: 'revoke' })
 }
 
-/** Есть ли у клиента живой вход в /me. Без сети / ошибки — false (сначала пригласить). */
+/**
+ * Есть ли у клиента живой вход в /me.
+ * @returns {Promise<{ has_app: boolean, ok: boolean }>} ok:false — сеть/ошибка (has_app тогда false для UI «сначала пригласить»).
+ */
 export async function fetchClientAppStatus(clientId) {
   try {
     const data = await postInvite({ client_id: clientId, action: 'status' })
-    return { has_app: Boolean(data?.has_app) }
+    return { has_app: Boolean(data?.has_app), ok: true }
   } catch {
-    return { has_app: false }
+    return { has_app: false, ok: false }
   }
 }

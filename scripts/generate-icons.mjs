@@ -12,10 +12,9 @@ await fs.mkdir(brandDir, { recursive: true })
 const MARK_INNER = productBrandMarkInnerSvg()
 
 /**
- * PWA / системный splash: ровный тёмный холст + КРУПНЫЙ знак.
- * Размер знака ≈ первый кадр boot-зума в index.html — иначе видна
- * «статичная иконка», потом отдельная анимация с другим масштабом.
- * Без внутренней плитки. Фон = --premium-bg (#030806).
+ * PWA / системный splash: чисто чёрный холст + крупный знак.
+ * Не #030806 — на Android тёмно-зелёный читается как «плитка» под логотипом.
+ * Фон splash/manifest тоже #000000 (sync-product-brand + vite), чтобы маска иконки слилась с экраном.
  */
 function iconSvg(size) {
   const markBox = size * 0.82
@@ -24,7 +23,7 @@ function iconSvg(size) {
   const s = markBox / 32
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" fill="#030806"/>
+  <rect width="${size}" height="${size}" fill="#000000"/>
   <g transform="translate(${mx} ${my}) scale(${s})" fill="#2effb8" color="#2effb8">${MARK_INNER.replaceAll('currentColor', '#2effb8')}</g>
 </svg>
 `.trim()

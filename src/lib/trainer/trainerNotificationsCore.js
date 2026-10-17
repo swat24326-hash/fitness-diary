@@ -1,6 +1,7 @@
 /**
  * Лента уведомлений тренера (планшет): виртуально из client_plans в IndexedDB.
- * Непрочитанное = клиент ещё не открыл (нет client_seen_at). Не путать с чатом.
+ * Непрочитанное = клиент с приложением ещё не открыл. Без приложения — в ленту не кладём
+ * (иначе вечное «ждёт открытия» и красный счётчик). Не путать с чатом.
  */
 import { clientNotificationsBadgeText, clientNotificationsEntryLabelRu } from '../client/clientNotificationsCore.js'
 
@@ -9,35 +10,101 @@ export const COACH_NOTIFICATIONS_PATH = '/coach/notifications'
 
 export { clientNotificationsBadgeText as trainerNotificationsBadgeText, clientNotificationsEntryLabelRu as trainerNotificationsEntryLabelRu }
 
+function clientName(clientsById, id) {
+  const get = (cid) => (clientsById instanceof Map ? clientsById.get(cid) : clientsById[cid])
+  return String(get(id)?.name ?? '').trim() || 'Клиент'
+}
+
+function hasAppLookup(hasAppByClientId, clientId) {
+  if (!hasAppByClientId) return null
+  if (hasAppByClientId instanceof Map) {
+    if (!hasAppByClientId.has(clientId)) return null
+    return hasAppByClientId.get(clientId) === true
+  }
+  if (!Object.prototype.hasOwnProperty.call(hasAppByClientId, clientId)) return null
+  return hasAppByClientId[clientId] === true
+}
+
 /**
  * @param {object[]} plans — строки client_plans (отметки или полные)
  * @param {Map<string, { name?: string }>|Record<string, { name?: string }>} clientsById
+ * @param {{ hasAppByClientId?: Map<string, boolean>|Record<string, boolean> }} [opts]
+ *        true/false — знаем статус; нет ключа — не знаем (показываем «ещё не открыл»).
  */
-export function buildTrainerNotificationsFromPlans(plans, clientsById = {}) {
-  const get = (id) => (clientsById instanceof Map ? clientsById.get(id) : clientsById[id])
-  const out = []
+export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts = {}) {
+  const hasAppByClientId = opts.hasAppByClientId
+  /** @type {Map<string, object>} latest pending per client+kind */
+  const pendingLatest = new Map()
+  const opened = []
+
   for (const row of plans ?? []) {
     if (!row?.id || !row.sent_at) continue
     const kind = row.kind === 'nutrition' ? 'nutrition' : row.kind === 'homework' ? 'homework' : null
     if (!kind) continue
     const cid = String(row.client_id ?? '')
-    const name = String(get(cid)?.name ?? '').trim() || 'Клиент'
+    const openedAt = row.client_seen_at
+    if (openedAt) {
+      opened.push(row)
+      continue
+    }
+    const key = `${cid}:${kind}`
+    const prev = pendingLatest.get(key)
+    if (!prev || String(row.sent_at) > String(prev.sent_at)) pendingLatest.set(key, row)
+  }
+
+  const out = []
+  for (const row of opened) {
+    const kind = row.kind === 'nutrition' ? 'nutrition' : 'homework'
+    const cid = String(row.client_id ?? '')
+    const name = clientName(clientsById, cid)
     const first = name.split(/\s+/)[0] || name
     const what = kind === 'nutrition' ? 'рацион' : 'задание'
-    const opened = Boolean(row.client_seen_at)
     out.push({
       id: String(row.id),
-      kind: opened ? `${kind}_opened` : `${kind}_pending`,
-      title: opened ? `${first} открыл(а) ${what}` : `Ждёт открытия · ${what}`,
+      kind: `${kind}_opened`,
+      title: `${first} открыл(а) ${what}`,
       body: name,
       deep_link: `/trainer/clients/${encodeURIComponent(cid)}?tab=${kind === 'nutrition' ? 'nutrition' : 'homework'}`,
-      created_at: String(opened ? row.client_seen_at : row.sent_at),
-      read_at: opened ? String(row.client_seen_at) : null,
+      created_at: String(row.client_seen_at),
+      read_at: String(row.client_seen_at),
       client_id: cid,
     })
   }
+
+  for (const row of pendingLatest.values()) {
+    const kind = row.kind === 'nutrition' ? 'nutrition' : 'homework'
+    const cid = String(row.client_id ?? '')
+    const app = hasAppLookup(hasAppByClientId, cid)
+    // Явно нет приложения — не шумим во «Входящих» (открыть всё равно некому).
+    if (app === false) continue
+    const name = clientName(clientsById, cid)
+    const what = kind === 'nutrition' ? 'рацион' : 'задание'
+    out.push({
+      id: String(row.id),
+      kind: `${kind}_pending`,
+      title: `Клиент ещё не открыл · ${what}`,
+      body: name,
+      deep_link: `/trainer/clients/${encodeURIComponent(cid)}?tab=${kind === 'nutrition' ? 'nutrition' : 'homework'}`,
+      created_at: String(row.sent_at),
+      read_at: null,
+      client_id: cid,
+    })
+  }
+
   out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
   return out
+}
+
+/** client_id из неоткрытых планов — чтобы узнать has_app одним проходом. */
+export function trainerNotificationPendingClientIds(plans) {
+  const ids = new Set()
+  for (const row of plans ?? []) {
+    if (!row?.id || !row.sent_at || row.client_seen_at) continue
+    if (row.kind !== 'nutrition' && row.kind !== 'homework') continue
+    const cid = String(row.client_id ?? '').trim()
+    if (cid) ids.add(cid)
+  }
+  return [...ids]
 }
 
 export function trainerNotificationsUnreadCount(items) {

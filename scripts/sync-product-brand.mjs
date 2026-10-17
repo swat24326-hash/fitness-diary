@@ -40,18 +40,18 @@ const indexHtml = `<!DOCTYPE html>
     <link rel="icon" type="image/png" href="${icon192}" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <script src="/manifest-boot.js"></script>
-    <meta name="theme-color" content="#030806" />
+    <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="${PRODUCT_BRAND_SHORT}" />
     <link rel="apple-touch-icon" href="${icon192}" />
     <title>${PRODUCT_BRAND_NAME}</title>
     <style>
-      html, body { margin: 0; height: 100%; background: #030806; }
+      html, body { margin: 0; height: 100%; background: #000000; }
       #yadro-boot-splash {
         position: fixed; inset: 0; z-index: 9999;
         display: grid; place-items: center;
-        background: #030806; pointer-events: none;
+        background: #000000; pointer-events: none;
       }
       /* Сразу крупный (как системный splash), потом в рабочий размер — без скачка «сначала мелкая иконка». */
       #yadro-boot-splash__mark {
@@ -100,8 +100,8 @@ const manifest = {
   description: PRODUCT_BRAND_PWA_DESCRIPTION,
   start_url: '/',
   display: 'standalone',
-  theme_color: '#030806',
-  background_color: '#030806',
+  theme_color: '#000000',
+  background_color: '#000000',
   orientation: 'portrait',
   icons: iconSizes.map((size) => ({
     src: productBrandIconPath(size),

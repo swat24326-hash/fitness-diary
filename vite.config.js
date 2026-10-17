@@ -73,8 +73,8 @@ export default defineConfig(({ mode }) => ({
         description: PRODUCT_BRAND_PWA_DESCRIPTION,
         start_url: '/',
         display: 'standalone',
-        theme_color: '#0a0a0a',
-        background_color: '#0a0a0a',
+        theme_color: '#000000',
+        background_color: '#000000',
         orientation: 'portrait',
         icons: [72, 96, 128, 144, 152, 192, 384, 512].map((size) => ({
           src: productBrandIconPath(size),

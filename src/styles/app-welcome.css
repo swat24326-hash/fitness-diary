@@ -4,8 +4,9 @@
  * Минимум показа — useWelcomeSplashHold (~2.2 с).
  */
 
+/* Чёрный как системный splash/иконка — без зеленоватой «плитки» #030806. */
 .app-welcome-shell {
-  background: var(--bg);
+  background: #000000;
 }
 
 .app-welcome {
