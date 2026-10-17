@@ -36,7 +36,7 @@ export function TrainerInboxPanel({
   clubId = '',
   onPendingChange,
   showClientsTab = false,
-  initialTab = 'planerka',
+  initialTab = 'clients',
   clientsUnread = 0,
   planerkaPending = 0,
 }) {
@@ -47,7 +47,7 @@ export function TrainerInboxPanel({
   const [busyStageId, setBusyStageId] = useState('')
   const [declineId, setDeclineId] = useState('')
   const [declineReply, setDeclineReply] = useState('')
-  const [tab, setTab] = useState(/** @type {'planerka' | 'clients'} */ ('planerka'))
+  const [tab, setTab] = useState(/** @type {'planerka' | 'clients'} */ ('clients'))
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -86,7 +86,11 @@ export function TrainerInboxPanel({
 
   useEffect(() => {
     if (!open) return
-    const next = showClientsTab && initialTab === 'clients' ? 'clients' : 'planerka'
+    // Тренер: по умолчанию «От клиентов»; Планёрка — если явно или нет вкладки клиентов.
+    const next =
+      !showClientsTab || initialTab === 'planerka'
+        ? 'planerka'
+        : 'clients'
     setTab(next)
   }, [open, initialTab, showClientsTab])
 

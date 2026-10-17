@@ -3,6 +3,11 @@
  * без приложения — не в ленте; несколько отправок — одна строка «ещё не открыл».
  */
 import {
+  applyTrainerNotificationDismissals,
+  isTrainerPendingNotificationKind,
+  withTrainerPendingDismissal,
+} from '../src/lib/trainer/trainerNotificationDismissCore.js'
+import {
   COACH_NOTIFICATIONS_PATH,
   TRAINER_NOTIFICATIONS_PATH,
   buildTrainerNotificationsFromPlans,
@@ -83,6 +88,24 @@ ok(deduped.length === 1 && deduped[0].id === 'a2', 'несколько отпр�
 ok(
   trainerNotificationPendingClientIds(plans).includes('c1') && !trainerNotificationPendingClientIds(plans).includes('c2'),
   'pending client ids',
+)
+
+ok(isTrainerPendingNotificationKind('nutrition_pending') && !isTrainerPendingNotificationKind('nutrition_opened'), 'pending kind')
+const withPending = buildTrainerNotificationsFromPlans(plans, clients, { hasAppByClientId: { c1: true } })
+const dismissed = withTrainerPendingDismissal({}, 'p1')
+const afterDismiss = applyTrainerNotificationDismissals(withPending, dismissed)
+ok(afterDismiss.length === 1 && afterDismiss[0].id === 'p2', 'скрыть pending — строка уходит, opened остаётся')
+ok(trainerNotificationsUnreadCount(afterDismiss) === 0, 'после скрытия бейдж клиентов чистый')
+const sameIdOpened = applyTrainerNotificationDismissals(
+  [
+    { id: 'p1', kind: 'homework_opened', read_at: '2026-10-09T12:00:00Z' },
+    { id: 'p1', kind: 'homework_pending', read_at: null },
+  ],
+  dismissed,
+)
+ok(
+  sameIdOpened.length === 1 && sameIdOpened[0].kind === 'homework_opened',
+  'скрыли ожидание — «открыл» с тем же id всё равно видно',
 )
 
 console.log('verify-trainer-notifications: ok')

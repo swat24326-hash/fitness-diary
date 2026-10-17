@@ -93,7 +93,7 @@ export function TrainerTaskGlanceWidget({ clubId = '' }) {
       touchRef.current.moved = false
       return
     }
-    requestOpenTrainerInbox()
+    requestOpenTrainerInbox({ tab: 'planerka' })
   }
 
   if (loading || !tasks.length) return null

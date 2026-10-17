@@ -2,11 +2,17 @@ import { useCallback, useEffect, useState } from 'react'
 import { LOCAL_DATA_CHANGED } from '../../lib/dataAccess'
 import { getDb } from '../../lib/localDb'
 import { fetchClientAppStatus } from '../../lib/client/clientInviteService.js'
+import { applyTrainerNotificationDismissals } from '../../lib/trainer/trainerNotificationDismissCore.js'
+import {
+  dismissTrainerPendingNotification,
+  loadTrainerPendingDismissals,
+} from '../../lib/trainer/trainerNotificationDismissStore.js'
 import {
   buildTrainerNotificationsFromPlans,
   trainerNotificationPendingClientIds,
   trainerNotificationsUnreadCount,
 } from '../../lib/trainer/trainerNotificationsCore.js'
+import { TRAINER_INBOX_UPDATED_EVENT, notifyTrainerInboxUpdated } from '../../lib/admin/trainerInboxEvents.js'
 
 async function loadHasAppMap(clientIds) {
   /** @type {Map<string, boolean>} */
@@ -29,7 +35,8 @@ async function loadFeed() {
   const byId = new Map(clients.map((c) => [String(c.id), c]))
   const pendingIds = trainerNotificationPendingClientIds(plans)
   const hasAppByClientId = await loadHasAppMap(pendingIds)
-  const items = buildTrainerNotificationsFromPlans(plans, byId, { hasAppByClientId })
+  const raw = buildTrainerNotificationsFromPlans(plans, byId, { hasAppByClientId })
+  const items = applyTrainerNotificationDismissals(raw, loadTrainerPendingDismissals())
   return { items, unread: trainerNotificationsUnreadCount(items) }
 }
 
@@ -51,6 +58,16 @@ export function useTrainerNotifications(enabled = true) {
       .catch(() => setState((s) => ({ ...s, status: 'error' })))
   }, [enabled])
 
+  const dismissPending = useCallback(
+    (planId) => {
+      if (!enabled || !planId) return
+      dismissTrainerPendingNotification(planId)
+      notifyTrainerInboxUpdated()
+      reload()
+    },
+    [enabled, reload],
+  )
+
   useEffect(() => {
     if (!enabled) {
       setState({ items: [], unread: 0, status: 'ready' })
@@ -59,8 +76,12 @@ export function useTrainerNotifications(enabled = true) {
     reload()
     const onChange = () => reload()
     window.addEventListener(LOCAL_DATA_CHANGED, onChange)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, onChange)
+    window.addEventListener(TRAINER_INBOX_UPDATED_EVENT, onChange)
+    return () => {
+      window.removeEventListener(LOCAL_DATA_CHANGED, onChange)
+      window.removeEventListener(TRAINER_INBOX_UPDATED_EVENT, onChange)
+    }
   }, [enabled, reload])
 
-  return { ...state, reload }
+  return { ...state, reload, dismissPending }
 }

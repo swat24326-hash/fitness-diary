@@ -15,7 +15,7 @@ export function PushOpenNavigator() {
     const onMessage = (event) => {
       if (event?.data?.type !== PUSH_OPEN_TYPE) return
       const action = pushOpenAction(event.data.url, currentRef.current)
-      if (action?.kind === 'inbox') requestOpenTrainerInbox()
+      if (action?.kind === 'inbox') requestOpenTrainerInbox({ tab: 'planerka' })
       else if (action?.kind === 'navigate') navigate(action.to)
     }
     navigator.serviceWorker.addEventListener('message', onMessage)

@@ -81,7 +81,7 @@ export function AppHeader() {
   const [trainerClubLabel, setTrainerClubLabel] = useState(null)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [inboxPending, setInboxPending] = useState(0)
-  const [inboxTab, setInboxTab] = useState(/** @type {'planerka' | 'clients'} */ ('planerka'))
+  const [inboxTab, setInboxTab] = useState(/** @type {'planerka' | 'clients'} */ ('clients'))
   const [updatePending, setUpdatePending] = useState(false)
   const [recoverBusy, setRecoverBusy] = useState(false)
   const isTrainerRole = !isAdmin && !isSalesManager && !isSupervisor
@@ -187,7 +187,13 @@ export function AppHeader() {
   useEffect(() => {
     if (!isDispatchInboxUser) return
     const onOpen = (e) => {
-      const tab = e?.detail?.tab === 'clients' && isTrainerRole ? 'clients' : 'planerka'
+      const raw = e?.detail?.tab
+      const tab =
+        raw === 'planerka'
+          ? 'planerka'
+          : isTrainerRole
+            ? 'clients'
+            : 'planerka'
       setInboxTab(tab)
       setInboxOpen(true)
     }
@@ -198,8 +204,12 @@ export function AppHeader() {
   useEffect(() => {
     if (!isDispatchInboxUser) return
     const inbox = searchParams.get('inbox')
-    if (inbox === '1' || inbox === 'clients') {
-      setInboxTab(inbox === 'clients' && isTrainerRole ? 'clients' : 'planerka')
+    if (inbox === '1' || inbox === 'clients' || inbox === 'planerka') {
+      setInboxTab(
+        inbox === 'planerka' || !isTrainerRole
+          ? 'planerka'
+          : 'clients',
+      )
       setInboxOpen(true)
       const next = new URLSearchParams(searchParams)
       next.delete('inbox')
@@ -493,7 +503,7 @@ export function AppHeader() {
                   : 'Планёрка — мои задания'
             }
             onClick={() => {
-              setInboxTab('planerka')
+              setInboxTab(isTrainerRole ? 'clients' : 'planerka')
               setInboxOpen(true)
             }}
           >

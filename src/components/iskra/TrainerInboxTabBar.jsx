@@ -1,5 +1,6 @@
 /**
- * Вкладки объединённого инбокса тренера: Планёрка | От клиентов.
+ * Вкладки объединённого инбокса тренера: От клиентов | Планёрка
+ * (клиенты чаще — слева и по умолчанию).
  * @param {{
  *   tab: 'planerka' | 'clients',
  *   onTab: (tab: 'planerka' | 'clients') => void,
@@ -15,21 +16,6 @@ export function TrainerInboxTabBar({ tab, onTab, planerkaCount = 0, clientsCount
       <button
         type="button"
         role="tab"
-        aria-selected={tab === 'planerka'}
-        className={`iskra-inbox__tab${tab === 'planerka' ? ' iskra-inbox__tab--on' : ''}`}
-        data-testid="trainer-inbox-tab-planerka"
-        onClick={() => onTab('planerka')}
-      >
-        Планёрка
-        {pk > 0 ? (
-          <span className="iskra-inbox__tab-badge" aria-hidden>
-            {pk > 99 ? '99+' : pk}
-          </span>
-        ) : null}
-      </button>
-      <button
-        type="button"
-        role="tab"
         aria-selected={tab === 'clients'}
         className={`iskra-inbox__tab${tab === 'clients' ? ' iskra-inbox__tab--on' : ''}`}
         data-testid="trainer-inbox-tab-clients"
@@ -39,6 +25,21 @@ export function TrainerInboxTabBar({ tab, onTab, planerkaCount = 0, clientsCount
         {cl > 0 ? (
           <span className="iskra-inbox__tab-badge" aria-hidden>
             {cl > 99 ? '99+' : cl}
+          </span>
+        ) : null}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'planerka'}
+        className={`iskra-inbox__tab${tab === 'planerka' ? ' iskra-inbox__tab--on' : ''}`}
+        data-testid="trainer-inbox-tab-planerka"
+        onClick={() => onTab('planerka')}
+      >
+        Планёрка
+        {pk > 0 ? (
+          <span className="iskra-inbox__tab-badge" aria-hidden>
+            {pk > 99 ? '99+' : pk}
           </span>
         ) : null}
       </button>
