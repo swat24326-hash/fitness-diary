@@ -154,18 +154,22 @@ async function clientWrites(c, browser, backend, chat) {
     await screenshot(page, 'client-chat-emoji-frequent')
     await page.getByTestId('chat-emoji-toggle').click()
     c.ok(await reaches(page.locator('.chat-day', { hasText: 'Сегодня' })), 'плашка дня «Сегодня»')
-    // Полоса дня на всю ширину с фоном: иначе липкая «Вчера» короче «1 октября» и по краям торчат цифры (INC-2026-10-16-01).
+    // Как в Telegram: только капсула. min-width закрывает длинную дату под короткой (INC-2026-10-16-01).
     c.ok(
       await page.locator('.chat-day').first().evaluate((el) => {
         const row = globalThis.getComputedStyle(el)
-        const feed = el.closest('.chat-thread__feed')
-        const bg = row.backgroundColor
-        const solid = Boolean(bg && bg !== 'transparent' && !/^rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/.test(bg))
-        // Лента с padding 10px: полоса дня тянется на ширину содержимого, не на clientWidth ленты.
-        const inner = (feed?.clientWidth ?? 0) - 24
-        return row.position === 'sticky' && el.clientWidth >= inner && solid
+        const pill = el.querySelector('span')
+        const pillStyle = pill ? globalThis.getComputedStyle(pill) : null
+        const rowBg = row.backgroundColor
+        const noStrip =
+          (!rowBg || rowBg === 'transparent' || /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)$/.test(rowBg)) &&
+          (row.backgroundImage === 'none' || !row.backgroundImage)
+        const pillBg = pillStyle?.backgroundColor ?? ''
+        const pillOk = Boolean(pillBg && pillBg !== 'transparent' && !/^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)$/.test(pillBg))
+        const wideEnough = (pill?.offsetWidth ?? 0) >= 96
+        return row.position === 'sticky' && noStrip && pillOk && wideEnough
       }),
-      'плашка дня: полоса на всю ширину ленты с фоном — закрывает предыдущую дату',
+      'плашка дня: капсула без полосы на всю ширину',
     )
     await screenshot(page, 'client-chat-sent')
   } catch (e) {

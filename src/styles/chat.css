@@ -79,38 +79,33 @@ html[data-chat-fit] body {
   text-align: center;
 }
 
-/* Дата в ленте — тихо, без чёрных капсул. Полоса на всю ширину в цвет фона ленты
-   закрывает предыдущую липкую дату (INC-2026-10-16-01: иначе по краям торчат цифры). */
+/* Дата как в Telegram: только матовая капсула, без полосы на всю ширину ленты.
+   min-width — чтобы короткая «Сегодня» при липкости закрывала длинную дату под ней (INC-2026-10-16-01). */
 .chat-day {
   position: sticky;
   top: 0;
   z-index: 1;
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin: 8px 0 4px;
-  padding: 5px 0;
-  background: var(--bg-subtle, var(--bg));
+  margin: 10px 0 6px;
+  padding: 4px 0;
+  background: none;
   pointer-events: none;
 }
 
-.chat-day::before,
-.chat-day::after {
-  content: '';
-  width: 22px;
-  height: 1px;
-  background: color-mix(in srgb, var(--text-muted) 32%, transparent);
-}
-
 .chat-day span {
-  padding: 0;
-  border-radius: 0;
-  background: none;
-  color: var(--text-muted);
-  font-size: 0.72rem;
+  box-sizing: border-box;
+  min-width: 8.5em;
+  padding: 4px 12px;
+  border-radius: 12px;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg) 48%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text);
+  font-size: 0.8125rem;
   font-weight: 500;
-  letter-spacing: 0.03em;
+  line-height: 1.35;
 }
 
 /* Пузырь. Пачка одного автора: углы у соседей поджаты, «хвостик» только у последнего. */

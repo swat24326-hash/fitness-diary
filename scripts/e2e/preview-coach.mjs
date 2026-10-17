@@ -12,7 +12,12 @@ import { CLIENT_ID, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay
 
 const backend = createFakeBackend(trainerClubSeed())
 const chat = createFakeChat(backend.state)
+chat.client(CLIENT_ID, { action: 'chat-send', kind: 'trainer', body: 'Сообщение с прошлой недели' })
+chat.client(CLIENT_ID, { action: 'chat-send', kind: 'trainer', body: 'Ещё одно за тот день' })
+if (chat.state.messages[0]) chat.state.messages[0].created_at = new Date(Date.now() - 4 * 864e5).toISOString()
+if (chat.state.messages[1]) chat.state.messages[1].created_at = new Date(Date.now() - 4 * 864e5 + 60_000).toISOString()
 chat.client(CLIENT_ID, { action: 'chat-send', kind: 'trainer', body: 'Завтра можно перенести на вечер?' })
+chat.client(CLIENT_ID, { action: 'chat-send', kind: 'trainer', body: 'Жду ответа' })
 const slot = (id, day, start, extra = {}) => ({
   id, club_id: CLUB_ID, trainer_id: TRAINER_ID, day_date: isoDay(day), start_minutes: start, duration_minutes: 60, title: '', client_ids: [CLIENT_ID], ...extra,
 })
@@ -48,12 +53,14 @@ const context = await newE2eContext(browser, backend, {
 })
 const page = await context.newPage()
 await page.goto(`${ORIGIN}/coach`)
+await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
 await page.getByLabel('Логин').fill(TRAINER_LOGIN)
 await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-await page.getByRole('button', { name: 'Войти' }).click()
-coach.setPhoneStatus('approved')
-await page.getByRole('button', { name: 'Проверить сейчас' }).click()
-console.log(`Приложение тренера открыто: ${ORIGIN}/coach (тестовые данные). Закройте окно, чтобы выйти.`)
+await page.getByRole('button', { name: 'Войти', exact: true }).click()
+await page.getByRole('link', { name: /^Сообщения/ }).waitFor({ timeout: 20_000 })
+await page.goto(`${ORIGIN}/coach/chat/${CLIENT_ID}`)
+await page.locator('.chat-day').first().waitFor({ timeout: 15_000 })
+console.log(`Чат открыт: ${ORIGIN}/coach/chat/${CLIENT_ID} — смотрите плашки дат. Закройте окно, чтобы выйти.`)
 
 browser.on('disconnected', () => {
   server.stop()
