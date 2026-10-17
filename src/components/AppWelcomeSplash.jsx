@@ -22,7 +22,7 @@ export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
       <div className="app-welcome" role="status" aria-live="polite" aria-label={ariaLabel}>
         <div className="app-welcome__stage" aria-hidden>
           <div className="app-welcome__mark">
-            <OsMark size={88} />
+            <OsMark size={96} />
           </div>
         </div>
         <p className="app-welcome__greeting">

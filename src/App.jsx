@@ -12,6 +12,7 @@ import { UnknownRouteRedirect } from './components/UnknownRouteRedirect.jsx'
 import { PushOpenNavigator } from './components/PushOpenNavigator.jsx'
 import { ChatVoiceMiniPlayer } from './components/chat/ChatVoiceMiniPlayer.jsx'
 import { AppWelcomeSplash } from './components/AppWelcomeSplash'
+import { useWelcomeSplashHold } from './hooks/useWelcomeSplashHold.js'
 import { LocalDbBlockedBanner } from './components/LocalDbBlockedBanner.jsx'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
@@ -181,6 +182,12 @@ function AppPwaOverlays() {
 
 function LoggedInLayout() {
   const { user, role, loading, sessionRecovering } = useAuth()
+  const splashBusy =
+    loading ||
+    (Boolean(user) && role == null) ||
+    (sessionRecovering && !user) ||
+    (!user && isPwaUpdateInFlight())
+  const showWelcomeSplash = useWelcomeSplashHold(splashBusy)
 
   useEffect(() => {
     if (!loading && !sessionRecovering && user && isSupabaseConfigured()) {
@@ -193,16 +200,16 @@ function LoggedInLayout() {
   const reportDeviceHealth = Boolean(user) && role === 'trainer' && isSupabaseConfigured()
   useEffect(() => (reportDeviceHealth ? startDeviceHealthReporter() : undefined), [reportDeviceHealth])
 
-  if (loading || (user && role == null)) {
-    return <AppWelcomeSplash />
-  }
-  if (sessionRecovering && !user) {
-    return <AppWelcomeSplash displayName="Восстанавливаем сессию…" />
+  if (showWelcomeSplash) {
+    const displayName =
+      sessionRecovering && !user
+        ? 'Восстанавливаем сессию…'
+        : !user && isPwaUpdateInFlight()
+          ? 'Обновляем приложение…'
+          : undefined
+    return <AppWelcomeSplash displayName={displayName} />
   }
   if (!user) {
-    if (isPwaUpdateInFlight()) {
-      return <AppWelcomeSplash displayName="Обновляем приложение…" />
-    }
     return <Navigate to="/login" replace />
   }
 

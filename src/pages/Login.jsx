@@ -4,6 +4,7 @@ import { Dumbbell, Lock, User } from 'lucide-react'
 import { AppWelcomeSplash } from '../components/AppWelcomeSplash'
 import { useAuth } from '../context/AuthContext'
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js'
+import { useWelcomeSplashHold } from '../hooks/useWelcomeSplashHold.js'
 import { isPwaUpdateInFlight } from '../lib/appUpdateInFlightSession.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../lib/authLoginResolveCore'
 import { getSupabaseSetupMessage } from '../lib/supabase'
@@ -18,12 +19,23 @@ export function Login() {
   const [error, setError] = useState('')
   const { hasPrompt, install } = useInstallPrompt()
   const setupMessage = getSupabaseSetupMessage()
+  const updateInFlight = isPwaUpdateInFlight() && (loading || !user)
+  const splashBusy = updateInFlight || loading || signingIn || Boolean(user && !role)
+  const showWelcomeSplash = useWelcomeSplashHold(splashBusy)
 
-  if (isPwaUpdateInFlight() && (loading || !user)) {
-    return <AppWelcomeSplash displayName="Обновляем приложение…" />
+  if (showWelcomeSplash) {
+    const hint = login.trim()
+    const displayName = updateInFlight
+      ? 'Обновляем приложение…'
+      : signingIn
+        ? hint.includes('@')
+          ? hint.split('@')[0]
+          : hint
+        : undefined
+    return <AppWelcomeSplash displayName={displayName} />
   }
 
-  if (!loading && user && role) {
+  if (user && role) {
     const dest =
       from && from !== '/login'
         ? from
@@ -35,15 +47,6 @@ export function Login() {
               ? '/club'
               : '/trainer'
     return <Navigate to={dest} replace />
-  }
-
-  if (loading) {
-    return <AppWelcomeSplash />
-  }
-
-  if (signingIn) {
-    const hint = login.trim()
-    return <AppWelcomeSplash displayName={hint.includes('@') ? hint.split('@')[0] : hint} />
   }
 
   const onSubmit = async (e) => {

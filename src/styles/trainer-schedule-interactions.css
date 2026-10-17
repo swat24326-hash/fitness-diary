@@ -60,7 +60,7 @@
   pointer-events: none;
 }
 
-/* Точное время при переносе — в колонке часов, как в Google Календаре. */
+/* Точное время при переносе — только цифры, без подложки (как в Google Календаре). */
 .trainer-schedule-day__drag-time {
   position: absolute;
   left: 0;
@@ -68,16 +68,16 @@
   z-index: 4;
   transform: translateY(-50%);
   margin: 0;
-  padding: 1px 0;
+  padding: 0;
   font-size: 11px;
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
   text-align: right;
   color: var(--accent-bright);
-  background: var(--bg);
+  background: transparent;
+  box-shadow: none;
   pointer-events: none;
-  box-shadow: 0 0 0 2px var(--bg);
 }
 
 .trainer-schedule-day__drag-time--end {

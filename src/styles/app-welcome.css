@@ -1,6 +1,7 @@
 /**
  * Стартовый экран входа / сессии.
- * Живой знак (орбиты) + «Приветствуем, …»; без «ЯДРО», tagline и овального свечения.
+ * Мост от системной иконки: крупный знак → зум вниз → «Приветствуем».
+ * Минимум показа — useWelcomeSplashHold (~2.2 с).
  */
 
 .app-welcome-shell {
@@ -24,10 +25,11 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 120px;
-  height: 120px;
+  width: min(72vw, 260px);
+  height: min(72vw, 260px);
   margin-bottom: 0.15rem;
-  perspective: 520px;
+  perspective: 640px;
+  overflow: visible;
 }
 
 .app-welcome__mark {
@@ -35,12 +37,13 @@
   flex-shrink: 0;
   color: var(--accent-bright);
   transform-style: preserve-3d;
+  will-change: transform;
   filter:
-    drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 2px 6px color-mix(in srgb, var(--accent-bright) 35%, transparent));
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 2px 6px color-mix(in srgb, var(--accent-bright) 30%, transparent));
   animation:
-    welcome-mark-ignite 0.85s var(--ease-out, ease) both,
-    welcome-mark-tilt 5.5s ease-in-out 0.85s infinite;
+    welcome-mark-zoom 1.15s var(--ease-out, ease) both,
+    welcome-mark-tilt 5.5s ease-in-out 1.15s infinite;
 }
 
 .app-welcome__mark .os-mark__orbit-spin--outer,
@@ -50,11 +53,11 @@
 }
 
 .app-welcome__mark .os-mark__orbit-spin--outer {
-  animation: welcome-orbit-cw 18s linear 0.4s infinite;
+  animation: welcome-orbit-cw 18s linear infinite;
 }
 
 .app-welcome__mark .os-mark__orbit-spin--inner {
-  animation: welcome-orbit-ccw 12s linear 0.4s infinite;
+  animation: welcome-orbit-ccw 12s linear infinite;
 }
 
 .app-welcome__mark .os-mark__core {
@@ -69,7 +72,7 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--text-muted);
-  animation: welcome-fade-up 0.5s var(--ease-out, ease) 0.55s both;
+  animation: welcome-fade-up 0.55s var(--ease-out, ease) 1s both;
 }
 
 .app-welcome__greeting-lead {
@@ -87,31 +90,32 @@
   margin: 0.15rem 0 0;
   font-size: 0.88rem;
   color: var(--text-muted);
-  animation: welcome-fade-up 0.45s var(--ease-out, ease) 0.75s both;
+  animation: welcome-fade-up 0.5s var(--ease-out, ease) 1.25s both;
 }
 
-@keyframes welcome-mark-ignite {
+/* С системной иконки: сразу крупно (как плитка на чёрном), потом в «рабочий» размер. */
+@keyframes welcome-mark-zoom {
   0% {
-    opacity: 0;
-    transform: rotateX(18deg) rotateY(-12deg) scale(0.78);
-  }
-  60% {
     opacity: 1;
-    transform: rotateX(-4deg) rotateY(6deg) scale(1.03);
+    transform: scale(2.55);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.04) rotateX(4deg) rotateY(-3deg);
   }
   100% {
     opacity: 1;
-    transform: rotateX(8deg) rotateY(-6deg) scale(1);
+    transform: scale(1) rotateX(6deg) rotateY(-4deg);
   }
 }
 
 @keyframes welcome-mark-tilt {
   0%,
   100% {
-    transform: rotateX(8deg) rotateY(-6deg) translateZ(0);
+    transform: rotateX(6deg) rotateY(-4deg) translateZ(0);
   }
   50% {
-    transform: rotateX(-6deg) rotateY(8deg) translateZ(8px);
+    transform: rotateX(-5deg) rotateY(6deg) translateZ(6px);
   }
 }
 
