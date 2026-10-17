@@ -53,20 +53,21 @@ const indexHtml = `<!DOCTYPE html>
         display: grid; place-items: center;
         background: #030806; pointer-events: none;
       }
+      /* Сразу крупный (как системный splash), потом в рабочий размер — без скачка «сначала мелкая иконка». */
       #yadro-boot-splash__mark {
-        width: min(42vw, 168px); height: min(42vw, 168px);
+        width: min(58vw, 220px); height: min(58vw, 220px);
         color: #2effb8;
         transform-origin: center;
-        animation: yadro-boot-zoom 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+        transform: scale(1);
+        animation: yadro-boot-zoom 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
       #yadro-boot-splash__mark svg { display: block; width: 100%; height: 100%; }
       @keyframes yadro-boot-zoom {
-        0% { transform: scale(2.55); }
-        70% { transform: scale(1.04); }
-        100% { transform: scale(1); }
+        0% { transform: scale(1); }
+        100% { transform: scale(0.44); }
       }
       @media (prefers-reduced-motion: reduce) {
-        #yadro-boot-splash__mark { animation: none; }
+        #yadro-boot-splash__mark { animation: none; transform: scale(0.44); }
       }
     </style>
   </head>

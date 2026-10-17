@@ -12,12 +12,13 @@ await fs.mkdir(brandDir, { recursive: true })
 const MARK_INNER = productBrandMarkInnerSvg()
 
 /**
- * PWA / системный splash: ровный тёмный холст + знак по центру.
- * Без скруглённой «плитки» внутри — иначе на Android на долю секунды видна подложка,
- * а потом наш React-splash без неё (скачок). Фон = --premium-bg / theme-color.
+ * PWA / системный splash: ровный тёмный холст + КРУПНЫЙ знак.
+ * Размер знака ≈ первый кадр boot-зума в index.html — иначе видна
+ * «статичная иконка», потом отдельная анимация с другим масштабом.
+ * Без внутренней плитки. Фон = --premium-bg (#030806).
  */
 function iconSvg(size) {
-  const markBox = size * 0.58
+  const markBox = size * 0.82
   const mx = (size - markBox) / 2
   const my = (size - markBox) / 2
   const s = markBox / 32

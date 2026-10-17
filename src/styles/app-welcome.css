@@ -98,15 +98,11 @@
   animation: welcome-fade-up 0.5s var(--ease-out, ease) 1.25s both;
 }
 
-/* С системной иконки: сразу крупно (как плитка на чёрном), потом в «рабочий» размер. */
+/* Без boot: тот же путь — уже крупный → рабочий размер (не «всплытие» с нуля). */
 @keyframes welcome-mark-zoom {
   0% {
     opacity: 1;
-    transform: scale(2.55);
-  }
-  70% {
-    opacity: 1;
-    transform: scale(1.04) rotateX(4deg) rotateY(-3deg);
+    transform: scale(2.3);
   }
   100% {
     opacity: 1;
