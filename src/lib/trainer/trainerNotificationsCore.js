@@ -1,7 +1,7 @@
 /**
  * Лента уведомлений тренера (планшет): виртуально из client_plans в IndexedDB.
- * Непрочитанное = клиент с приложением ещё не открыл. Без приложения — в ленту не кладём
- * (иначе вечное «ждёт открытия» и красный счётчик). Не путать с чатом.
+ * Сообщения-события (не ссылки в карточку): «отправлен · ещё не прочитал» / «прочитал».
+ * Непрочитанное для бейджа = тренер ещё не отметил; без приложения pending не кладём.
  */
 import { clientNotificationsBadgeText, clientNotificationsEntryLabelRu } from '../client/clientNotificationsCore.js'
 
@@ -62,10 +62,10 @@ export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts
     out.push({
       id: String(row.id),
       kind: `${kind}_opened`,
-      title: `${first} открыл(а) ${what}`,
+      title: `${first} прочитал(а) ${what}`,
       body: name,
-      deep_link: `/trainer/clients/${encodeURIComponent(cid)}?tab=${kind === 'nutrition' ? 'nutrition' : 'homework'}`,
       created_at: String(row.client_seen_at),
+      // Клиент прочитал — для тренера это уже «снятый» статус (история без красной точки).
       read_at: String(row.client_seen_at),
       client_id: cid,
     })
@@ -83,9 +83,8 @@ export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts
     out.push({
       id: String(row.id),
       kind: `${kind}_pending`,
-      title: `Клиент ещё не открыл · ${what}`,
+      title: `${what[0].toUpperCase()}${what.slice(1)} отправлен · ещё не прочитал`,
       body: name,
-      deep_link: `/trainer/clients/${encodeURIComponent(cid)}?tab=${kind === 'nutrition' ? 'nutrition' : 'homework'}`,
       created_at: String(row.sent_at),
       read_at: null,
       client_id: cid,

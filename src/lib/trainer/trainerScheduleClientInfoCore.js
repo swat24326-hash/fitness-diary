@@ -14,7 +14,7 @@ import {
 } from './trainerScheduleCore.js'
 
 /**
- * Абон для подписи на плитке: usable → кроющий дату → последний по сроку (чтобы «вышел» был виден).
+ * Абон для подписи на плитке: usable → кроющий дату → последний по сроку (чтобы «закончился» был виден).
  * @param {object[]|null|undefined} memberships
  * @param {string} dateIso
  */
@@ -42,7 +42,7 @@ export function scheduleMembershipVisitsLabel(membership) {
 
 /**
  * @param {{ cardNumber?: string, membershipLabel?: string, visitsLabel?: string, membershipEnded?: boolean }} info
- * @returns {string} «№123 · Vip 2 · 5/13» или «№123 · R3+ · 5/13 · вышел»
+ * @returns {string} «№123 · Vip 2 · 5/13» или «№123 · R3+ · 5/13 · закончился»
  */
 export function formatScheduleClientCardMeta(info = {}) {
   const card = String(info.cardNumber ?? '').trim()
@@ -53,7 +53,7 @@ export function formatScheduleClientCardMeta(info = {}) {
   if (card) parts.push(`№${card}`)
   if (type) parts.push(type)
   if (visits) parts.push(visits)
-  if (ended && (type || visits)) parts.push('вышел')
+  if (ended && (type || visits)) parts.push('закончился')
   return parts.join(' · ')
 }
 

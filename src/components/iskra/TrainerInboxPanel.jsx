@@ -181,7 +181,7 @@ export function TrainerInboxPanel({
 
         {onClients ? (
           <div className="iskra-inbox__list iskra-inbox__list--clients">
-            <TrainerInboxClientsFeed onNavigate={onClose} />
+            <TrainerInboxClientsFeed />
           </div>
         ) : (
           <>

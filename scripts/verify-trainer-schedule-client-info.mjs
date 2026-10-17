@@ -32,7 +32,7 @@ ok(
     membershipLabel: 'R3+',
     visitsLabel: '5/13',
     membershipEnded: true,
-  }) === '№5597 · R3+ · 5/13 · вышел',
+  }) === '№5597 · R3+ · 5/13 · закончился',
   'meta ended abon',
 )
 
@@ -80,7 +80,7 @@ ok(info.c2?.membershipLabel === '', 'info: no membership')
 ok(info.c3?.membershipLabel === 'R3+' && info.c3?.visitsLabel === '5/13', 'info: last ended type+visits')
 ok(info.c3?.membershipEnded === true, 'info: ended flag')
 ok(
-  formatScheduleClientCardMeta(info.c3) === '№5597 · R3+ · 5/13 · вышел',
+  formatScheduleClientCardMeta(info.c3) === '№5597 · R3+ · 5/13 · закончился',
   'abaeva-style meta',
 )
 

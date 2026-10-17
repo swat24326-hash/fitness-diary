@@ -1,5 +1,5 @@
 /**
- * localStorage: какие pending client_plans тренер скрыл на этом устройстве.
+ * localStorage: какие события client_plans тренер уже прочитал на этом устройстве.
  */
 import { withTrainerPendingDismissal } from './trainerNotificationDismissCore.js'
 

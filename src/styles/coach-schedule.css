@@ -1,15 +1,6 @@
 /* Ежедневник на телефоне тренера (/coach): календарь планшета в узком экране над нижними вкладками. */
 
-/* Экран ровно в высоту телефона: страница не листается, режим «День / 3 дня / Неделя / Месяц» — бургер в шапке,
-   сетка часов забирает всё место до нижних вкладок (сколько бы ни заняла подсказка про значок). */
-.coach-app--fill {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  min-height: 0;
-}
-
+/* Ежедневник: сетка часов забирает место до вкладок (оболочка --tabs уже на весь экран, без 100dvh). */
 .coach-app--fill .coach-app__top {
   box-sizing: border-box;
   flex: none;
@@ -20,11 +11,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
   width: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .coach-app--fill .coach-app__main > * {

@@ -9,8 +9,28 @@
   padding: 0 0 calc(20px + env(safe-area-inset-bottom));
 }
 
+/*
+ * Вкладки: оболочка на весь экран (inset:0), а не height:100dvh.
+ * На iPhone dvh иногда короче видимой области — fixed-вкладки «висят» над низом,
+ * страницу можно пальцем опустить (INC-2026-10-17-05). Листается только .coach-app__main.
+ */
 .coach-app.coach-app--tabs {
-  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+html:has(.coach-app--tabs),
+html:has(.coach-app--tabs) body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* Строка состояния iPhone прозрачная (black-translucent): отступ под неё — внутри прилипшей шапки,
@@ -19,6 +39,7 @@
   position: sticky;
   top: 0;
   z-index: 5;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -89,6 +110,16 @@
   padding: 4px 16px 0;
 }
 
+.coach-app--tabs .coach-app__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
 /* Экран без шапки (заставка загрузки) — отступ под строку состояния сам. */
 .coach-app > .coach-app__main:first-child {
   padding-top: calc(4px + env(safe-area-inset-top));
@@ -152,7 +183,7 @@
   vertical-align: -3px;
 }
 
-/* Нижние вкладки: большой палец, ≥56px высота. */
+/* Нижние вкладки: большой палец, ≥56px высота. У /coach — absolute к оболочке inset:0. */
 .coach-tabs {
   position: fixed;
   inset: auto 0 0;
@@ -165,6 +196,10 @@
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.coach-app--tabs > .coach-tabs {
+  position: absolute;
 }
 
 .coach-tabs__tab {

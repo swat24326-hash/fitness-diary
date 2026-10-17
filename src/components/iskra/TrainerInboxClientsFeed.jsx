@@ -1,6 +1,4 @@
-import { Link } from 'react-router-dom'
-import { ClipboardList, Salad, ChevronRight, X } from 'lucide-react'
-import { isTrainerPendingNotificationKind } from '../../lib/trainer/trainerNotificationDismissCore.js'
+import { ClipboardList, Salad } from 'lucide-react'
 import { useTrainerNotifications } from '../../pages/trainer/useTrainerNotifications.js'
 
 function NotifIcon({ kind }) {
@@ -9,10 +7,10 @@ function NotifIcon({ kind }) {
 }
 
 /**
- * Лента «кто открыл задание/рацион» внутри панели Планёрки.
- * @param {{ onNavigate?: () => void }} props
+ * Лента событий «отправлено / прочитал» — как сообщения, без ссылки в карточку.
+ * Тап по непрочитанному = тренер прочитал (точка и бейдж гаснут, строка остаётся).
  */
-export function TrainerInboxClientsFeed({ onNavigate }) {
+export function TrainerInboxClientsFeed() {
   const { items, status, dismissPending } = useTrainerNotifications()
 
   if (status === 'loading' && !items.length) {
@@ -26,7 +24,7 @@ export function TrainerInboxClientsFeed({ onNavigate }) {
   if (!items.length) {
     return (
       <p className="iskra-inbox__empty muted">
-        Пока тихо. Здесь появятся задания и рационы, которые ждут открытия или уже открыты клиентом.
+        Пока тихо. Здесь — когда рацион или задание ушли клиенту и когда он их прочитал.
       </p>
     )
   }
@@ -35,17 +33,13 @@ export function TrainerInboxClientsFeed({ onNavigate }) {
     <ol className="client-inbox iskra-inbox__clients" aria-label="События по клиентам">
       {items.map((it, i) => {
         const fresh = !it.read_at
-        const pending = isTrainerPendingNotificationKind(it.kind)
         return (
-          <li key={it.id} style={{ '--i': i }}>
-            <div className={`client-inbox__row${fresh ? ' client-inbox__row--new' : ''}${pending ? ' client-inbox__row--pending' : ''}`}>
-              <Link
-                to={it.deep_link}
-                className="client-inbox__main"
-                onClick={() => {
-                  if (pending) dismissPending(it.id)
-                  onNavigate?.()
-                }}
+          <li key={`${it.kind}:${it.id}`} style={{ '--i': i }}>
+            {fresh ? (
+              <button
+                type="button"
+                className="client-inbox__row client-inbox__row--new client-inbox__row--msg"
+                onClick={() => dismissPending(it.id)}
               >
                 <span className="client-inbox__icon" aria-hidden>
                   <NotifIcon kind={it.kind} />
@@ -54,25 +48,19 @@ export function TrainerInboxClientsFeed({ onNavigate }) {
                   <strong>{it.title}</strong>
                   <small>{it.body}</small>
                 </span>
-                {fresh ? <span className="client-inbox__dot" aria-label="Ждёт" /> : null}
-                <ChevronRight size={18} className="client-inbox__go" aria-hidden />
-              </Link>
-              {pending ? (
-                <button
-                  type="button"
-                  className="client-inbox__dismiss"
-                  aria-label="Скрыть — понял, клиент ещё не открыл"
-                  title="Скрыть"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    dismissPending(it.id)
-                  }}
-                >
-                  <X size={18} aria-hidden />
-                </button>
-              ) : null}
-            </div>
+                <span className="client-inbox__dot" aria-label="Непрочитано" />
+              </button>
+            ) : (
+              <div className="client-inbox__row client-inbox__row--msg">
+                <span className="client-inbox__icon" aria-hidden>
+                  <NotifIcon kind={it.kind} />
+                </span>
+                <span className="client-inbox__body">
+                  <strong>{it.title}</strong>
+                  <small>{it.body}</small>
+                </span>
+              </div>
+            )}
           </li>
         )
       })}

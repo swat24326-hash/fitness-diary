@@ -1,6 +1,6 @@
 /**
- * Лента уведомлений тренера: из client_plans, unread = клиент с приложением не открыл;
- * без приложения — не в ленте; несколько отправок — одна строка «ещё не открыл».
+ * Лента уведомлений тренера: из client_plans; pending только при has_app;
+ * тренер «прочитал» локально — строка остаётся без unread; без ссылки в карточку.
  */
 import {
   applyTrainerNotificationDismissals,
@@ -42,13 +42,17 @@ ok(empty.length === 0 && trainerNotificationsUnreadCount(empty) === 0, 'пуст
 const itemsUnknown = buildTrainerNotificationsFromPlans(plans, clients)
 ok(itemsUnknown.length === 1 && itemsUnknown[0].id === 'p2', 'без карты has_app — только открытые, pending скрыт')
 ok(itemsUnknown[0].kind === 'nutrition_opened' && itemsUnknown[0].read_at, 'открытый рацион')
-ok(itemsUnknown[0].deep_link.includes('/trainer/clients/c2') && itemsUnknown[0].deep_link.includes('nutrition'), 'deep_link')
+ok(itemsUnknown[0].title.includes('прочитал') && itemsUnknown[0].title.includes('рацион'), 'текст «прочитал»')
+ok(!itemsUnknown[0].deep_link, 'без deep_link — сообщение, не ссылка')
 ok(trainerNotificationsUnreadCount(itemsUnknown) === 0, 'без has_app pending не в unread')
 
 const items = buildTrainerNotificationsFromPlans(plans, clients, { hasAppByClientId: { c1: true } })
 ok(items.length === 2 && items[0].id === 'p2', 'новые сверху')
-ok(items[1].kind === 'homework_pending' && !items[1].read_at, 'ещё не открыл — только при has_app')
-ok(items[1].title.includes('ещё не открыл') && items[1].title.includes('задание') && items[1].body.includes('Анна'), 'текст ожидания')
+ok(items[1].kind === 'homework_pending' && !items[1].read_at, 'ещё не прочитал — только при has_app')
+ok(
+  items[1].title.includes('отправлен') && items[1].title.includes('ещё не прочитал') && items[1].body.includes('Анна'),
+  'текст ожидания',
+)
 ok(trainerNotificationsUnreadCount(items) === 1, 'unread только ждущие с приложением')
 ok(trainerNotificationsBadgeText(1) === '1', 'счётчик')
 ok(trainerNotificationsEntryLabelRu(1) === 'Уведомления: новых 1', 'aria')
@@ -92,20 +96,10 @@ ok(
 
 ok(isTrainerPendingNotificationKind('nutrition_pending') && !isTrainerPendingNotificationKind('nutrition_opened'), 'pending kind')
 const withPending = buildTrainerNotificationsFromPlans(plans, clients, { hasAppByClientId: { c1: true } })
-const dismissed = withTrainerPendingDismissal({}, 'p1')
-const afterDismiss = applyTrainerNotificationDismissals(withPending, dismissed)
-ok(afterDismiss.length === 1 && afterDismiss[0].id === 'p2', 'скрыть pending — строка уходит, opened остаётся')
-ok(trainerNotificationsUnreadCount(afterDismiss) === 0, 'после скрытия бейдж клиентов чистый')
-const sameIdOpened = applyTrainerNotificationDismissals(
-  [
-    { id: 'p1', kind: 'homework_opened', read_at: '2026-10-09T12:00:00Z' },
-    { id: 'p1', kind: 'homework_pending', read_at: null },
-  ],
-  dismissed,
-)
-ok(
-  sameIdOpened.length === 1 && sameIdOpened[0].kind === 'homework_opened',
-  'скрыли ожидание — «открыл» с тем же id всё равно видно',
-)
+const acknowledged = withTrainerPendingDismissal({}, 'p1', '2026-10-17T15:00:00Z')
+const afterAck = applyTrainerNotificationDismissals(withPending, acknowledged)
+ok(afterAck.length === 2, 'прочитал — обе строки на месте')
+ok(afterAck.find((x) => x.id === 'p1')?.read_at === '2026-10-17T15:00:00Z', 'pending помечен прочитанным')
+ok(trainerNotificationsUnreadCount(afterAck) === 0, 'после прочтения бейдж клиентов чистый')
 
 console.log('verify-trainer-notifications: ok')

@@ -33,13 +33,17 @@
 .client-inbox__row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
+  width: 100%;
   min-height: 64px;
-  padding: 6px 6px 6px 12px;
+  margin: 0;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-card);
   color: var(--text);
+  font: inherit;
+  text-align: left;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition:
@@ -47,17 +51,8 @@
     transform 0.12s ease;
 }
 
-.client-inbox__main {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  min-height: 52px;
-  padding: 4px 6px 4px 0;
-  color: inherit;
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
+button.client-inbox__row--msg {
+  cursor: pointer;
 }
 
 .client-inbox__row:hover {
@@ -70,30 +65,6 @@
 
 .client-inbox__row.client-inbox__row--new {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-}
-
-.client-inbox__dismiss {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin: 0;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.client-inbox__dismiss:hover {
-  background: color-mix(in srgb, var(--text) 8%, transparent);
-  color: var(--text);
-}
-
-.client-inbox__dismiss:active {
-  transform: scale(0.94);
 }
 
 .client-inbox__icon {

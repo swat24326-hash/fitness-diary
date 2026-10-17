@@ -1,6 +1,6 @@
 /**
- * Локальное «скрыл / понял» для pending во Входящих «От клиентов».
- * Пока клиент не открыл план — строка иначе висит вечно и краснеет бейдж.
+ * Локальное «прочитано» у тренера для ленты «От клиентов».
+ * Не удаляем строку: событие остаётся в истории, без красной точки и без бейджа.
  */
 
 export function isTrainerPendingNotificationKind(kind) {
@@ -8,29 +8,30 @@ export function isTrainerPendingNotificationKind(kind) {
   return k === 'nutrition_pending' || k === 'homework_pending'
 }
 
-/**
- * Убрать из ленты pending, которые тренер уже скрыл (по id плана).
- * «Клиент открыл» не трогаем — даже если раньше скрывали ожидание того же id.
- * @param {object[]} items
- * @param {Record<string, string>|Map<string, string>|null|undefined} dismissedById
- */
-export function applyTrainerNotificationDismissals(items, dismissedById) {
-  if (!dismissedById) return items ?? []
-  const has =
-    dismissedById instanceof Map
-      ? (id) => dismissedById.has(String(id))
-      : (id) => Object.prototype.hasOwnProperty.call(dismissedById, String(id))
-  return (items ?? []).filter((it) => {
-    if (!isTrainerPendingNotificationKind(it?.kind)) return true
-    return !has(it.id)
-  })
+function lookupAt(map, id) {
+  if (!map) return null
+  const key = String(id)
+  if (map instanceof Map) return map.has(key) ? String(map.get(key)) : null
+  if (!Object.prototype.hasOwnProperty.call(map, key)) return null
+  return String(map[key])
 }
 
 /**
- * @param {Record<string, string>} map
- * @param {string} planId
- * @param {string} [atIso]
+ * Тренер прочитал уведомление на устройстве → ставим read_at, строка остаётся.
+ * @param {object[]} items
+ * @param {Record<string, string>|Map<string, string>|null|undefined} trainerReadById
  */
+export function applyTrainerNotificationDismissals(items, trainerReadById) {
+  return (items ?? []).map((it) => {
+    if (!it?.id) return it
+    const at = lookupAt(trainerReadById, it.id)
+    if (!at) return it
+    if (it.read_at) return it
+    return { ...it, read_at: at }
+  })
+}
+
+/** @deprecated имя оставлено для store; то же что mark-read */
 export function withTrainerPendingDismissal(map, planId, atIso = new Date().toISOString()) {
   const id = String(planId ?? '').trim()
   if (!id) return { ...(map ?? {}) }

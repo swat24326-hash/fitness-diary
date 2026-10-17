@@ -67,10 +67,12 @@ export function ClientAttendanceClubPanel({
     clientAttendance.deltaAvgVisitsPerWeek,
     formatClubAvgVisitsPerWeek,
   )
-  const listHref = buildAdminClubQueryHref(clientsPath, {
-    clubId,
-    filter: 'attendance_slip',
-  })
+  const listHref = selfTrainerId
+    ? null
+    : buildAdminClubQueryHref(clientsPath, {
+        clubId,
+        filter: 'attendance_slip',
+      })
 
   const trainerRows = Array.isArray(clientAttendance.byTrainer)
     ? selfTrainerId
@@ -259,10 +261,12 @@ export function ClientAttendanceClubPanel({
         </p>
       ) : null}
 
-      <p className="muted client-retention-panel__note" style={{ marginTop: 12 }}>
-        Список выпавших — в Клиентах.{' '}
-        <Link to={listHref}>Фильтр «Выпали из ритма»</Link>
-      </p>
+      {!selfTrainerId ? (
+        <p className="muted client-retention-panel__note" style={{ marginTop: 12 }}>
+          Список выпавших — в Клиентах.{' '}
+          <Link to={listHref}>Фильтр «Выпали из ритма»</Link>
+        </p>
+      ) : null}
     </section>
   )
 }
