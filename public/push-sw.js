@@ -2,6 +2,10 @@
 /**
  * Обработчики Web Push для service worker (importScripts из Workbox).
  * Один SW на приложение зала и приложение клиента (/me): клик ведёт в окно своего приложения.
+ *
+ * Шторка (на всю сеть):
+ * — если это же приложение уже на экране — плашку не дублируем, только сигнал push-received;
+ * — клик по плашке — close + focus/open (как раньше).
  */
 
 self.addEventListener('push', (event) => {
@@ -18,21 +22,44 @@ self.addEventListener('push', (event) => {
   const tag = data.tag || 'iskra-dispatch'
 
   event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(title, {
-        body,
-        icon: '/icons/icon-192.png',
-        badge: '/icons/badge-96.png',
-        tag,
-        silent: data.silent === true,
-        data: { url },
-      }),
-      /* Открытое приложение сразу обновляет числа и ленту — не ждёт опроса (pushReceivedSignal.js). */
-      self.clients
-        .matchAll({ type: 'window', includeUncontrolled: true })
-        .then((list) => list.forEach((client) => client.postMessage({ type: 'push-received', url, tag })))
-        .catch(() => {}),
-    ]),
+    (async () => {
+      const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const noteApp = appOfPath(new URL(url, self.location.origin).pathname)
+      const focusedSame = list.some((client) => {
+        try {
+          return client.focused && appOfPath(new URL(client.url).pathname) === noteApp
+        } catch {
+          return false
+        }
+      })
+
+      const signal = Promise.resolve().then(() => {
+        list.forEach((client) => {
+          try {
+            client.postMessage({ type: 'push-received', url, tag })
+          } catch {
+            /* ignore */
+          }
+        })
+      })
+
+      if (focusedSame) {
+        await signal
+        return
+      }
+
+      await Promise.all([
+        self.registration.showNotification(title, {
+          body,
+          icon: '/icons/icon-192.png',
+          badge: '/icons/badge-96.png',
+          tag,
+          silent: data.silent === true,
+          data: { url },
+        }),
+        signal,
+      ])
+    })(),
   )
 })
 

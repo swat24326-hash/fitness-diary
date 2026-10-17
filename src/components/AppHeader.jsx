@@ -4,7 +4,7 @@ import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
-import { BarChart3, CalendarDays, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, UserCircle, Building2 } from 'lucide-react'
+import { BarChart3, Bell, CalendarDays, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, UserCircle, Building2 } from 'lucide-react'
 import { HeaderClubSwitcher } from './header/HeaderClubSwitcher.jsx'
 import { HeaderProfileSheet } from './header/HeaderProfileSheet.jsx'
 import { HeaderProfileSettings } from './header/HeaderProfileSettings.jsx'
@@ -508,7 +508,7 @@ export function AppHeader() {
               setInboxOpen(true)
             }}
           >
-            <Inbox size={20} aria-hidden />
+            <Bell size={20} aria-hidden />
             {(() => {
               const n = isTrainerRole
                 ? trainerInboxHeaderBadgeCount(inboxPending, clientsUnread)

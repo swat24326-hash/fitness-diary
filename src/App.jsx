@@ -104,6 +104,16 @@ const ClientPlanPage = lazy(() => import('./pages/client/ClientPlanPage.jsx').th
 const ClientNotificationsPage = lazy(() =>
   import('./pages/client/ClientNotificationsPage.jsx').then((m) => ({ default: m.ClientNotificationsPage })),
 )
+const ClientNotificationsPreviewPage = lazy(() =>
+  import('./pages/client/ClientNotificationsPreviewPage.jsx').then((m) => ({
+    default: m.ClientNotificationsPreviewPage,
+  })),
+)
+const ClientNotificationsPreviewDetailPage = lazy(() =>
+  import('./pages/client/ClientNotificationsPreviewPage.jsx').then((m) => ({
+    default: m.ClientNotificationsPreviewDetailPage,
+  })),
+)
 const ClientRatingPage = lazy(() =>
   import('./pages/client/ClientRatingPage.jsx').then((m) => ({ default: m.ClientRatingPage })),
 )
@@ -159,6 +169,8 @@ function ClientAppRoutes() {
           <Route path="task" element={<ClientPlanPage key="homework" kind="homework" />} />
           <Route path="nutrition" element={<ClientPlanPage key="nutrition" kind="nutrition" />} />
           <Route path="notifications" element={<ClientNotificationsPage />} />
+          <Route path="notifications-preview" element={<ClientNotificationsPreviewPage />} />
+          <Route path="notifications-preview/:id" element={<ClientNotificationsPreviewDetailPage />} />
           <Route path="rate/:id" element={<ClientRatingPage />} />
           <Route path="inbox" element={<ClientInboxPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />
