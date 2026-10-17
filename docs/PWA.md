@@ -72,9 +72,9 @@ needRefresh / buildStale
 5. Во время смены SW — splash «Обновляем приложение…», не форма входа с «…».
 6. Успех → «Приложение обновлено» + можно работать.
 
-### Ошибка `Failed to fetch … PwaUpdatePrompt-….js` (или другой chunk)
+### Ошибка `Failed to fetch … PwaUpdatePrompt-….js` / `reading 'ChatAttachBubble'` (или другой chunk)
 
-Это **не Sync**: старая вкладка тянет удалённый chunk. Код: `viteChunkReload.js` (мягкий reload → hard recover). Связано с hard recover баннера обновления.
+Это **не Sync**: старая вкладка тянет удалённый chunk (иногда — `Cannot read properties of undefined (reading 'ИмяКомпонента')` у ленивого куска). Код: `viteChunkReload.js` (мягкий reload → hard recover). Связано с hard recover баннера обновления.
 
 | Что делать | Зачем |
 |------------|--------|

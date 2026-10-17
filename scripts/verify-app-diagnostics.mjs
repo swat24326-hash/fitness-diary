@@ -82,6 +82,18 @@ assert.ok(
   isViteStaleChunkError(new Error("Cannot read properties of undefined (reading 'PwaUpdatePrompt')")),
   'broken lazy export is stale chunk',
 )
+assert.ok(
+  isViteStaleChunkError(new Error("Cannot read properties of undefined (reading 'ChatAttachBubble')")),
+  'broken lazy ChatAttachBubble is stale chunk',
+)
+assert.ok(
+  isViteStaleChunkError(new Error("Cannot read properties of undefined (reading 'AppUpdatedBanner')")),
+  'broken lazy AppUpdatedBanner is stale chunk',
+)
+assert.ok(
+  !isViteStaleChunkError(new Error("Cannot read properties of undefined (reading 'map')")),
+  'ordinary undefined.map is not chunk',
+)
 assert.ok(!isViteStaleChunkError(new Error('Failed to fetch')), 'ordinary network is not chunk')
 
 const queue = [{ table_name: 'trainings', operation: 'insert', local_id: 'abc', retry_count: 1 }]

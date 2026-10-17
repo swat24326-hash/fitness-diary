@@ -27,9 +27,8 @@
   overflow: hidden;
 }
 
-html:has(.coach-app--tabs),
-html:has(.coach-app--tabs) body {
-  overflow: hidden;
+/* Не ставить overflow:hidden на body: на iPhone ломает position:fixed модалки (шторка Ежедневника). */
+html:has(.coach-app--tabs) {
   overscroll-behavior: none;
 }
 

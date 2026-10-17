@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { todayLocalIso } from '../lib/dateRu.js'
+import { getDb } from '../lib/localDb.js'
 import { listClientsByTrainerId, listMembershipsMapByClientIds } from '../lib/localDbClubQuery'
 import { listMembershipTypesForClub } from '../lib/membershipTypesService.js'
+import { filterTrainerSchedulePickerClients } from '../lib/trainer/trainerClientsPzListCore.js'
 import { buildScheduleClientInfoById } from '../lib/trainer/trainerScheduleClientInfoCore.js'
 import { isScheduleEntryUnsent } from '../lib/trainer/trainerScheduleDeliveryCore.js'
 import { listTrainerScheduleEntries } from '../lib/trainer/trainerScheduleService'
@@ -10,6 +12,19 @@ import {
   useDebouncedStorageReload,
 } from '../lib/useDebouncedStorageReload.js'
 import { shouldReloadTrainerScheduleData } from '../lib/trainer/trainerScheduleCore.js'
+
+async function loadLifecycleForClientIds(clientIds) {
+  const idSet = new Set((clientIds ?? []).map((id) => String(id)))
+  if (!idSet.size) return []
+  try {
+    const db = await getDb()
+    if (!db.objectStoreNames.contains('client_hall_lifecycle')) return []
+    const all = await db.getAll('client_hall_lifecycle')
+    return (all ?? []).filter((r) => idSet.has(String(r?.client_id ?? '')))
+  } catch {
+    return []
+  }
+}
 
 const UNSENT_RECHECK_MS = 5000
 
@@ -20,6 +35,7 @@ const UNSENT_RECHECK_MS = 5000
 export function useTrainerScheduleData(trainerId, clubId) {
   const [entries, setEntries] = useState([])
   const [clients, setClients] = useState([])
+  const [clientNameById, setClientNameById] = useState({})
   const [clientInfoById, setClientInfoById] = useState({})
   const [trainingById, setTrainingById] = useState({})
   const [loading, setLoading] = useState(true)
@@ -30,6 +46,7 @@ export function useTrainerScheduleData(trainerId, clubId) {
     if (!tid) {
       setEntries([])
       setClients([])
+      setClientNameById({})
       setClientInfoById({})
       setTrainingById({})
       setLoading(false)
@@ -44,21 +61,30 @@ export function useTrainerScheduleData(trainerId, clubId) {
       const cid = String(clubId ?? '').trim()
       const linkedIds = scheduleRows.map((e) => e.linked_training_id).filter(Boolean)
       const trainings = await loadTrainingsByIds(linkedIds)
-      const activeClients = (clientRows ?? [])
+      const notClubArchived = (clientRows ?? [])
         .filter((c) => !cid || String(c?.club_id) === cid)
         .filter((c) => !c?.archived_at)
         .sort((a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'ru'))
       const scheduleClientIds = [
         ...new Set(scheduleRows.flatMap((e) => e.client_ids ?? []).map((id) => String(id ?? '').trim()).filter(Boolean)),
       ]
-      const [membershipsMap, types] = await Promise.all([
+      const [membershipsMap, types, lifecycleRows] = await Promise.all([
         listMembershipsMapByClientIds(scheduleClientIds),
         cid ? listMembershipTypesForClub(cid) : Promise.resolve([]),
+        loadLifecycleForClientIds(notClubArchived.map((c) => c.id)),
       ])
+      const pickerClients = filterTrainerSchedulePickerClients(notClubArchived, lifecycleRows)
+      /** @type {Record<string, string>} */
+      const names = {}
+      for (const c of notClubArchived) {
+        const id = String(c?.id ?? '').trim()
+        if (id) names[id] = String(c?.name ?? '').trim() || 'Клиент'
+      }
       setEntries(scheduleRows)
       setTrainingById(trainings)
-      setClients(activeClients)
-      setClientInfoById(buildScheduleClientInfoById(activeClients, membershipsMap, types, todayLocalIso()))
+      setClients(pickerClients)
+      setClientNameById(names)
+      setClientInfoById(buildScheduleClientInfoById(notClubArchived, membershipsMap, types, todayLocalIso()))
     } finally {
       setLoading(false)
     }
@@ -81,17 +107,6 @@ export function useTrainerScheduleData(trainerId, clubId) {
     }, UNSENT_RECHECK_MS)
     return () => window.clearInterval(id)
   }, [hasUnsent, reload])
-
-  const clientNameById = useMemo(() => {
-    /** @type {Record<string, string>} */
-    const map = {}
-    for (const c of clients) {
-      const id = String(c?.id ?? '').trim()
-      if (!id) continue
-      map[id] = String(c?.name ?? '').trim() || 'Клиент'
-    }
-    return map
-  }, [clients])
 
   return { entries, clients, clientNameById, clientInfoById, trainingById, loading, reload }
 }

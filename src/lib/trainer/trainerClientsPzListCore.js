@@ -31,6 +31,16 @@ export function isTrainerPzListActive(client, lifecycleRows) {
 }
 
 /**
+ * Клиенты для выбора в Ежедневнике — те же, что вкладка «Активные» (не архив клуба, ПЗ не закрыт).
+ * Имена для уже стоящих в слоте записей подставляют отдельно (clientNameById).
+ * @param {object[]|null|undefined} clients
+ * @param {object[]|null|undefined} lifecycleRows
+ */
+export function filterTrainerSchedulePickerClients(clients, lifecycleRows) {
+  return (clients ?? []).filter((c) => isTrainerPzListActive(c, lifecycleRows))
+}
+
+/**
  * Разделить клиентов тренера на Активные / Архив по lifecycle ПЗ.
  * @param {object[]|null|undefined} clientsAll
  * @param {{ lifecycleRows?: object[] }} [opts]

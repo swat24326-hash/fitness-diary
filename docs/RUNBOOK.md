@@ -109,7 +109,7 @@
 2. Если не помогло — **Помощь → Восстановить**, либо закрыть PWA полностью и открыть снова.
 3. Ctrl+F5 / очистка данных сайта — крайний случай.
 
-**В журнале:** `Failed to fetch … PwaUpdatePrompt-….js`, MIME `text/html` — старый chunk, не Sync. В новых сборках: анти-цикл reload + in-flight splash + hard recover (`appUpdateApplyService.js`, `viteChunkReload.js`).
+**В журнале:** `Failed to fetch … PwaUpdatePrompt-….js`, MIME `text/html`, или `Cannot read properties of undefined (reading 'ChatAttachBubble')` (и похожие PascalCase) — старый chunk, не Sync. В новых сборках: анти-цикл reload + in-flight splash + hard recover (`appUpdateApplyService.js`, `viteChunkReload.js`).
 
 **Разработчик:** `verify-app-stability.mjs` (plan + guard + in-flight). Не чинить очередь Sync из‑за этого симптома.
 

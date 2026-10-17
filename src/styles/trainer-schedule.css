@@ -874,20 +874,17 @@
 }
 
 /*
- * На телефоне верх (категории) + низ (Сохранить) вместе выше экрана —
- * раньше оба были flex: 0 0 auto → низ обрезался overflow:hidden панели, «Сохранить» не достать.
- * Верх сжимается и листается; низ с кнопками всегда на месте.
+ * Верх (время / категория) и низ (Сохранить) всегда на месте.
+ * Листается только список клиентов внутри (.trainer-schedule-modal__clients).
+ * Раньше form-top сам скроллился (max-height 42%) — на iPhone при листе клиентов
+ * уезжал вверх и обрезал «Время» (INC-2026-10-17-07).
  */
 .trainer-schedule-modal__form-top {
   display: flex;
   flex-direction: column;
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: 42%;
+  flex: 0 0 auto;
   gap: 10px;
-  overflow: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 
 .trainer-schedule-modal__form-foot {
@@ -904,8 +901,7 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
 
 .trainer-schedule-modal__form-body > .trainer-schedule-modal__clients-wrap,

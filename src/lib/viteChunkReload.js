@@ -43,11 +43,9 @@ export function isViteStaleChunkError(err) {
   if (/MIME type of ["']?text\/html|Expected a JavaScript-or-Wasm module script/i.test(msg)) {
     return true
   }
-  // Наш lazy().then(m => m.PwaUpdatePrompt) при битом chunk
-  if (/Cannot read properties of undefined \(reading ['"]PwaUpdatePrompt['"]\)/i.test(msg)) {
-    return true
-  }
-  if (/Cannot read properties of undefined \(reading ['"]AppUpdatedBanner['"]\)/i.test(msg)) {
+  // lazy(() => import(…).then(m => ({ default: m.Foo }))) при битом/пустом chunk:
+  // Cannot read properties of undefined (reading 'ChatAttachBubble') и т.п. (PascalCase = имя экспорта)
+  if (/Cannot read properties of undefined \(reading ['"][A-Z][A-Za-z0-9]+['"]\)/.test(msg)) {
     return true
   }
   return false

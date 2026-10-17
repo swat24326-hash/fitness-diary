@@ -3,6 +3,7 @@
  * Список тренера Активные|Архив после close ПЗ при живом АЗ/ТЗ.
  */
 import {
+  filterTrainerSchedulePickerClients,
   isTrainerPzListActive,
   isTrainerPzListClosed,
   partitionTrainerClientsByPzLifecycle,
@@ -88,6 +89,9 @@ ok(
   trainerPzClosedBadgeLabelForClient(clubArchived, [], [], asOf) === 'архив клуба',
   'T5: бейдж архив клуба',
 )
+
+const picker = filterTrainerSchedulePickerClients([abaeva, liveClient, clubArchived], lifeClosedPz)
+ok(picker.map((c) => c.id).join(',') === 'live', 'T6: Ежедневник — в выборе только «Активные», без Архива ПЗ и клуба')
 
 if (failed) {
   console.error(`\n${failed} failed`)

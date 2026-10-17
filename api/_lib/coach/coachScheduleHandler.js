@@ -5,6 +5,7 @@
  */
 import { todayInTimeZoneIso } from '../../../src/lib/dateRu.js'
 import { resolveCoachScheduleRange, COACH_SCHEDULE_RANGE_RU } from '../../../src/lib/trainer/coachScheduleEditCore.js'
+import { filterTrainerSchedulePickerClients } from '../../../src/lib/trainer/trainerClientsPzListCore.js'
 import { buildScheduleClientInfoById } from '../../../src/lib/trainer/trainerScheduleClientInfoCore.js'
 import { normalizeTrainerScheduleEntry } from '../../../src/lib/trainer/trainerScheduleCore.js'
 import { sendJson } from '../adminSupabase.js'
@@ -36,7 +37,7 @@ export async function sendCoachScheduleRange(ctx, req, res) {
   const db = ctx.supabaseAdmin
   const uid = ctx.user.id
   const clubId = String(ctx.profile?.club_id ?? '').trim()
-  const [raw, active] = await Promise.all([
+  const [raw, notClubArchived] = await Promise.all([
     rows(
       db
         .from('trainer_schedule_entries')
@@ -48,12 +49,19 @@ export async function sendCoachScheduleRange(ctx, req, res) {
     rows(db.from('clients').select(CLIENT_COLS).eq('trainer_id', uid).is('archived_at', null).order('name')),
   ])
   const entries = raw.map(normalizeTrainerScheduleEntry).filter(Boolean).map(({ synced: _s, ...e }) => e)
-  const byId = clientsByIdMap(active)
+  const byId = clientsByIdMap(notClubArchived)
   const missing = [...new Set(entries.flatMap((e) => e.client_ids))].filter((id) => !byId.has(id))
   const archived = await loadInChunks(missing, (part) =>
     rows(db.from('clients').select(CLIENT_COLS).eq('trainer_id', uid).in('id', part)),
   )
   for (const c of archived) byId.set(String(c.id), c)
+
+  const pickerLifecycle = await loadInChunks(
+    notClubArchived.map((c) => String(c.id)),
+    (part) =>
+      rows(db.from('client_hall_lifecycle').select('client_id, hall, closed_at').in('client_id', part)),
+  )
+  const pickerClients = filterTrainerSchedulePickerClients(notClubArchived, pickerLifecycle)
 
   const clientIds = [...byId.keys()]
   /** @type {Record<string, object[]>} */
@@ -89,7 +97,7 @@ export async function sendCoachScheduleRange(ctx, req, res) {
     clientNameById: names,
     clientInfoById: buildScheduleClientInfoById(clientsList, membershipsByClientId, membershipTypes, todayInTimeZoneIso()),
     trainingById: Object.fromEntries(trainings.map((t) => [String(t.id), { status: String(t.status ?? '') }])),
-    clients: active.map((c) => ({ id: String(c.id), name: String(c.name ?? '') })),
+    clients: pickerClients.map((c) => ({ id: String(c.id), name: String(c.name ?? '') })),
   })
 }
 
