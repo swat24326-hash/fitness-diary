@@ -25,6 +25,7 @@ import {
   isScheduleClientLimitExceeded,
   listScheduleViewDays,
   normalizeScheduleClientIds,
+  normalizeScheduleTimeInput,
   normalizeTrainerScheduleEntry,
   parseScheduleDurationInput,
   parseScheduleTimeToMinutes,
@@ -55,6 +56,14 @@ ok(parseScheduleTimeToMinutes('10:30') === 630, 'parse 10:30')
 ok(formatScheduleMinutes(630) === '10:30', 'format 10:30')
 ok(parseScheduleTimeToMinutes('00:00') === 0, 'parse midnight')
 ok(parseScheduleTimeToMinutes('23:00') === 1380, 'parse 23:00')
+ok(parseScheduleTimeToMinutes('18:00:00') === 18 * 60, 'iPhone Safari time with seconds')
+ok(parseScheduleTimeToMinutes('9:05:00') === 9 * 60 + 5, 'iPhone short hour + seconds')
+ok(parseScheduleTimeToMinutes('18:00:00.000') === 18 * 60, 'time with fractional seconds')
+ok(parseScheduleTimeToMinutes('25:00') === null, 'bad hour')
+ok(parseScheduleTimeToMinutes('18:00:00:00') === null, 'too many parts')
+ok(normalizeScheduleTimeInput('18:00:00') === '18:00', 'normalize iPhone seconds → HH:MM')
+ok(normalizeScheduleTimeInput('9:05') === '09:05', 'normalize pads hour')
+ok(normalizeScheduleTimeInput('bad') === 'bad', 'normalize keeps junk for controlled input')
 ok(parseScheduleDurationInput('45') === 45, 'duration 45 free input')
 ok(parseScheduleDurationInput(' 15 ') === 15 && parseScheduleDurationInput('480') === 480, 'duration bounds inclusive')
 ok(parseScheduleDurationInput('14') === null && parseScheduleDurationInput('481') === null, 'duration out of range')

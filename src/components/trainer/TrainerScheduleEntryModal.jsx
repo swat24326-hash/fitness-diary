@@ -6,6 +6,7 @@ import {
   resolveScheduleTrainingStart,
   scheduleEntryTrainingStatusLabel,
 } from '../../lib/trainer/trainerScheduleTrainingCore.js'
+import { normalizeScheduleTimeInput } from '../../lib/trainer/trainerScheduleCore.js'
 import { TrainerScheduleTrainingStart } from './TrainerScheduleTrainingStart.jsx'
 import { useScheduleEntryForm } from '../../hooks/useScheduleEntryForm.js'
 import { TrainerScheduleEntryReadonly } from './TrainerScheduleEntryReadonly.jsx'
@@ -191,7 +192,13 @@ export function TrainerScheduleEntryModal({
             <div className="trainer-schedule-modal__row">
               <label className="trainer-schedule-modal__field">
                 <span>Время</span>
-                <input className="input" type="time" value={form.time} onChange={(ev) => form.setTime(ev.target.value)} required />
+                <input
+                  className="input"
+                  type="time"
+                  value={form.time}
+                  onChange={(ev) => form.setTime(normalizeScheduleTimeInput(ev.target.value))}
+                  required
+                />
               </label>
               <label className="trainer-schedule-modal__field">
                 <span>Длительность</span>

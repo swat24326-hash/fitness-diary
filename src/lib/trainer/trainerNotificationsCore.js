@@ -75,8 +75,9 @@ export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts
     const kind = row.kind === 'nutrition' ? 'nutrition' : 'homework'
     const cid = String(row.client_id ?? '')
     const app = hasAppLookup(hasAppByClientId, cid)
-    // Явно нет приложения — не шумим во «Входящих» (открыть всё равно некому).
-    if (app === false) continue
+    // Только если точно есть живой вход в /me. Нет приложения / статус неизвестен —
+    // не шумим: иначе «ещё не открыл» висит вечно или приходит зря.
+    if (app !== true) continue
     const name = clientName(clientsById, cid)
     const what = kind === 'nutrition' ? 'рацион' : 'задание'
     out.push({

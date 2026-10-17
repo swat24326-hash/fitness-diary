@@ -125,15 +125,26 @@ export function formatScheduleEndTime(startMinutes, durationMinutes) {
   return formatScheduleMinutes((Number(startMinutes) + Number(durationMinutes)) % (24 * 60))
 }
 
-/** @param {string} hhmm */
+/**
+ * Разбор времени из поля формы.
+ * iPhone/Safari в type=time часто отдаёт «18:00:00» (с секундами) — иначе сохранение ломается.
+ * @param {string} hhmm
+ * @returns {number | null}
+ */
 export function parseScheduleTimeToMinutes(hhmm) {
   const raw = String(hhmm ?? '').trim()
-  const m = /^(\d{1,2}):(\d{2})$/.exec(raw)
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(raw)
   if (!m) return null
   const h = Number(m[1])
   const min = Number(m[2])
   if (!Number.isFinite(h) || !Number.isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) return null
   return h * 60 + min
+}
+
+/** Нормализация значения input[type=time] → «ЧЧ:ММ» (без секунд Safari). */
+export function normalizeScheduleTimeInput(hhmm) {
+  const minutes = parseScheduleTimeToMinutes(hhmm)
+  return minutes == null ? String(hhmm ?? '').trim() : formatScheduleMinutes(minutes)
 }
 
 /** @param {{ start_minutes: number, duration_minutes: number }} entry */

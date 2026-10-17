@@ -836,6 +836,7 @@
   max-height: min(92dvh, 820px);
   overflow: hidden;
   padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   border-radius: var(--radius-md);
 }
@@ -884,6 +885,8 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .trainer-schedule-modal__form-body > .trainer-schedule-modal__clients-wrap,
@@ -893,17 +896,31 @@
 }
 
 .trainer-schedule-modal__row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: start;
+}
+
+/* Компактные «Время» / «Длительность» — не делят экран пополам и не наезжают. */
+.trainer-schedule-modal__row > .trainer-schedule-modal__field:first-child {
+  flex: 0 0 auto;
+  width: 7.5rem;
+}
+
+.trainer-schedule-modal__row > .trainer-schedule-modal__field:last-child {
+  flex: 0 1 auto;
+  width: 7rem;
+  min-width: 0;
 }
 
 .trainer-schedule-modal__field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.82rem;
+  gap: 3px;
+  font-size: 0.78rem;
   min-width: 0;
+  max-width: 100%;
 }
 
 .trainer-schedule-modal__field--wide {
@@ -926,38 +943,60 @@
 .trainer-schedule-modal__field > .trainer-schedule-modal__duration {
   position: relative;
   display: block;
+  width: 100%;
+  min-width: 0;
   color: inherit;
 }
 
 .trainer-schedule-modal__duration input {
-  padding-right: 48px;
+  padding: 8px 36px 8px 10px;
   font-variant-numeric: tabular-nums;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
 }
 
 .trainer-schedule-modal__duration-unit {
   position: absolute;
   top: 50%;
-  right: 12px;
+  right: 10px;
   transform: translateY(-50%);
   color: var(--text-muted);
+  font-size: 0.78rem;
   pointer-events: none;
 }
 
 .trainer-schedule-modal__duration-hint {
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .trainer-schedule-modal__field input,
 .trainer-schedule-modal__field select,
 .trainer-schedule-modal__field textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 44px;
   box-sizing: border-box;
   font: inherit;
   font-size: 1rem;
   color-scheme: dark;
   border-radius: var(--radius-sm);
+}
+
+/* Только ряд время/длительность — ниже и уже, заметку не трогаем. */
+.trainer-schedule-modal__row .trainer-schedule-modal__field input {
+  min-height: 40px;
+  font-size: 0.95rem;
+}
+
+.trainer-schedule-modal__row .trainer-schedule-modal__field input[type='time'] {
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 6px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .trainer-schedule-modal__modes {
