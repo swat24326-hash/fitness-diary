@@ -1,9 +1,12 @@
+import { useLayoutEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import { CalendarDays, Menu, MessageCircle, Users } from 'lucide-react'
 import { OsMark } from '../../components/brand/OsMark.jsx'
 import { NetStatusBar } from '../../components/net/NetStatusBar.jsx'
 import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
 import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
+import { attachVisualViewportBottomPin } from '../../lib/visualViewportBottomPin.js'
 import { useClientBranding } from '../client/useClientBranding.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 import { CoachNotificationsBell } from './CoachNotificationsBell.jsx'
@@ -21,8 +24,10 @@ const TABS = [
 
 function CoachTabs() {
   const attention = useCoachAttention()
-  return (
-    <nav className="coach-tabs" aria-label="Разделы">
+  const ref = useRef(null)
+  useLayoutEffect(() => attachVisualViewportBottomPin(ref.current), [])
+  const nav = (
+    <nav ref={ref} className="coach-tabs coach-tabs--coach" aria-label="Разделы">
       {TABS.map(({ to, end, icon: Icon, label, attention: withBadge }) => {
         const badge = withBadge && attention > 0 ? attention : 0
         return (
@@ -43,6 +48,8 @@ function CoachTabs() {
       })}
     </nav>
   )
+  /* В body: иначе transform/filter оболочки или WebKit safe-area «запирают» fixed выше низа экрана. */
+  return typeof document !== 'undefined' ? createPortal(nav, document.body) : nav
 }
 
 /**

@@ -10,19 +10,26 @@
 }
 
 /*
- * Вкладки: оболочка на весь экран (inset:0), а не height:100dvh.
- * На iPhone dvh иногда короче видимой области — fixed-вкладки «висят» над низом,
- * страницу можно пальцем опустить (INC-2026-10-17-05). Листается только .coach-app__main.
+ * Оболочка на весь экран. Высота — и dvh, и -webkit-fill-available (iPhone).
+ * Вкладки — portal в body + pin к visualViewport (INC-2026-10-17-05 / 08).
  */
 .coach-app.coach-app--tabs {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  height: auto;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  max-height: 100%;
+  max-height: 100dvh;
+  max-height: -webkit-fill-available;
   min-height: 0;
-  max-height: none;
   padding-bottom: 0;
   overflow: hidden;
 }
@@ -30,6 +37,8 @@
 /* Не ставить overflow:hidden на body: на iPhone ломает position:fixed модалки (шторка Ежедневника). */
 html:has(.coach-app--tabs) {
   overscroll-behavior: none;
+  height: 100%;
+  height: -webkit-fill-available;
 }
 
 /* Строка состояния iPhone прозрачная (black-translucent): отступ под неё — внутри прилипшей шапки,
@@ -182,23 +191,26 @@ html:has(.coach-app--tabs) {
   vertical-align: -3px;
 }
 
-/* Нижние вкладки: большой палец, ≥56px высота. У /coach — absolute к оболочке inset:0. */
+/* Нижние вкладки: большой палец, ≥56px. bottom:0 + padding под home indicator; JS pin дотягивает зазор WebKit. */
 .coach-tabs {
   position: fixed;
-  inset: auto 0 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 10;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
-.coach-app--tabs > .coach-tabs {
-  position: absolute;
+/* Телефон тренера: портал в body, выше оболочки и модалок-слоя календаря (z-index 10). */
+.coach-tabs.coach-tabs--coach {
+  z-index: 40;
 }
 
 .coach-tabs__tab {

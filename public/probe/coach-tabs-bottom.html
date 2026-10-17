@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Probe: coach tabs bottom</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0a0a0a; color: #eee; font: 14px system-ui; }
+      .shell {
+        position: fixed; inset: 0;
+        height: 100%; height: 100dvh; height: -webkit-fill-available;
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+      .main { flex: 1; overflow: auto; padding: 16px; padding-bottom: 100px; }
+      .tabs {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+        display: grid; grid-auto-flow: column;
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+        background: rgba(20, 40, 30, 0.92);
+        border-top: 1px solid #2a4;
+      }
+      .tabs span { text-align: center; padding: 12px 4px; }
+      #log {
+        position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px; right: 8px;
+        background: #111; border: 1px solid #333; padding: 8px; font: 12px/1.4 ui-monospace, monospace;
+        white-space: pre-wrap; z-index: 50; max-height: 40vh; overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="log">…</div>
+    <div class="shell">
+      <div class="main">
+        <p>Probe нижней панели. На iPhone: «На экран Домой», открой этот URL.</p>
+        <p>gapDown &gt; 0 — панель не дотягивает до низа layout (баг WebKit / safe-area).</p>
+        <p>vvGapUp &gt; 0 — visualViewport короче (клавиатура / панель Safari).</p>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs"><span>Ежедневник</span><span>Сообщения</span><span>Клиенты</span></nav>
+    <script>
+      const EPS = 0.5
+      function vvGapUp({ innerHeight, offsetTop, height }) {
+        const layout = Number(innerHeight), top = Number(offsetTop), h = Number(height)
+        if (![layout, top, h].every(Number.isFinite) || layout <= 0 || h <= 0) return 0
+        const gap = layout - top - h
+        return gap > EPS ? gap : 0
+      }
+      function shiftDown({ tabsBottom, layoutHeight }) {
+        const bottom = Number(tabsBottom), layout = Number(layoutHeight)
+        if (![bottom, layout].every(Number.isFinite) || layout <= 0) return 0
+        const gap = layout - bottom
+        return gap > EPS ? gap : 0
+      }
+
+      const tabs = document.getElementById('tabs')
+      const log = document.getElementById('log')
+      const vv = window.visualViewport
+
+      function sync() {
+        tabs.style.bottom = ''
+        tabs.style.transform = ''
+        const layoutH = window.innerHeight
+        const up = vv ? vvGapUp({ innerHeight: layoutH, offsetTop: vv.offsetTop, height: vv.height }) : 0
+        if (up > 0) tabs.style.bottom = Math.round(up) + 'px'
+        else {
+          const shift = shiftDown({ tabsBottom: tabs.getBoundingClientRect().bottom, layoutHeight: layoutH })
+          if (shift > 0) tabs.style.transform = 'translateY(' + Math.round(shift) + 'px)'
+        }
+        const r = tabs.getBoundingClientRect()
+        const gapDown = Math.max(0, layoutH - r.bottom)
+        const safe = getComputedStyle(tabs).paddingBottom
+        log.textContent = [
+          'innerHeight=' + layoutH,
+          'vv height=' + (vv ? vv.height.toFixed(1) : 'n/a') + ' offsetTop=' + (vv ? vv.offsetTop.toFixed(1) : 'n/a'),
+          'tabs paddingBottom(safe)=' + safe,
+          'tabs top=' + r.top.toFixed(1) + ' bottom=' + r.bottom.toFixed(1) + ' h=' + r.height.toFixed(1),
+          'gapDown=' + gapDown.toFixed(1) + ' vvGapUp=' + (typeof up === 'number' ? up.toFixed(1) : up),
+          'style.bottom=' + (tabs.style.bottom || '(css)') + ' transform=' + (tabs.style.transform || '(none)'),
+          'standalone=' + (window.navigator.standalone === true),
+        ].join('\n')
+      }
+
+      vv && vv.addEventListener('resize', sync)
+      vv && vv.addEventListener('scroll', sync)
+      window.addEventListener('resize', sync)
+      sync()
+      setInterval(sync, 500)
+    </script>
+  </body>
+</html>
