@@ -3830,19 +3830,26 @@
 .sales-report__compare-segment {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  min-width: 3.5rem;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.12rem;
+  min-width: 3.75rem;
+  vertical-align: middle;
+  padding: 0.55rem 0.75rem !important;
+  box-sizing: border-box;
 }
 
 .sales-report__compare-segment-hall {
   font-weight: 700;
   font-size: 0.92rem;
+  line-height: 1.15;
 }
 
 .sales-report__compare-segment-col {
   font-size: 0.8rem;
   font-weight: 600;
   opacity: 0.75;
+  line-height: 1.15;
 }
 
 .sales-report__compare-segment--nk .sales-report__compare-segment-col {
@@ -3874,23 +3881,26 @@
 }
 
 .sales-report__compare-status-head {
-  min-width: 10.5rem;
+  min-width: 11.5rem;
+  width: 12.5rem;
   text-align: left;
 }
 
 .sales-report__compare-status {
   text-align: left;
-  vertical-align: top;
-  padding: 0.45rem 0.6rem;
-  min-width: 10.5rem;
-  max-width: 13.5rem;
+  vertical-align: middle;
+  padding: 0.55rem 0.75rem;
+  min-width: 11.5rem;
+  width: 12.5rem;
+  box-sizing: border-box;
 }
 
 .sales-report__compare-status-stack {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: 100%;
   min-width: 0;
 }
 
@@ -3898,6 +3908,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  align-self: flex-start;
 }
 
 .sales-report__compare-status-icon {
@@ -3945,18 +3956,16 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.14rem;
+  display: grid;
+  grid-template-columns: minmax(4.25rem, auto) minmax(5.5rem, 1fr);
+  column-gap: 0.65rem;
+  row-gap: 0.16rem;
   width: 100%;
-  max-width: 12.5rem;
+  align-items: baseline;
 }
 
 .sales-report__compare-problem {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.55rem;
+  display: contents;
   margin: 0;
   font-size: 0.8rem;
   font-weight: 650;
@@ -3965,18 +3974,18 @@
 }
 
 .sales-report__compare-problem-label {
-  flex: 0 0 auto;
   color: rgba(255, 170, 170, 0.78);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .sales-report__compare-problem-delta {
-  flex: 1 1 auto;
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   color: #ff6b6b;
   white-space: nowrap;
+  justify-self: stretch;
 }
 
 .sales-report__compare-problems--risk .sales-report__compare-problem {

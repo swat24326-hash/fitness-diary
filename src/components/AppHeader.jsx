@@ -508,7 +508,7 @@ export function AppHeader() {
               setInboxOpen(true)
             }}
           >
-            <Bell size={20} aria-hidden />
+            <Bell size={20} strokeWidth={2} aria-hidden />
             {(() => {
               const n = isTrainerRole
                 ? trainerInboxHeaderBadgeCount(inboxPending, clientsUnread)
@@ -533,7 +533,7 @@ export function AppHeader() {
               aria-label={syncBtnTitle}
               aria-busy={syncBusy}
             >
-              <RefreshCw size={20} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
+              <RefreshCw size={20} strokeWidth={2} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
               {syncBusy ? (
                 <span className="app-header__sync-badge app-header__sync-badge--progress" aria-hidden>
                   {syncProgress.percent}%

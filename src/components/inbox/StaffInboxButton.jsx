@@ -21,7 +21,7 @@ export function StaffInboxButton({ chatsOnly = false }) {
       title={label}
       aria-label={label}
     >
-      <Mail size={20} aria-hidden />
+      <Mail size={20} strokeWidth={2} aria-hidden />
       {badge ? (
         <span className="app-header__inbox-badge" aria-hidden>
           {badge}

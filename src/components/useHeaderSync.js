@@ -387,8 +387,8 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
   })
   const syncBtnClass = [
     'btn',
-    'btn-ghost',
-    'app-header__action',
+    'btn-secondary',
+    'btn-sm',
     'app-header__sync-btn',
     syncBusy ? 'app-header__sync-btn--busy' : syncHasPending ? 'app-header__sync-btn--pending' : 'app-header__sync-btn--idle',
   ].join(' ')

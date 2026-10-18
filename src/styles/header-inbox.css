@@ -1,23 +1,47 @@
-/* Кнопки-счётчики в шапке сотрудника: «Планёрка» (лоток) и «Сообщения клуба» (конверт).
-   Грузятся всегда: шапка тренера не должна зависеть от ленивой панели ИСКРЫ. */
-.app-header__inbox-btn {
+/* Единый квадрат инструментов шапки: конверт, колокольчик, Sync (без очереди), сбои устройств.
+   Один размер / рамка / иконка — чтобы ряд не «плясал». Состояние Sync (очередь / busy) — отдельно ниже. */
+
+.app-header__inbox-btn,
+.app-header__sync-btn:not(.app-header__sync-btn--labeled) {
   position: relative;
   flex-shrink: 0;
-  width: 36px;
-  min-width: 36px;
-  height: 36px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--radius-sm, 12px);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  box-shadow: none;
+  box-sizing: border-box;
 }
 
-.app-header__inbox-btn svg {
+.app-header__inbox-btn:hover,
+.app-header__sync-btn--idle:hover:not(:disabled) {
+  color: var(--accent-bright);
+  border-color: var(--border-strong, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: none;
+  transform: none;
+}
+
+.app-header__inbox-btn svg,
+.app-header__sync-btn svg {
   flex: none;
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
 }
 
 .app-header__inbox-btn--active {
+  color: var(--accent-bright);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 

@@ -31,11 +31,6 @@
   flex-shrink: 0;
 }
 
-.app-shell--trainer .app-header__stopwatch:not(.app-header__stopwatch--open) .app-header__stopwatch-toggle,
-.app-shell--trainer .app-header__sync-btn--idle {
-  color: var(--text);
-}
-
 .app-shell--trainer .app-header__nav-link {
   display: inline-flex;
   align-items: center;
@@ -43,15 +38,18 @@
   padding-inline: 6px;
 }
 
-.app-shell--trainer .app-header__inbox-btn {
+/* Конверт / колокольчик / Sync — один квадрат 44px на планшете */
+.app-shell--trainer .app-header__inbox-btn,
+.app-shell--trainer .app-header__sync-btn:not(.app-header__sync-btn--labeled) {
   width: 44px;
   min-width: 44px;
   height: 44px;
   min-height: 44px;
 }
 
-.app-shell--trainer .app-header__inbox-btn:not(.app-header__inbox-btn--active) {
-  background: transparent;
+.app-shell--trainer .app-header__sync-btn--labeled {
+  height: 44px;
+  min-height: 44px;
 }
 
 .app-shell--trainer .app-header__stopwatch-display {
