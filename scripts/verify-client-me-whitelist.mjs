@@ -14,6 +14,8 @@ import {
 import { buildMembershipVisits, membershipVisitTrainerIds } from '../api/_lib/clientPortal/clientMembershipVisitsCore.js'
 import { buildClientTrainingView, isClientTrainingId } from '../api/_lib/clientPortal/clientTrainingViewCore.js'
 import {
+  formatCmDeltaPartsRu,
+  formatCmPartsRu,
   formatSessionDayRu,
   formatSignedRu,
   measurementDeltas,
@@ -214,6 +216,13 @@ const deltas = measurementDeltas([{ values: { neck: 36, chest: 100 } }, { values
 ok(deltas.length === 1 && deltas[0].id === 'neck' && deltas[0].diff === -1, 'дельта только по полям из обоих замеров')
 ok(measurementDeltas([{ values: { neck: 1 } }]).length === 0, 'один замер — без дельты')
 ok(formatSignedRu(-1.25, 'кг') === '−1,3 кг' && formatSignedRu(2, 'см') === '+2 см' && formatSignedRu(0, 'см') === '0 см', 'знак и запятая')
+ok(formatCmPartsRu(81).int === '81' && formatCmPartsRu(81).frac === '' && formatCmPartsRu(85.5).frac === ',5', 'обмеры: целое без ,0, десятые с запятой')
+ok(
+  formatCmDeltaPartsRu(4).frac === '' &&
+    formatCmDeltaPartsRu(-1.5).frac === ',5' &&
+    formatCmDeltaPartsRu(0).int === '0',
+  'дельта обмеров без лишнего ,0',
+)
 
 // --- SQL .contains() ---
 const q = createPgRestClient()

@@ -1,7 +1,8 @@
 /**
  * Плитки /me «Мой абонемент» и «Следующая тренировка» (без React). Одна схема на обе для симметрии:
- * крупное значение + маленькая единица → подпись → подвал (у абонемента ещё полоска прогресса).
- * Подсказка о продлении и следующий абонемент — заметкой под плитками, чтобы не ломать квадрат.
+ * крупное значение + единица → подпись → bar (число|null) → подвал.
+ * Полоска в UI всегда занимает слот meta; null — пустое место той же высоты.
+ * Подсказка о продлении — заметкой под плитками, чтобы не ломать квадрат.
  */
 import { formatDateRu } from '../dateRu.js'
 import { daysWord, formatSessionDayRu, sessionStartTime, trainingsWord } from './clientMeUiCore.js'
@@ -77,16 +78,17 @@ export function membershipNote(memberships) {
   return next && current.length > 1 ? `Следующий абонемент начнётся ${formatDateRu(next.start_date)}` : null
 }
 
-/** @returns {{ hero: string, unit: string, caption: string, foot: string, tone: 'ok'|'muted' }} */
+/** @returns {{ hero: string, unit: string, caption: string, foot: string, bar: null, tone: 'ok'|'muted' }} */
 export function sessionTile(session, todayIso) {
   if (!session) {
-    return { hero: '—', unit: '', caption: 'не запланирована', foot: 'Договоритесь с тренером', tone: 'muted' }
+    return { hero: '—', unit: '', caption: 'не запланирована', foot: 'Договоритесь с тренером', bar: null, tone: 'muted' }
   }
   return {
     hero: sessionStartTime(session.time) || '—',
     unit: '',
     caption: formatSessionDayRu(session.date, todayIso).toLowerCase(),
     foot: session.trainer_name ? `Тренер: ${session.trainer_name}` : 'Тренер уточнится',
+    bar: null,
     tone: 'ok',
   }
 }

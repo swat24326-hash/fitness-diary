@@ -1,7 +1,6 @@
 import { BarChart3, CalendarClock, Flame, Gift, IdCard, TrendingUp } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import {
-  formatSignedRu,
   lastVisitWidget,
   measurementDeltas,
   pointsWord,
@@ -9,6 +8,7 @@ import {
   weightDeltaWidget,
 } from '../../lib/client/clientMeUiCore.js'
 import { membershipNote, membershipTile, sessionTile } from '../../lib/client/clientMeTilesCore.js'
+import { ClientMeasuresFold } from './ClientMeasuresFold.jsx'
 import { ClientWeightSpark } from './ClientWeightSpark.jsx'
 
 function Card({ icon: Icon, title, lead = false, children }) {
@@ -23,8 +23,8 @@ function Card({ icon: Icon, title, lead = false, children }) {
   )
 }
 
-/** Квадратная плитка: заголовок → крупное значение → подпись → подвал. Одна схема для симметрии. */
-function Tile({ icon: Icon, title, lead, tile, children }) {
+/** Квадратная плитка: заголовок → значение → подпись → meta (полоска) → подвал. Одинаковые слоты на обеих. */
+function Tile({ icon: Icon, title, lead, tile }) {
   return (
     <section className={`client-me-card client-me-tile client-me-tile--${tile.tone}${lead ? ' client-me-card--lead' : ''}`}>
       <h2 className="client-me-card__title">
@@ -38,25 +38,20 @@ function Tile({ icon: Icon, title, lead, tile, children }) {
         </span>
         <span className="client-me-tile__caption">{tile.caption}</span>
       </div>
-      <div className="client-me-tile__foot">
-        {children}
-        <span>{tile.foot}</span>
+      <div className="client-me-tile__meta" aria-hidden>
+        {tile.bar != null ? (
+          <div className="client-me-bar">
+            <span style={{ width: `${tile.bar}%` }} />
+          </div>
+        ) : null}
       </div>
+      <p className="client-me-tile__foot">{tile.foot}</p>
     </section>
   )
 }
 
 export function ClientMembershipsCard({ memberships, today, lead }) {
-  const tile = membershipTile(memberships, today)
-  return (
-    <Tile icon={IdCard} title="Мой абонемент" lead={lead} tile={tile}>
-      {tile.bar != null ? (
-        <div className="client-me-bar" aria-hidden>
-          <span style={{ width: `${tile.bar}%` }} />
-        </div>
-      ) : null}
-    </Tile>
-  )
+  return <Tile icon={IdCard} title="Мой абонемент" lead={lead} tile={membershipTile(memberships, today)} />
 }
 
 export function ClientNextSessionCard({ session, today, lead }) {
@@ -73,27 +68,16 @@ export function ClientMembershipNote({ memberships }) {
   ) : null
 }
 
-/** «Мой прогресс» — график веса и замеры. Ни веса, ни замеров — карточки нет. */
+/** «Мой прогресс» — график веса и обмеры (обмеры свёрнуты в кнопку). Ни веса, ни замеров — карточки нет. */
 export function ClientProgressCard({ progress, sparkBuild = 0, sparkSettling = false }) {
   const p = progress ?? {}
   const weights = p.weights ?? []
-  const deltas = measurementDeltas(p.measurements)
-  if (!weights.length && !deltas.length) return null
+  const hasMeasures = measurementDeltas(p.measurements).length > 0
+  if (!weights.length && !hasMeasures) return null
   return (
     <Card icon={TrendingUp} title="Мой прогресс">
       <ClientWeightSpark key={sparkBuild} weights={weights} settling={sparkSettling} rebuilt={sparkBuild > 0} />
-      {deltas.length ? (
-        <ul className="client-me-deltas">
-          {deltas.map((d) => (
-            <li key={d.id}>
-              <span>{d.label}</span>
-              <span>
-                {String(d.to).replace('.', ',')} см <em className="client-me-muted">{formatSignedRu(d.diff, 'см')}</em>
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <ClientMeasuresFold measurements={p.measurements} />
     </Card>
   )
 }

@@ -31,7 +31,7 @@ function visible(page, text) {
     )
 }
 
-/** Плитка «Мой абонемент» показывает «6 из 8» — цифра и подпись в разных элементах. */
+/** Плитка «Мой абонемент»: «2 из 8» + «списано» (в сиде 2 завершённые тренировки). */
 async function membershipShows(page, re) {
   const tile = page.locator('section', { has: page.getByRole('heading', { name: 'Мой абонемент' }) })
   const until = Date.now() + 10_000
@@ -42,6 +42,8 @@ async function membershipShows(page, re) {
   }
   return false
 }
+
+const MEMBERSHIP_HOME = /2\s*из 8[\s\S]*списано|списано[\s\S]*2\s*из 8/
 
 function reaches(locator, state) {
   return locator
@@ -78,7 +80,7 @@ export async function run(browser) {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
     await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
     c.ok(!page.url().includes(INVITE), 'токен ссылки убран из адресной строки')
-    c.ok(await membershipShows(page, /6\s*из 8/), 'главная: абонемент «6 из 8» осталось')
+    c.ok(await membershipShows(page, MEMBERSHIP_HOME), 'главная: абонемент «2 из 8» списано')
     c.ok(
       (await visible(page, '10:00')) && !(await visible(page, '10:00–11:00')),
       'главная: следующая тренировка — время начала 10:00, без интервала',
@@ -97,18 +99,18 @@ export async function run(browser) {
     await banner.getByRole('button', { name: 'Готово' }).click()
     c.ok(await reaches(banner, 'hidden'), '«Готово» прячет подсказку')
     await page.reload()
-    c.ok(await membershipShows(page, /6\s*из 8/), 'после перезагрузки вход сохранился')
+    c.ok(await membershipShows(page, MEMBERSHIP_HOME), 'после перезагрузки вход сохранился')
     await page.waitForTimeout(500)
     c.ok(await banner.isHidden(), 'закрытая подсказка не возвращается')
     c.ok((await page.locator('.client-me__top').getByRole('button', { name: 'Обновить' }).count()) === 0, 'в шапке нет кнопки «Обновить»')
     await page.getByRole('button', { name: 'Меню' }).click()
     await page.getByRole('region', { name: 'Меню' }).getByRole('button', { name: 'Обновить' }).click()
-    c.ok(await membershipShows(page, /6\s*из 8/), '«Обновить» из меню — данные на месте')
+    c.ok(await membershipShows(page, MEMBERSHIP_HOME), '«Обновить» из меню — данные на месте')
 
     backend.cloudDown = true
     await page.reload()
     c.ok(await visible(page, 'Нет связи — показаны данные на'), 'без сети — плашка «Нет связи» и данные из кэша')
-    c.ok(await membershipShows(page, /6\s*из 8/), 'без сети абонемент всё ещё виден')
+    c.ok(await membershipShows(page, MEMBERSHIP_HOME), 'без сети абонемент всё ещё виден')
     backend.cloudDown = false
 
     const tabs = page.getByRole('navigation', { name: 'Разделы' })

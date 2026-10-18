@@ -114,6 +114,16 @@ const ClientNotificationsPreviewDetailPage = lazy(() =>
     default: m.ClientNotificationsPreviewDetailPage,
   })),
 )
+const ClientProgressPreviewPage = lazy(() =>
+  import('./pages/client/ClientProgressPreviewPage.jsx').then((m) => ({
+    default: m.ClientProgressPreviewPage,
+  })),
+)
+const ClientHomePreviewPage = lazy(() =>
+  import('./pages/client/ClientProgressPreviewPage.jsx').then((m) => ({
+    default: m.ClientHomePreviewPage,
+  })),
+)
 const ClientRatingPage = lazy(() =>
   import('./pages/client/ClientRatingPage.jsx').then((m) => ({ default: m.ClientRatingPage })),
 )
@@ -171,6 +181,8 @@ function ClientAppRoutes() {
           <Route path="notifications" element={<ClientNotificationsPage />} />
           <Route path="notifications-preview" element={<ClientNotificationsPreviewPage />} />
           <Route path="notifications-preview/:id" element={<ClientNotificationsPreviewDetailPage />} />
+          <Route path="progress-preview" element={<ClientProgressPreviewPage />} />
+          <Route path="home-preview" element={<ClientHomePreviewPage />} />
           <Route path="rate/:id" element={<ClientRatingPage />} />
           <Route path="inbox" element={<ClientInboxPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />

@@ -107,3 +107,24 @@ export function formatSignedRu(n, unit) {
   if (!Number.isFinite(abs) || abs === 0) return `0 ${unit}`
   return `${raw > 0 ? '+' : '−'}${String(abs).replace('.', ',')} ${unit}`
 }
+
+/**
+ * Сантиметры для таблицы обмеров: целое без «,0», десятые как «81,5».
+ * Дробная часть отдельно — в UI под неё резерв ширины, колонки не прыгают.
+ * @returns {{ int: string, frac: string }}
+ */
+export function formatCmPartsRu(n) {
+  const v = Math.round(Number(n) * 10) / 10
+  if (!Number.isFinite(v)) return { int: '—', frac: '' }
+  const [a, b] = v.toFixed(1).split('.')
+  return { int: a, frac: b === '0' ? '' : `,${b}` }
+}
+
+/** Дельта обмеров: «+4 см», «+4,5 см», «0 см» — без лишнего «,0». */
+export function formatCmDeltaPartsRu(n) {
+  const raw = Number(n)
+  const abs = Math.round(Math.abs(raw) * 10) / 10
+  if (!Number.isFinite(abs) || abs === 0) return { sign: '', int: '0', frac: '' }
+  const [a, b] = abs.toFixed(1).split('.')
+  return { sign: raw > 0 ? '+' : '−', int: a, frac: b === '0' ? '' : `,${b}` }
+}
