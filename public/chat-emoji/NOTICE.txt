@@ -1,0 +1,6 @@
+Noto Animated Emoji
+Copyright Google Inc.
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+Source: https://fonts.gstatic.com/s/e/notoemoji/ (Noto Animated Emoji)
+Mirrored for same-origin delivery by Ядро / Fitness Diary. Files unchanged.

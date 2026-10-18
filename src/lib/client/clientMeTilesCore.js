@@ -1,6 +1,6 @@
 /**
  * Плитки /me «Мой абонемент» и «Следующая тренировка» (без React). Одна схема на обе для симметрии:
- * крупное значение + маленькая единица → подпись → подвал (у абонемента ещё полоска остатка).
+ * крупное значение + маленькая единица → подпись → подвал (у абонемента ещё полоска прогресса).
  * Подсказка о продлении и следующий абонемент — заметкой под плитками, чтобы не ломать квадрат.
  */
 import { formatDateRu } from '../dateRu.js'
@@ -8,11 +8,21 @@ import { daysWord, formatSessionDayRu, sessionStartTime, trainingsWord } from '.
 import { clientRenewalHint, membershipBarPercent } from './clientMeHighlightsCore.js'
 
 /**
+ * Плитка «Мой абонемент»: действующий с остатком, не старый исчерпанный с ещё живой датой.
+ * Вкладка «Тренировки» показывает все начавшиеся — там оба видны; на главной нужен тот, по которому ходят.
+ */
+export function pickHomeMembership(current) {
+  const list = current ?? []
+  const started = list.filter((x) => x.status !== 'upcoming')
+  return started.find((x) => x.status === 'active') ?? started[0] ?? list[0] ?? null
+}
+
+/**
  * @returns {{ hero: string, unit: string, caption: string, foot: string, bar: number|null, tone: 'ok'|'warn'|'muted' }}
  */
 export function membershipTile(memberships, todayIso) {
   const current = memberships?.current ?? []
-  const m = current.find((x) => x.status !== 'upcoming') ?? current[0]
+  const m = pickHomeMembership(current)
   if (!m) {
     const ended = memberships?.last_ended
     return {
@@ -25,9 +35,17 @@ export function membershipTile(memberships, todayIso) {
     }
   }
   const limited = m.total != null
+  const used = Number(m.used) || 0
   const foot = m.status === 'upcoming' ? `Начнётся ${formatDateRu(m.start_date)}` : m.end_date === todayIso ? 'Последний день' : `До ${formatDateRu(m.end_date)}`
   if (m.status === 'depleted') {
-    return { hero: '0', unit: limited ? `из ${m.total}` : '', caption: 'все тренировки использованы', foot: 'Продлить можно в клубе', bar: 0, tone: 'warn' }
+    return {
+      hero: limited ? String(m.total) : String(used),
+      unit: limited ? `из ${m.total}` : '',
+      caption: 'все тренировки использованы',
+      foot: 'Продлить можно в клубе',
+      bar: limited ? 100 : null,
+      tone: 'warn',
+    }
   }
   if (!limited) {
     const days = m.status === 'upcoming' ? null : m.days_left
@@ -41,9 +59,9 @@ export function membershipTile(memberships, todayIso) {
     }
   }
   return {
-    hero: String(m.remaining),
+    hero: String(used),
     unit: `из ${m.total}`,
-    caption: `${trainingsWord(m.remaining)} осталось`,
+    caption: `${trainingsWord(used)} списано`,
     foot,
     bar: membershipBarPercent(m),
     tone: m.status === 'upcoming' ? 'muted' : 'ok',

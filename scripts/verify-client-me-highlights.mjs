@@ -12,7 +12,7 @@ import {
   weightSparkPath,
   weightSparkPoints,
 } from '../src/lib/client/clientMeHighlightsCore.js'
-import { membershipNote, membershipTile, sessionTile } from '../src/lib/client/clientMeTilesCore.js'
+import { membershipNote, membershipTile, pickHomeMembership, sessionTile } from '../src/lib/client/clientMeTilesCore.js'
 import { lastVisitWidget, weightDeltaWidget } from '../src/lib/client/clientMeUiCore.js'
 import { mainTrainerName, membershipTrainingRow, trainingViewTitle } from '../src/lib/client/clientTrainingsUiCore.js'
 
@@ -117,10 +117,11 @@ ok(mainTrainerName([tn('Анна'), tn('Олег'), tn('Анна')]) === 'Анн
 ok(mainTrainerName([tn('Анна'), tn('Олег', true), tn('Олег', true), tn('Олег')]) === 'Олег', 'поровну — кто вёл последним; неявки не в счёт')
 ok(mainTrainerName([tn(null)]) === null && mainTrainerName([]) === null, 'нет имён — null')
 ok(trainingViewTitle('2026-08-31') === '31 августа, пн', 'заголовок окна: «31 августа, пн»')
-ok(membershipBarPercent({ total: 50, remaining: 44, used: 6 }) === 88, 'полоска по остатку: 44 из 50 → 88%')
-ok(membershipBarPercent({ total: 10, remaining: 0 }) === 0, 'исчерпан — полоска пустая')
-ok(membershipBarPercent({ total: null, remaining: null }) === null, 'безлимит — полоски нет')
-ok(membershipBarPercent({ total: 10, remaining: 12 }) === 100, 'больше 100% не рисуем')
+ok(membershipBarPercent({ total: 50, used: 6 }) === 12, 'полоска по списанному: 6 из 50 → 12%')
+ok(membershipBarPercent({ total: 10, used: 10 }) === 100, 'исчерпан — полоска полная')
+ok(membershipBarPercent({ total: null, used: null }) === null, 'безлимит — полоски нет')
+ok(membershipBarPercent({ total: 10, used: 12 }) === 100, 'больше 100% не рисуем')
+ok(membershipBarPercent({ total: 10 }) === null, 'нет used — полоски нет')
 
 const wd = weightDeltaWidget([{ date: '2026-06-01', kg: 99 }, { date: '2026-08-20', kg: 94 }])
 ok(wd?.sign === '−' && wd.value === '5' && wd.label === 'с 01.06.26', 'виджет веса: −5 кг / с 01.06.26, знак отдельно')
@@ -135,11 +136,11 @@ ok(lastVisitWidget(TODAY).value === TODAY.slice(8, 10) + '.' + TODAY.slice(5, 7)
 ok(lastVisitWidget(null).value === '—', 'нет даты — прочерк')
 
 // --- Плитки: одна схема «значение → подпись → подвал» ---
-const mt = membershipTile({ current: [mem({ total: 50, remaining: 44, end_date: '2027-01-27' })] }, TODAY)
-ok(mt.hero === '44' && mt.unit === 'из 50' && mt.caption === 'тренировки осталось' && mt.foot === 'До 27.01.2027' && mt.bar === 88, 'плитка абонемента: 44 из 50, до даты, полоска')
-ok(membershipTile({ current: [mem({ remaining: 1 })] }, TODAY).caption === 'тренировка осталось', 'склонение в подписи')
-const dep = membershipTile({ current: [mem({ status: 'depleted', remaining: 0 })] }, TODAY)
-ok(dep.hero === '0' && dep.tone === 'warn' && dep.foot === 'Продлить можно в клубе', 'исчерпан — предупреждение')
+const mt = membershipTile({ current: [mem({ total: 50, used: 6, remaining: 44, end_date: '2027-01-27' })] }, TODAY)
+ok(mt.hero === '6' && mt.unit === 'из 50' && mt.caption === 'тренировок списано' && mt.foot === 'До 27.01.2027' && mt.bar === 12, 'плитка абонемента: 6 из 50 списано, до даты, полоска')
+ok(membershipTile({ current: [mem({ used: 1, remaining: 9 })] }, TODAY).caption === 'тренировка списано', 'склонение в подписи')
+const dep = membershipTile({ current: [mem({ status: 'depleted', used: 10, remaining: 0, total: 10 })] }, TODAY)
+ok(dep.hero === '10' && dep.unit === 'из 10' && dep.tone === 'warn' && dep.bar === 100 && dep.foot === 'Продлить можно в клубе', 'исчерпан — 10 из 10')
 const unl = membershipTile({ current: [mem({ total: null, remaining: null, days_left: 12, end_date: '2026-10-19' })] }, TODAY)
 ok(unl.hero === '12' && unl.unit === 'дней' && unl.bar === null, 'безлимит — дни до конца, без полоски')
 ok(membershipTile({ current: [mem({ end_date: TODAY })] }, TODAY).foot === 'Последний день', 'последний день в подвале')
@@ -148,6 +149,19 @@ ok(/закончился 01\.09\.2026/.test(membershipTile({ current: [], last_e
 const both = { current: [mem(), mem({ status: 'upcoming', start_date: '2026-11-01' })] }
 ok(membershipTile(both, TODAY).tone === 'ok', 'в плитке текущий, а не будущий')
 ok(membershipNote(both) === 'Следующий абонемент начнётся 01.11.2026', 'будущий — заметкой под плитками')
+// Два в сроке: старый исчерпан (12/12) + новый (3/17, как Лагутеева 5864) — на главной показываем новый
+const laguteeva = {
+  current: [
+    mem({ status: 'depleted', total: 12, used: 12, remaining: 0, start_date: '2026-08-01', end_date: '2026-11-01' }),
+    mem({ status: 'active', total: 17, used: 3, remaining: 14, start_date: '2026-10-11', end_date: '2026-12-11' }),
+  ],
+}
+ok(pickHomeMembership(laguteeva.current)?.total === 17, 'выбор: active, не depleted')
+ok(membershipTile(laguteeva, TODAY).hero === '3' && membershipTile(laguteeva, TODAY).unit === 'из 17' && membershipTile(laguteeva, TODAY).tone === 'ok', 'плитка — 3 из 17 нового абона')
+ok(
+  membershipTile({ current: [mem({ status: 'depleted', used: 12, remaining: 0, total: 12 })] }, TODAY).hero === '12',
+  'только исчерпанный — 12 из 12',
+)
 ok(/продлить можно/.test(membershipNote({ current: [mem({ remaining: 2 })] }) ?? ''), 'продление — заметкой под плитками')
 ok(membershipNote({ current: [mem()] }) === null, 'всё спокойно — заметки нет')
 const st = sessionTile({ date: '2026-10-08', time: '18:00–19:00', trainer_name: 'Анна' }, TODAY)

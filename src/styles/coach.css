@@ -52,6 +52,9 @@ html:has(.coach-app--tabs) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* Иначе margin:auto + flex:none сжимают шапку до контента (баг на «Сообщениях»; fill уже имел width:100%). */
+  box-sizing: border-box;
+  width: 100%;
   max-width: 560px;
   margin: 0 auto;
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
@@ -113,6 +116,8 @@ html:has(.coach-app--tabs) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
   max-width: 560px;
   margin: 0 auto;
   padding: 4px 16px 0;

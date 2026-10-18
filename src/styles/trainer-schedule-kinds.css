@@ -9,8 +9,8 @@
 
 /* --- Запись в сетке: цвет категории — заливкой и тонкой рамкой, без толстой полосы слева (узкие колонки) --- */
 .trainer-schedule-day__entry.trainer-schedule-day__entry--kind {
-  background: color-mix(in srgb, var(--kind) 32%, rgba(255, 255, 255, 0.04));
-  border: 1px solid color-mix(in srgb, var(--kind) 60%, transparent);
+  background: color-mix(in srgb, var(--kind) 20%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--kind) 48%, transparent);
 }
 
 .trainer-schedule-day__entry.trainer-schedule-day__entry--draft {
@@ -18,11 +18,11 @@
 }
 
 .trainer-schedule-day__entry-wrap--past:not(.trainer-schedule-day__entry-wrap--ghost) {
-  opacity: 0.55;
+  opacity: 0.42;
 }
 
 .trainer-schedule-day__entry-wrap--done:not(.trainer-schedule-day__entry-wrap--ghost) {
-  opacity: 0.62;
+  opacity: 0.78;
 }
 
 .trainer-schedule-day__entry-done {
@@ -53,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.14);

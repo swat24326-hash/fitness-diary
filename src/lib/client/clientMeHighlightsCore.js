@@ -136,11 +136,13 @@ export function weightSparkPoints(weights, width, height, pad = 4) {
   return g ? g.dots.map((d) => `${d.x},${d.y}`).join(' ') : null
 }
 
-/** Заполнение полоски абонемента — по остатку, как цифра «осталось N из M». */
+/** Заполнение полоски абонемента — по списанному, как цифра «N из M списано». */
 export function membershipBarPercent(m) {
   const total = Number(m?.total)
   if (!Number.isFinite(total) || total <= 0) return null
-  return Math.max(0, Math.min(100, (Number(m?.remaining) / total) * 100 || 0))
+  const used = Number(m?.used)
+  if (!Number.isFinite(used)) return null
+  return Math.max(0, Math.min(100, (used / total) * 100 || 0))
 }
 
 const round1 = (n) => Math.round(n * 10) / 10

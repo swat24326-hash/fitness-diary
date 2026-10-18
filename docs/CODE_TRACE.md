@@ -87,6 +87,7 @@
 | Клиент входа | `src/lib/authSignInService.js`, `src/lib/authLoginResolveCore.js` |
 | Окно «Установить» | `src/lib/pwa/installPromptStore.js` (ловится в `main.jsx`), `src/hooks/useInstallPrompt.js`, режим подсказки `src/lib/client/clientInstallCore.js`; verify `scripts/verify-client-app-branding.mjs` |
 | Вход значка клиента `/me` | `src/lib/client/clientHandoffCore.js`, `src/pages/client/useClientHandoff.js`, `src/pages/client/ClientAppContext.jsx`; сервер `api/_lib/clientPortal/clientHandoffCore.js` — verify `scripts/verify-client-handoff.mjs` |
+| Плитка «Мой абонемент» на `/me` | `src/lib/client/clientMeTilesCore.js` (`pickHomeMembership` — active раньше depleted), визиты по абонам `clientMembershipVisitsUiCore.js`; сервер список `api/_lib/clientPortal/clientMeCore.js` — verify `scripts/verify-client-me-highlights.mjs` |
 | Вход клиента по QR в приложении | `src/pages/client/ClientSignInPanel.jsx`, `ClientQrScanSheet.jsx`, `useClientQrScan.js`, `src/lib/client/clientInviteTokenCore.js` — verify `scripts/verify-client-invite-token.mjs` |
 | Вход тренера `/coach` по QR в приложении | `src/pages/coach/CoachSignInPage.jsx`, `CoachQrScanSheet.jsx`, `useCoachQrScan.js`, `src/lib/coach/coachInviteTokenCore.js`, общий `src/hooks/useQrFrameScan.js` — verify `scripts/verify-coach-invite-token.mjs` |
 | Юр.страницы → обратно в `/me` | `src/lib/legal/legalPageCloseCore.js`, `src/components/legal/LegalPageShell.jsx`, `LegalAppEntryBar.jsx` — verify `scripts/verify-legal-page-close.mjs` |

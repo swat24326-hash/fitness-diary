@@ -30,7 +30,7 @@ ok(OFFER_PARTY.inn === '325502073860', 'ИНН')
 ok(OFFER_PARTY.ogrnip === '316325600050493', 'ОГРНИП')
 ok(OFFER_PARTY.address === 'г. Брянск', 'адрес — город')
 ok(OFFER_PARTY.email === '2806199@bk.ru', 'email')
-ok(OFFER_PATH === '/offer' && OFFER_VERSION === '2026-10-16', 'путь и версия')
+ok(OFFER_PATH === '/offer' && OFFER_VERSION === '2026-10-18', 'путь и версия')
 
 console.log('разделы')
 const blob = offerSections()

@@ -31,7 +31,7 @@ ok(PRIVACY_POLICY_LINK_RU === 'Политика конфиденциальнос
 console.log('разделы A2')
 const sections = privacyPolicySections()
 const ids = sections.map((s) => s.id)
-for (const id of ['who', 'roles', 'data', 'purpose', 'where', 'term', 'delete', 'protect']) {
+for (const id of ['who', 'roles', 'data', 'purpose', 'where', 'term', 'rights', 'tech', 'delete', 'protect']) {
   ok(ids.includes(id), `раздел ${id}`)
 }
 const blob = sections.map((s) => `${s.title} ${s.body}`).join('\n')

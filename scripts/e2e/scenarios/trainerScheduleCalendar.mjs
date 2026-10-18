@@ -75,7 +75,7 @@ function addIsFabAboveLegend(page) {
     const legend = d.querySelector('.trainer-schedule-legend')?.getBoundingClientRect()
     if (!add || !body || add.closest('.trainer-schedule-day__head')) return false
     const b = add.getBoundingClientRect()
-    return b.width <= 40 && body.right - b.right <= 20 && body.bottom - b.bottom <= 20 && (!legend || b.bottom <= legend.top)
+    return b.width <= 44 && body.right - b.right <= 20 && body.bottom - b.bottom <= 20 && (!legend || b.bottom <= legend.top)
   })
 }
 
