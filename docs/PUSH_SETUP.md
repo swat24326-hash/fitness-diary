@@ -83,6 +83,7 @@ GET `admin-data?action=push-subscription` доступен ролям `admin`, `
 | Слой | Путь |
 |------|------|
 | Значок в строке состояния | `public/icons/badge-96.png` — белый знак на прозрачном фоне (`scripts/generate-icons.mjs`); Android берёт только прозрачность, непрозрачная иконка = белый квадрат |
+| Картинка в карточке push | `public/icons/push-192.png` — чёрный фон + знак (как maskable). Не `icon-192.png` (прозрачный splash): на светлой шторке знак выглядит коряво |
 | SW handler | `public/push-sw.js` (показ уведомления + сигнал `push-received` открытым окнам → `src/lib/push/pushReceivedSignal.js`; нажатие при открытом приложении — `push-open` окну того же приложения → `src/components/PushOpenNavigator.jsx`) |
 | Шторка | Одно правило на сеть: если **это же** приложение уже на экране — плашку не дублируем (лента обновится по `push-received`). Зашли с иконки / вернулись с фона — плашки **только этого** приложения гаснут (`pushShadeCore.js` / `clearPushShadeForApp`). Клиент не гасит плашки зала и наоборот (один origin). Verify — `verify-push-shade.mjs`. |
 | API | `admin-data?action=push-subscription` |

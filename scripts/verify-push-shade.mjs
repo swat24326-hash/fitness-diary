@@ -50,5 +50,7 @@ ok(closed === 1, 'clear закрывает только client')
 const sw = readFileSync(new URL('../public/push-sw.js', import.meta.url), 'utf8')
 ok(sw.includes('focusedSame'), 'SW не дублирует плашку, если окно в фокусе')
 ok(sw.includes("type: 'push-received'"), 'сигнал в открытое окно остаётся')
+ok(sw.includes('/icons/push-192.png') && !sw.includes("icon: '/icons/icon-192.png'"), 'icon push — непрозрачный push-192, не splash')
+ok(sw.includes('/icons/badge-96.png'), 'badge в строке состояния')
 
 console.log('verify-push-shade: all passed')

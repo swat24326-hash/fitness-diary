@@ -72,6 +72,7 @@ export default defineConfig(({ mode }) => ({
         'icons/icon-384-maskable.png',
         'icons/icon-512-maskable.png',
         'icons/badge-96.png',
+        'icons/push-192.png',
         'chat/pattern-fitness.svg',
         'stickers/art/*.webp',
       ],

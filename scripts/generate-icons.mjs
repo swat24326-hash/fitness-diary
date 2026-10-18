@@ -64,8 +64,15 @@ function badgeSvg(size) {
 
 await sharp(Buffer.from(badgeSvg(96))).png().toFile(path.join(outDir, 'badge-96.png'))
 
+/**
+ * Картинка push в шторке (Web Notification `icon`): чёрный холст + знак.
+ * Не путать с `icon-192.png` (purpose any, прозрачный splash) — на светлой карточке
+ * Android/Chrome рисует «голый» знак крупно и он выглядит коряво.
+ */
+await sharp(Buffer.from(iconMaskableSvg(192))).png().toFile(path.join(outDir, 'push-192.png'))
+
 const master = path.join(brandDir, 'os-icon-1024.png')
 await sharp(Buffer.from(iconMaskableSvg(1024))).png().toFile(master)
 
-console.log(`Generated ${PRODUCT_BRAND_NAME} icons (any=прозрачный splash, maskable=чёрный) in`, outDir)
+console.log(`Generated ${PRODUCT_BRAND_NAME} icons (any=прозрачный splash, maskable=чёрный, push-192) in`, outDir)
 console.log('Master:', master)

@@ -51,7 +51,8 @@ self.addEventListener('push', (event) => {
       await Promise.all([
         self.registration.showNotification(title, {
           body,
-          icon: '/icons/icon-192.png',
+          /* Не icon-192.png (прозрачный splash) — на светлой шторке «корявый» знак. */
+          icon: '/icons/push-192.png',
           badge: '/icons/badge-96.png',
           tag,
           silent: data.silent === true,
