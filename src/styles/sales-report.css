@@ -3377,22 +3377,25 @@
   width: 100%;
 }
 
-/* «День в зале» — 5 плиток в один ряд на широком экране */
-.sales-home__tile-grid--day,
+/* «День в зале» — 6 плиток в один ряд; «Отчёты и рост» — 5 */
+.sales-home__tile-grid--day {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .sales-home__tile-grid--plan {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .sales-home__tile-grid--day .sales-home__tile {
-  padding: clamp(12px, 1.6vw, 16px) clamp(6px, 1vw, 12px);
+  padding: clamp(10px, 1.4vw, 14px) clamp(4px, 0.8vw, 10px);
 }
 
 .sales-home__tile-grid--day .sales-home__tile-title {
-  font-size: clamp(0.82rem, 1.35vw, 1.05rem);
+  font-size: clamp(0.78rem, 1.2vw, 0.98rem);
 }
 
 .sales-home__tile-grid--day .sales-home__tile-lead {
-  font-size: clamp(0.65rem, 1vw, 0.75rem);
+  font-size: clamp(0.62rem, 0.95vw, 0.72rem);
   text-align: center;
 }
 
@@ -4039,6 +4042,61 @@
 
 .sales-report__compare-row--schedule-open {
   background: color-mix(in srgb, var(--accent-bright) 6%, transparent);
+}
+
+/* Итого сегменты — нижняя строка сравнения плана */
+.sales-report__compare-row--total th,
+.sales-report__compare-row--total td {
+  border-top: 1px solid color-mix(in srgb, var(--accent-bright) 28%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright) 8%, transparent) 0%, transparent 70%),
+    color-mix(in srgb, var(--bg-elevated) 72%, transparent) !important;
+  font-weight: 750;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+  box-shadow: inset 0 1px 0 var(--premium-glass-highlight, rgba(255, 255, 255, 0.05));
+}
+
+.sales-report__compare-total-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.sales-report__compare-row--total .sales-report__compare-num,
+.sales-report__compare-row--total .sales-report__compare-money {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.sales-report__compare-row--total .sales-report__compare-forecast {
+  background: color-mix(in srgb, rgba(113, 63, 18, 0.18) 70%, transparent) !important;
+  color: #fde68a;
+}
+
+.sales-report__compare-row--total .sales-report__compare-cell--warn {
+  color: #fbbf24;
+}
+
+.sales-report__compare-row--total .sales-report__compare-cell--mid {
+  color: #fde68a;
+}
+
+.sales-report__compare-row--total .sales-report__compare-cell--ok {
+  color: color-mix(in srgb, var(--accent-bright) 85%, #fff);
+}
+
+.sales-report__compare-total-empty {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.sales-report__compare-total-dash {
+  color: color-mix(in srgb, var(--text-muted) 55%, transparent);
+  font-weight: 500;
+  font-size: 0.85rem;
 }
 
 .sales-report__segment-schedule {
@@ -5493,65 +5551,242 @@
   line-height: 1.35;
 }
 
-.sales-clip-section__tip {
-  margin: 0 0 0.75rem;
-  max-width: 52rem;
+/* ——— Заявка тренеру на абон (клип) ——— */
+.sales-clip-section {
+  margin: 0 0 clamp(1rem, 2vh, 1.5rem);
+  padding: clamp(1rem, 2vw, 1.35rem) clamp(1rem, 2.2vw, 1.5rem);
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--premium-glass-border, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright) 6%, transparent) 0%, transparent 45%),
+    linear-gradient(165deg, color-mix(in srgb, var(--bg-elevated) 92%, transparent), color-mix(in srgb, var(--bg) 98%, transparent));
+  box-shadow:
+    inset 0 1px 0 var(--premium-glass-highlight, rgba(255, 255, 255, 0.06)),
+    0 10px 32px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
 }
+
+.sales-clip-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.45rem;
+}
+
+.sales-clip-section__title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.sales-clip-section__title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent-bright) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-bright) 10%, transparent);
+  color: var(--accent-bright);
+  flex-shrink: 0;
+}
+
+.sales-clip-section__day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  padding: 0.25rem 0.35rem 0.25rem 0.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg-muted) 80%, transparent);
+}
+
+.sales-clip-section__day-nav {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  padding: 0;
+}
+
+.sales-clip-section__day-input {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.sales-clip-section__day-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent-bright) 55%, transparent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.sales-clip-section__day-label {
+  margin: 0 0.35rem 0 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sales-clip-section__tip {
+  margin: 0 0 0.85rem;
+  max-width: 48rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.sales-clip-section__list-title {
+  margin: 1.35rem 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent-bright) 42%, var(--text-muted));
+}
+
+.sales-clip-section__empty {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed color-mix(in srgb, var(--text-muted) 28%, transparent);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
 .sales-clip-checklist {
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  border-radius: var(--radius-md, 10px);
-  border: 1px solid color-mix(in srgb, var(--accent-bright, #e8a838) 35%, transparent);
-  background: color-mix(in srgb, var(--accent-bright, #e8a838) 8%, transparent);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
 }
 .sales-clip-checklist ul {
   margin: 0.35rem 0 0;
   padding-left: 1.2rem;
 }
+
 .sales-clip-form {
   display: grid;
-  gap: 0.65rem 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  margin-bottom: 1.25rem;
+  gap: 0.85rem;
+  margin: 0.85rem 0 0;
 }
+
 .sales-clip-form label {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
+
+.sales-clip-form__paste,
 .sales-clip-form__note,
-.sales-clip-form__paste {
-  grid-column: 1 / -1;
+.sales-clip-form__fields,
+.sales-clip-form__actions {
+  min-width: 0;
 }
+
+.sales-clip-form__fields {
+  display: grid;
+  gap: 0.65rem 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+
 .sales-clip-form input,
 .sales-clip-form select,
 .sales-clip-form textarea {
+  width: 100%;
   min-height: 2.5rem;
-  padding: 0.4rem 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 72%, var(--bg-elevated));
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
+
+.sales-clip-form input::placeholder,
+.sales-clip-form textarea::placeholder {
+  color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+}
+
+.sales-clip-form input:focus,
+.sales-clip-form select:focus,
+.sales-clip-form textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent-bright) 55%, transparent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
 .sales-clip-form textarea {
-  min-height: 7rem;
+  min-height: 6.5rem;
   resize: vertical;
-  font-family: inherit;
-  line-height: 1.35;
+  line-height: 1.4;
 }
+
 .sales-clip-form__actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
-  align-items: center;
+  align-items: stretch;
+  margin-top: 0.15rem;
 }
+
+.sales-clip-form__submit,
+.sales-clip-form__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 1.1rem;
+}
+
+.sales-clip-form__submit {
+  flex: 1 1 16rem;
+}
+
+.sales-clip-form__clear {
+  flex: 0 0 auto;
+}
+
 .sales-clip-form__next-hint {
   margin: 0.5rem 0 0;
   font-size: 0.9rem;
 }
+
 .sales-clip-warnings {
-  grid-column: 1 / -1;
   margin: 0;
-  color: color-mix(in srgb, var(--accent-bright, #e8a838) 90%, var(--text));
+  color: color-mix(in srgb, var(--warning) 85%, var(--text));
 }
+
 .sales-clip-list,
 .trainer-sale-clips__list {
   list-style: none;
@@ -5560,6 +5795,7 @@
   display: grid;
   gap: 0.65rem;
 }
+
 .sales-clip-list li,
 .trainer-sale-clips__list li {
   display: flex;
@@ -5567,16 +5803,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
-  border-radius: var(--radius-md, 10px);
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);
 }
+
 .trainer-sale-clips {
   margin: 0.75rem 0 1rem;
   padding: 0.85rem 1rem;
-  border-radius: var(--radius-md, 10px);
-  border: 1px solid color-mix(in srgb, var(--accent-bright, #e8a838) 28%, transparent);
-  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 92%, transparent);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--accent-bright) 28%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
 }
 .trainer-sale-clips--empty {
   border-style: dashed;
@@ -5590,36 +5828,18 @@
   gap: 0.4rem;
 }
 
-.sales-clip-section__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
-  margin-bottom: 0.35rem;
-}
-.sales-clip-section__head .sales-report__section-title {
-  margin-bottom: 0;
-}
-.sales-clip-section__day {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.5rem;
-}
-
 .sales-visual-alert {
   margin: 0.75rem 0;
   padding: 0.85rem 1rem;
-  border-radius: var(--radius-md, 10px);
-  border: 2px solid transparent;
-  font-size: 0.95rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: 0.92rem;
   line-height: 1.4;
 }
 .sales-visual-alert__title {
   margin: 0 0 0.35rem;
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
 }
 .sales-visual-alert__body {
   margin: 0;
@@ -5632,24 +5852,38 @@
   padding-left: 1.2rem;
 }
 .sales-visual-alert--error {
-  border-color: color-mix(in srgb, #c62828 70%, transparent);
-  background: color-mix(in srgb, #c62828 16%, var(--bg-elevated, #1a1a1a));
-  color: var(--text, #f5f5f5);
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-elevated));
+  color: var(--text);
 }
 .sales-visual-alert--warn {
-  border-color: color-mix(in srgb, #e8a838 75%, transparent);
-  background: color-mix(in srgb, #e8a838 14%, var(--bg-elevated, #1a1a1a));
+  border-color: color-mix(in srgb, var(--warning) 55%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-elevated));
 }
 .sales-visual-alert--ok {
-  border-color: color-mix(in srgb, #2e7d32 65%, transparent);
-  background: color-mix(in srgb, #2e7d32 12%, var(--bg-elevated, #1a1a1a));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
 }
 .sales-visual-alert--info {
-  border-color: color-mix(in srgb, var(--text-muted) 35%, transparent);
-  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 90%, transparent);
+  border-color: color-mix(in srgb, var(--text-muted) 28%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
 }
-.sales-clip-form .sales-visual-alert {
-  grid-column: 1 / -1;
+
+@media (max-width: 1100px) {
+  .sales-clip-form__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .sales-clip-form__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-clip-form__submit,
+  .sales-clip-form__clear {
+    flex: 1 1 100%;
+  }
 }
 
 /* ????? ?????? */

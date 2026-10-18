@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { BarChart3, Check, Minus } from 'lucide-react'
-import { formatRub } from '../lib/admin/salesReportCore.js'
+import { formatRub, planProgressPercent } from '../lib/admin/salesReportCore.js'
 import { buildPlanMatrixCellDailySeries } from '../lib/admin/salesPlanMatrixCompare.js'
 import { SalesPlanMatrixSegmentSchedulePanel } from './SalesPlanMatrixSegmentSchedulePanel.jsx'
 
@@ -59,6 +59,11 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
   const openSchedule = (cellKey) => {
     setScheduleCellKey((prev) => (prev === cellKey ? null : cellKey))
   }
+
+  const totals = comparison?.totals ?? null
+  const totalsForecastPct = totals ? planProgressPercent(totals.forecastAmount, totals.planAmount) : 0
+  const totalsForecastTone =
+    totals && elapsedPct > 0 ? compareToneClass(totalsForecastPct, 'forecast') : ''
 
   return (
     <div className="sales-report__plan-compare">
@@ -320,24 +325,50 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
               )
             })}
           </tbody>
-          {comparison.totals ? (
+          {totals ? (
             <tfoot>
               <tr className="sales-report__compare-row sales-report__compare-row--total">
-                <th scope="row">Итого сегменты</th>
-                <td />
-                <td className="sales-report__compare-num">{comparison.totals.planCount}</td>
-                <td className="sales-report__compare-num">{comparison.totals.factCount}</td>
-                <td colSpan={2} />
-                <td colSpan={3} />
-                <td className="sales-report__compare-money">{formatRub(comparison.totals.planAmount)}</td>
-                <td className="sales-report__compare-money">{formatRub(comparison.totals.factAmount)}</td>
+                <th scope="row" className="sales-report__compare-total-label">
+                  Итого сегменты
+                </th>
+                <td className="sales-report__compare-total-empty" aria-hidden>
+                  <span className="sales-report__compare-total-dash">—</span>
+                </td>
+                <td className="sales-report__compare-num">{totals.planCount}</td>
+                <td className="sales-report__compare-num sales-report__compare-num--fact">
+                  {totals.factCount}
+                </td>
+                <td className="sales-report__compare-total-empty" aria-hidden>
+                  <span className="sales-report__compare-total-dash">—</span>
+                </td>
+                <td className="sales-report__compare-total-empty" aria-hidden>
+                  <span className="sales-report__compare-total-dash">—</span>
+                </td>
+                <td className="sales-report__compare-total-empty" aria-hidden>
+                  <span className="sales-report__compare-total-dash">—</span>
+                </td>
+                <td className="sales-report__compare-total-empty" aria-hidden>
+                  <span className="sales-report__compare-total-dash">—</span>
+                </td>
+                <td className="sales-report__compare-total-empty" aria-hidden>
+                  <span className="sales-report__compare-total-dash">—</span>
+                </td>
+                <td className="sales-report__compare-money">{formatRub(totals.planAmount)}</td>
+                <td className="sales-report__compare-money">{formatRub(totals.factAmount)}</td>
                 <td className="sales-report__compare-num sales-report__compare-forecast">
-                  {comparison.totals.forecastCount}
+                  {elapsedPct > 0 ? totals.forecastCount : '—'}
                 </td>
                 <td className="sales-report__compare-money sales-report__compare-forecast">
-                  {formatRub(comparison.totals.forecastAmount)}
+                  {elapsedPct > 0 ? formatRub(totals.forecastAmount) : '—'}
                 </td>
-                <td colSpan={2} />
+                <td
+                  className={`sales-report__compare-num sales-report__compare-forecast${totalsForecastTone}`}
+                >
+                  {elapsedPct > 0 && totals.planAmount > 0
+                    ? `${Math.round(totalsForecastPct)}%`
+                    : '—'}
+                </td>
+                <td className="sales-report__compare-schedule-cell sales-report__compare-total-empty" />
               </tr>
             </tfoot>
           ) : null}

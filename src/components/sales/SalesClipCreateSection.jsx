@@ -274,42 +274,44 @@ export function SalesClipCreateSection({
   }
 
   return (
-    <section className="sales-clip-section card" aria-label="Заявки тренеру на абонемент">
+    <section className="sales-clip-section" aria-label="Заявки тренеру на абонемент">
       <div className="sales-clip-section__head">
-        <h2 className="sales-report__section-title">
-          <ClipboardList size={20} aria-hidden /> Заявка тренеру на абон
+        <h2 className="sales-clip-section__title">
+          <span className="sales-clip-section__title-icon" aria-hidden>
+            <ClipboardList size={20} />
+          </span>
+          Заявка тренеру на абон
         </h2>
         {onReportDateChange ? (
           <div className="sales-clip-section__day" role="group" aria-label="Дата заявок">
-            <button type="button" className="btn btn-xs" onClick={() => shiftDay(-1)} aria-label="Вчера">
+            <button type="button" className="btn btn-ghost btn-icon-square sales-clip-section__day-nav" onClick={() => shiftDay(-1)} aria-label="Вчера">
               ←
             </button>
             <input
               type="date"
+              className="sales-clip-section__day-input"
               value={day}
               max={todayLocalIso()}
               onChange={(e) => onReportDateChange(clampIsoDateToToday(e.target.value))}
             />
             <button
               type="button"
-              className="btn btn-xs"
+              className="btn btn-ghost btn-icon-square sales-clip-section__day-nav"
               onClick={() => shiftDay(1)}
               aria-label="Завтра"
               disabled={day >= todayLocalIso()}
             >
               →
             </button>
-            <span className="muted">{formatDateRu(day)}</span>
+            <span className="sales-clip-section__day-label">{formatDateRu(day)}</span>
           </div>
         ) : (
-          <p className="muted" style={{ margin: 0 }}>
-            {formatDateRu(day)}
-          </p>
+          <p className="sales-clip-section__day-label">{formatDateRu(day)}</p>
         )}
       </div>
-      <p className="muted sales-clip-section__tip">
-        После продажи в 1С — вставьте текст клип-карты в окно ниже или заполните поля вручную. Правда = кнопка на
-        планшете «Создать по заявке».
+      <p className="sales-clip-section__tip">
+        После продажи в 1С — вставьте текст клип-карты ниже или заполните поля. На планшете тренер нажмёт «Создать по
+        заявке».
       </p>
 
       {!checklist.closedSoft ? (
@@ -357,77 +359,79 @@ export function SalesClipCreateSection({
             ) : null}
           </SalesVisualAlert>
         ) : null}
-        <label>
-          № карты
-          <input
-            value={form.card_number}
-            onChange={(e) => setField('card_number', e.target.value)}
-            placeholder="Как на клип-карте"
-            autoComplete="off"
-          />
-        </label>
-        <label>
-          Телефон
-          <input
-            value={form.phone}
-            onChange={(e) => setField('phone', e.target.value)}
-            placeholder="Если карты нет"
-            inputMode="tel"
-          />
-        </label>
-        <label>
-          ФИО
-          <input
-            value={form.client_name}
-            onChange={(e) => setField('client_name', e.target.value)}
-            required
-            placeholder="Фамилия Имя"
-            autoComplete="name"
-          />
-        </label>
-        <label>
-          Тренер (планшет)
-          <select
-            value={form.trainer_id}
-            onChange={(e) => setField('trainer_id', e.target.value)}
-            required
-          >
-            <option value="">Выберите…</option>
-            {realTrainers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name || t.id}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Тип абона
-          <select value={form.membership_type_id} onChange={(e) => onTypeChange(e.target.value)}>
-            <option value="">—</option>
-            {(membershipTypes ?? []).map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.code || t.name || t.id}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Тренировок
-          <input
-            type="number"
-            min={0}
-            value={form.total_trainings}
-            onChange={(e) => setField('total_trainings', e.target.value)}
-          />
-        </label>
-        <label>
-          Начало
-          <input type="date" value={form.start_date} onChange={(e) => setField('start_date', e.target.value)} />
-        </label>
-        <label>
-          Окончание
-          <input type="date" value={form.end_date} onChange={(e) => setField('end_date', e.target.value)} />
-        </label>
+        <div className="sales-clip-form__fields">
+          <label>
+            № карты
+            <input
+              value={form.card_number}
+              onChange={(e) => setField('card_number', e.target.value)}
+              placeholder="Как на клип-карте"
+              autoComplete="off"
+            />
+          </label>
+          <label>
+            Телефон
+            <input
+              value={form.phone}
+              onChange={(e) => setField('phone', e.target.value)}
+              placeholder="Если карты нет"
+              inputMode="tel"
+            />
+          </label>
+          <label className="sales-clip-form__field--wide">
+            ФИО
+            <input
+              value={form.client_name}
+              onChange={(e) => setField('client_name', e.target.value)}
+              required
+              placeholder="Фамилия Имя"
+              autoComplete="name"
+            />
+          </label>
+          <label className="sales-clip-form__field--wide">
+            Тренер (планшет)
+            <select
+              value={form.trainer_id}
+              onChange={(e) => setField('trainer_id', e.target.value)}
+              required
+            >
+              <option value="">Выберите…</option>
+              {realTrainers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name || t.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Тип абона
+            <select value={form.membership_type_id} onChange={(e) => onTypeChange(e.target.value)}>
+              <option value="">—</option>
+              {(membershipTypes ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.code || t.name || t.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Тренировок
+            <input
+              type="number"
+              min={0}
+              value={form.total_trainings}
+              onChange={(e) => setField('total_trainings', e.target.value)}
+            />
+          </label>
+          <label>
+            Начало
+            <input type="date" value={form.start_date} onChange={(e) => setField('start_date', e.target.value)} />
+          </label>
+          <label>
+            Окончание
+            <input type="date" value={form.end_date} onChange={(e) => setField('end_date', e.target.value)} />
+          </label>
+        </div>
         <label className="sales-clip-form__note">
           Заметка
           <input value={form.note} onChange={(e) => setField('note', e.target.value)} placeholder="Необязательно" />
@@ -455,24 +459,24 @@ export function SalesClipCreateSection({
           </SalesVisualAlert>
         ) : null}
         <div className="sales-clip-form__actions">
-          <button type="submit" className="btn btn-primary" disabled={busy || !clubId}>
-            <Plus size={16} aria-hidden /> Отправить заявку → планшет
+          <button type="submit" className="btn btn-primary sales-clip-form__submit" disabled={busy || !clubId}>
+            <Plus size={18} aria-hidden /> Отправить заявку → планшет
           </button>
           <button
             type="button"
-            className={`btn ${okMsg ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn ${okMsg ? 'btn-secondary' : 'btn-ghost'} sales-clip-form__clear`}
             disabled={busy || !formHasClientData}
             onClick={clearForNextClip}
             title="Очистить поля клиента. Дата дня и тренер останутся"
           >
-            <Eraser size={16} aria-hidden /> {okMsg ? 'Ещё один клип' : 'Очистить'}
+            <Eraser size={18} aria-hidden /> {okMsg ? 'Ещё один клип' : 'Очистить'}
           </button>
         </div>
       </form>
 
-      <h3 className="sales-report__section-title">Заявки на {formatDateRu(day)}</h3>
+      <h3 className="sales-clip-section__list-title">Заявки на {formatDateRu(day)}</h3>
       {!clips.length ? (
-        <p className="muted">Пока пусто — создайте после продажи (НК, ДК или УК).</p>
+        <p className="sales-clip-section__empty">Пока пусто — создайте после продажи (НК, ДК или УК).</p>
       ) : (
         <ul className="sales-clip-list">
           {clips.map((c) => (
