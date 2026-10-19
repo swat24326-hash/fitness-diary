@@ -18,7 +18,7 @@ const VALID = new Set(NUTRITION_PROTEIN_ACCENT_OPTIONS.map((o) => o.id))
 /** Предпочтительные id продуктов для акцента (builtin + совпадение по label через pool). */
 const ACCENT_PRODUCT_KEYS = {
   chicken: ['chicken_breast'],
-  turkey: ['turkey_breast'],
+  turkey: ['turkey_breast', 'minced_turkey'],
   beef: ['beef_lean'],
   fish: ['fish_white', 'pollock', 'salmon', 'tuna_canned'],
   dairy: [

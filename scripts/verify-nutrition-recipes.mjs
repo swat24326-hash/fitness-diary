@@ -62,6 +62,56 @@ ok(
 const toast = NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'egg_bread_toast')
 ok(/цельнозернов|ломтик|жир/i.test(toast?.steps?.join(' ') ?? ''), 'french toast: bread + fat warning')
 
+const appleNuts = NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'apple_nuts_snack')
+ok(
+  appleNuts?.parts?.some((p) => p.productKey === 'cottage_cheese_5'),
+  'apple+nuts snack has cottage protein',
+)
+const kefirBanana = NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'kefir_banana_snack')
+ok(
+  kefirBanana?.parts?.some((p) => p.productKey === 'cottage_cheese_5'),
+  'kefir+banana snack has cottage protein',
+)
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'turkey_meatballs_rice'), 'turkey meatballs lunch')
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'tuna_pasta_salad'), 'tuna pasta lunch')
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'lentil_chicken_stew'), 'lentil chicken stew')
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'chickpea_tuna_bowl'), 'chickpea tuna bowl')
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'millet_egg_veg'), 'dairy-free millet breakfast')
+ok(NUTRITION_RECIPE_CATALOG.some((r) => r.id === 'tuna_toast_egg'), 'dairy-free tuna toast breakfast')
+const dairyKeys = new Set([
+  'cottage_cheese_5',
+  'cottage_cheese_0',
+  'yogurt',
+  'yogurt_greek',
+  'kefir',
+  'cheese_light',
+  'whey_protein',
+  'protein_drink_hp',
+  'butter',
+])
+for (const id of ['millet_egg_veg', 'tuna_toast_egg']) {
+  const r = NUTRITION_RECIPE_CATALOG.find((x) => x.id === id)
+  const dairyHit = (r?.parts ?? []).some((p) => dairyKeys.has(p.productKey))
+  ok(!dairyHit, `${id} has no dairy parts`)
+}
+const endings = NUTRITION_RECIPE_CATALOG.map((r) => {
+  const last = r.steps?.[r.steps.length - 1] ?? ''
+  const m = last.match(/(Приятного аппетита\.|Готово — можно есть\.|На тарелку и к столу\.|Всё, можно есть\.|Приятного\.|Сытно и просто\.)\s*$/)
+  return m?.[1] ?? ''
+}).filter(Boolean)
+const uniqueEndings = new Set(endings)
+ok(uniqueEndings.size >= 4, `recipe endings vary (got ${uniqueEndings.size})`)
+ok(
+  !NUTRITION_RECIPE_CATALOG.some((r) => /80 ккал|очень калорийные|не полбуханки/i.test(r.steps?.join(' ') ?? '')),
+  'no nanny kcal lectures in steps',
+)
+ok(
+  /прогрейте до горячего пара/i.test(
+    NUTRITION_RECIPE_CATALOG.find((r) => r.id === 'rice_egg_veg')?.steps?.join(' ') ?? '',
+  ),
+  'rice leftover safety note',
+)
+
 const fullPools = {
   protein: [
     'chicken_breast',
@@ -72,9 +122,25 @@ const fullPools = {
     'kefir',
     'fish_white',
     'turkey_breast',
+    'minced_turkey',
+    'tuna_canned',
   ],
   fat: ['sunflower_oil', 'butter', 'nuts_walnut', 'olive_oil'],
-  carbs: ['buckwheat', 'rice', 'potato', 'pasta', 'oats', 'bread_whole', 'vegetables', 'apple', 'banana', 'berries'],
+  carbs: [
+    'buckwheat',
+    'rice',
+    'potato',
+    'pasta',
+    'oats',
+    'bread_whole',
+    'vegetables',
+    'apple',
+    'banana',
+    'berries',
+    'millet',
+    'lentils',
+    'chickpeas',
+  ],
 }
 
 ok(resolveRecipeProductKey('chicken_breast', fullPools, catalogMap) === 'chicken_breast', 'resolve builtin id')
