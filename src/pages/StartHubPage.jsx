@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { Smartphone, X } from 'lucide-react'
 import { AppWelcomeSplash } from '../components/AppWelcomeSplash'
@@ -39,10 +40,13 @@ export function StartHubPage() {
     const onKey = (e) => {
       if (e.key === 'Escape') setPanelOpen(false)
     }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey)
     return () => {
       window.clearTimeout(t)
       window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
     }
   }, [panelOpen])
 
@@ -75,6 +79,90 @@ export function StartHubPage() {
     })
     if (err) setError(err.message ?? 'Ошибка входа')
   }
+
+  const closePanel = () => setPanelOpen(false)
+
+  const staffPanel =
+    typeof document !== 'undefined'
+      ? createPortal(
+          <div className={`start-hub-sheet${panelOpen ? ' is-open' : ''}`} aria-hidden={!panelOpen}>
+            <button
+              type="button"
+              className="start-hub-sheet__scrim"
+              tabIndex={panelOpen ? 0 : -1}
+              aria-label="Закрыть вход"
+              onClick={closePanel}
+            />
+            <div
+              className="start-hub-sheet__panel"
+              id={panelId}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Вход сотрудника"
+            >
+              <h2 className="start-hub-sheet__title">Вход сотрудника</h2>
+              <p className="start-hub-sheet__hint">Логин и пароль. Роль откроется сама.</p>
+              {setupMessage ? (
+                <p className="start-hub-sheet__warn" role="alert">
+                  {setupMessage}
+                </p>
+              ) : null}
+              <form onSubmit={onSubmit}>
+                <div className="start-hub-sheet__field">
+                  <label htmlFor="start-hub-login">Логин</label>
+                  <input
+                    ref={loginRef}
+                    id="start-hub-login"
+                    name="login"
+                    type="text"
+                    autoComplete="username"
+                    value={login}
+                    onChange={(e) => setLogin(e.target.value)}
+                    required
+                    minLength={1}
+                  />
+                </div>
+                <div className="start-hub-sheet__field">
+                  <label htmlFor="start-hub-password">Пароль</label>
+                  <input
+                    id="start-hub-password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                {error ? (
+                  <p className="start-hub-sheet__error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+                <div className="start-hub-sheet__actions">
+                  <button type="submit" className="start-hub-sheet__btn-go btn-touch" disabled={loading || signingIn}>
+                    {signingIn || loading ? '…' : 'Войти'}
+                  </button>
+                  <button
+                    type="button"
+                    className="start-hub-sheet__btn-close btn-touch"
+                    aria-label="Закрыть"
+                    onClick={closePanel}
+                  >
+                    <X size={18} aria-hidden />
+                  </button>
+                </div>
+              </form>
+              {hasPrompt ? (
+                <button type="button" className="start-hub-sheet__install" onClick={() => void install()}>
+                  Установить приложение
+                </button>
+              ) : null}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
 
   return (
     <section className="start-hub" aria-label={`Стартовый вход ${PRODUCT_BRAND_NAME}`}>
@@ -116,73 +204,6 @@ export function StartHubPage() {
             <Smartphone size={18} aria-hidden />
             Клиент
           </Link>
-
-          <div
-            className={`start-hub__panel${panelOpen ? ' is-open' : ''}`}
-            id={panelId}
-            role="dialog"
-            aria-label="Вход сотрудника"
-            aria-hidden={!panelOpen}
-          >
-            <h2 className="start-hub__panel-title">Вход сотрудника</h2>
-            <p className="start-hub__panel-hint">Логин и пароль. Роль откроется сама.</p>
-            {setupMessage ? (
-              <p className="start-hub__warn" role="alert">
-                {setupMessage}
-              </p>
-            ) : null}
-            <form onSubmit={onSubmit}>
-              <div className="start-hub__field">
-                <label htmlFor="start-hub-login">Логин</label>
-                <input
-                  ref={loginRef}
-                  id="start-hub-login"
-                  name="login"
-                  type="text"
-                  autoComplete="username"
-                  value={login}
-                  onChange={(e) => setLogin(e.target.value)}
-                  required
-                  minLength={1}
-                />
-              </div>
-              <div className="start-hub__field">
-                <label htmlFor="start-hub-password">Пароль</label>
-                <input
-                  id="start-hub-password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              {error ? (
-                <p className="start-hub__error" role="alert">
-                  {error}
-                </p>
-              ) : null}
-              <div className="start-hub__panel-actions">
-                <button type="submit" className="start-hub__btn-go btn-touch" disabled={loading || signingIn}>
-                  {signingIn || loading ? '…' : 'Войти'}
-                </button>
-                <button
-                  type="button"
-                  className="start-hub__btn-close btn-touch"
-                  aria-label="Закрыть"
-                  onClick={() => setPanelOpen(false)}
-                >
-                  <X size={18} aria-hidden />
-                </button>
-              </div>
-            </form>
-            {hasPrompt ? (
-              <button type="button" className="start-hub__install" onClick={() => void install()}>
-                Установить приложение
-              </button>
-            ) : null}
-          </div>
         </nav>
         <div className="start-hub__spacer" aria-hidden="true" />
       </header>
@@ -197,6 +218,8 @@ export function StartHubPage() {
       <div className="start-hub__legal">
         <LegalEntryLinks />
       </div>
+
+      {staffPanel}
     </section>
   )
 }

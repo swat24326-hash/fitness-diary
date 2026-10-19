@@ -6,14 +6,13 @@
   --sh-mute: #a8b2ac;
   --sh-accent: #14d89a;
   --sh-accent-bright: #2effb8;
-  --sh-glass: rgba(6, 18, 14, 0.78);
+  --sh-glass: rgba(6, 18, 14, 0.92);
   --sh-border: rgba(46, 255, 184, 0.14);
 
   position: relative;
   min-height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  overflow: hidden;
   color: var(--sh-ink);
   background: var(--sh-bg);
   font-family: var(--font);
@@ -22,6 +21,7 @@
 .start-hub__photo {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   background: var(--sh-bg) url('/start/hero.jpg') 64% 38% / cover no-repeat;
 }
 
@@ -125,155 +125,6 @@
   height: 1px;
 }
 
-.start-hub__panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  z-index: 6;
-  width: min(320px, calc(100vw - 40px));
-  padding: 20px 18px 16px;
-  border-radius: 16px;
-  border: 1px solid var(--sh-border);
-  background: var(--sh-glass);
-  backdrop-filter: blur(20px) saturate(165%);
-  -webkit-backdrop-filter: blur(20px) saturate(165%);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateY(-6px);
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease,
-    visibility 0.18s;
-}
-
-.start-hub__panel.is-open {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-
-.start-hub__panel-title {
-  margin: 0 0 6px;
-  font-size: 20px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-
-.start-hub__panel-hint {
-  margin: 0 0 16px;
-  color: var(--sh-mute);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.start-hub__field {
-  margin-bottom: 12px;
-}
-
-.start-hub__field label {
-  display: block;
-  font-size: 12px;
-  color: var(--sh-mute);
-  margin-bottom: 6px;
-}
-
-.start-hub__field input {
-  width: 100%;
-  min-height: 48px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--sh-ink);
-  padding: 0 14px;
-  font: inherit;
-  font-size: 15px;
-  outline: none;
-}
-
-.start-hub__field input:focus {
-  border-color: rgba(46, 255, 184, 0.4);
-  box-shadow: 0 0 0 3px rgba(46, 255, 184, 0.12);
-}
-
-.start-hub__error,
-.start-hub__warn {
-  margin: 0 0 12px;
-  font-size: 13px;
-  line-height: 1.35;
-  color: #ff8f8f;
-}
-
-.start-hub__warn {
-  color: #f0c674;
-}
-
-.start-hub__panel-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.start-hub__btn-go {
-  flex: 1;
-  min-height: 48px;
-  border: none;
-  border-radius: 12px;
-  background: var(--sh-accent);
-  color: #03140f;
-  font: inherit;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.start-hub__btn-go:hover:not(:disabled) {
-  background: var(--sh-accent-bright);
-}
-
-.start-hub__btn-go:disabled {
-  opacity: 0.7;
-  cursor: wait;
-}
-
-.start-hub__btn-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  min-width: 48px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: transparent;
-  color: var(--sh-mute);
-  cursor: pointer;
-}
-
-.start-hub__btn-close:hover {
-  color: var(--sh-ink);
-  border-color: rgba(255, 255, 255, 0.28);
-}
-
-.start-hub__install {
-  display: block;
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px;
-  border: none;
-  background: transparent;
-  color: var(--sh-mute);
-  font: inherit;
-  font-size: 13px;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.start-hub__install:hover {
-  color: var(--sh-accent-bright);
-}
-
 .start-hub__hero {
   align-self: end;
   padding: 0 clamp(28px, 5vw, 56px) clamp(40px, 8vh, 72px);
@@ -323,6 +174,198 @@
   color: var(--sh-accent-bright);
 }
 
+/* Панель входа — portal в body (не внутри roles с backdrop-filter) */
+
+.start-hub-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.18s ease,
+    visibility 0.18s;
+}
+
+.start-hub-sheet.is-open {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+}
+
+.start-hub-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+
+.start-hub-sheet__panel {
+  position: relative;
+  z-index: 1;
+  width: min(400px, 100%);
+  max-height: min(85dvh, 560px);
+  overflow: auto;
+  padding: 20px 18px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--sh-border, rgba(46, 255, 184, 0.14));
+  background: var(--sh-glass, rgba(6, 18, 14, 0.92));
+  color: var(--sh-ink, #f6f4ef);
+  backdrop-filter: blur(20px) saturate(165%);
+  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  transform: translateY(12px);
+  transition: transform 0.18s ease;
+  font-family: var(--font, inherit);
+}
+
+.start-hub-sheet.is-open .start-hub-sheet__panel {
+  transform: translateY(0);
+}
+
+.start-hub-sheet__title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.start-hub-sheet__hint {
+  margin: 0 0 16px;
+  color: var(--sh-mute, #a8b2ac);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.start-hub-sheet__field {
+  margin-bottom: 12px;
+}
+
+.start-hub-sheet__field label {
+  display: block;
+  font-size: 12px;
+  color: var(--sh-mute, #a8b2ac);
+  margin-bottom: 6px;
+}
+
+.start-hub-sheet__field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.start-hub-sheet__field input:focus {
+  border-color: rgba(46, 255, 184, 0.4);
+  box-shadow: 0 0 0 3px rgba(46, 255, 184, 0.12);
+}
+
+.start-hub-sheet__error,
+.start-hub-sheet__warn {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #ff8f8f;
+}
+
+.start-hub-sheet__warn {
+  color: #f0c674;
+}
+
+.start-hub-sheet__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.start-hub-sheet__btn-go {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: var(--sh-accent, #14d89a);
+  color: #03140f;
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.start-hub-sheet__btn-go:hover:not(:disabled) {
+  background: var(--sh-accent-bright, #2effb8);
+}
+
+.start-hub-sheet__btn-go:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.start-hub-sheet__btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: var(--sh-mute, #a8b2ac);
+  cursor: pointer;
+}
+
+.start-hub-sheet__btn-close:hover {
+  color: var(--sh-ink, #f6f4ef);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.start-hub-sheet__install {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--sh-mute, #a8b2ac);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.start-hub-sheet__install:hover {
+  color: var(--sh-accent-bright, #2effb8);
+}
+
+@media (min-width: 721px) {
+  .start-hub-sheet {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .start-hub-sheet__panel {
+    width: min(360px, 100%);
+    transform: translateY(-8px);
+  }
+
+  .start-hub-sheet.is-open .start-hub-sheet__panel {
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 1180px) and (min-width: 721px) {
   .start-hub__photo {
     background-position: 72% 40%;
@@ -370,26 +413,11 @@
   .start-hub__legal {
     padding: 0 16px 16px;
   }
-
-  .start-hub__panel {
-    position: fixed;
-    top: auto;
-    left: 16px;
-    right: 16px;
-    bottom: 16px;
-    width: auto;
-    max-height: min(70dvh, 440px);
-    overflow: auto;
-    transform: none;
-  }
-
-  .start-hub__panel.is-open {
-    transform: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .start-hub__panel {
+  .start-hub-sheet,
+  .start-hub-sheet__panel {
     transition: none;
   }
 }
