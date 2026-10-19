@@ -1,6 +1,16 @@
 # PWA — установка и обновление на планшете
 
-**Актуально:** 2026-10-17 (splash: прозрачный `purpose: any` + чёрный `background_color`, maskable на домашний экран; boot-зум в `index.html` до React). Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+**Актуально:** 2026-10-20 (стартовый хаб `/` для гостя; splash: прозрачный `purpose: any` + чёрный `background_color`, maskable на домашний экран; boot-зум в `index.html` до React). Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+
+### Стартовый вход и манифесты
+
+| Поверхность | `start_url` / маршрут | Кто |
+|-------------|----------------------|-----|
+| Зал / сотрудник (основной PWA) | `manifest.json` → `/` | `StartHubPage`: Сотрудник (логин на месте), ссылки Тренер→`/coach`, Клиент→`/me`. Запасной прямой вход — `/login`. |
+| Клиент | `manifest-client.json` → `/me` | Не ставить клиентский ярлык на `/` — свой scope. |
+| Тренер на телефоне | `manifest-coach.json` → `/coach` | То же: свой scope, не смешивать с хабом. |
+
+Цепочка splash: `#yadro-boot-splash` → хаб или роль → после входа сотрудника `AppWelcomeSplash` (как раньше). Обновление PWA на `/` и `/login` — `immediate` (`appUpdatePolicy.js`).
 
 ---
 

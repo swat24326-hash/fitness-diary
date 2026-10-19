@@ -68,7 +68,7 @@ export function PwaUpdatePrompt() {
   const updateDecision = decideAppUpdate({
     pathname: location.pathname,
     syncQueueCount,
-    isLoginScreen: location.pathname === '/login',
+    isLoginScreen: location.pathname === '/login' || location.pathname === '/',
   })
 
   const showPrompt = needRefresh || buildStale

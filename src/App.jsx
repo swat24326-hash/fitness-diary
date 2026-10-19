@@ -42,6 +42,8 @@ import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
 import { IskraPanelProvider } from './context/IskraPanelContext'
 import { HeartRateSessionsProvider } from './context/HeartRateSessionsContext'
 import { Login } from './pages/Login'
+import { StartHubPage } from './pages/StartHubPage'
+import { roleHomePath } from './lib/roleHomePathCore.js'
 import { SupervisorOfferGate } from './components/legal/SupervisorOfferGate.jsx'
 import { ClientCard } from './pages/trainer/ClientCard'
 import { TrainerHome } from './pages/trainer/TrainerHome'
@@ -234,7 +236,7 @@ function LoggedInLayout() {
     return <AppWelcomeSplash displayName={displayName} />
   }
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/" replace />
   }
 
   const isSalesManager = role === 'sales_manager'
@@ -266,24 +268,12 @@ function LoggedInLayout() {
   )
 }
 
-function roleHomePath(role) {
-  if (role === 'admin') return '/admin'
-  if (role === 'sales_manager') return '/sales'
-  if (role === 'supervisor') return '/club'
-  return '/trainer'
-}
-
 function RoleOutlet({ roles }) {
   const { role } = useAuth()
   if (!roles.includes(role)) {
     return <Navigate to={roleHomePath(role)} replace />
   }
   return <Outlet />
-}
-
-function HomeRedirect() {
-  const { role } = useAuth()
-  return <Navigate to={roleHomePath(role)} replace />
 }
 
 function AdminDiariesRedirect() {
@@ -357,6 +347,7 @@ export default function App() {
         <PushOpenNavigator />
         <ChatVoiceMiniPlayer />
         <Routes>
+          <Route path="/" element={<StartHubPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/chat-rules" element={<ChatRulesPage />} />
@@ -364,7 +355,6 @@ export default function App() {
           <Route path="/me/*" element={<ClientAppRoutes />} />
           <Route path="/coach/*" element={<CoachAppRoutes />} />
           <Route element={<LoggedInLayout />}>
-            <Route path="/" element={<HomeRedirect />} />
             <Route element={<RoleOutlet roles={['trainer']} />}>
               <Route path="/trainer" element={<TrainerHome />} />
               <Route path="/trainer/notifications" element={<TrainerNotificationsPage />} />

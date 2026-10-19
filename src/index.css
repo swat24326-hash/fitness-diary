@@ -70,6 +70,7 @@
 @import './styles/nutrition-recipes.css';
 @import './styles/admin-nutrition-recipes.css';
 @import './styles/app-welcome.css';
+@import './styles/start-hub.css';
 
 *,
 *::before,

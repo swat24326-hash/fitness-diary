@@ -43,6 +43,7 @@ ok(sections.every((s) => s.title && s.body.length > 40), 'разделы не п
 console.log('wiring')
 ok(/path="\/privacy"/.test(src('src/App.jsx')) && /PrivacyPolicyPage/.test(src('src/App.jsx')), 'маршрут в App')
 ok(/LegalEntryLinks/.test(src('src/pages/Login.jsx')), 'ссылки на /login')
+ok(/LegalEntryLinks/.test(src('src/pages/StartHubPage.jsx')), 'ссылки на стартовом хабе /')
 ok(/LegalEntryLinks/.test(src('src/pages/coach/CoachSignInPage.jsx')), 'ссылки на входе /coach')
 ok(/LegalEntryLinks/.test(src('src/pages/client/ClientSignInPanel.jsx')), 'ссылки на входе /me')
 ok(/LegalEntryLinks/.test(src('src/pages/client/ClientSettingsSection.jsx')), 'ссылки в профиле клиента')

@@ -73,7 +73,7 @@ export function hasAnySalesDraftInStorage() {
  */
 export function decideAppUpdate(ctx = {}) {
   const pathname = String(ctx.pathname ?? '')
-  if (ctx.isLoginScreen || pathname === '/login') return 'immediate'
+  if (ctx.isLoginScreen || pathname === '/login' || pathname === '/') return 'immediate'
   if (isOnTrainingPage(pathname)) return 'defer'
   // Явный флаг из тестов / UI; иначе — открытый экран или свежий durable.
   if (ctx.hasTrainingDraft === true) return 'defer'

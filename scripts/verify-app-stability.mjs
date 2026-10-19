@@ -88,6 +88,7 @@ ok(isOnTrainingPage('/club/workouts/xyz'), 'club training path detected')
 ok(!isOnTrainingPage('/sales'), 'sales path is not training')
 
 ok(decideAppUpdate({ pathname: '/login' }) === 'immediate', 'login → immediate update')
+ok(decideAppUpdate({ pathname: '/' }) === 'immediate', 'start hub → immediate update')
 ok(decideAppUpdate({ pathname: '/trainer/workouts/x' }) === 'defer', 'training → defer')
 ok(
   decideAppUpdate({ pathname: '/trainer', hasTrainingDraft: true }) === 'defer',

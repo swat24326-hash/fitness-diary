@@ -139,7 +139,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | supervisor | `/club`, `/club/clients`, `/club/call-log`, `/club/trainer-schedule`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
 | trainer на телефоне | `/coach`, `/coach/chats`, `/coach/chat/:clientId`, `/coach/more` — без `AuthContext`, свой вход с разрешения админа (`src/lib/coach/`), API `/api/coach-auth` и `/api/coach`, только онлайн, без IndexedDB и sync. [COACH_APP.md](./COACH_APP.md) |
 | клиент клуба (не `users`, без `AuthContext`) | `/me`, `/me/join#t=…` — приложение клиента, только просмотр; вход по приглашению из карточки, своя сессия в `localStorage` (`src/lib/client/`), API `/api/client-*`, без IndexedDB и sync. [CLIENT_APP.md](./CLIENT_APP.md) |
-| все (без входа) | `/privacy` — политика конфиденциальности Ядра (A2); ссылки на `/login`, `/me`, `/coach`. [PD_152FZ.md](./PD_152FZ.md) |
+| все (без входа) | `/` — стартовый хаб ролей (`StartHubPage`: сотрудник → glass-логин; тренер → `/coach`; клиент → `/me`); запасной `/login`; `/privacy` — политика (A2). [PD_152FZ.md](./PD_152FZ.md), [PWA.md](./PWA.md) |
 | admin | `/admin/*` (clients, **deletion-log**, **call-log**, **trainer-schedule**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 **Multi-hall (фаза 1):** один `client` — абоны ПЗ/ТЗ/АЗ (`memberships.hall`); вкладки списков и карточки; статистика `hall=`. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md).

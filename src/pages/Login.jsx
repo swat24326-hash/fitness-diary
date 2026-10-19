@@ -9,6 +9,7 @@ import { isPwaUpdateInFlight } from '../lib/appUpdateInFlightSession.js'
 import { normalizeLoginInput, normalizePasswordInput } from '../lib/authLoginResolveCore'
 import { getSupabaseSetupMessage } from '../lib/supabase'
 import { LegalEntryLinks } from '../components/legal/LegalEntryLinks.jsx'
+import { roleHomePath } from '../lib/roleHomePathCore.js'
 
 export function Login() {
   const { user, role, signIn, loading, signingIn } = useAuth()
@@ -37,15 +38,9 @@ export function Login() {
 
   if (user && role) {
     const dest =
-      from && from !== '/login'
+      from && from !== '/login' && from !== '/'
         ? from
-        : role === 'admin'
-          ? '/admin'
-          : role === 'sales_manager'
-            ? '/sales'
-            : role === 'supervisor'
-              ? '/club'
-              : '/trainer'
+        : roleHomePath(role)
     return <Navigate to={dest} replace />
   }
 

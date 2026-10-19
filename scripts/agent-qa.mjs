@@ -35,6 +35,7 @@ function check(cond, label) {
 
 run('build', 'npm', ['run', 'build'])
 run('product brand', 'node', ['scripts/verify-product-brand.mjs'])
+run('role home path', 'node', ['scripts/verify-role-home-path.mjs'])
 run('welcome splash greeting', 'node', ['scripts/verify-welcome-splash-greeting.mjs'])
 run('exercise formats', 'node', ['scripts/verify-exercise-format.mjs'])
 run('exercise catalog save', 'node', ['scripts/verify-exercise-catalog-save.mjs'])
