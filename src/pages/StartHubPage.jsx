@@ -26,8 +26,11 @@ export function StartHubPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
+  const [appsOpen, setAppsOpen] = useState(false)
   const loginRef = useRef(null)
+  const appsRef = useRef(null)
   const panelId = useId()
+  const appsMenuId = useId()
   const { hasPrompt, install } = useInstallPrompt()
   const setupMessage = getSupabaseSetupMessage()
   const updateInFlight = isPwaUpdateInFlight() && (loading || !user)
@@ -49,6 +52,22 @@ export function StartHubPage() {
       document.body.style.overflow = prevOverflow
     }
   }, [panelOpen])
+
+  useEffect(() => {
+    if (!appsOpen) return undefined
+    const onKey = (e) => {
+      if (e.key === 'Escape') setAppsOpen(false)
+    }
+    const onPointer = (e) => {
+      if (!appsRef.current?.contains(e.target)) setAppsOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onPointer)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onPointer)
+    }
+  }, [appsOpen])
 
   if (showWelcomeSplash) {
     const hint = login.trim()
@@ -81,6 +100,10 @@ export function StartHubPage() {
   }
 
   const closePanel = () => setPanelOpen(false)
+  const openStaff = () => {
+    setAppsOpen(false)
+    setPanelOpen((v) => !v)
+  }
 
   const staffPanel =
     typeof document !== 'undefined'
@@ -181,29 +204,47 @@ export function StartHubPage() {
             aria-expanded={panelOpen}
             aria-controls={panelId}
             title="Логин и пароль"
-            onClick={() => setPanelOpen((v) => !v)}
+            onClick={openStaff}
           >
             Сотрудник
           </button>
           <span className="start-hub__sep" aria-hidden="true" />
-          <Link
-            to="/coach"
-            className="start-hub__role"
-            title="Тренер · вход с телефона"
-            aria-label="Тренер · вход с телефона"
-          >
-            <Smartphone size={18} aria-hidden />
-            Тренер
-          </Link>
-          <Link
-            to="/me"
-            className="start-hub__role"
-            title="Клиент · вход с телефона"
-            aria-label="Клиент · вход с телефона"
-          >
-            <Smartphone size={18} aria-hidden />
-            Клиент
-          </Link>
+          <div className="start-hub__apps" ref={appsRef}>
+            <button
+              type="button"
+              className="start-hub__role start-hub__apps-btn"
+              aria-expanded={appsOpen}
+              aria-controls={appsMenuId}
+              aria-haspopup="menu"
+              title="Вход с телефона"
+              aria-label="Вход с телефона"
+              onClick={() => setAppsOpen((v) => !v)}
+            >
+              <Smartphone size={18} aria-hidden />
+            </button>
+            {appsOpen ? (
+              <div className="start-hub__apps-menu" id={appsMenuId} role="menu">
+                <Link
+                  to="/coach"
+                  role="menuitem"
+                  className="start-hub__role start-hub__apps-link"
+                  title="Тренер · вход с телефона"
+                  onClick={() => setAppsOpen(false)}
+                >
+                  Тренер
+                </Link>
+                <Link
+                  to="/me"
+                  role="menuitem"
+                  className="start-hub__role start-hub__apps-link"
+                  title="Клиент · вход с телефона"
+                  onClick={() => setAppsOpen(false)}
+                >
+                  Клиент
+                </Link>
+              </div>
+            ) : null}
+          </div>
         </nav>
         <div className="start-hub__spacer" aria-hidden="true" />
       </header>

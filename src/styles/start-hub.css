@@ -119,6 +119,38 @@
   margin: 0 2px;
 }
 
+.start-hub__apps {
+  position: relative;
+}
+
+.start-hub__apps-btn {
+  width: 44px;
+  padding-inline: 0;
+}
+
+.start-hub__apps-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  min-width: 10.5rem;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 14px;
+  background: rgba(3, 8, 6, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+.start-hub__apps-link {
+  justify-content: flex-start;
+  width: 100%;
+}
+
 .start-hub__spacer {
   justify-self: end;
   width: 1px;
@@ -395,6 +427,14 @@
 
   .start-hub__role {
     flex: 1;
+  }
+
+  .start-hub__apps {
+    flex: 0 0 auto;
+  }
+
+  .start-hub__apps-btn {
+    flex: 0 0 auto;
   }
 
   .start-hub__sep {
