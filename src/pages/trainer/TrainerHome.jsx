@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords, CalendarDays, WifiOff } from 'lucide-react'
+import { TrainerHomeDumbbell } from '../../components/trainer/TrainerHomeDumbbell.jsx'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { TrainerHomeTodayStrip } from '../../components/trainer/TrainerHomeTodayStrip.jsx'
 import { TrainerTaskGlanceWidget } from '../../components/iskra/TrainerTaskGlanceWidget.jsx'
@@ -355,7 +356,7 @@ export function TrainerHome() {
         <div className="trainer-home__hero-visual" aria-hidden>
           <div className="trainer-home__hero-glow" />
           <div className="trainer-home__hero-float">
-            <i className="fas fa-dumbbell trainer-home__hero-dumbbell-fa" aria-hidden />
+            <TrainerHomeDumbbell className="trainer-home__hero-dumbbell-fa" />
           </div>
         </div>
       </section>
