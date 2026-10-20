@@ -216,11 +216,11 @@ export function StartHubPage() {
               aria-expanded={appsOpen}
               aria-controls={appsMenuId}
               aria-haspopup="menu"
-              title="Вход с телефона"
-              aria-label="Вход с телефона"
+              title="Тренер и клиент"
               onClick={() => setAppsOpen((v) => !v)}
             >
               <Smartphone size={18} aria-hidden />
+              Мобильное приложение
             </button>
             {appsOpen ? (
               <div className="start-hub__apps-menu" id={appsMenuId} role="menu">
