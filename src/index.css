@@ -2946,7 +2946,7 @@ tr:last-child td {
 /* Гантель на главной — крупный силуэт рядом с «Дневник» */
 .trainer-home__hero-dumbbell-fa {
   display: block;
-  font-size: clamp(140px, 32vw, 360px);
+  font-size: clamp(96px, 20vw, 220px);
   line-height: 1;
   color: var(--accent);
   transition:
@@ -3095,7 +3095,7 @@ tr:last-child td {
   }
 
   .trainer-home__hero-dumbbell-fa {
-    font-size: clamp(120px, 20vw, 240px);
+    font-size: clamp(80px, 12vw, 140px);
   }
 
   .trainer-home .trainer-task-glance,
@@ -3271,7 +3271,7 @@ tr:last-child td {
   }
 
   .trainer-home__hero-dumbbell-fa {
-    font-size: clamp(110px, 24vw, 180px);
+    font-size: clamp(72px, 16vw, 120px);
   }
 
   .trainer-home__hero-glow {
@@ -3323,7 +3323,7 @@ tr:last-child td {
   }
 
   .trainer-home__hero-dumbbell-fa {
-    font-size: clamp(100px, 22vw, 160px);
+    font-size: clamp(64px, 14vw, 110px);
   }
 
   .trainer-home .feature-tile {
@@ -3354,7 +3354,7 @@ tr:last-child td {
 
   .trainer-home--board > .trainer-home__hero {
     flex: 0 0 auto;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.65fr);
     gap: clamp(6px, 1vw, 12px);
     padding: clamp(8px, 1.2vh, 14px) clamp(12px, 2vw, 18px);
   }
@@ -3389,7 +3389,7 @@ tr:last-child td {
   }
 
   .trainer-home--board .trainer-home__hero-dumbbell-fa {
-    font-size: clamp(150px, 28vh, 340px);
+    font-size: clamp(88px, 14vh, 180px);
   }
 
   .trainer-home--board > .trainer-sync-banner,
