@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Главная тренера — гантель</title>
+  <style>
+    :root {
+      --accent: #2ee59d;
+      --bg: #0a100e;
+      --text: #e8fff4;
+      --muted: rgba(232, 255, 244, 0.55);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(90% 55% at 78% 28%, rgba(46, 229, 157, 0.16), transparent 58%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      padding: 28px 24px 48px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+      max-width: 960px;
+      margin: 0 auto;
+      min-height: 42vh;
+    }
+    .eyebrow {
+      display: block;
+      font-size: 0.85rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .title {
+      margin: 0;
+      font-size: clamp(2.8rem, 8vw, 4.6rem);
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+    }
+    .title-accent { color: var(--accent); }
+    .lead {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .visual {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: min(58vw, 460px);
+    }
+    .glow {
+      position: absolute;
+      inset: 8% 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(46, 229, 157, 0.28), transparent 68%);
+      filter: blur(8px);
+    }
+    .dumbbell {
+      position: relative;
+      z-index: 1;
+      width: min(78vw, 620px);
+      height: auto;
+      color: var(--accent);
+      filter: drop-shadow(0 0 18px rgba(46, 229, 157, 0.45)) drop-shadow(0 18px 36px rgba(0, 0, 0, 0.45));
+    }
+    .hint {
+      max-width: 960px;
+      margin: 28px auto 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    @media (max-width: 640px) {
+      .hero { grid-template-columns: 1fr; }
+      .visual { justify-self: end; }
+    }
+  </style>
+</head>
+<body>
+  <section class="hero" aria-label="Превью главной тренера">
+    <div>
+      <span class="eyebrow">фитнес</span>
+      <h1 class="title">
+        <span class="title-accent">Днев</span><span>ник</span>
+      </h1>
+      <p class="lead">Контроль. Результат. Профессионализм.</p>
+    </div>
+    <div class="visual" aria-hidden>
+      <div class="glow"></div>
+      <svg class="dumbbell" viewBox="0 0 128 72" fill="currentColor">
+        <rect x="1" y="24" width="7" height="24" rx="2.5" />
+        <rect x="9" y="12" width="14" height="48" rx="4" />
+        <rect x="24" y="0" width="16" height="72" rx="5" />
+        <rect x="41" y="14" width="14" height="44" rx="4" />
+        <rect x="56" y="28" width="16" height="16" rx="4" />
+        <rect x="73" y="14" width="14" height="44" rx="4" />
+        <rect x="88" y="0" width="16" height="72" rx="5" />
+        <rect x="105" y="12" width="14" height="48" rx="4" />
+        <rect x="120" y="24" width="7" height="24" rx="2.5" />
+      </svg>
+    </div>
+  </section>
+  <p class="hint">Иконка крупнее относительно «Дневник».</p>
+</body>
+</html>
