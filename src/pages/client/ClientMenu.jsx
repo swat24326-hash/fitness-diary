@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Menu, RefreshCw, Smartphone } from 'lucide-react'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
 import { SignOutWarnDialog } from '../../components/screenCache/SignOutWarnDialog.jsx'
+import { usePopoverDismiss } from '../../hooks/usePopoverDismiss.js'
 import { postClientMe } from '../../lib/client/clientSession.js'
 import { avatarApiOver } from '../../lib/profile/avatarApi.js'
 import { useClientApp } from './ClientAppContext.jsx'
@@ -15,7 +16,7 @@ const clientAvatarApi = avatarApiOver(postClientMe)
  * Бургер /me — выпадающее меню как у тренера (app-header__dropdown / __menu-item из index.css),
  * все строки одного вида: «Мой профиль» (фото и настройки) → действия → «Выйти».
  * onRefresh — «Обновить» данные открытого экрана (как у тренера — в меню, не в шапке).
- * Диалог «Выйти» живёт на этом уровне: иначе close() снимал dropdown и окно не успевало показаться.
+ * Диалог «Выйти» на этом уровне (не внутри dropdown): иначе close() снимал меню вместе с окном.
  * @param {{ clientName?: string, onLogout: () => void | Promise<void>, onRefresh?: (() => void) | null, refreshing?: boolean }} props
  */
 export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refreshing = false }) {
@@ -23,20 +24,8 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
   const [warnOpen, setWarnOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const rootRef = useRef(null)
-
-  useEffect(() => {
-    if (!open) return undefined
-    const onDoc = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false)
-    }
-    const onKey = (e) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('mousedown', onDoc)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  const close = useCallback(() => setOpen(false), [])
+  usePopoverDismiss(open, close, rootRef)
 
   const confirmLogout = useCallback(async () => {
     setBusy(true)
@@ -63,25 +52,20 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
       >
         <Menu size={22} aria-hidden />
       </button>
-      {/* hidden, не unmount: иначе «Выйти» → close снимал бы и диалог подтверждения */}
-      <div
-        id="client-menu-dropdown"
-        className="app-header__dropdown"
-        role="region"
-        aria-label="Меню"
-        hidden={!open}
-      >
-        <ClientMenuItems
-          clientName={clientName}
-          onRefresh={onRefresh}
-          refreshing={refreshing}
-          close={() => setOpen(false)}
-          onLogoutRequest={() => {
-            setOpen(false)
-            setWarnOpen(true)
-          }}
-        />
-      </div>
+      {open ? (
+        <div id="client-menu-dropdown" className="app-header__dropdown" role="region" aria-label="Меню">
+          <ClientMenuItems
+            clientName={clientName}
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            close={close}
+            onLogoutRequest={() => {
+              setOpen(false)
+              setWarnOpen(true)
+            }}
+          />
+        </div>
+      ) : null}
       <SignOutWarnDialog
         app="client"
         open={warnOpen}

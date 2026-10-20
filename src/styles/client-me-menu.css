@@ -122,6 +122,11 @@
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 
+/* display:flex у .app-header__dropdown перебивает UA [hidden] — как у chat-bar__dropdown */
+.client-menu .app-header__dropdown[hidden] {
+  display: none;
+}
+
 .client-menu .app-header__menu-item {
   min-height: 44px;
   text-decoration: none;

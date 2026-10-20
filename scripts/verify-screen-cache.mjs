@@ -100,8 +100,9 @@ ok(/bootScreenCache/.test(src('src/pages/coach/CoachAppContext.jsx')), 'трен
 ok(/app === 'client'/.test(store), 'клиент без сессии на старте не стирает весь кэш')
 ok(/SignOutWarnDialog/.test(src('src/pages/coach/CoachMorePage.jsx')), 'тренер: окно перед выходом')
 ok(/SignOutWarnDialog/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: окно перед выходом')
-ok(/onLogoutRequest/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: диалог выхода снаружи dropdown (не unmount)')
-ok(/hidden=\{!open\}/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: меню hidden, не условный unmount')
+ok(/onLogoutRequest/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: диалог выхода снаружи dropdown')
+ok(/usePopoverDismiss/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: бургер закрывается тапом мимо (телефон)')
+ok(/SignOutWarnDialog/.test(src('src/pages/client/ClientMenu.jsx')) && /\{open \?/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: меню снимается с экрана, диалог остаётся')
 ok(!/window\.confirm\(/.test(src('src/pages/client/ClientMenu.jsx')), 'клиент: не системный confirm')
 ok(!/cache:/.test(src('src/hooks/useStaffChat.js')), 'планшет зала (useStaffChat) без кэша экранов')
 
