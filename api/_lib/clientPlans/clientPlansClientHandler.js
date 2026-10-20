@@ -5,7 +5,13 @@
  * POST { action: 'plan-item', id } → снимок; первое открытие ставит client_seen_at («Клиент открыл» у тренера).
  */
 import { sendJson } from '../adminSupabase.js'
-import { isClientPlanId, isClientPlanKind, sanitizeClientPlanPayload, summarizeClientPlan } from '../../../src/lib/clientPlans/clientPlanCore.js'
+import {
+  isClientPlanId,
+  isClientPlanKind,
+  sanitizeClientPlanPayload,
+  shouldMarkClientPlanSeen,
+  summarizeClientPlan,
+} from '../../../src/lib/clientPlans/clientPlanCore.js'
 
 const LIST_LIMIT = 30
 const BRIEF = 'id, kind, sent_at, sent_by, client_seen_at, summary'
@@ -76,14 +82,25 @@ async function handleItem(db, ctx, id, res) {
     sendJson(res, 404, { error: 'Задание не найдено' })
     return
   }
-  if (!row.client_seen_at) {
-    await rows(
-      db.from('client_plans').update({ client_seen_at: new Date().toISOString() }).eq('id', row.id).is('client_seen_at', null).select('id'),
-    )
+  let seenAt = row.client_seen_at
+  if (!seenAt) {
+    const latest = await latestOf(db, ctx.clientId, row.kind)
+    if (shouldMarkClientPlanSeen(latest[0]?.id, row.id)) {
+      seenAt = new Date().toISOString()
+      await rows(
+        db.from('client_plans').update({ client_seen_at: seenAt }).eq('id', row.id).is('client_seen_at', null).select('id'),
+      )
+    }
   }
   const names = await trainerNames(db, [row])
   sendJson(res, 200, {
-    item: { ...briefView({ ...row, client_seen_at: true, summary: summarizeClientPlan(row.kind, payload) }, names), payload },
+    item: {
+      ...briefView(
+        { ...row, client_seen_at: seenAt || row.client_seen_at, summary: summarizeClientPlan(row.kind, payload) },
+        names,
+      ),
+      payload,
+    },
   })
 }
 

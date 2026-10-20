@@ -143,6 +143,18 @@ export function summarizeClientPlan(kind, payload) {
 }
 
 /**
+ * Ставить «клиент открыл» только у последнего отправленного этого вида.
+ * Просмотр старого рациона из «Прошлых» не должен снова шуметь тренеру.
+ * @param {string|null|undefined} latestId
+ * @param {string|null|undefined} openId
+ */
+export function shouldMarkClientPlanSeen(latestId, openId) {
+  const latest = latestId != null ? String(latestId) : ''
+  const open = openId != null ? String(openId) : ''
+  return Boolean(latest && open && latest === open)
+}
+
+/**
  * Строка очереди → колонки таблицы. client_seen_at / notified_at с планшета не принимаем — их ставит сервер.
  * @returns {{ ok: true, data: object } | { ok: false, error: string }}
  */

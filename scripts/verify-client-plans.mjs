@@ -8,6 +8,7 @@ import {
   clientPlanMarkText,
   normalizeClientPlanPushPayload,
   sanitizeClientPlanPayload,
+  shouldMarkClientPlanSeen,
   summarizeClientPlan,
 } from '../src/lib/clientPlans/clientPlanCore.js'
 import { buildHomeworkAppSnapshot } from '../src/lib/homework/homeworkAppSendCore.js'
@@ -99,6 +100,12 @@ ok(!assertClientPlanPush({ op: 'delete', isAdmin: true, userId: TRAINER, payload
 ok(!assertClientPlanPush({ op: 'insert', isTrainer: true, userId: TRAINER, payload, client: { ...client, archived_at: '2026-01-01' } }).ok, 'клиент в архиве — отказ')
 ok(!assertClientPlanPush({ op: 'insert', isTrainer: true, userId: TRAINER, payload: { ...payload, club_id: OTHER }, client }).ok, 'чужой club_id — отказ')
 ok(!assertClientPlanPush({ op: 'insert', isTrainer: true, userId: TRAINER, payload, client: null }).ok, 'нет клиента — отказ')
+
+// --- «Прочитал» только у последнего рациона, не у архива ---
+ok(shouldMarkClientPlanSeen(PLAN, PLAN), 'открыл последний — ставим client_seen_at')
+ok(!shouldMarkClientPlanSeen(PLAN, U(9)), 'открыл старый из «Прошлых» — не шумим тренеру')
+ok(!shouldMarkClientPlanSeen(null, PLAN) && !shouldMarkClientPlanSeen(PLAN, null), 'нет id — не ставим')
+ok(/shouldMarkClientPlanSeen/.test(readFileSync('api/_lib/clientPlans/clientPlansClientHandler.js', 'utf8')), 'сервер: mark только для последнего')
 
 // --- Подпись у тренера ---
 ok(clientPlanMarkText({ sent_at: '2026-10-10T15:40:00Z' }, TZ) === 'Отправлено 10.10, 18:40', 'подпись «Отправлено»')

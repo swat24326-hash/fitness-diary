@@ -89,6 +89,18 @@ const deduped = buildTrainerNotificationsFromPlans(
 )
 ok(deduped.length === 1 && deduped[0].id === 'a2', 'несколько отправок — одна строка (последняя)')
 
+const openedSpam = buildTrainerNotificationsFromPlans(
+  [
+    { id: 'o1', client_id: 'c3', kind: 'nutrition', sent_at: '2026-10-10T10:00:00Z', client_seen_at: '2026-10-11T10:00:00Z' },
+    { id: 'o2', client_id: 'c3', kind: 'nutrition', sent_at: '2026-10-12T10:00:00Z', client_seen_at: '2026-10-13T10:00:00Z' },
+    { id: 'o3', client_id: 'c3', kind: 'nutrition', sent_at: '2026-10-14T10:00:00Z', client_seen_at: '2026-10-15T10:00:00Z' },
+    { id: 'o4', client_id: 'c3', kind: 'nutrition', sent_at: '2026-10-16T10:00:00Z', client_seen_at: null },
+  ],
+  clients,
+  { hasAppByClientId: { c3: true } },
+)
+ok(openedSpam.length === 1 && openedSpam[0].id === 'o4' && openedSpam[0].kind === 'nutrition_pending', 'старые «прочитал» не копятся — только статус последней отправки')
+
 ok(
   trainerNotificationPendingClientIds(plans).includes('c1') && !trainerNotificationPendingClientIds(plans).includes('c2'),
   'pending client ids',

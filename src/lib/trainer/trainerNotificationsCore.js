@@ -33,53 +33,42 @@ function hasAppLookup(hasAppByClientId, clientId) {
  */
 export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts = {}) {
   const hasAppByClientId = opts.hasAppByClientId
-  /** @type {Map<string, object>} latest pending per client+kind */
-  const pendingLatest = new Map()
-  const opened = []
+  /** Последняя отправка на пару клиент+вид — одна строка в ленте, без пачки «прочитал» за каждый старый рацион. */
+  const latestByKey = new Map()
 
   for (const row of plans ?? []) {
     if (!row?.id || !row.sent_at) continue
     const kind = row.kind === 'nutrition' ? 'nutrition' : row.kind === 'homework' ? 'homework' : null
     if (!kind) continue
     const cid = String(row.client_id ?? '')
-    const openedAt = row.client_seen_at
-    if (openedAt) {
-      opened.push(row)
-      continue
-    }
     const key = `${cid}:${kind}`
-    const prev = pendingLatest.get(key)
-    if (!prev || String(row.sent_at) > String(prev.sent_at)) pendingLatest.set(key, row)
+    const prev = latestByKey.get(key)
+    if (!prev || String(row.sent_at) > String(prev.sent_at)) latestByKey.set(key, row)
   }
 
   const out = []
-  for (const row of opened) {
+  for (const row of latestByKey.values()) {
     const kind = row.kind === 'nutrition' ? 'nutrition' : 'homework'
     const cid = String(row.client_id ?? '')
     const name = clientName(clientsById, cid)
-    const first = name.split(/\s+/)[0] || name
     const what = kind === 'nutrition' ? 'рацион' : 'задание'
-    out.push({
-      id: String(row.id),
-      kind: `${kind}_opened`,
-      title: `${first} прочитал(а) ${what}`,
-      body: name,
-      created_at: String(row.client_seen_at),
-      // Клиент прочитал — для тренера это уже «снятый» статус (история без красной точки).
-      read_at: String(row.client_seen_at),
-      client_id: cid,
-    })
-  }
-
-  for (const row of pendingLatest.values()) {
-    const kind = row.kind === 'nutrition' ? 'nutrition' : 'homework'
-    const cid = String(row.client_id ?? '')
+    if (row.client_seen_at) {
+      const first = name.split(/\s+/)[0] || name
+      out.push({
+        id: String(row.id),
+        kind: `${kind}_opened`,
+        title: `${first} прочитал(а) ${what}`,
+        body: name,
+        created_at: String(row.client_seen_at),
+        read_at: String(row.client_seen_at),
+        client_id: cid,
+      })
+      continue
+    }
     const app = hasAppLookup(hasAppByClientId, cid)
     // Только если точно есть живой вход в /me. Нет приложения / статус неизвестен —
     // не шумим: иначе «ещё не открыл» висит вечно или приходит зря.
     if (app !== true) continue
-    const name = clientName(clientsById, cid)
-    const what = kind === 'nutrition' ? 'рацион' : 'задание'
     out.push({
       id: String(row.id),
       kind: `${kind}_pending`,
