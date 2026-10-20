@@ -285,9 +285,18 @@
 
 .trainer-rating-card__stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
+}
+
+/* Ряд 1: объём (3 равных). Ряд 2: ритм + удержание (2 равных). */
+.trainer-rating-card__stat:nth-child(-n + 3) {
+  grid-column: span 2;
+}
+
+.trainer-rating-card__stat:nth-child(n + 4) {
+  grid-column: span 3;
 }
 
 .trainer-rating-card__stat {
@@ -319,6 +328,24 @@
   letter-spacing: -0.02em;
   color: var(--text, #f6f4ef);
   line-height: 1.15;
+}
+
+.trainer-rating-card__stat-val--good {
+  color: var(--accent-bright, #2effb8);
+}
+
+.trainer-rating-card__stat-val--mid {
+  color: #fbbf24;
+}
+
+.trainer-rating-card__stat-val--low {
+  color: #fca5a5;
+}
+
+.trainer-rating-card__stat-val--pending,
+.trainer-rating-card__stat-val--none {
+  color: var(--text-muted, #a8b2ac);
+  font-size: 1rem;
 }
 
 .trainer-rating-card__actions {

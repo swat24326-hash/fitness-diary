@@ -387,6 +387,24 @@ export function AdminClubStatsSection({
 
   const clientAttendance = stats?.clientAttendance ?? null
   const hasClientAttendance = clientAttendance != null && (clientAttendance.poolSize ?? 0) > 0
+
+  const attendanceByTrainer = useMemo(() => {
+    const map = new Map()
+    for (const row of clientAttendance?.byTrainer ?? []) {
+      if (row?.trainerId == null) continue
+      map.set(String(row.trainerId), row)
+    }
+    return map
+  }, [clientAttendance?.byTrainer])
+
+  const retentionByTrainer = useMemo(() => {
+    const map = new Map()
+    for (const row of Object.values(clientRetention?.byTrainer ?? {})) {
+      if (!row?.trainerId) continue
+      map.set(String(row.trainerId), row)
+    }
+    return map
+  }, [clientRetention?.byTrainer])
   const clientsListPath = pathname.startsWith('/club')
     ? '/club/clients'
     : pathname.startsWith('/sales')
@@ -1089,7 +1107,7 @@ export function AdminClubStatsSection({
       {inlinePanel === 'rating' && showPzOnlyCards ? (
         <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
           <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            Тренеры — рейтинг по завершённым
+            Тренеры — рейтинг
           </h3>
           {byTrainer.length === 0 ? (
             <div className="os-empty-card" role="status">
@@ -1099,7 +1117,10 @@ export function AdminClubStatsSection({
           ) : (
             <div className="trainer-rating-grid os-enter">
               {byTrainer.map((tr, idx) => {
-                const q = coachQualityByTrainer.get(String(tr.trainerId))
+                const tid = String(tr.trainerId)
+                const q = coachQualityByTrainer.get(tid)
+                const att = attendanceByTrainer.get(tid)
+                const ret = retentionByTrainer.get(tid)
                 const name = trainerLabel(tr.trainerId)
                 return (
                   <TrainerRatingCard
@@ -1109,6 +1130,8 @@ export function AdminClubStatsSection({
                     completed={tr.completed}
                     draft={tr.draft}
                     clients={tr.uniqueClients}
+                    attendanceAvg={att?.avgVisitsPerWeek ?? null}
+                    retentionRow={ret ?? null}
                     quality={q ?? null}
                     onOpenIskra={
                       isTrainerScope

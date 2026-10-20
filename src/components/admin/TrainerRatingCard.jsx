@@ -1,8 +1,10 @@
 import { Sparkles } from 'lucide-react'
+import { formatClubAvgVisitsPerWeek } from '../../lib/admin/clubAttendanceAggCore.js'
+import { formatTrainerM3Cell } from '../../lib/admin/clientRetentionPresentationCore.js'
 import { CoachQualityStatusBadge } from '../CoachQualityPanel'
 
 /**
- * Карточка тренера в рейтинге клуба (завершённые + качество ведения).
+ * Карточка тренера в рейтинге клуба (объём + ритм + удержание + качество).
  *
  * @param {{
  *   rank: number,
@@ -10,6 +12,11 @@ import { CoachQualityStatusBadge } from '../CoachQualityPanel'
  *   completed: number,
  *   draft: number,
  *   clients: number,
+ *   attendanceAvg?: number | null,
+ *   retentionRow?: {
+ *     retentionM3?: { averageRate?: number | null, cohortSize?: number },
+ *     tenureClientCount?: number,
+ *   } | null,
  *   quality?: {
  *     status: string,
  *     statusLabel?: string,
@@ -25,6 +32,8 @@ export function TrainerRatingCard({
   completed,
   draft,
   clients,
+  attendanceAvg = null,
+  retentionRow = null,
   quality = null,
   onOpenIskra = null,
 }) {
@@ -42,6 +51,8 @@ export function TrainerRatingCard({
   const scorePct = quality?.scorePct
   const hasScore = scorePct != null && Number.isFinite(Number(scorePct))
   const dropLabels = quality?.failureDirectionLabels?.filter(Boolean) ?? []
+  const attendanceLabel = formatClubAvgVisitsPerWeek(attendanceAvg)
+  const retentionCell = formatTrainerM3Cell(retentionRow)
   const scoreTone =
     !hasScore
       ? 'muted'
@@ -117,6 +128,26 @@ export function TrainerRatingCard({
         <div className="trainer-rating-card__stat">
           <dt>Клиентов</dt>
           <dd>{clients}</dd>
+        </div>
+        <div
+          className="trainer-rating-card__stat"
+          title="Средняя посещаемость клиентов тренера, трен./нед (окно ритма)"
+        >
+          <dt>Посещаемость</dt>
+          <dd>{attendanceLabel}</dd>
+        </div>
+        <div
+          className="trainer-rating-card__stat"
+          title={
+            retentionCell.tone === 'pending'
+              ? 'M+3 ещё не созрел (~3 мес.)'
+              : 'Удержание M+3'
+          }
+        >
+          <dt>Удержание</dt>
+          <dd className={`trainer-rating-card__stat-val--${retentionCell.tone}`}>
+            {retentionCell.text}
+          </dd>
         </div>
       </dl>
 
