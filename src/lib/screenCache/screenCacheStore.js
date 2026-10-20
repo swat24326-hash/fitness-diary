@@ -121,12 +121,21 @@ export async function purgeScreenCache() {
 }
 
 /**
- * Старт оболочки /me или /coach: без сессии — стереть кэш приложения (потерянный телефон / старый вход);
- * с сессией — только просроченное.
+ * Старт оболочки /me или /coach.
+ * Тренер без сессии — стереть кэш (чужой телефон / старый вход).
+ * Клиент без сессии — только просроченное: сессия могла умереть сама, кэш бережём до «Выйти» / входа другого человека.
+ * С сессией — только просроченное.
  * @param {'client' | 'coach'} app
  * @param {() => boolean} hasSession
  */
 export async function bootScreenCache(app, hasSession) {
-  if (!hasSession()) await clearScreenCacheApp(app)
-  else await purgeScreenCache()
+  if (hasSession()) {
+    await purgeScreenCache()
+    return
+  }
+  if (app === 'client') {
+    await purgeScreenCache()
+    return
+  }
+  await clearScreenCacheApp(app)
 }

@@ -23,13 +23,13 @@ function Card({ icon: Icon, title, lead = false, children }) {
   )
 }
 
-/** Квадратная плитка: заголовок → значение → подпись → meta (полоска) → подвал. Одинаковые слоты на обеих. */
+/** Плитка: заголовок → значение → подпись → meta (полоска) → подвал. Одинаковые слоты на обеих. */
 function Tile({ icon: Icon, title, lead, tile }) {
   return (
     <section className={`client-me-card client-me-tile client-me-tile--${tile.tone}${lead ? ' client-me-card--lead' : ''}`}>
       <h2 className="client-me-card__title">
-        <Icon size={18} aria-hidden />
-        {title}
+        <Icon size={16} aria-hidden />
+        <span className="client-me-tile__title-text">{title}</span>
       </h2>
       <div className="client-me-tile__body">
         <span className="client-me-tile__hero">

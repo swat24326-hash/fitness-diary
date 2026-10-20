@@ -6,6 +6,7 @@ import { fetchWithAppTimeout } from '../networkReachability.js'
 import { CHAT_VIDEO_FAILED_RU } from '../chat/chatVideoCore.js'
 import { CHAT_VIDEO_FETCH_MS, readApiBody, videoContentType } from '../chat/chatVideoTransport.js'
 import { clearScreenCacheApp, registerScreenCacheGuard } from '../screenCache/screenCacheStore.js'
+import { shouldWipeClientLocalOnRedeem } from './clientSessionClearCore.js'
 
 const SESSION_KEY = 'fd_client_session_v1'
 const CACHE_KEY = 'fd_client_me_cache_v1'
@@ -14,6 +15,7 @@ export const CLIENT_PLANS_CACHE_KEY = 'fd_client_plans_v1'
 const FETCH_MS = 15_000
 
 export class ClientSessionGoneError extends Error {}
+export { shouldWipeClientLocalOnRedeem }
 
 function readJson(key) {
   try {
@@ -50,6 +52,12 @@ function saveSession(session) {
   })
 }
 
+/** Сессия умерла сама: только токены. Кэш /me и переписка на телефоне остаются до «Выйти» или входа другого человека. */
+export function dropClientTokens() {
+  writeJson(SESSION_KEY, null)
+}
+
+/** «Выйти» или смена человека: стереть токены и всё сохранённое этого приложения на телефоне. */
 export function clearClientSession() {
   void clearScreenCacheApp('client')
   writeJson(SESSION_KEY, null)
@@ -99,9 +107,12 @@ function postAuth(body) {
 
 /** Погасить ссылку-приглашение. Ошибки — понятным русским текстом. */
 export async function redeemClientInvite(token) {
+  const prevId = readClientMeCache()?.data?.client?.id ?? null
   const { res, data } = await postAuth({ action: 'redeem', token })
   if (!res.ok || !data?.session) throw new Error(data?.error || 'Не удалось войти — попросите в клубе новую ссылку')
-  clearClientSession()
+  const nextId = data.client?.id ?? null
+  if (shouldWipeClientLocalOnRedeem(prevId, nextId)) clearClientSession()
+  else dropClientTokens()
   saveSession(data.session)
   return data.client ?? null
 }
@@ -112,7 +123,7 @@ async function validAccessToken() {
   if (s.expires_at - 60 > Date.now() / 1000) return s.access_token
   const { res, data } = await postAuth({ action: 'refresh', refresh_token: s.refresh_token })
   if (res.status === 401) {
-    clearClientSession()
+    dropClientTokens()
     throw new ClientSessionGoneError(data?.error)
   }
   if (!res.ok || !data?.session) throw new Error(data?.error || 'Сервер не ответил — попробуйте позже')
@@ -132,7 +143,7 @@ async function clientMeRequest(init = {}, failRu, { query = null, timeoutMs } = 
     timeoutMs,
   )
   if (res.status === 401) {
-    clearClientSession()
+    dropClientTokens()
     throw new ClientSessionGoneError(data?.error)
   }
   if (!res.ok) throw Object.assign(new Error(data?.error || failRu), { status: res.status })

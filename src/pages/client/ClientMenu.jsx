@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Menu, RefreshCw, Smartphone } from 'lucide-react'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
@@ -15,10 +15,13 @@ const clientAvatarApi = avatarApiOver(postClientMe)
  * Бургер /me — выпадающее меню как у тренера (app-header__dropdown / __menu-item из index.css),
  * все строки одного вида: «Мой профиль» (фото и настройки) → действия → «Выйти».
  * onRefresh — «Обновить» данные открытого экрана (как у тренера — в меню, не в шапке).
- * @param {{ clientName?: string, onLogout: () => void, onRefresh?: (() => void) | null, refreshing?: boolean }} props
+ * Диалог «Выйти» живёт на этом уровне: иначе close() снимал dropdown и окно не успевало показаться.
+ * @param {{ clientName?: string, onLogout: () => void | Promise<void>, onRefresh?: (() => void) | null, refreshing?: boolean }} props
  */
 export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refreshing = false }) {
   const [open, setOpen] = useState(false)
+  const [warnOpen, setWarnOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
   const rootRef = useRef(null)
 
   useEffect(() => {
@@ -35,6 +38,17 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
     }
   }, [open])
 
+  const confirmLogout = useCallback(async () => {
+    setBusy(true)
+    try {
+      await Promise.resolve(onLogout())
+    } finally {
+      setBusy(false)
+      setWarnOpen(false)
+      setOpen(false)
+    }
+  }, [onLogout])
+
   return (
     <span className="client-menu" ref={rootRef}>
       <button
@@ -49,29 +63,72 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
       >
         <Menu size={22} aria-hidden />
       </button>
-      {open ? (
-        <div id="client-menu-dropdown" className="app-header__dropdown" role="region" aria-label="Меню">
-          <ClientMenuItems clientName={clientName} onLogout={onLogout} onRefresh={onRefresh} refreshing={refreshing} close={() => setOpen(false)} />
-        </div>
-      ) : null}
+      {/* hidden, не unmount: иначе «Выйти» → close снимал бы и диалог подтверждения */}
+      <div
+        id="client-menu-dropdown"
+        className="app-header__dropdown"
+        role="region"
+        aria-label="Меню"
+        hidden={!open}
+      >
+        <ClientMenuItems
+          clientName={clientName}
+          onRefresh={onRefresh}
+          refreshing={refreshing}
+          close={() => setOpen(false)}
+          onLogoutRequest={() => {
+            setOpen(false)
+            setWarnOpen(true)
+          }}
+        />
+      </div>
+      <SignOutWarnDialog
+        app="client"
+        open={warnOpen}
+        busy={busy}
+        onCancel={() => !busy && setWarnOpen(false)}
+        onConfirm={() => void confirmLogout()}
+      />
     </span>
   )
 }
 
-/** Строки меню клиента — в ☰ экранов и в «⋮» шапки диалога. close — закрыть то меню, где они стоят. */
-export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, refreshing = false, close = () => {} }) {
+/**
+ * Строки меню клиента — в ☰ экранов и в «⋮» шапки диалога.
+ * close — закрыть то меню, где они стоят.
+ * onLogoutRequest — открыть предупреждение снаружи (бургер); иначе свой SignOutWarnDialog (⋮ в чате).
+ * @param {{ clientName?: string, onLogout?: () => void | Promise<void>, onLogoutRequest?: () => void, onRefresh?: (() => void) | null, refreshing?: boolean, close?: () => void }} props
+ */
+export function ClientMenuItems({
+  clientName = '',
+  onLogout,
+  onLogoutRequest = null,
+  onRefresh = null,
+  refreshing = false,
+  close = () => {},
+}) {
   const navigate = useNavigate()
   const { installer, onboarding } = useClientApp()
   const [warnOpen, setWarnOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const ownWarn = !onLogoutRequest
 
-  const confirmLogout = () => {
+  const requestLogout = () => {
+    if (onLogoutRequest) {
+      onLogoutRequest()
+      return
+    }
+    setWarnOpen(true)
+  }
+
+  const confirmLogout = async () => {
     setBusy(true)
     try {
-      onLogout()
+      await Promise.resolve(onLogout?.())
     } finally {
       setBusy(false)
       setWarnOpen(false)
+      close()
     }
   }
 
@@ -109,24 +166,19 @@ export function ClientMenuItems({ clientName = '', onLogout, onRefresh = null, r
           Обновить
         </button>
       ) : null}
-      <button
-        type="button"
-        className="app-header__menu-item app-header__menu-item--danger"
-        onClick={() => {
-          close()
-          setWarnOpen(true)
-        }}
-      >
+      <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={requestLogout}>
         <LogOut size={18} aria-hidden />
         Выйти
       </button>
-      <SignOutWarnDialog
-        app="client"
-        open={warnOpen}
-        busy={busy}
-        onCancel={() => !busy && setWarnOpen(false)}
-        onConfirm={confirmLogout}
-      />
+      {ownWarn ? (
+        <SignOutWarnDialog
+          app="client"
+          open={warnOpen}
+          busy={busy}
+          onCancel={() => !busy && setWarnOpen(false)}
+          onConfirm={() => void confirmLogout()}
+        />
+      ) : null}
     </>
   )
 }
