@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Phone, RefreshCw, Search, UserCircle, UserPlus, UserSearch } from 'lucide-react'
+import { ArrowLeft, Phone, RefreshCw, Search, UserCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientCallHistorySheet } from '../../components/admin/AdminClientCallHistorySheet.jsx'
@@ -16,6 +16,7 @@ import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBr
 import { AdminClientsAzDirectionFilters } from '../../components/admin/AdminClientsAzDirectionFilters.jsx'
 import { AdminClientsArchiveHallFilters } from '../../components/admin/AdminClientsArchiveHallFilters.jsx'
 import { AdminClientsListRow } from '../../components/admin/AdminClientsListRow.jsx'
+import { AdminClientsSearchBar } from '../../components/admin/AdminClientsSearchBar.jsx'
 import {
   deleteClientAndAllData,
   listAdminClientsForClub,
@@ -72,7 +73,9 @@ import {
 } from '../../lib/syncService'
 import { todayInTimeZoneIso } from '../../lib/dateRu'
 import {
+  adminClientSearchMissHint,
   clientMatchesAdminSearchQuery,
+  normalizeAdminClientSearchMode,
   resolveAdminClientsSearchPool,
   shouldSearchAcrossHalls,
 } from '../../lib/admin/adminClientsCrossHallSearchCore.js'
@@ -158,6 +161,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [listPage, setListPage] = useState(() => parseAdminClientsListPage(searchParams.get('page')))
   const [pageTrainingsBusy, setPageTrainingsBusy] = useState(false)
   const [query, setQuery] = useState(() => String(searchParams.get('q') ?? ''))
+  const [searchMode, setSearchMode] = useState('card')
   const [trainerQuery, setTrainerQuery] = useState(() => String(searchParams.get('trainer') ?? ''))
   const [quickFilter, setQuickFilter] = useState(() => {
     const n = normalizeAdminClientQuickFilter(filterFromUrl)
@@ -642,7 +646,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       )
     }
     if (q) {
-      base = base.filter((c) => clientMatchesAdminSearchQuery(c, q))
+      base = base.filter((c) => clientMatchesAdminSearchQuery(c, q, searchMode))
     }
     if (tq && showTrainerSearch) {
       base = base.filter((c) => {
@@ -704,6 +708,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     clientsTab,
     archiveHallFilter,
     query,
+    searchMode,
     trainerQuery,
     quickFilter,
     azDirectionFilter,
@@ -1117,6 +1122,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }, { resetPage: true })
   }
 
+  const onSearchModeChange = (next) => {
+    const mode = normalizeAdminClientSearchMode(next)
+    if (mode === searchMode) return
+    setSearchMode(mode)
+    setListPage(0)
+    patchListSearch(() => {}, { resetPage: true })
+  }
+
   const onTrainerQueryChange = (value) => {
     setTrainerQuery(value)
     setListPage(0)
@@ -1196,6 +1209,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const warn = criticalWriteCloudWarning(flush, 'Удаление')
     if (warn) alert(warn)
   }
+
+  const searchMissHint = adminClientSearchMissHint(query, searchMode)
 
   return (
     <section
@@ -1328,7 +1343,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               disabled={busy}
               onClick={() => void refreshFromCloud()}
               aria-label="Обновить список из облака"
-              title="Обновить из Supabase"
+              title="Обновить список"
             >
               <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
             </button>
@@ -1360,16 +1375,10 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           <p className="muted admin-clients-workspace__note">
             Не удалось подтянуть список из облака — показан локальный кэш. Нажмите обновить.
           </p>
-        ) : !cloudNeedsClub ? (
+        ) : !cloudNeedsClub && source !== 'remote' && source !== 'admin_api' ? (
           <p className="muted admin-clients-workspace__meta">
-            {source === 'remote' || source === 'admin_api' ? (
-              <>Данные из <strong>Supabase</strong>{source === 'admin_api' ? ' (через сервер приложения)' : ''}</>
-            ) : (
-              <>
-                С <strong>устройства</strong> (IndexedDB).
-                {!club ? (clubBound ? ' Нужен club_id в профиле.' : ' Выберите клуб в шапке.') : null}
-              </>
-            )}
+            С <strong>устройства</strong> (IndexedDB).
+            {!club ? (clubBound ? ' Нужен club_id в профиле.' : ' Выберите клуб в шапке.') : null}
           </p>
         ) : null}
         {fallback ? (
@@ -1388,34 +1397,15 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           </p>
         ) : null}
 
-        <div className="admin-clients-workspace__search" role="group" aria-label="Поиск клиента и тренера">
-          <div className="admin-clients-search-cell">
-            <Search size={18} aria-hidden className="muted u-shrink-0" />
-            <input
-              className="admin-clients-search-input"
-              type="search"
-              autoComplete="off"
-              placeholder="Фамилия, телефон или номер карты…"
-              aria-label="Поиск по клиенту"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-            />
-          </div>
-          {!showTrainerSearch ? null : (
-            <div className="admin-clients-search-cell">
-              <UserSearch size={18} aria-hidden className="muted u-shrink-0" />
-              <input
-                className="admin-clients-search-input"
-                type="search"
-                autoComplete="off"
-                placeholder="Тренер: ФИО…"
-                aria-label="Поиск по закреплённому тренеру"
-                value={trainerQuery}
-                onChange={(e) => onTrainerQueryChange(e.target.value)}
-              />
-            </div>
-          )}
-        </div>
+        <AdminClientsSearchBar
+          query={query}
+          onQueryChange={onQueryChange}
+          mode={searchMode}
+          onModeChange={onSearchModeChange}
+          showTrainerSearch={showTrainerSearch}
+          trainerQuery={trainerQuery}
+          onTrainerQueryChange={onTrainerQueryChange}
+        />
         {crossHallSearch ? (
           <p className="muted admin-inline-note" role="status" style={{ margin: '8px 0 0', fontSize: 13 }}>
             {adminClientsCrossHallSearchNote()}
@@ -1463,8 +1453,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               {archiveHallFilter
                 ? ` Сейчас: ${ARCHIVE_HALL_FILTER_LABELS[archiveHallFilter] || archiveHallFilter}.`
                 : ''}{' '}
-              Поиск по имени, телефону
-              {showTrainerSearch ? ' или тренеру' : ''} — от 2 символов.{' '}
+              Поиск по фамилии и номеру карты
+              {showTrainerSearch ? ' или по тренеру' : ''} — от 2 символов. Телефон — кнопка с трубкой.{' '}
               {isSupervisor ? null : (
                 <>
                   <Link
@@ -1552,13 +1542,28 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
           {!cloudNeedsClub && showClientList && filteredClients.length === 0 ? (
             <div className="admin-clients-empty admin-clients-empty--compact" role="status">
-              <p className="muted admin-clients-empty__text" style={{ margin: 0 }}>
-                {clients.length === 0
-                  ? 'Нет клиентов по выбранным условиям.'
-                  : quickFilter === 'birthdays'
-                    ? `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (проверьте дату в карточке).`
-                    : 'Никто не подходит под фильтр или поиск.'}
-              </p>
+              {clients.length > 0 && quickFilter !== 'birthdays' && searchMissHint ? (
+                <>
+                  <p className="muted admin-clients-empty__text">
+                    {searchMissHint}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-touch"
+                    onClick={() => onSearchModeChange(searchMode === 'phone' ? 'card' : 'phone')}
+                  >
+                    {searchMode === 'phone' ? 'Искать как карту' : 'Искать как телефон'}
+                  </button>
+                </>
+              ) : (
+                <p className="muted admin-clients-empty__text" style={{ margin: 0 }}>
+                  {clients.length === 0
+                    ? 'Нет клиентов по выбранным условиям.'
+                    : quickFilter === 'birthdays'
+                      ? `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (проверьте дату в карточке).`
+                      : 'Никто не подходит под фильтр или поиск.'}
+                </p>
+              )}
             </div>
           ) : null}
 

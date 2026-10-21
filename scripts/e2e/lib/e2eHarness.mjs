@@ -148,8 +148,28 @@ export async function chatComposeAtBottom(page) {
 
 export async function loginUi(page, login, password) {
   await page.goto(`${ORIGIN}/login`, { waitUntil: 'domcontentloaded' })
+  const splash = page.locator('.app-welcome-shell')
+  if (await splash.isVisible().catch(() => false)) {
+    await splash.waitFor({ state: 'hidden', timeout: 15_000 })
+  }
   await page.locator('#login').fill(login)
   await page.locator('#password').fill(password)
   await page.locator('button[type="submit"]').click()
   await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 })
+}
+
+/**
+ * Телефон тренера: логин и пароль спрятаны под «Войти логином и паролем».
+ * Если поле уже открыто (кнопку нажали в сценарии), второй раз её не жмём.
+ */
+export async function fillCoachCredentials(page, login, password) {
+  const field = page.getByLabel('Логин')
+  const toggle = page.getByRole('button', { name: 'Войти логином и паролем' })
+  await field.or(toggle).first().waitFor({ state: 'visible', timeout: 15_000 })
+  if (!(await field.isVisible().catch(() => false))) {
+    await toggle.click()
+    await field.waitFor({ state: 'visible', timeout: 10_000 })
+  }
+  await field.fill(login)
+  await page.getByLabel('Пароль').fill(password)
 }

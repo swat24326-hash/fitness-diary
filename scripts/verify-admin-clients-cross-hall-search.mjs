@@ -2,6 +2,7 @@
  * node scripts/verify-admin-clients-cross-hall-search.mjs
  */
 import {
+  adminClientSearchMissHint,
   buildClientHallStack,
   clientMatchesAdminSearchQuery,
   resolveAdminClientsSearchPool,
@@ -56,6 +57,40 @@ ok(poolTab.every((c) => c.id === '1' || String(c.trainer_id)), 'empty query uses
 ok(clientMatchesAdminSearchQuery(pzOnly, '3041') === true, 'match card')
 ok(clientMatchesAdminSearchQuery(pzOnly, 'викт') === false, 'no false name')
 ok(clientMatchesAdminSearchQuery({ name: 'Мишина Виктория' }, 'мишин') === true, 'match name')
+
+const phoneTwin = {
+  name: 'Петров Пётр Петрович',
+  phone: '+7 (912) 345-67-89',
+  card_number: '3041',
+}
+ok(clientMatchesAdminSearchQuery(phoneTwin, '912345', 'card') === false, 'card mode ignores phone fragment')
+ok(clientMatchesAdminSearchQuery(phoneTwin, '3041', 'phone') === false, 'phone mode ignores card')
+ok(clientMatchesAdminSearchQuery(phoneTwin, '912345', 'phone') === true, 'phone mode matches digit fragment')
+ok(clientMatchesAdminSearchQuery(phoneTwin, '89123456789', 'phone') === true, 'phone mode accepts 8-prefix')
+ok(clientMatchesAdminSearchQuery(phoneTwin, '+7 912 345-67-89', 'phone') === true, 'phone mode accepts formatted number')
+ok(clientMatchesAdminSearchQuery(phoneTwin, 'петров', 'phone') === true, 'surname works in phone mode')
+ok(clientMatchesAdminSearchQuery(phoneTwin, 'петрович', 'card') === true, 'patronymic works in card mode')
+ok(
+  clientMatchesAdminSearchQuery({ name: 'А', card_number: 'р247', phone: '79001112233' }, '247', 'card') === true,
+  'letter card partial',
+)
+ok(
+  clientMatchesAdminSearchQuery({ name: 'А', card_number: 'р247', phone: '79001112233' }, 'р247', 'phone') === false,
+  'card token does not scan phones',
+)
+ok(
+  clientMatchesAdminSearchQuery({ name: 'А', card_number: '3041', phone: '+7 999 304-11-22' }, '№3041', 'phone') ===
+    false,
+  '№ карты в режиме телефона не сканирует чужие номера',
+)
+ok(
+  clientMatchesAdminSearchQuery({ name: 'А', card_number: '3041', phone: '+7 999 304-11-22' }, '№3041', 'card') ===
+    true,
+  '№ карты находится в режиме карты',
+)
+ok(adminClientSearchMissHint('79123456789', 'card').includes('трубк'), 'long number in card mode hints phone')
+ok(adminClientSearchMissHint('3041', 'card') === '', 'short card has no phone hint')
+ok(adminClientSearchMissHint('р247', 'phone').includes('карт'), 'card token in phone mode hints card')
 
 const multiClient = {
   id: 'm',

@@ -9,7 +9,7 @@ import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
-import { ORIGIN, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { ORIGIN, fillCoachCredentials, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 import { coachPushUrl } from '../../../src/lib/push/pushTargetUrlCore.js'
 import { staffDmSideOf } from '../../../src/lib/chat/staffDmAccessCore.js'
@@ -73,9 +73,8 @@ const titles = (page) => page.getByTestId('chat-contacts').locator('.chat-contac
 
 async function trainerWrites(c, page, chat) {
   await page.goto(`${ORIGIN}/coach`)
-  await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-  await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-  await page.getByRole('button', { name: 'Войти' }).click()
+  await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+  await page.getByRole('button', { name: 'Войти', exact: true }).click()
   await page.getByRole('link', { name: /^Сообщения/ }).click()
   const folders = page.getByTestId('chat-folders')
   c.ok(await reaches(folders.getByRole('button', { name: 'Коллеги' })), 'телефон: папки «Клиенты · Коллеги · Администрация»')

@@ -34,7 +34,10 @@ function setup() {
   const seed = trainerClubSeed()
   seed.clubs.push({ id: OTHER_CLUB, name: OTHER_NAME, is_active: true, created_at: new Date().toISOString() })
   const staff = (u, role, club_id) => ({ id: u.id, login: u.login, email: `${u.login}@trainer.local`, password: u.password, role, name: role, club_id, is_active: true })
-  seed.users.push(staff(ADMIN, 'admin', null), staff(SUP, 'supervisor', CLUB_ID))
+  const supervisor = staff(SUP, 'supervisor', CLUB_ID)
+  supervisor.offer_accepted_at = null
+  supervisor.offer_version = null
+  seed.users.push(staff(ADMIN, 'admin', null), supervisor)
   return createFakeBackend(seed)
 }
 
@@ -131,7 +134,14 @@ async function supervisorPhone(c, browser, backend) {
   const page = await context.newPage()
   try {
     await loginUi(page, SUP.login, SUP.password)
+    const offer = page.getByRole('dialog', { name: 'Условия доступа' })
     const brand = page.locator('.app-header__brand-slot a')
+    await offer.or(brand).first().waitFor({ state: 'visible', timeout: 15_000 })
+    if (await offer.isVisible().catch(() => false)) {
+      await offer.getByRole('checkbox').check()
+      await offer.getByRole('button', { name: 'Принимаю и продолжаю' }).click()
+      await offer.waitFor({ state: 'hidden', timeout: 15_000 })
+    }
     c.ok(await reaches(brand.filter({ hasText: 'E2E клуб' })), 'управляющий: в шапке название своего клуба')
     const fit = await headerFits(page)
     c.ok(fit.wide <= 0 && fit.right <= fit.width, `управляющий на телефоне: шапка не шире экрана (лишних ${fit.wide}px)`)

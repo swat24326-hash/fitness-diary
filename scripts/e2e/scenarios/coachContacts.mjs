@@ -7,7 +7,7 @@ import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
-import { ORIGIN, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { ORIGIN, fillCoachCredentials, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 
 export const name = 'папки сообщений: с приложением ярко, без — пригласить'
@@ -80,9 +80,8 @@ async function phone(c, browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await page.goto(`${ORIGIN}/coach`)
-    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     await page.getByRole('link', { name: /^Сообщения/ }).click()
     await checkList(c, page, 'телефон')
     await screenshot(page, 'coach-contacts')

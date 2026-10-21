@@ -25,20 +25,64 @@ export function workoutDraftContentScore(workoutState) {
   score += exercises.length * 120
   for (const ex of exercises) {
     if (!ex || typeof ex !== 'object') continue
-    if (String(ex.name ?? '').trim()) score += 80
+    if (String(ex.name ?? '').trim()) {
+      score += 80
+      score += String(ex.name).trim().length
+    }
     if (String(ex.muscle_focus ?? '').trim()) score += 10
     const sets = ex.sets
     if (Array.isArray(sets)) {
       score += sets.length * 15
       for (const set of sets) {
         if (!set || typeof set !== 'object') continue
-        for (const k of ['reps', 'weight', 'rpe', 'hr', 'duration_sec']) {
+        for (const k of ['reps', 'weight_kg', 'weight', 'rpe', 'hr_after', 'hr', 'tut_sec', 'load', 'duration_sec']) {
           if (String(set[k] ?? '').trim() !== '') score += 3
         }
       }
     }
   }
   return score
+}
+
+/**
+ * Тихий автосейв снимает форму в начале и может дописать её уже после выбора
+ * упражнения из справочника. Тогда в базе остаётся первое слово поиска («Жим»)
+ * и пустые повторы, хотя на экране уже «Жим лёжа» и цифры.
+ * Берём более полный снимок того же черновика: живая форма или durable.
+ * @param {{
+ *   trainingId?: string | null,
+ *   clientId?: string | null,
+ *   snapshot?: object | null,
+ *   live?: { loadState?: string, meta?: { trainingId?: string | null }, client?: { id?: string } | null, clientIdParam?: string | null, workoutState?: object } | null,
+ *   durable?: { trainingId?: string | null, clientId?: string | null, workoutState?: object } | null,
+ * }} opts
+ */
+export function resolveSilentDraftWorkout(opts = {}) {
+  const trainingId = String(opts.trainingId ?? '').trim()
+  const expectClient = String(opts.clientId ?? '').trim()
+  const snapshot = opts.snapshot && typeof opts.snapshot === 'object' ? opts.snapshot : {}
+  let best = snapshot
+  let bestScore = workoutDraftContentScore(best)
+
+  const consider = (workout, tid, clientId) => {
+    if (!trainingId || String(tid ?? '').trim() !== trainingId) return
+    const client = String(clientId ?? '').trim()
+    if (expectClient && client && client !== expectClient) return
+    if (!workout || typeof workout !== 'object') return
+    const score = workoutDraftContentScore(workout)
+    if (score > bestScore) {
+      best = workout
+      bestScore = score
+    }
+  }
+
+  const live = opts.live
+  if (String(live?.loadState ?? '') === 'ok') {
+    consider(live?.workoutState, live?.meta?.trainingId, live?.client?.id ?? live?.clientIdParam)
+  }
+  const durable = opts.durable
+  consider(durable?.workoutState, durable?.trainingId, durable?.clientId)
+  return best
 }
 
 /** Поля, которые экран пишет сам (штамп лояльности, пульс) — это не правка тренера. */
@@ -80,6 +124,52 @@ export const TRAINING_DRAFT_RESTORE_RICHNESS_WINDOW_MS = 120_000
 /** Минимальный перевес score, чтобы принять более старую, но полную версию. */
 export const TRAINING_DRAFT_RESTORE_RICHNESS_MIN_DELTA = 40
 
+const SET_VALUE_KEYS = ['reps', 'weight_kg', 'weight', 'rpe', 'hr_after', 'hr', 'tut_sec', 'load', 'duration_sec']
+
+function filledSetValueCount(workout) {
+  const exercises = workout?.exercises
+  if (!Array.isArray(exercises)) return 0
+  let count = 0
+  for (const ex of exercises) {
+    if (!Array.isArray(ex?.sets)) continue
+    for (const set of ex.sets) {
+      if (!set || typeof set !== 'object') continue
+      for (const key of SET_VALUE_KEYS) {
+        if (String(set[key] ?? '').trim() !== '') count += 1
+      }
+    }
+  }
+  return count
+}
+
+/**
+ * Снимок поиска («Жим», пустые повторы) против выбора из справочника («Жим лёжа», повторы есть).
+ * Одинаковые цифры не считаем обрубком: тренер мог сам укоротить название.
+ * @param {object | null | undefined} truncated
+ * @param {object | null | undefined} full
+ * @returns {boolean}
+ */
+export function isSearchPrefixDraft(truncated, full) {
+  const shortList = truncated?.exercises
+  const fullList = full?.exercises
+  if (!Array.isArray(shortList) || !Array.isArray(fullList)) return false
+  if (shortList.length === 0 || shortList.length !== fullList.length) return false
+  let prefix = false
+  for (let i = 0; i < shortList.length; i += 1) {
+    const shortName = String(shortList[i]?.name ?? '').trim()
+    const fullName = String(fullList[i]?.name ?? '').trim()
+    if (!shortName || !fullName) return false
+    if (shortName === fullName) continue
+    if (fullName.startsWith(shortName) && fullName.length > shortName.length) {
+      prefix = true
+      continue
+    }
+    return false
+  }
+  if (!prefix) return false
+  return filledSetValueCount(full) > filledSetValueCount(truncated)
+}
+
 /**
  * @param {{ workoutState?: object, revisionMs?: number, source?: string }} a
  * @param {{ workoutState?: object, revisionMs?: number, source?: string }} b
@@ -90,20 +180,20 @@ export function compareTrainingDraftCandidates(a, b) {
   const msB = Number(b?.revisionMs) || 0
   const scoreA = workoutDraftContentScore(a?.workoutState)
   const scoreB = workoutDraftContentScore(b?.workoutState)
+  const within = (newer, older) => newer > 0 && older > 0 && newer - older <= TRAINING_DRAFT_RESTORE_RICHNESS_WINDOW_MS
+
+  if (isSearchPrefixDraft(a?.workoutState, b?.workoutState) && within(msA, msB)) return -1
+  if (isSearchPrefixDraft(b?.workoutState, a?.workoutState) && within(msB, msA)) return 1
 
   if (
     scoreA >= scoreB + TRAINING_DRAFT_RESTORE_RICHNESS_MIN_DELTA &&
-    msA > 0 &&
-    msB > 0 &&
-    msB - msA <= TRAINING_DRAFT_RESTORE_RICHNESS_WINDOW_MS
+    within(msB, msA)
   ) {
     return 1
   }
   if (
     scoreB >= scoreA + TRAINING_DRAFT_RESTORE_RICHNESS_MIN_DELTA &&
-    msA > 0 &&
-    msB > 0 &&
-    msA - msB <= TRAINING_DRAFT_RESTORE_RICHNESS_WINDOW_MS
+    within(msA, msB)
   ) {
     return -1
   }

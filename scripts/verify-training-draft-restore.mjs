@@ -3,7 +3,9 @@
  */
 import {
   compareTrainingDraftCandidates,
+  isSearchPrefixDraft,
   pickTrainingDraftRestore,
+  resolveSilentDraftWorkout,
   shouldApplyLateDraftRestore,
   workoutDraftContentScore,
 } from '../src/lib/trainingDraftRestoreCore.js'
@@ -136,6 +138,73 @@ ok(
     liveWorkoutState: {},
   }),
   'пустой выбор — ничего не подменяем',
+)
+
+const searchPrefix = { exercises: [{ name: 'Жим', sets: [{ reps: '' }] }] }
+const catalogPick = { exercises: [{ name: 'Жим лёжа', sets: [{ reps: '10' }] }] }
+const silentResolved = resolveSilentDraftWorkout({
+  trainingId: 't1',
+  clientId: 'c1',
+  snapshot: searchPrefix,
+  live: { loadState: 'ok', meta: { trainingId: 't1' }, client: { id: 'c1' }, workoutState: catalogPick },
+  durable: { trainingId: 't1', clientId: 'c1', workoutState: catalogPick },
+})
+ok(silentResolved.exercises[0].name === 'Жим лёжа', 'silent persist keeps catalog name, not search prefix')
+ok(silentResolved.exercises[0].sets[0].reps === '10', 'silent persist keeps reps from the fuller snapshot')
+ok(
+  resolveSilentDraftWorkout({
+    trainingId: 't1',
+    clientId: 'c1',
+    snapshot: searchPrefix,
+    live: { loadState: 'ok', meta: { trainingId: 't2' }, client: { id: 'c2' }, workoutState: catalogPick },
+  }).exercises[0].name === 'Жим',
+  'silent persist does not take another draft',
+)
+ok(
+  resolveSilentDraftWorkout({
+    trainingId: 't1',
+    clientId: 'c1',
+    snapshot: catalogPick,
+    live: { loadState: 'ok', meta: { trainingId: 't1' }, client: { id: 'c1' }, workoutState: searchPrefix },
+  }).exercises[0].name === 'Жим лёжа',
+  'poorer live snapshot does not erase the catalog pick',
+)
+
+const prefixMs = Date.parse('2026-10-21T16:00:25.704Z')
+const fullMs = Date.parse('2026-10-21T16:00:23.708Z')
+ok(isSearchPrefixDraft(searchPrefix, catalogPick), '«Жим» without reps is a search prefix of «Жим лёжа»')
+ok(
+  !isSearchPrefixDraft(
+    { exercises: [{ name: 'Жим', sets: [{ reps: '10' }] }] },
+    catalogPick,
+  ),
+  'short name that kept the reps is not treated as a cut',
+)
+const prefixPick = pickTrainingDraftRestore({
+  idbRow: {
+    id: 't1',
+    client_id: 'c1',
+    status: 'draft',
+    data: searchPrefix,
+    updated_at: '2026-10-21T16:00:25.704Z',
+  },
+  durable: {
+    trainingId: 't1',
+    clientId: 'c1',
+    status: 'draft',
+    workoutState: catalogPick,
+    revisedAt: '2026-10-21T16:00:23.708Z',
+  },
+  expectClientId: 'c1',
+})
+ok(prefixPick.source === 'durable', 'return prefers durable catalog name over newer search prefix in IDB')
+ok(prefixPick.workoutState.exercises[0].sets[0].reps === '10', 'return keeps reps from the catalog snapshot')
+ok(
+  compareTrainingDraftCandidates(
+    { workoutState: { exercises: [{ name: 'Жим', sets: [{ reps: '10' }] }] }, revisionMs: prefixMs },
+    { workoutState: catalogPick, revisionMs: fullMs },
+  ) > 0,
+  'intentional shorter name with the same reps stays newer',
 )
 
 if (failed) {

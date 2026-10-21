@@ -10,7 +10,7 @@ import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
-import { ORIGIN, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { ORIGIN, fillCoachCredentials, loginUi, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 import { coachPushUrl } from '../../../src/lib/push/pushTargetUrlCore.js'
 import { hiddenLinkedTrainerIds } from '../../../src/lib/chat/linkedStaffCore.js'
@@ -240,9 +240,8 @@ export async function run(browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await page.goto(`${ORIGIN}/coach`)
-    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     c.ok(await reaches(page.getByRole('link', { name: 'Сообщения', exact: true })), 'тренер: пока тихо — вкладка «Сообщения» без числа')
     await supervisorWrites(c, browser, backend, chat)
     await trainerReadsAndMutes(c, page, backend, chat)

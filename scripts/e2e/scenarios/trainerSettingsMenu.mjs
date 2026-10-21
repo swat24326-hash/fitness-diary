@@ -101,7 +101,7 @@ export async function run(browser) {
     c.ok(await reaches(page.getByTestId('trainer-inbox-tab-planerka')), 'во Входящих — вкладка «Планёрка»')
     c.ok(await reaches(page.getByTestId('trainer-inbox-tab-clients')), 'во Входящих — вкладка «От клиентов»')
     await page.getByTestId('trainer-inbox-tab-clients').click()
-    c.ok(await reaches(page.getByText(/Пока тихо|ждут открытия|Задания и рационы/)), 'вкладка «От клиентов» открывается')
+    c.ok(await reaches(page.locator('.iskra-inbox__empty')), 'вкладка «От клиентов» открывается')
     await screenshot(page, 'trainer-inbox-unified')
     await page.keyboard.press('Escape')
 

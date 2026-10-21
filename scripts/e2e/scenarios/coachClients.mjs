@@ -6,7 +6,7 @@ import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
-import { ORIGIN, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { ORIGIN, fillCoachCredentials, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 
 export const name = 'телефон тренера: Клиенты с абонементами'
@@ -64,9 +64,8 @@ export async function run(browser) {
   const chip = (label) => page.getByRole('button', { name: new RegExp(`^${label}: \\d+$`) })
   try {
     await page.goto(`${ORIGIN}/coach`)
-    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     await page.getByRole('link', { name: 'Клиенты', exact: true }).click()
     await rows.first().waitFor({ timeout: 15_000 })
     await screenshot(page, 'coach-clients-list')

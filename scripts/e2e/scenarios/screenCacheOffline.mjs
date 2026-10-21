@@ -9,7 +9,7 @@ import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
-import { ORIGIN, newE2eContext, screenshot, setCloudOnline } from '../lib/e2eHarness.mjs'
+import { ORIGIN, fillCoachCredentials, newE2eContext, screenshot, setCloudOnline } from '../lib/e2eHarness.mjs'
 import { CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, completedTodaySeed, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 import { wireClient } from './clientChat.mjs'
 
@@ -72,9 +72,8 @@ async function coachPhone(c, browser) {
   page.on('pageerror', (e) => pageErrors.push(String(e?.message ?? e)))
   try {
     await page.goto(`${ORIGIN}/coach`)
-    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
-    await page.getByRole('button', { name: 'Войти' }).click()
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
     await page.getByRole('link', { name: /^Сообщения/ }).click()
     const vera = page.locator('.chat-contacts__item', { hasText: 'Вера Былапереписка' }).getByRole('link')
     await vera.click()
@@ -114,6 +113,7 @@ async function coachPhone(c, browser) {
     c.ok(chat.state.messages.filter((m) => m.body === OUTBOX_TEXT).length === 1, 'ушло ровно один раз, без дубля')
     await page.goto(`${ORIGIN}/coach/more`)
     await page.getByRole('button', { name: 'Выйти' }).click()
+    await page.getByRole('alertdialog', { name: 'Выйти из приложения?' }).getByRole('button', { name: 'Выйти' }).click()
     c.ok(await eventually(async () => (await cacheCount(page, 'coach')) === 0), '«Выйти» стирает сохранённое с телефона')
     c.ok(pageErrors.length === 0, `телефон: без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
   } catch (e) {

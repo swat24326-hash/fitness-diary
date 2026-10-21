@@ -62,17 +62,114 @@ export function resolveAdminClientsSearchPool(p) {
 }
 
 /**
- * Клиент совпадает со строкой поиска (ФИО / телефон / карта).
- * @param {object|null|undefined} client
- * @param {string} queryLower — уже trim + toLowerCase
+ * Режим строки поиска на списке клиентов.
+ * `card` — фамилия (всё ФИО) и номер карты. Телефон не участвует:
+ * короткий номер карты иначе попадает в середину чужих телефонов.
+ * `phone` — фамилия и телефон. Карта не участвует.
+ * @param {unknown} mode
+ * @returns {'card' | 'phone'}
  */
-export function clientMatchesAdminSearchQuery(client, queryLower) {
-  const q = String(queryLower ?? '').trim().toLowerCase()
+export function normalizeAdminClientSearchMode(mode) {
+  return String(mode ?? '').trim().toLowerCase() === 'phone' ? 'phone' : 'card'
+}
+
+function foldSearchText(raw) {
+  return String(raw ?? '').trim().toLowerCase().replace(/ё/g, 'е')
+}
+
+function digitsOnly(raw) {
+  return String(raw ?? '').replace(/\D/g, '')
+}
+
+/** Номер карты: без пробелов и «№», нижний регистр. Буква в начале («р247») сохраняется. */
+function normalizeCardSearchToken(raw) {
+  return foldSearchText(raw).replace(/^№\s*/i, '').replace(/\s+/g, '')
+}
+
+/**
+ * Цифры телефона для сравнения: 8XXXXXXXXXX и 10 цифр → 7XXXXXXXXXX.
+ * @param {unknown} raw
+ */
+function phoneDigitsForSearch(raw) {
+  let d = digitsOnly(raw)
+  if (d.length === 11 && d.startsWith('8')) d = `7${d.slice(1)}`
+  if (d.length === 10) d = `7${d}`
+  return d
+}
+
+/** В номере нет букв и «№» — это телефон, а не «р247» и не фамилия. */
+function queryIsPhoneLike(query) {
+  const s = foldSearchText(query)
+  if (!s || /[a-zа-яё№]/i.test(s)) return false
+  return digitsOnly(s).length >= 2
+}
+
+/**
+ * @param {unknown} phone
+ * @param {unknown} query
+ */
+export function clientPhoneMatchesAdminSearch(phone, query) {
+  if (!queryIsPhoneLike(query)) return false
+  const stored = phoneDigitsForSearch(phone)
+  if (!stored) return false
+  const raw = digitsOnly(query)
+  const needles = new Set([raw, phoneDigitsForSearch(query)])
+  // Набрали «8912…», в карточке номер уже с семёркой.
+  if (raw.startsWith('8') && raw.length >= 2 && raw.length < 11) needles.add(`7${raw.slice(1)}`)
+  for (const n of needles) {
+    if (n && stored.includes(n)) return true
+  }
+  return false
+}
+
+/**
+ * @param {unknown} card
+ * @param {unknown} query
+ */
+export function clientCardMatchesAdminSearch(card, query) {
+  const q = normalizeCardSearchToken(query)
+  const c = normalizeCardSearchToken(card)
+  if (!q || !c) return false
+  return c.includes(q)
+}
+
+/**
+ * Подсказка, если строка похожа не на тот режим (пустая выдача).
+ * @param {unknown} query
+ * @param {unknown} mode
+ * @returns {string}
+ */
+export function adminClientSearchMissHint(query, mode) {
+  const q = foldSearchText(query)
+  if (q.length < 2) return ''
+  const m = normalizeAdminClientSearchMode(mode)
+  const phoneLike = queryIsPhoneLike(q)
+  const cardLike = !phoneLike && normalizeCardSearchToken(q).length >= 2 && /\d/.test(q)
+  if (m === 'card' && phoneLike && digitsOnly(q).length >= 10) {
+    return 'Сейчас ищем фамилию и номер карты. Если это телефон — нажмите кнопку с трубкой.'
+  }
+  if (m === 'phone' && cardLike) {
+    return 'Сейчас ищем фамилию и телефон. Если это номер карты — нажмите кнопку с картой.'
+  }
+  return ''
+}
+
+/**
+ * Клиент совпадает со строкой поиска.
+ * Буквы — всегда ФИО (фамилия, имя, отчество).
+ * Цифры — только карта или только телефон, по режиму.
+ * @param {object|null|undefined} client
+ * @param {string} queryLower
+ * @param {unknown} [mode] — `card` (по умолчанию) или `phone`
+ */
+export function clientMatchesAdminSearchQuery(client, queryLower, mode) {
+  const q = foldSearchText(queryLower)
   if (!q) return true
-  const name = String(client?.name ?? '').toLowerCase()
-  const phone = String(client?.phone ?? '').toLowerCase()
-  const card = String(client?.card_number ?? '').toLowerCase()
-  return name.includes(q) || phone.includes(q) || card.includes(q)
+  const nameHit = foldSearchText(client?.name).includes(q)
+  if (normalizeAdminClientSearchMode(mode) === 'phone') {
+    return nameHit || clientPhoneMatchesAdminSearch(client?.phone, q)
+  }
+  return nameHit || clientCardMatchesAdminSearch(client?.card_number, q)
 }
 
 /**

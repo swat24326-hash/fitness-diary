@@ -3,6 +3,7 @@
  * Не ходит в сеть; состояние — обычные массивы, тест читает их напрямую.
  */
 import { canStaffInviteClient } from '../../../api/_lib/clientPortal/clientInviteCore.js'
+import { OFFER_VERSION } from '../../../src/lib/legal/offerCore.js'
 
 function b64url(obj) {
   return Buffer.from(JSON.stringify(obj)).toString('base64url')
@@ -37,16 +38,25 @@ function sessionFor(u) {
   }
 }
 
+/** Пустые поля оферты в сиде — окно остаётся (сценарий шапки). Нет полей — уже принята. */
+function withDefaultOffer(u) {
+  if (!u || u.role !== 'supervisor' || Object.hasOwn(u, 'offer_accepted_at')) return u
+  return { ...u, offer_accepted_at: '2026-10-18T12:00:00.000Z', offer_version: OFFER_VERSION }
+}
+
 function profileOf(u) {
+  const row = withDefaultOffer(u)
   return {
-    id: u.id,
-    role: u.role,
-    name: u.name,
-    email: u.email,
-    login: u.login,
+    id: row.id,
+    role: row.role,
+    name: row.name,
+    email: row.email,
+    login: row.login,
     phone: null,
-    club_id: u.club_id,
+    club_id: row.club_id,
     uses_tablet: true,
+    offer_accepted_at: row.offer_accepted_at ?? null,
+    offer_version: row.offer_version ?? null,
   }
 }
 
@@ -89,7 +99,7 @@ function restSelect(state, table, searchParams) {
     if (REST_RESERVED.has(key) || !expr.includes('.')) continue
     rows = rows.filter((r) => matchesFilter(r, key, expr))
   }
-  return rows
+  return table === 'users' ? rows.map(withDefaultOffer) : rows
 }
 
 function upsertRow(state, table, row) {
@@ -232,7 +242,17 @@ export function createFakeBackend(seed) {
     }
     if (path.startsWith('/api/') && !user) return { status: 401, json: { error: 'Нет сессии' } }
 
-    if (path === '/api/me-profile') return { status: 200, json: { profile: profileOf(user) } }
+    if (path === '/api/me-profile') {
+      if (method === 'POST' && body?.action === 'offer-accept') {
+        if (user.role !== 'supervisor') return { status: 403, json: { error: 'Оферту принимает управляющий клуба' } }
+        const version = String(body?.version ?? '').trim()
+        if (version !== OFFER_VERSION) return { status: 400, json: { error: 'Устаревшая версия оферты — обновите страницу' } }
+        user.offer_accepted_at = new Date().toISOString()
+        user.offer_version = version
+        return { status: 200, json: { ok: true, offer_accepted_at: user.offer_accepted_at, offer_version: version } }
+      }
+      return { status: 200, json: { profile: profileOf(user) } }
+    }
     if (path === '/api/list-trainers') {
       const role = searchParams.get('role') || 'trainer'
       const trainers = state.users.filter((u) => u.role === role).map((u) => profileOf(u))

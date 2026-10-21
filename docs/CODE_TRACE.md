@@ -33,7 +33,7 @@
 | Сессия / epoch | `src/lib/trainingDraftSessionCache.js`, `src/lib/trainingDraftTabSwitchCore.js`, `src/lib/trainingDraftPageEpochCore.js` (`shouldAcceptDraftWorkoutEdit`), `src/lib/trainingDraftRestoreCore.js` |
 | Диск (durable) | `src/lib/trainingDraftDurableStorage.js` (не затирает более новую копию — `shouldKeepNewerTrainingDraftDurable`), `src/lib/trainingDraftDurableHydrate.js` (проверка и запись в одной транзакции — `saveLocalWithSync({ onlyIf, updatedAt })`) |
 | Скрытие вкладки | `src/hooks/useTrainingDraftHideFlush.js` |
-| Поздний restore / порядок автосейвов | `shouldApplyLateDraftRestore` в `src/lib/trainingDraftRestoreCore.js`, `shouldSkipStaleSilentDraftPersist` в `src/lib/trainingPersistStatusCore.js` |
+| Поздний restore / порядок автосейвов | `shouldApplyLateDraftRestore`, `isSearchPrefixDraft`, `resolveSilentDraftWorkout` в `src/lib/trainingDraftRestoreCore.js` (обрубок поиска «Жим» не побеждает «Жим лёжа» из durable), `shouldSkipStaleSilentDraftPersist` в `src/lib/trainingPersistStatusCore.js` |
 | Verify | `scripts/verify-training-draft-tab-switch.mjs`, `scripts/verify-training-draft-page-epoch.mjs`, `scripts/verify-training-draft-restore.mjs`, `scripts/verify-training-draft-durable.mjs`; e2e `trainerTwoDrafts`, `trainerInputAfterOpen` |
 | Docs | [SYNC.md](./SYNC.md) §3a–3d, INCIDENTS **A** |
 

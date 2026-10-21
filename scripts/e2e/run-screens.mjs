@@ -51,10 +51,25 @@ try {
 }
 const server = await startDevServer()
 const failures = []
+
+async function closeOpenContexts() {
+  for (const ctx of browser.contexts()) {
+    await ctx.close().catch(() => {})
+  }
+}
+
 try {
   for (const s of picked) {
     console.log(`\n▶ ${s.name}`)
-    failures.push(...(await s.run(browser)))
+    try {
+      failures.push(...(await s.run(browser)))
+    } catch (e) {
+      const msg = e?.message ? String(e.message).split('\n')[0] : 'сценарий упал'
+      console.error(`  ✗ сценарий прерван: ${msg}`)
+      failures.push(`${s.name}: сценарий прерван: ${msg}`)
+    } finally {
+      await closeOpenContexts()
+    }
   }
 } finally {
   await browser.close()

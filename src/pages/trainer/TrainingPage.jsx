@@ -47,6 +47,7 @@ import {
 } from '../../lib/trainingDraftDurableCore.js'
 import {
   pickTrainingDraftRestore,
+  resolveSilentDraftWorkout,
   shouldApplyLateDraftRestore,
   workoutDraftContentScore,
 } from '../../lib/trainingDraftRestoreCore.js'
@@ -1504,6 +1505,7 @@ export function TrainingPage() {
         })
       }
     }
+    const storedData = dataWithLoyalty
     const trainerIdForRow = isAdmin ? prev?.trainer_id ?? clientLive?.trainer_id ?? user.id : user.id
     const row = {
       id: prev?.id ?? trainingId,
@@ -1516,9 +1518,9 @@ export function TrainingPage() {
           : isAdmin
             ? trainingDate
             : today,
-      type: persistType,
+      type: deriveTrainingTypeFromExercises(storedData.exercises, persistType),
       status: nextStatus,
-      data: dataWithLoyalty,
+      data: storedData,
       created_at: prev?.created_at ?? now,
       synced: false,
     }
@@ -1571,6 +1573,19 @@ export function TrainingPage() {
         if (applyUi) setAutosaveStatus('saving')
       }
       try {
+        if (silent) {
+          const richer = resolveSilentDraftWorkout({
+            trainingId: row.id,
+            clientId: cid,
+            snapshot: row.data,
+            live: liveDraftRef.current,
+            durable: readTrainingDraftDurable({ trainingId: row.id, clientId: cid }),
+          })
+          if (richer !== row.data) {
+            row.data = sanitizeWorkoutData(richer, { sessionFallback: trainingType })
+            row.type = deriveTrainingTypeFromExercises(row.data.exercises, row.type)
+          }
+        }
         await saveLocalWithSync('trainings', row, {
           table_name: 'trainings',
           operation: shouldEnqueueTrainingAsInsert(prev) ? 'insert' : 'update',

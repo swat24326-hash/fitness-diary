@@ -7,7 +7,7 @@ import { chromium } from 'playwright'
 import { createFakeBackend } from './lib/fakeBackend.mjs'
 import { createFakeChat } from './lib/fakeChat.mjs'
 import { createFakeCoach } from './lib/fakeCoach.mjs'
-import { ORIGIN, newE2eContext, startDevServer } from './lib/e2eHarness.mjs'
+import { ORIGIN, fillCoachCredentials, newE2eContext, startDevServer } from './lib/e2eHarness.mjs'
 import { CLIENT_ID, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from './lib/fixtures.mjs'
 
 const backend = createFakeBackend(trainerClubSeed())
@@ -68,9 +68,7 @@ const context = await newE2eContext(browser, backend, {
 })
 const page = await context.newPage()
 await page.goto(`${ORIGIN}/coach`)
-await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
-await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
+await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
 await page.getByRole('button', { name: 'Войти', exact: true }).click()
 await page.getByRole('link', { name: /^Сообщения/ }).waitFor({ timeout: 20_000 })
 await page.goto(`${ORIGIN}/coach/chat/${CLIENT_ID}`)

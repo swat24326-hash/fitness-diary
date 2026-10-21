@@ -7,7 +7,7 @@ import { createChecks } from '../lib/e2eChecks.mjs'
 import { createFakeBackend } from '../lib/fakeBackend.mjs'
 import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
-import { ORIGIN, chatComposeAtBottom, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
+import { ORIGIN, chatComposeAtBottom, fillCoachCredentials, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
 
 export const name = 'телефон тренера: вход, план дня, ответ клиенту'
@@ -55,8 +55,7 @@ export async function run(browser) {
     c.ok(await reaches(page.getByRole('button', { name: 'Войти по QR' })), 'на входе — «Войти по QR»')
     c.ok(await reaches(page.getByRole('region', { name: 'Значок на экран «Домой»' })), 'до входа — шаг установки значка')
     await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
-    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти', exact: true }).click()
     c.ok(await reaches(slot10(page)), 'первый телефон тренера входит сразу, без админа — Ежедневник с записью 10:00')
     const phone = coach.state.devices[0]
@@ -101,7 +100,7 @@ export async function run(browser) {
 
     coach.setPhoneStatus('revoked')
     await page.goto(`${ORIGIN}/coach/more`)
-    c.ok(await reaches(page.getByRole('button', { name: 'Войти' })), 'отозванный телефон — снова экран входа')
+    c.ok(await reaches(page.getByRole('button', { name: 'Войти по QR' })), 'отозванный телефон — снова экран входа')
     c.ok(await reaches(page.getByRole('status')), 'на экране входа объяснение, почему вышли')
     await screenshot(page, 'coach-revoked')
     c.ok(pageErrors.length === 0, `без ошибок JS${pageErrors.length ? `: ${pageErrors[0]}` : ''}`)
@@ -131,8 +130,7 @@ async function runAndroidManifest(browser, c) {
   try {
     await page.goto(`${ORIGIN}/coach`)
     await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
-    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти', exact: true }).click()
     await reaches(slot10(page))
     c.ok(JSON.stringify(await manifests()) === JSON.stringify([clubManifest]), 'Android: после входа manifest клуба — значок назовётся как клуб')
@@ -172,8 +170,7 @@ async function runIconHandoff(browser, c) {
   try {
     await page.goto(`${ORIGIN}/coach`)
     await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
-    await page.getByLabel('Логин').fill(TRAINER_LOGIN)
-    await page.getByLabel('Пароль').fill(TRAINER_PASSWORD)
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     await page.getByRole('button', { name: 'Войти', exact: true }).click()
     const banner = page.getByRole('region', { name: 'Значок на экран «Домой»' })
     await banner.getByRole('button', { name: 'Как?' }).click()
