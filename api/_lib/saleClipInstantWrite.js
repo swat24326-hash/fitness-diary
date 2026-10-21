@@ -15,6 +15,7 @@ import { planSaleClipCancel } from '../../src/lib/admin/saleClipCancelCore.js'
 import {
   buildInstantMembershipInsert,
   findSameDayDuplicateMembership,
+  planFulfillAwaitingSaleClip,
   planSaleClipMembershipUpdate,
   planSaleClipTrainerAssign,
   validateInstantSaleClipMembership,
@@ -231,6 +232,116 @@ export async function commitInstantSaleClip(supabase, input) {
       match: plan.match
         ? { status: plan.match.status, matchedBy: plan.match.matchedBy, reason: plan.match.reason }
         : null,
+    },
+  }
+}
+
+/**
+ * Старая awaiting: пакет на этот же клип, строка становится done. Второй клип не пишем.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {{
+ *   clubId: string,
+ *   clipId: string,
+ *   membershipTypeId?: unknown,
+ *   totalTrainings?: unknown,
+ *   startDate?: unknown,
+ *   endDate?: unknown,
+ * }} input
+ */
+export async function fulfillAwaitingSaleClip(supabase, input) {
+  const { data: clip, error: loadErr } = await supabase
+    .from('sale_clips')
+    .select(CLIP_SELECT)
+    .eq('id', input.clipId)
+    .maybeSingle()
+  if (loadErr || !clip) return { status: 404, body: { error: 'Клип не найден' } }
+  if (String(clip.club_id) !== input.clubId) return { status: 403, body: { error: 'Клип другого клуба' } }
+
+  const planned = planFulfillAwaitingSaleClip(clip, {
+    membership_type_id: input.membershipTypeId ?? clip.membership_type_id,
+    total_trainings: input.totalTrainings ?? clip.total_trainings,
+    start_date: input.startDate ?? clip.start_date,
+    end_date: input.endDate ?? clip.end_date,
+  })
+  if (!planned.ok) return { status: 400, body: { error: planned.reason, reason: planned.reason, needsFields: planned.needsFields === true } }
+
+  const { data: typeRow, error: typeErr } = await supabase
+    .from('membership_types')
+    .select('id, club_id, code')
+    .eq('id', planned.fields.membership_type_id)
+    .maybeSingle()
+  if (typeErr || !typeRow || String(typeRow.club_id) !== input.clubId) {
+    const reason = 'Тип абонемента не найден в этом клубе'
+    return { status: 400, body: { error: reason, reason } }
+  }
+
+  const now = new Date().toISOString()
+  const { data: mems, error: memErr } = await supabase
+    .from('memberships')
+    .select(MEMBERSHIP_SELECT)
+    .eq('client_id', planned.clientId)
+  if (memErr) return { status: 400, body: { error: memErr.message || 'Не удалось проверить пакеты', reason: memErr.message } }
+
+  const duplicate = findSameDayDuplicateMembership(mems ?? [], planned.fields, planned.clipDate)
+  let membership = duplicate
+  let createdMembership = false
+  if (!membership) {
+    const row = buildInstantMembershipInsert({
+      id: crypto.randomUUID(),
+      clientId: planned.clientId,
+      clubId: input.clubId,
+      clipId: clip.id,
+      fields: planned.fields,
+      now,
+    })
+    const { data: inserted, error: mIns } = await supabase.from('memberships').insert(row).select(MEMBERSHIP_SELECT).maybeSingle()
+    if (mIns || !inserted) {
+      const reason = mIns?.message || 'Не удалось создать абонемент'
+      return { status: 400, body: { error: reason, reason } }
+    }
+    membership = inserted
+    createdMembership = true
+  } else if (!String(membership.clip_id ?? '').trim()) {
+    await supabase.from('memberships').update({ clip_id: clip.id }).eq('id', membership.id).is('clip_id', null)
+    membership = { ...membership, clip_id: clip.id }
+  }
+
+  const { data: updated, error: clipErr } = await supabase
+    .from('sale_clips')
+    .update({
+      status: 'done',
+      client_id: planned.clientId,
+      membership_id: membership.id,
+      membership_type_id: planned.fields.membership_type_id,
+      membership_type_label: String(typeRow.code ?? clip.membership_type_label ?? '').trim() || null,
+      total_trainings: planned.fields.total_trainings,
+      start_date: planned.fields.start_date,
+      end_date: planned.fields.end_date,
+      done_at: now,
+      updated_at: now,
+    })
+    .eq('id', clip.id)
+    .eq('status', 'awaiting')
+    .select(CLIP_SELECT)
+    .maybeSingle()
+  if (clipErr || !updated) {
+    if (createdMembership) await supabase.from('memberships').delete().eq('id', membership.id)
+    const reason = clipErr?.message || 'Заявка уже закрыта'
+    return { status: 400, body: { error: reason, reason } }
+  }
+
+  const warnings = []
+  const hall = await openPzLikeTablet(supabase, planned.clientId, [...(mems ?? []), membership], now)
+  if (!hall.ok && hall.reason) warnings.push(`Абонемент создан, направление ПЗ не открылось: ${hall.reason}`)
+
+  return {
+    status: 200,
+    body: {
+      clip: updated,
+      membership,
+      warnings,
+      already: !createdMembership,
+      reason: createdMembership ? 'Абонемент создан' : 'Такой пакет уже есть в этот день — заявку закрыли им',
     },
   }
 }

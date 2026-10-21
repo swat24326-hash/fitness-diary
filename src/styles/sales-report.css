@@ -5805,6 +5805,12 @@
   gap: 0.65rem;
 }
 
+.sales-clip-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 .sales-clip-list li,
 .trainer-sale-clips__list li {
   display: flex;

@@ -88,6 +88,47 @@ export async function matchSaleClipClient(opts) {
 }
 
 /**
+ * Закрыть старую заявку «без абонемента»: пакет пишется на этот же клип.
+ * @param {{
+ *   clubId: string,
+ *   id: string,
+ *   membershipTypeId?: string,
+ *   totalTrainings?: number|string,
+ *   startDate?: string,
+ *   endDate?: string,
+ * }} opts
+ */
+export async function fulfillSaleClip(opts) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии — войдите снова')
+  const res = await fetch(`${apiOrigin()}/api/admin-data?action=sale-clips`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: JSON.stringify({
+      op: 'fulfill',
+      club_id: opts.clubId,
+      id: opts.id,
+      membership_type_id: opts.membershipTypeId || null,
+      total_trainings: opts.totalTrainings ?? null,
+      start_date: opts.startDate || null,
+      end_date: opts.endDate || null,
+    }),
+  })
+  const data = await parseJson(res)
+  if (!res.ok) {
+    const err = new Error(data?.error || data?.reason || 'Не удалось создать абонемент')
+    err.needsFields = data?.needsFields === true
+    throw err
+  }
+  return data
+}
+
+/**
  * @param {{ clubId: string, id: string }} opts
  */
 export async function cancelSaleClip(opts) {

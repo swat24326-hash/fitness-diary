@@ -79,6 +79,17 @@ export function normalizeSaleClipStatus(raw) {
 }
 
 /**
+ * Подпись в списке менеджера. Планшет заявку не закрывает — «ждём планшет» врёт.
+ * @param {unknown} status
+ */
+export function saleClipListStatusText(status) {
+  const s = normalizeSaleClipStatus(status)
+  if (s === 'done') return 'Абонемент создан'
+  if (s === 'cancelled') return 'Отменён'
+  return 'Абонемент не создан'
+}
+
+/**
  * @param {object} draft
  * @returns {{ ok: true, clip: object } | { ok: false, reason: string }}
  */
@@ -351,14 +362,14 @@ export function buildSaleDayChecklist(input) {
     items.push({
       key: 'awaiting',
       level: 'warn',
-      text: `Висят ${awaiting.length} клип(ов) «ждём планшет» — продажа ещё не подтверждена`,
+      text: `Висят ${awaiting.length} заявок без абонемента — планшет их не закрывает, создайте пакет в строке`,
     })
   }
   if (overdueAwaiting > 0) {
     items.push({
       key: 'overdue_awaiting',
       level: 'warn',
-      text: `Ещё ${overdueAwaiting} заявок «ждём планшет» за другие дни — у тренера на Sync виден весь хвост`,
+      text: `Ещё ${overdueAwaiting} заявок без абонемента за другие дни — их закрывает менеджер`,
     })
   }
   if (withoutMatch.length) {

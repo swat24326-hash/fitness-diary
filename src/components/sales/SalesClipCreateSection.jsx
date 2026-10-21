@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { ClipboardList, Eraser, Plus } from 'lucide-react'
-import { createSaleClip, cancelSaleClip, fetchSaleClips } from '../../lib/admin/saleClipService.js'
+import { createSaleClip, cancelSaleClip, fetchSaleClips, fulfillSaleClip } from '../../lib/admin/saleClipService.js'
 import { buildSaleDayChecklist } from '../../lib/admin/saleClipCore.js'
+import { planFulfillAwaitingSaleClip } from '../../lib/admin/saleClipInstantCore.js'
+import { SalesClipDayList } from './SalesClipDayList.jsx'
 import { buildSaleClipFormPatchFromPaste } from '../../lib/admin/saleClipPasteCore.js'
 import { isHoldingTrainerUser } from '../../lib/admin/deskClosingImportCore.js'
 import { todayLocalIso, formatDateRu, addDaysToIso, clampIsoDateToToday } from '../../lib/dateRu.js'
@@ -64,6 +65,7 @@ export function SalesClipCreateSection({
   const [pasteText, setPasteText] = useState('')
   const [pasteInfo, setPasteInfo] = useState('')
   const [pasteWarnings, setPasteWarnings] = useState([])
+  const [resumeClipId, setResumeClipId] = useState('')
   const [form, setForm] = useState({
     trainer_id: '',
     ...emptyClipClientFields(day),
@@ -102,6 +104,7 @@ export function SalesClipCreateSection({
     setError('')
     setOkMsg('')
     setWarnings([])
+    setResumeClipId('')
     setForm((f) => ({
       trainer_id: f.trainer_id,
       ...emptyClipClientFields(day),
@@ -260,10 +263,19 @@ export function SalesClipCreateSection({
       }
       let data
       try {
-        data = await createSaleClip(payload)
+        data = resumeClipId
+          ? await fulfillSaleClip({
+              clubId,
+              id: resumeClipId,
+              membershipTypeId: form.membership_type_id,
+              totalTrainings,
+              startDate: form.start_date || null,
+              endDate: form.end_date || null,
+            })
+          : await createSaleClip(payload)
       } catch (err) {
         const msg = String(err?.message || '')
-        if (!confirmTransfer && /перевод|другой тренер/i.test(msg)) {
+        if (!resumeClipId && !confirmTransfer && /перевод|другой тренер/i.test(msg)) {
           const agreed = window.confirm(saleClipTransferConfirmMessage(matchPreview))
           if (!agreed) throw err
           data = await createSaleClip({ ...payload, confirm_transfer: true })
@@ -276,6 +288,7 @@ export function SalesClipCreateSection({
       setPasteText('')
       setPasteInfo('')
       setPasteWarnings([])
+      setResumeClipId('')
       setForm((f) => ({
         trainer_id: f.trainer_id,
         ...emptyClipClientFields(day),
@@ -292,8 +305,65 @@ export function SalesClipCreateSection({
     }
   }
 
+  const fillAwaitingClip = (clip, hint) => {
+    setResumeClipId(String(clip.id))
+    setPasteText('')
+    setPasteInfo('')
+    setPasteWarnings([])
+    setError('')
+    setWarnings([])
+    setOkMsg('')
+    setError(
+      hint ||
+        'Планшет эту заявку не закрывает. Допишите тип, дату окончания и число занятий — «Создать абонемент» закроет эту строку.',
+    )
+    setForm({
+      trainer_id: String(clip.trainer_id ?? ''),
+      card_number: String(clip.card_number ?? ''),
+      phone: String(clip.phone ?? ''),
+      client_name: String(clip.client_name ?? ''),
+      membership_type_id: String(clip.membership_type_id ?? ''),
+      membership_type_label: String(clip.membership_type_label ?? ''),
+      total_trainings: clip.total_trainings ?? '',
+      start_date: String(clip.start_date || clip.clip_date || day).slice(0, 10),
+      end_date: clip.end_date ? String(clip.end_date).slice(0, 10) : '',
+      note: String(clip.note ?? ''),
+    })
+  }
+
+  const onCreateFromAwaiting = async (clip) => {
+    const planned = planFulfillAwaitingSaleClip(clip)
+    if (!planned.ok) {
+      if (planned.needsFields) {
+        fillAwaitingClip(clip, planned.reason)
+        return
+      }
+      setError(planned.reason || 'Не удалось создать абонемент')
+      return
+    }
+    setBusy(true)
+    setError('')
+    setOkMsg('')
+    setWarnings([])
+    try {
+      const data = await fulfillSaleClip({ clubId, id: clip.id })
+      setWarnings(data.warnings ?? [])
+      setOkMsg(data.reason || 'Абонемент создан')
+      setResumeClipId('')
+      await reload()
+    } catch (err) {
+      if (err?.needsFields) {
+        fillAwaitingClip(clip, err.message)
+        return
+      }
+      setError(err?.message || 'Не удалось создать абонемент')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const onCancel = async (id) => {
-    if (!window.confirm('Отменить клип? Абонемент на планшете ещё не создан.')) return
+    if (!window.confirm('Снять заявку? Абонемент по ней не создан.')) return
     setBusy(true)
     setError('')
     setOkMsg('')
@@ -511,45 +581,16 @@ export function SalesClipCreateSection({
         </div>
       </form>
 
-      <h3 className="sales-clip-section__list-title">Заявки на {formatDateRu(day)}</h3>
-      {!clips.length ? (
-        <p className="sales-clip-section__empty">Пока пусто — создайте после продажи (НК, ДК или УК).</p>
-      ) : (
-        <ul className="sales-clip-list">
-          {clips.map((c) => (
-            <li key={c.id}>
-              <div>
-                <strong>{c.client_name}</strong>
-                {c.card_number ? ` · карта ${c.card_number}` : ''}
-                {c.phone ? ` · ${c.phone}` : ''}
-                <div className="muted">
-                  {c.status === 'awaiting'
-                    ? 'Ждём планшет'
-                    : c.status === 'done'
-                      ? 'Абонемент создан'
-                      : 'Отменён'}
-                  {c.trainer_id ? ` · ${trainerNameById.get(String(c.trainer_id)) || 'тренер'}` : ''}
-                  {canOpenAdminClient && c.client_id ? (
-                    <>
-                      {' · '}
-                      <Link
-                        to={`/admin/clients/${c.client_id}?club=${encodeURIComponent(clubId)}&from=clips`}
-                      >
-                        карточка
-                      </Link>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-              {c.status === 'awaiting' ? (
-                <button type="button" className="btn btn-xs" disabled={busy} onClick={() => void onCancel(c.id)}>
-                  Отменить
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+      <SalesClipDayList
+        clips={clips}
+        day={day}
+        trainerNameById={trainerNameById}
+        clubId={clubId}
+        canOpenAdminClient={canOpenAdminClient}
+        busy={busy}
+        onCancel={(id) => void onCancel(id)}
+        onCreate={(clip) => void onCreateFromAwaiting(clip)}
+      />
     </section>
   )
 }

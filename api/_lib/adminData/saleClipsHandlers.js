@@ -10,6 +10,7 @@ import { fetchClubClientCandidates } from '../salesClientLookup.js'
 import {
   cancelInstantSaleClip,
   commitInstantSaleClip,
+  fulfillAwaitingSaleClip,
   updateInstantSaleClipMembership,
 } from '../saleClipInstantWrite.js'
 import { notifyTrainerSaleClipCreated } from '../saleClipTrainerNotify.js'
@@ -172,6 +173,53 @@ export async function handleSaleClipsPost(ctx, req, res) {
       clipId: id,
       isAdmin: ctx.isAdmin === true,
     })
+    sendJson(res, result.status, result.body)
+    return
+  }
+
+  if (op === 'fulfill') {
+    const id = String(body.id ?? body.clip_id ?? '').trim()
+    if (!id) {
+      sendJson(res, 400, { error: 'Укажите id клипа' })
+      return
+    }
+    const result = await fulfillAwaitingSaleClip(ctx.supabaseAdmin, {
+      clubId,
+      clipId: id,
+      membershipTypeId: body.membership_type_id,
+      totalTrainings: body.total_trainings,
+      startDate: body.start_date,
+      endDate: body.end_date,
+    })
+    if (result.status === 200 && result.body?.clip?.trainer_id) {
+      const clip = result.body.clip
+      const clientId = String(clip.client_id ?? '')
+      let client = null
+      let prior = []
+      if (clientId) {
+        const [{ data: clientRow }, { data: memRows }] = await Promise.all([
+          ctx.supabaseAdmin
+            .from('clients')
+            .select('id, name, lifecycle, pnk_stage, trainer_id')
+            .eq('id', clientId)
+            .maybeSingle(),
+          ctx.supabaseAdmin.from('memberships').select('id, end_date, created_at').eq('client_id', clientId),
+        ])
+        client = clientRow
+        prior = (memRows ?? []).filter((m) => String(m.id) !== String(result.body.membership?.id ?? ''))
+      }
+      try {
+        await notifyTrainerSaleClipCreated(ctx.supabaseAdmin, {
+          trainerId: clip.trainer_id,
+          clip,
+          membership: result.body.membership,
+          client,
+          priorMemberships: prior,
+        })
+      } catch (e) {
+        console.warn('[sale-clip-push]', e?.message || e)
+      }
+    }
     sendJson(res, result.status, result.body)
     return
   }

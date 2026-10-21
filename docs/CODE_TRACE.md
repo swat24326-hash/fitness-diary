@@ -187,7 +187,7 @@
 | Слой | Путь |
 |------|------|
 | Домен | `src/lib/admin/salesManagerStatsAgg.js`, `src/lib/admin/salesPlanMatrixCompare.js`, `src/lib/pnk/` |
-| Заявка/клип | `src/lib/admin/saleClipCore.js`, `saleClipPullPruneCore.js`, `api/_lib/saleClipsReconcile.js` (INC-2026-09-18-01: БЗ ≠ done) |
+| Заявка/клип | `src/lib/admin/saleClipCore.js`, `saleClipInstantCore.js` (`planFulfillAwaitingSaleClip`), `saleClipPullPruneCore.js`, `api/_lib/saleClipsReconcile.js`, `api/_lib/saleClipInstantWrite.js` (INC-2026-09-18-01: БЗ ≠ done; INC-2026-10-21-02: старая awaiting закрывается менеджером, не планшетом) |
 | UI | `src/pages/admin/AdminSales.jsx`, `src/pages/admin/SalesPnk.jsx`, компоненты `SalesPlan*`, `SalesStrategy*` |
 | API | `api/_lib/adminData/salesHandlers.js`, `api/_lib/adminData/pnkHandlers.js` |
 | Verify | `scripts/verify-sale-clips.mjs`, `scripts/verify-sales-plan-matrix-compare.mjs`, `scripts/verify-club-finance-forecast.mjs` (полный каталог: `verify-sales-*.mjs` в [TESTING.md](./TESTING.md)) |

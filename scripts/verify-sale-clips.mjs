@@ -17,6 +17,7 @@ import {
   parseSaleClipPasteText,
   buildSaleClipFormPatchFromPaste,
   matchTrainerByNameHint,
+  saleClipListStatusText,
 } from '../src/lib/admin/saleClipCore.js'
 import {
   collectHoldingTrainerIds,
@@ -41,6 +42,7 @@ import {
   findSameDayDuplicateMembership,
   planSaleClipMembershipUpdate,
   planSaleClipTrainerAssign,
+  planFulfillAwaitingSaleClip,
   validateInstantSaleClipMembership,
 } from '../src/lib/admin/saleClipInstantCore.js'
 
@@ -187,9 +189,38 @@ const overdueCheck = buildSaleDayChecklist({
   overdueAwaiting: 3,
 })
 ok(
-  overdueCheck.items.some((i) => i.key === 'overdue_awaiting' && /3/.test(i.text)),
+  overdueCheck.items.some((i) => i.key === 'overdue_awaiting' && /3/.test(i.text) && !/планшет/.test(i.text)),
   'checklist flags overdue awaiting other days',
 )
+
+ok(saleClipListStatusText('awaiting') === 'Абонемент не создан', 'awaiting is not «ждём планшет»')
+ok(saleClipListStatusText('done') === 'Абонемент создан', 'done label')
+{
+  const ready = planFulfillAwaitingSaleClip(
+    {
+      id: 'c-old',
+      status: 'awaiting',
+      client_id: 'client-1',
+      trainer_id: 't1',
+      clip_date: '2026-10-21',
+      membership_type_id: 'type-1',
+      total_trainings: 8,
+      start_date: '2026-10-21',
+      end_date: '2026-11-21',
+    },
+    {},
+    '2026-10-21',
+  )
+  ok(ready.ok && ready.clientId === 'client-1' && ready.fields.total_trainings === 8, 'fulfill old awaiting in place')
+  const missing = planFulfillAwaitingSaleClip(
+    { id: 'c-old', status: 'awaiting', client_id: 'client-1', clip_date: '2026-10-21' },
+    {},
+    '2026-10-21',
+  )
+  ok(!missing.ok && missing.needsFields === true, 'fulfill asks for type and dates')
+  const noClient = planFulfillAwaitingSaleClip({ id: 'c-old', status: 'awaiting' }, {}, '2026-10-21')
+  ok(!noClient.ok && noClient.needsFields !== true, 'fulfill without client stays on the form')
+}
 
 const parsed = parseEveningInboundText('Карта 5426\nИванов Иван\n89001112233')
 ok(parsed.cardNumber === '5426' && parsed.phone, 'evening parse card+phone')

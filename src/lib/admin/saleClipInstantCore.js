@@ -5,6 +5,7 @@
  */
 
 import { todayLocalIso } from '../dateRu.js'
+import { normalizeSaleClipStatus } from './saleClipCore.js'
 import { normalizeMembershipTotalTrainings, validateMembershipTotalAgainstUsed } from '../membership/membershipTotalGuardCore.js'
 import { saleClipNeedsTransferConfirm } from './saleClipMatchPreviewCore.js'
 
@@ -167,5 +168,33 @@ export function planSaleClipMembershipUpdate(input = {}) {
       end_date: end,
       total_trainings: totalCheck.total,
     },
+  }
+}
+
+/**
+ * Старую awaiting закрываем тем же клипом: пакет на этот id, второй клип не создаём.
+ * Пустые тип / конец / число занятий — ошибка, форма дописывает их и шлёт снова.
+ * @param {object|null|undefined} clip
+ * @param {object} [overrides]
+ * @param {string} [asOf]
+ */
+export function planFulfillAwaitingSaleClip(clip, overrides = {}, asOf = todayLocalIso()) {
+  if (!clip?.id) return { ok: false, reason: 'Клип не найден' }
+  if (normalizeSaleClipStatus(clip.status) !== 'awaiting') {
+    return { ok: false, reason: 'Заявка уже закрыта' }
+  }
+  const clientId = String(clip.client_id ?? '').trim()
+  if (!clientId) {
+    return { ok: false, reason: 'Нет карточки клиента — создайте абонемент формой сверху и снимите эту строку' }
+  }
+  const instant = validateInstantSaleClipMembership({ ...clip, ...overrides }, asOf)
+  if (!instant.ok) return { ok: false, reason: instant.reason, needsFields: true }
+  return {
+    ok: true,
+    reason: '',
+    clientId,
+    trainerId: String(clip.trainer_id ?? '').trim(),
+    clipDate: String(clip.clip_date ?? asOf).slice(0, 10),
+    fields: instant.fields,
   }
 }
