@@ -7,6 +7,8 @@ import { buildSaleClipFormPatchFromPaste } from '../../lib/admin/saleClipPasteCo
 import { isHoldingTrainerUser } from '../../lib/admin/deskClosingImportCore.js'
 import { todayLocalIso, formatDateRu, addDaysToIso, clampIsoDateToToday } from '../../lib/dateRu.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
+import { SaleClipMatchPreview, saleClipTransferConfirmMessage } from './SaleClipMatchPreview.jsx'
+import { useSaleClipMatchPreview } from './useSaleClipMatchPreview.js'
 import { SalesVisualAlert } from './SalesVisualAlert.jsx'
 import { normalizeSalesCardNumber } from '../../lib/admin/salesClientMatchCore.js'
 import { isPnkTrialTypeRow } from '../../lib/pnk/pnkTrialTrainingCore.js'
@@ -25,7 +27,7 @@ function emptyClipClientFields(startDate) {
     client_name: '',
     membership_type_id: '',
     membership_type_label: '',
-    total_trainings: '8',
+    total_trainings: '',
     start_date: startDate,
     end_date: '',
     note: '',
@@ -155,6 +157,15 @@ export function SalesClipCreateSection({
     [clips, day, overdueAwaiting],
   )
 
+  const matchPreview = useSaleClipMatchPreview({
+    clubId,
+    cardNumber: form.card_number,
+    phone: form.phone,
+    clipName: form.client_name,
+    selectedTrainerId: form.trainer_id,
+    trainerNameById,
+  })
+
   /** Живые подсказки: программа сразу пишет, чего не хватает (без звука). */
   const formHints = useMemo(() => {
     const hints = []
@@ -165,6 +176,11 @@ export function SalesClipCreateSection({
     if (!card && !phone) hints.push('Нет карты и телефона — так искать человека нельзя')
     else if (!card) hints.push('Нет номера карты — поиск слабый, лучше дописать карту')
     if (!form.trainer_id) hints.push('Не выбран тренер — клип некуда отправить')
+    if (!form.membership_type_id) hints.push('Нет типа абонемента')
+    if (!form.end_date) hints.push('Нет даты окончания')
+    const rawTotal = String(form.total_trainings ?? '').trim()
+    if (!rawTotal) hints.push('Нет числа занятий')
+    else if (!(Number(rawTotal) > 0)) hints.push('Число занятий должно быть больше 0')
     if (!realTrainers.length) hints.push('В клубе нет тренеров в списке — обновите страницу или проверьте организацию')
     return hints
   }, [form, realTrainers.length])
@@ -196,6 +212,11 @@ export function SalesClipCreateSection({
       setOkMsg('')
       return
     }
+    let confirmTransfer = matchPreview?.needTransferConfirm === true
+    if (confirmTransfer) {
+      const agreed = window.confirm(saleClipTransferConfirmMessage(matchPreview))
+      if (!agreed) return
+    }
     const totalTrainings = normalizeMembershipTotalTrainings(form.total_trainings)
     const typeRow = membershipTypes.find((t) => String(t.id) === String(form.membership_type_id || ''))
     if (
@@ -222,7 +243,7 @@ export function SalesClipCreateSection({
       const noteParts = []
       if (String(form.note ?? '').trim()) noteParts.push(String(form.note).trim())
       if (pasteText.trim()) noteParts.push(`Текст клипа:\n${pasteText.trim()}`)
-      const data = await createSaleClip({
+      const payload = {
         club_id: clubId,
         clip_date: day,
         client_name: formatClientName(form.client_name),
@@ -235,9 +256,23 @@ export function SalesClipCreateSection({
         start_date: form.start_date || null,
         end_date: form.end_date || null,
         note: noteParts.length ? noteParts.join('\n\n') : null,
-      })
+        confirm_transfer: confirmTransfer,
+      }
+      let data
+      try {
+        data = await createSaleClip(payload)
+      } catch (err) {
+        const msg = String(err?.message || '')
+        if (!confirmTransfer && /перевод|другой тренер/i.test(msg)) {
+          const agreed = window.confirm(saleClipTransferConfirmMessage(matchPreview))
+          if (!agreed) throw err
+          data = await createSaleClip({ ...payload, confirm_transfer: true })
+        } else {
+          throw err
+        }
+      }
       setWarnings(data.warnings ?? [])
-      setOkMsg(data.reason || 'Поняла. Клип создан — ждём планшет тренера.')
+      setOkMsg(data.reason || 'Абонемент создан')
       setPasteText('')
       setPasteInfo('')
       setPasteWarnings([])
@@ -310,8 +345,8 @@ export function SalesClipCreateSection({
         )}
       </div>
       <p className="sales-clip-section__tip">
-        После продажи в 1С — вставьте текст клип-карты ниже или заполните поля. На планшете тренер нажмёт «Создать по
-        заявке».
+        После продажи в 1С — вставьте текст клип-карты ниже или заполните поля. Абонемент создаётся сразу, на планшете
+        тренер нажимает «Синхронизировать».
       </p>
 
       {!checklist.closedSoft ? (
@@ -418,9 +453,10 @@ export function SalesClipCreateSection({
             Тренировок
             <input
               type="number"
-              min={0}
+              min={1}
               value={form.total_trainings}
               onChange={(e) => setField('total_trainings', e.target.value)}
+              placeholder="Сколько занятий"
             />
           </label>
           <label>
@@ -458,9 +494,10 @@ export function SalesClipCreateSection({
             </ul>
           </SalesVisualAlert>
         ) : null}
+        <SaleClipMatchPreview preview={matchPreview} />
         <div className="sales-clip-form__actions">
           <button type="submit" className="btn btn-primary sales-clip-form__submit" disabled={busy || !clubId}>
-            <Plus size={18} aria-hidden /> Отправить заявку → планшет
+            <Plus size={18} aria-hidden /> Создать абонемент
           </button>
           <button
             type="button"
@@ -489,7 +526,7 @@ export function SalesClipCreateSection({
                   {c.status === 'awaiting'
                     ? 'Ждём планшет'
                     : c.status === 'done'
-                      ? 'Подтверждено планшетом'
+                      ? 'Абонемент создан'
                       : 'Отменён'}
                   {c.trainer_id ? ` · ${trainerNameById.get(String(c.trainer_id)) || 'тренер'}` : ''}
                   {canOpenAdminClient && c.client_id ? (

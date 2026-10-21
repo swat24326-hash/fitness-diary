@@ -118,8 +118,10 @@ export function resolveAwaitingSaleClipClientId(clip, clientsByCard) {
  *   membershipTypes?: object[],
  *   membershipTypesById?: Map<string, object>|Record<string, object>,
  *   cancelUnboundOrphans?: boolean,
+ *   cancelMissingClients?: boolean,
  * }} [opts] cancelUnboundOrphans — поиск по карте точно прошёл: awaiting без client_id
- *   бывает только после удаления карточки (ON DELETE SET NULL), привязать не к кому
+ *   бывает только после удаления карточки (ON DELETE SET NULL), привязать не к кому.
+ *   cancelMissingClients — чтение карточек по id прошло: client_id есть, строки клиента нет.
  * @returns {{
  *   clipId: string,
  *   action: 'cancel'|'done'|'bind_client',
@@ -159,6 +161,16 @@ export function planSupersededAwaitingSaleClips(awaitingClips, membershipsByClie
           membershipId: null,
           clientId: existingClientId,
           reason: 'Клиент в архиве — заявка снята',
+        })
+        continue
+      }
+      if (opts.cancelMissingClients === true && clientsById && !row) {
+        out.push({
+          clipId,
+          action: 'cancel',
+          membershipId: null,
+          clientId: null,
+          reason: 'Клиента нет — заявка снята',
         })
         continue
       }

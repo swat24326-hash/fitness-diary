@@ -3,14 +3,16 @@
  */
 import { sendJson } from '../adminSupabase.js'
 import { planSaleClipCreate, normalizeSaleClipStatus } from '../../../src/lib/admin/saleClipCore.js'
-import {
-  assertClubCardAvailableForCreate,
-  matchClientByCardThenPhone,
-} from '../../../src/lib/admin/salesClientMatchCore.js'
+import { matchClientByCardThenPhone } from '../../../src/lib/admin/salesClientMatchCore.js'
 import { isHoldingTrainerUser } from '../../../src/lib/admin/deskClosingImportCore.js'
-import { isOpenPnkClient } from '../../../src/lib/pnk/pnkStagesCore.js'
 import { isClientArchived } from '../../../src/lib/clientArchive.js'
 import { fetchClubClientCandidates } from '../salesClientLookup.js'
+import {
+  cancelInstantSaleClip,
+  commitInstantSaleClip,
+  updateInstantSaleClipMembership,
+} from '../saleClipInstantWrite.js'
+import { notifyTrainerSaleClipCreated } from '../saleClipTrainerNotify.js'
 
 const CLIP_SELECT =
   'id, club_id, trainer_id, client_id, membership_id, status, clip_date, client_name, phone, card_number, birth_date, membership_type_id, membership_type_label, total_trainings, start_date, end_date, note, created_by, created_at, updated_at, done_at'
@@ -165,35 +167,29 @@ export async function handleSaleClipsPost(ctx, req, res) {
       sendJson(res, 400, { error: 'Укажите id клипа' })
       return
     }
-    const { data: row, error: loadErr } = await ctx.supabaseAdmin
-      .from('sale_clips')
-      .select('id, status, club_id')
-      .eq('id', id)
-      .maybeSingle()
-    if (loadErr || !row) {
-      sendJson(res, 404, { error: 'Клип не найден' })
+    const result = await cancelInstantSaleClip(ctx.supabaseAdmin, {
+      clubId,
+      clipId: id,
+      isAdmin: ctx.isAdmin === true,
+    })
+    sendJson(res, result.status, result.body)
+    return
+  }
+
+  if (op === 'update-membership') {
+    const id = String(body.id ?? body.clip_id ?? '').trim()
+    if (!id) {
+      sendJson(res, 400, { error: 'Укажите id клипа' })
       return
     }
-    if (String(row.club_id) !== clubId) {
-      sendJson(res, 403, { error: 'Клип другого клуба' })
-      return
-    }
-    if (normalizeSaleClipStatus(row.status) === 'done') {
-      sendJson(res, 400, { error: 'Клип уже подтверждён на планшете — отменить нельзя' })
-      return
-    }
-    const now = new Date().toISOString()
-    const { data: updated, error } = await ctx.supabaseAdmin
-      .from('sale_clips')
-      .update({ status: 'cancelled', updated_at: now })
-      .eq('id', id)
-      .select(CLIP_SELECT)
-      .maybeSingle()
-    if (error) {
-      sendJson(res, 400, { error: error.message || 'Не удалось отменить' })
-      return
-    }
-    sendJson(res, 200, { clip: updated, reason: 'Клип отменён' })
+    const result = await updateInstantSaleClipMembership(ctx.supabaseAdmin, {
+      clubId,
+      clipId: id,
+      startDate: body.start_date,
+      endDate: body.end_date,
+      totalTrainings: body.total_trainings,
+    })
+    sendJson(res, result.status, result.body)
     return
   }
 
@@ -257,94 +253,28 @@ export async function handleSaleClipsPost(ctx, req, res) {
     return
   }
 
-  let clientId = plan.clip.client_id
-  const now = new Date().toISOString()
-
-  if (!clientId) {
-    const cardCheck = assertClubCardAvailableForCreate(
-      allClubClients,
-      clubId,
-      plan.clip.card_number,
-    )
-    if (!cardCheck.ok) {
-      sendJson(res, 400, { error: cardCheck.error, reason: cardCheck.error })
-      return
-    }
-    const newId = crypto.randomUUID()
-    const insertClient = {
-      id: newId,
-      name: plan.clip.client_name,
-      phone: plan.clip.phone,
-      card_number: plan.clip.card_number,
-      birth_date: plan.clip.birth_date,
-      trainer_id: plan.clip.trainer_id,
-      club_id: clubId,
-      lifecycle: 'active',
-      created_at: now,
-    }
-    const { error: insErr } = await ctx.supabaseAdmin.from('clients').insert(insertClient)
-    if (insErr) {
-      sendJson(res, 400, {
-        error: insErr.message || 'Не удалось создать клиента',
-        reason: insErr.message || 'Не удалось создать клиента',
-      })
-      return
-    }
-    clientId = newId
-  } else {
-    const existing = clients.find((c) => String(c.id) === String(clientId))
-    const patch = { updated_at: now }
-    if (plan.match?.fillCard) {
-      const fillCheck = assertClubCardAvailableForCreate(allClubClients, clubId, plan.match.fillCard, {
-        excludeClientId: clientId,
-      })
-      if (!fillCheck.ok) {
-        sendJson(res, 400, { error: fillCheck.error, reason: fillCheck.error })
-        return
-      }
-      patch.card_number = plan.match.fillCard
-    }
-    if (isOpenPnkClient(existing)) {
-      patch.lifecycle = 'active'
-      patch.pnk_won_at = now
-      patch.pnk_stage = 'won'
-    }
-    if (existing && String(existing.trainer_id) !== String(plan.clip.trainer_id)) {
-      // Не сбрасываем на другого без явного — но клип задаёт тренера для заявки; карточку не трогаем trainer_id если уже есть реальный.
-      // Только если ПНК promote — можно оставить текущего; иначе не меняем trainer.
-    }
-    if (Object.keys(patch).length > 1) {
-      await ctx.supabaseAdmin.from('clients').update(patch).eq('id', clientId)
-    }
-  }
-
-  const row = {
-    ...plan.clip,
-    client_id: clientId,
-    created_by: ctx.user?.id ?? null,
-    created_at: now,
-    updated_at: now,
-  }
-
-  const { data: created, error } = await ctx.supabaseAdmin
-    .from('sale_clips')
-    .insert(row)
-    .select(CLIP_SELECT)
-    .maybeSingle()
-  if (error) {
-    sendJson(res, 400, {
-      error: error.message || 'Не сохранилось: клип не создан',
-      reason: error.message || 'Не сохранилось: клип не создан',
-    })
-    return
-  }
-
-  sendJson(res, 200, {
-    clip: created,
-    warnings: plan.warnings,
-    reason: 'Клип создан — ждём планшет',
-    match: plan.match
-      ? { status: plan.match.status, matchedBy: plan.match.matchedBy, reason: plan.match.reason }
-      : null,
+  const result = await commitInstantSaleClip(ctx.supabaseAdmin, {
+    clubId,
+    body,
+    plan,
+    allClubClients,
+    clients,
+    createdBy: ctx.user?.id ?? null,
   })
+  if (result.status === 200 && result.body?.clip?.trainer_id) {
+    const clip = result.body.clip
+    const clientId = String(clip.client_id ?? '')
+    try {
+      await notifyTrainerSaleClipCreated(ctx.supabaseAdmin, {
+        trainerId: clip.trainer_id,
+        clip,
+        membership: result.body.membership,
+        client: clients.find((c) => String(c.id) === clientId) ?? null,
+        priorMemberships: membershipsByClientId[clientId] ?? [],
+      })
+    } catch (e) {
+      console.warn('[sale-clip-push]', e?.message || e)
+    }
+  }
+  sendJson(res, result.status, result.body)
 }

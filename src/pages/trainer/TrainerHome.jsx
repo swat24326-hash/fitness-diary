@@ -372,7 +372,6 @@ export function TrainerHome() {
       <TrainerPushPrompt clubId={clubId} />
 
       <TrainerHomeTodayStrip
-        clubId={clubId}
         summary={attentionSummary}
         attentionLoading={attentionLoading}
         cqGlance={cqGlance}

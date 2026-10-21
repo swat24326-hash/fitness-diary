@@ -35,6 +35,7 @@ export async function fetchSaleClips(opts) {
 }
 
 /**
+ * Создать абонемент из клипа. confirm_transfer — смена тренера карточки, если он другой.
  * @param {object} body
  */
 export async function createSaleClip(body) {
@@ -48,10 +49,14 @@ export async function createSaleClip(body) {
     },
     credentials: 'same-origin',
     cache: 'no-store',
-    body: JSON.stringify({ op: 'create', ...body }),
+    body: JSON.stringify({
+      ...body,
+      op: 'create',
+      confirm_transfer: body?.confirm_transfer === true || body?.confirmTransfer === true,
+    }),
   })
   const data = await parseJson(res)
-  if (!res.ok) throw new Error(data?.error || data?.reason || 'Не удалось создать клип')
+  if (!res.ok) throw new Error(data?.error || data?.reason || 'Не удалось создать абонемент')
   return data
 }
 
@@ -100,5 +105,34 @@ export async function cancelSaleClip(opts) {
   })
   const data = await parseJson(res)
   if (!res.ok) throw new Error(data?.error || data?.reason || 'Не удалось отменить клип')
+  return data
+}
+
+/**
+ * Даты и число занятий у пакета этой продажи.
+ * @param {{ clubId: string, id: string, startDate?: string, endDate?: string, totalTrainings?: number|string }} opts
+ */
+export async function updateSaleClipMembership(opts) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии — войдите снова')
+  const res = await fetch(`${apiOrigin()}/api/admin-data?action=sale-clips`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: JSON.stringify({
+      op: 'update-membership',
+      club_id: opts.clubId,
+      id: opts.id,
+      start_date: opts.startDate,
+      end_date: opts.endDate,
+      total_trainings: opts.totalTrainings,
+    }),
+  })
+  const data = await parseJson(res)
+  if (!res.ok) throw new Error(data?.error || data?.reason || 'Не удалось сохранить пакет')
   return data
 }

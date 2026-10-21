@@ -33,6 +33,16 @@ import {
   planSaleClipCancelsForDeletedClient,
   saleClipPushWhenClientMissing,
 } from '../src/lib/admin/saleClipClientGoneCore.js'
+import { buildSaleClipMatchPreview } from '../src/lib/admin/saleClipMatchPreviewCore.js'
+import { planSaleClipCancel } from '../src/lib/admin/saleClipCancelCore.js'
+import { activeSaleClipPackageEnd, buildSaleClipTrainerPush } from '../src/lib/push/saleClipPushCore.js'
+import {
+  buildInstantMembershipInsert,
+  findSameDayDuplicateMembership,
+  planSaleClipMembershipUpdate,
+  planSaleClipTrainerAssign,
+  validateInstantSaleClipMembership,
+} from '../src/lib/admin/saleClipInstantCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -404,6 +414,33 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
     'awaiting + archived client → cancel',
   )
   ok(!archivedPlan.some((p) => p.clipId === 'clip-live-ok'), 'live client awaiting stays')
+
+  const missingClient = planSupersededAwaitingSaleClips(
+    [
+      {
+        id: 'clip-no-client',
+        status: 'awaiting',
+        client_id: 'gone-row',
+        created_at: '2026-08-20T10:00:00.000Z',
+      },
+      {
+        id: 'clip-still-live',
+        status: 'awaiting',
+        client_id: 'c-live',
+        created_at: '2026-08-20T10:00:00.000Z',
+      },
+    ],
+    { 'c-live': [], 'gone-row': [] },
+    {
+      clientsById: new Map([['c-live', { id: 'c-live', archived_at: null }]]),
+      cancelMissingClients: true,
+    },
+  )
+  ok(
+    missingClient.some((p) => p.clipId === 'clip-no-client' && p.action === 'cancel' && /нет/i.test(p.reason)),
+    'awaiting с client_id, но без карточки → cancel',
+  )
+  ok(!missingClient.some((p) => p.clipId === 'clip-still-live'), 'живой клиент без абонемента остаётся менеджеру')
 }
 
 {
@@ -448,6 +485,256 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
   )
   ok(patches.length === 1 && patches[0].id === 'a' && patches[0].status === 'cancelled', 'delete cancels only awaiting of that client')
   ok(patches[0].client_id == null, 'cancel patch does not send the deleted client id')
+}
+
+{
+  const mismatch = buildSaleClipMatchPreview({
+    client: { id: 'c-pet', name: 'Петрова', trainer_id: 't-koz' },
+    clipName: 'Иванова',
+    cardNumber: '5886',
+    selectedTrainerId: 't-iva',
+  })
+  ok(
+    mismatch.line === 'Карта 5886 — это Петрова, в клипе Иванова',
+    'preview: карта — это Петрова, в клипе Иванова',
+  )
+  ok(mismatch.namesMismatch === true, 'preview: ФИО карточки и клипа разные')
+  ok(mismatch.needTransferConfirm === true, 'preview: у карточки другой тренер')
+  ok(
+    mismatch.cards?.onFile?.name === 'Петрова' &&
+      mismatch.cards?.onFile?.title === 'В карточке' &&
+      mismatch.cards?.inClip?.name === 'Иванова' &&
+      mismatch.cards?.inClip?.title === 'В клипе' &&
+      mismatch.cards.onFile.cardNumber === '5886' &&
+      mismatch.cards.inClip.cardNumber === '5886',
+    'preview: две карточки рядом, когда фамилии разъехались',
+  )
+
+  const same = buildSaleClipMatchPreview({
+    client: { id: 'c-pet', name: 'петрова анна', trainer_id: 't-iva' },
+    clipName: 'Петрова Анна',
+    cardNumber: '5886',
+    selectedTrainerId: 't-iva',
+  })
+  ok(same.namesMismatch === false && same.needTransferConfirm === false && same.cards == null, 'preview: то же ФИО и тот же тренер')
+  ok(same.line === 'Карта 5886 — это Петрова Анна', 'preview: без хвоста «в клипе», если имена совпали')
+
+  const fresh = buildSaleClipMatchPreview({
+    client: null,
+    clipName: 'Иванова',
+    cardNumber: '5886',
+    selectedTrainerId: 't-iva',
+  })
+  ok(
+    fresh.namesMismatch === false && fresh.needTransferConfirm === false && fresh.cards == null,
+    'preview: новому клиенту перевод не нужен',
+  )
+  ok(/не найден/i.test(fresh.line), 'preview: нового клиента заведём')
+
+  const noTrainer = buildSaleClipMatchPreview({
+    client: { id: 'c-new', name: 'Иванова', trainer_id: '' },
+    clipName: 'Иванова',
+    cardNumber: '1',
+    selectedTrainerId: 't-iva',
+  })
+  ok(noTrainer.needTransferConfirm === false, 'preview: пустой тренер карточки — не перевод')
+}
+
+{
+  const push = buildSaleClipTrainerPush({
+    clientName: 'Иванова',
+    membershipTypeLabel: 'Brilliant',
+    totalTrainings: 8,
+    endDate: '2026-05-15',
+  })
+  ok(/Иванова/.test(push.body), 'push: имя')
+  ok(/Brilliant/.test(push.body), 'push: тип')
+  ok(/8 занятий/.test(push.body), 'push: число занятий')
+  ok(/15\.05\.2026/.test(push.body), 'push: дата окончания')
+  ok(push.body.includes('На планшете нажмите Синхронизировать'), 'push: фраза про Синхронизировать')
+  ok(!/действует пакет/.test(push.body) && !/воронку ПНК/.test(push.body), 'push: без старого пакета и без ПНК')
+
+  const withLive = buildSaleClipTrainerPush({
+    clientName: 'Иванова',
+    membershipTypeLabel: 'Brilliant',
+    totalTrainings: 8,
+    endDate: '2026-05-15',
+    activePackageEnd: '2026-04-01',
+    wasPnk: true,
+  })
+  ok(
+    withLive.body.includes('Сейчас ещё действует пакет до 01.04.2026.'),
+    'push: действующий пакет до даты',
+  )
+  ok(withLive.body.includes('Продажа закрыла воронку ПНК.'), 'push: продажа закрыла воронку ПНК')
+
+  const liveEnd = activeSaleClipPackageEnd(
+    [
+      { id: 'old', start_date: '2026-01-01', end_date: '2026-04-01' },
+      { id: 'new', start_date: '2026-03-01', end_date: '2026-05-15' },
+      { id: 'gone', start_date: '2025-01-01', end_date: '2025-02-01' },
+    ],
+    '2026-03-20',
+    'new',
+  )
+  ok(liveEnd === '2026-04-01', 'push: старый пакет до 01.04, новый пакет этой продажи не мешаем')
+  ok(activeSaleClipPackageEnd([{ id: 'only', start_date: '2026-03-01', end_date: '2026-05-15' }], '2026-03-20', 'only') === '', 'push: единственный пакет этой продажи — не «ещё действует»')
+}
+
+{
+  const clean = planSaleClipCancel({ completedTrainingsCount: 0, usedTrainings: 0, role: 'sales_manager' })
+  ok(clean.action === 'cancel_with_membership' && clean.canRemoveMembership, 'cancel: нет занятия — пакет можно снять')
+
+  const byTraining = planSaleClipCancel({
+    completedTrainingsCount: 1,
+    usedTrainings: 0,
+    role: 'sales_manager',
+  })
+  ok(
+    byTraining.action === 'keep_membership' && !byTraining.canRemoveMembership && byTraining.canEdit,
+    'cancel: есть тренировка — пакет не стираем, менеджер может править',
+  )
+  ok(/только админ/.test(byTraining.reason), 'cancel: удалить занятый пакет может только админ')
+
+  const byUsed = planSaleClipCancel({ completedTrainingsCount: 0, usedTrainings: 2, role: 'sales_manager' })
+  ok(byUsed.action === 'keep_membership' && !byUsed.canRemoveMembership, 'cancel: used_trainings > 0 — пакет не стираем')
+
+  const managerDelete = planSaleClipCancel({
+    completedTrainingsCount: 1,
+    usedTrainings: 1,
+    role: 'sales_manager',
+    intent: 'delete',
+  })
+  ok(
+    managerDelete.action === 'admin_only' && !managerDelete.canRemoveMembership && managerDelete.canEdit,
+    'cancel: удаление занятого пакета менеджеру закрыто',
+  )
+
+  const adminDelete = planSaleClipCancel({
+    completedTrainingsCount: 1,
+    usedTrainings: 1,
+    role: 'admin',
+    intent: 'delete',
+  })
+  ok(adminDelete.action === 'admin_only' && adminDelete.canRemoveMembership, 'cancel: удалить занятый пакет может админ')
+}
+
+{
+  const tabletEnd = membershipFieldsFromSaleClip({ id: 'clip-tablet', start_date: '2026-08-01' })
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(tabletEnd.end_date), 'планшет по-прежнему сам ставит дату окончания')
+
+  const noEnd = validateInstantSaleClipMembership({
+    membership_type_id: 'mt1',
+    total_trainings: 8,
+    start_date: '2026-08-01',
+    end_date: '',
+  })
+  ok(!noEnd.ok && /окончан/i.test(noEnd.reason), 'сервер: пустой конец не становится +1 месяц')
+  ok(!validateInstantSaleClipMembership({ total_trainings: 8, end_date: '2026-09-01' }).ok, 'сервер: тип обязателен')
+  ok(
+    !validateInstantSaleClipMembership({ membership_type_id: 'mt1', end_date: '2026-09-01', total_trainings: '' }).ok,
+    'сервер: число занятий обязательно',
+  )
+
+  const instant = validateInstantSaleClipMembership({
+    membership_type_id: 'mt1',
+    total_trainings: 8,
+    start_date: '2026-08-01',
+    end_date: '2026-09-01',
+  })
+  ok(instant.ok && instant.fields.total_trainings === 8 && instant.fields.end_date === '2026-09-01', 'сервер: поля пакета')
+  const row = buildInstantMembershipInsert({
+    id: 'm-new',
+    clientId: 'c1',
+    clubId: 'club',
+    clipId: 'clip-new',
+    fields: instant.fields,
+    now: '2026-08-01T10:00:00.000Z',
+  })
+  ok(row.hall === 'pz' && row.used_trainings === 0 && row.clip_id === 'clip-new', 'сервер: пакет как у планшета')
+  ok(!('updated_at' in row), 'сервер: в абонемент не пишем updated_at')
+
+  const sameDay = findSameDayDuplicateMembership(
+    [
+      {
+        id: 'm-old',
+        membership_type_id: 'mt1',
+        start_date: '2026-08-01',
+        end_date: '2026-09-01',
+        total_trainings: 8,
+        created_at: '2026-08-01T09:00:00.000Z',
+      },
+      {
+        id: 'm-yesterday',
+        membership_type_id: 'mt1',
+        start_date: '2026-08-01',
+        end_date: '2026-09-01',
+        total_trainings: 8,
+        created_at: '2026-07-01T09:00:00.000Z',
+      },
+    ],
+    instant.fields,
+    '2026-08-01',
+  )
+  ok(sameDay?.id === 'm-old', 'сервер: второй такой же пакет в тот же день не создаём')
+  ok(
+    findSameDayDuplicateMembership(
+      [{ id: 'm-other', membership_type_id: 'mt2', start_date: '2026-08-01', end_date: '2026-09-01', total_trainings: 8, created_at: '2026-08-01T09:00:00.000Z' }],
+      instant.fields,
+      '2026-08-01',
+    ) == null,
+    'сервер: другой тип в тот же день — не дубль',
+  )
+
+  const transfer = planSaleClipTrainerAssign({
+    client: { trainer_id: 't-old' },
+    selectedTrainerId: 't-new',
+    confirmTransfer: false,
+  })
+  ok(!transfer.ok && /перевод/i.test(transfer.reason), 'сервер: чужой тренер без подтверждения')
+  const transferred = planSaleClipTrainerAssign({
+    client: { trainer_id: 't-old' },
+    selectedTrainerId: 't-new',
+    confirmTransfer: true,
+  })
+  ok(transferred.ok && transferred.transferred && transferred.trainerId === 't-new', 'сервер: confirm_transfer меняет тренера')
+  ok(
+    planSaleClipTrainerAssign({ client: null, selectedTrainerId: 't-new', confirmTransfer: false }).ok,
+    'сервер: новому клиенту перевод не нужен',
+  )
+
+  const edit = planSaleClipMembershipUpdate({
+    clubId: 'club',
+    clip: { id: 'clip-1', club_id: 'club', membership_id: 'm1' },
+    membership: { id: 'm1', club_id: 'club', clip_id: 'clip-1', used_trainings: 2, start_date: '2026-08-01', end_date: '2026-09-01' },
+    startDate: '2026-08-02',
+    endDate: '2026-09-02',
+    totalTrainings: 10,
+  })
+  ok(
+    edit.ok && edit.patch.start_date === '2026-08-02' && edit.patch.total_trainings === 10 && Object.keys(edit.patch).length === 3,
+    'сервер: менеджер правит только даты и число',
+  )
+  ok(
+    !planSaleClipMembershipUpdate({
+      clubId: 'club',
+      clip: { id: 'clip-1', club_id: 'club', membership_id: 'm1' },
+      membership: { id: 'm-other', club_id: 'club', used_trainings: 0 },
+      startDate: '2026-08-01',
+      endDate: '2026-09-01',
+      totalTrainings: 8,
+    }).ok,
+    'сервер: чужой пакет этой продажи не правим',
+  )
+  const belowUsed = planSaleClipMembershipUpdate({
+    clubId: 'club',
+    clip: { id: 'clip-1', club_id: 'club', membership_id: 'm1' },
+    membership: { id: 'm1', club_id: 'club', used_trainings: 4 },
+    startDate: '2026-08-01',
+    endDate: '2026-09-01',
+    totalTrainings: 2,
+  })
+  ok(!belowUsed.ok && /списано/i.test(belowUsed.reason), 'сервер: число занятий не ниже уже списанных')
 }
 
 if (failed) {
