@@ -103,6 +103,9 @@ const ClientTrainingsPage = lazy(() =>
   import('./pages/client/ClientTrainingsPage.jsx').then((m) => ({ default: m.ClientTrainingsPage })),
 )
 const ClientPlanPage = lazy(() => import('./pages/client/ClientPlanPage.jsx').then((m) => ({ default: m.ClientPlanPage })))
+const ClientNutritionPreviewPage = lazy(() =>
+  import('./pages/client/ClientNutritionPreviewPage.jsx').then((m) => ({ default: m.ClientNutritionPreviewPage })),
+)
 const ClientNotificationsPage = lazy(() =>
   import('./pages/client/ClientNotificationsPage.jsx').then((m) => ({ default: m.ClientNotificationsPage })),
 )
@@ -180,6 +183,7 @@ function ClientAppRoutes() {
           <Route path="trainings" element={<ClientTrainingsPage />} />
           <Route path="task" element={<ClientPlanPage key="homework" kind="homework" />} />
           <Route path="nutrition" element={<ClientPlanPage key="nutrition" kind="nutrition" />} />
+          <Route path="nutrition-preview" element={<ClientNutritionPreviewPage />} />
           <Route path="notifications" element={<ClientNotificationsPage />} />
           <Route path="notifications-preview" element={<ClientNotificationsPreviewPage />} />
           <Route path="notifications-preview/:id" element={<ClientNotificationsPreviewDetailPage />} />

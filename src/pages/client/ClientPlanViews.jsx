@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react'
 import { MessageSquareQuote } from 'lucide-react'
+import { clientNutritionDayView } from '../../lib/client/clientNutritionDayCore.js'
 import { clientHomeworkTitle, planFootRu } from '../../lib/client/clientPlanUiCore.js'
 
 function fmt(n) {
@@ -62,31 +64,63 @@ export function ClientHomeworkView({ item }) {
   )
 }
 
-/** Питание: итог дня крупно, затем приёмы пищи с продуктами и граммами. */
+/** Питание: итог выбранного дня крупно, затем приёмы. Неделя — кнопки дней, один день — без них. */
 export function ClientNutritionView({ item }) {
   const p = item.payload
+  const [dayIndex, setDayIndex] = useState(0)
+  const daysRef = useRef(null)
+  const planId = item?.id
+  useEffect(() => {
+    setDayIndex(0)
+  }, [planId])
+  const day = clientNutritionDayView(p, dayIndex)
+  const pickDay = (index, el) => {
+    setDayIndex(index)
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    daysRef.current?.scrollIntoView({ block: 'start', behavior })
+    el?.scrollIntoView({ inline: 'center', block: 'nearest', behavior })
+  }
   return (
     <section className="client-me-card client-plan">
-      <Head item={item} title={p.goal ? `Рацион · ${p.goal}` : 'Рацион на день'} />
-      <div className="client-plan__totals">
+      <Head item={item} title={p.goal ? `Рацион · ${p.goal}` : day.tabs.length ? 'Рацион' : 'Рацион на день'} />
+      {day.tabs.length > 1 ? (
+        <div className="client-plan__days-wrap" ref={daysRef}>
+          <div className="client-plan__days" role="group" aria-label="Дни рациона">
+            {day.tabs.map((d) => (
+              <button
+                key={d.index}
+                type="button"
+                className="client-plan__day"
+                aria-pressed={d.index === day.index}
+                aria-label={d.spoken}
+                onClick={(e) => pickDay(d.index, e.currentTarget)}
+              >
+                {d.short}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className="client-plan__totals" aria-live="polite">
         <span className="client-plan__kcal">
-          {fmt(p.totals.kcal)}
-          <small>ккал в день</small>
+          {fmt(day.totals.kcal)}
+          <small>{day.spoken ? 'ккал' : 'ккал в день'}</small>
         </span>
+        {day.spoken ? <p className="client-plan__day-now">{day.spoken}</p> : null}
         <span className="client-plan__macros">
           <span>
-            <strong>{fmt(p.totals.proteinG)}</strong> белки
+            <strong>{fmt(day.totals.proteinG)}</strong> белки
           </span>
           <span>
-            <strong>{fmt(p.totals.fatG)}</strong> жиры
+            <strong>{fmt(day.totals.fatG)}</strong> жиры
           </span>
           <span>
-            <strong>{fmt(p.totals.carbsG)}</strong> углев.
+            <strong>{fmt(day.totals.carbsG)}</strong> углев.
           </span>
         </span>
       </div>
-      {p.meals.map((m, mi) => (
-        <div key={`${m.label}-${mi}`} className="client-plan__block">
+      {day.meals.map((m, mi) => (
+        <div key={`${day.index}-${m.label}-${mi}`} className="client-plan__block">
           <h3 className="client-plan__block-title client-plan__meal-title">
             {m.label}
             <small>{fmt(m.subtotal.kcal)} ккал</small>

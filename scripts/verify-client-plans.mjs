@@ -14,6 +14,7 @@ import {
 import { buildHomeworkAppSnapshot } from '../src/lib/homework/homeworkAppSendCore.js'
 import { buildNutritionAppSnapshot } from '../src/lib/nutrition/nutritionAppSendCore.js'
 import { clientHomeworkTitle, clientPlanFresh, clientPlanTabTarget, markClientPlanSeen, planFootRu } from '../src/lib/client/clientPlanUiCore.js'
+import { clientNutritionDayTabs, clientNutritionDayView } from '../src/lib/client/clientNutritionDayCore.js'
 import { buildClientPlanPushPayload, notifyClientPlanSent, runClientPlanNotices } from '../api/_lib/clientPlans/clientPlanNotify.js'
 import { PUSH_ALLOWED_TABLES } from '../api/_lib/pushRecordCore.js'
 import { PULL_MERGE_GUARD_STORES } from '../src/lib/syncPullGuardCore.js'
@@ -77,6 +78,34 @@ ok(nu.ok && !JSON.stringify(nu.payload).includes('секрет') && !('referents
 ok(buildNutritionAppSnapshot(plan, { health: { height_cm: 170, current_weight_kg: 75 } }).error === 'stale', 'устаревший рацион (вес изменился) — не отправляем')
 ok(buildNutritionAppSnapshot(plan, { health, planUnsaved: true }).error === 'unsaved', 'несохранённый черновик — не отправляем')
 ok(buildNutritionAppSnapshot(null, { health }).error === 'empty_plan', 'нет рациона — ошибка')
+
+const weekPlan = {
+  ...plan,
+  days: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((label, i) => ({
+    label,
+    totals: { kcal: 1800 + i, proteinG: 100, fatG: 50, carbsG: 180 },
+    dayPlan: [
+      {
+        label: i === 6 ? 'Ужин' : 'Завтрак',
+        subtotal: { kcal: 400 },
+        items: [{ label: i === 6 ? 'Рыба' : 'Овсянка', portionLabel: '1 порция', grams: 100, kcal: 200, proteinG: 10, fatG: 5, carbsG: 20 }],
+      },
+    ],
+  })),
+}
+const weekSnap = buildNutritionAppSnapshot(weekPlan, { health, goalKindLabel: 'Похудение' })
+ok(weekSnap.ok && weekSnap.payload.days?.length === 7, 'неделя: в снимок уходят все 7 дней')
+const weekTabs = clientNutritionDayTabs(weekSnap.payload)
+ok(weekTabs.length === 7 && weekTabs[0].short === 'Пн' && weekTabs[0].spoken === 'Понедельник', 'клиент: кнопки Пн… и полное имя дня')
+ok(weekTabs[6].short === 'Вс' && weekTabs[6].meals[0].items[0].label === 'Рыба', 'клиент: воскресенье — свои блюда')
+const sunday = clientNutritionDayView(weekSnap.payload, 6)
+ok(sunday.spoken === 'Воскресенье' && sunday.totals.kcal === 1806, 'клиент: выбранный день меняет ккал')
+ok(clientNutritionDayView(weekSnap.payload, 99).index === 6 && clientNutritionDayView(weekSnap.payload, -1).index === 0, 'клиент: чужой номер дня прижимается к краю')
+ok(clientNutritionDayTabs(nu.payload).length === 0 && clientNutritionDayView(nu.payload, 2).meals[0].label === 'Завтрак', 'один день — без переключателя, блюда как были')
+const three = clientNutritionDayTabs({
+  days: [1, 2, 3].map((n) => ({ label: `День ${n}`, meals: [{ label: 'Обед', items: [{ label: 'Гречка' }] }], totals: { kcal: n } })),
+})
+ok(three.length === 3 && three[2].short === '3' && three[2].spoken === 'День 3', '3–5 дней: на кнопке номер, в подписи «День N»')
 
 // --- Запись в очередь → колонки ---
 const row = { id: PLAN, client_id: CLIENT, club_id: CLUB, kind: 'homework', payload: hw.payload, sent_by: TRAINER, sent_at: '2026-10-10T15:40:00Z', client_seen_at: '2026-10-10T16:00:00Z', notified_at: 'x' }
