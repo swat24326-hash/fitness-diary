@@ -38,6 +38,8 @@ import { isNutritionPlanStale, nutritionPlanStaleMessage } from '../../lib/nutri
 import { parseNutritionJsonField } from '../../lib/nutrition/nutritionPlanService'
 import { needsWeightImportRefresh, pickLastWeightEntryDate } from '../../lib/weightImportCore'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
+import { MeasureReading } from '../../components/measures/MeasureReading'
+import { MeasureHistoryModal } from '../../components/measures/MeasureHistoryModal'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { explainInactiveMembership, pickUsableMembershipForDate, countedUsedTrainingsOnMembership } from '../../lib/membershipRules'
 
@@ -326,10 +328,6 @@ export function ClientOverview({
   }
 
   const lastM = measurements[0]
-  const measureSummaryFields = useMemo(
-    () => BODY_MEASURE_FIELDS.filter((f) => ['neck', 'chest', 'waist_upper', 'waist_lower', 'glutes', 'thigh_r', 'thigh_l'].includes(f.id)),
-    [],
-  )
 
   const openNewMeasurement = () => {
     if (readOnly) {
@@ -639,7 +637,7 @@ export function ClientOverview({
 
       {(section === 'all' || section === 'health') && (
         <section className="card">
-        <div className="row">
+        <div className="row measure-block__head">
           <h2 className="section-title" style={{ fontSize: '1.05rem', margin: 0 }}>
             Обмеры тела (последние)
           </h2>
@@ -664,7 +662,7 @@ export function ClientOverview({
         </div>
         {!lastM && <p className="muted">Нет замеров.</p>}
         {lastM && (
-          <div className="measure-summary" style={{ marginTop: 10 }}>
+          <div className="measure-summary">
             <div className="measure-summary__top">
               <div className="muted" style={{ margin: 0 }}>
                 Дата: <strong style={{ color: 'var(--text)' }}>{formatDateRu(lastM.date)}</strong>
@@ -677,18 +675,11 @@ export function ClientOverview({
                   title="Редактировать"
                   onClick={() => openEditMeasurement(lastM)}
                 >
-                  <Pencil size={16} aria-hidden />
+                  <Pencil size={15} aria-hidden />
                 </button>
               ) : null}
             </div>
-            <div className="measure-grid">
-              {measureSummaryFields.map((f) => (
-                <div key={f.id} className="measure-tile">
-                  <div className="measure-tile__label">{f.label}</div>
-                  <div className="measure-tile__value">{getMeasureValue(lastM, f.id) ?? '—'}</div>
-                </div>
-              ))}
-            </div>
+            <MeasureReading row={lastM} />
           </div>
         )}
         </section>
@@ -749,48 +740,15 @@ export function ClientOverview({
       )}
 
       {showMeasureHistory && (section === 'all' || section === 'health') && (
-        <div className="modal-overlay" onClick={() => setShowMeasureHistory(false)}>
-          <div className="modal-panel measure-history-panel" onClick={(e) => e.stopPropagation()}>
-            <ModalHeader title="История замеров" onClose={() => setShowMeasureHistory(false)} />
-            <div className="table-wrap" style={{ marginTop: 12 }}>
-              <table className="measure-history-table">
-                <thead>
-                  <tr>
-                    <th>Дата</th>
-                    <th className="muted">Кратко</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {measurements.map((m) => (
-                    <tr key={m.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>{formatDateRu(m.date)}</td>
-                      <td className="muted" style={{ fontSize: 13 }}>
-                        {BODY_MEASURE_FIELDS.slice(0, 4)
-                          .map((f) => `${f.label}: ${getMeasureValue(m, f.id) ?? '—'}`)
-                          .join(' · ')}
-                      </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-icon-square"
-                          aria-label="Редактировать замер"
-                          title="Редактировать"
-                          onClick={() => {
-                            openEditMeasurement(m)
-                            setShowMeasureHistory(false)
-                          }}
-                        >
-                          <Pencil size={16} aria-hidden />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <MeasureHistoryModal
+          measurements={measurements}
+          readOnly={readOnly}
+          onClose={() => setShowMeasureHistory(false)}
+          onEdit={(row) => {
+            openEditMeasurement(row)
+            setShowMeasureHistory(false)
+          }}
+        />
       )}
 
       {showMeasure && (section === 'all' || section === 'health') && (

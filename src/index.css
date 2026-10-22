@@ -47,6 +47,7 @@
 @import './styles/client-rating.css';
 @import './styles/homework-auto.css';
 @import './styles/health-screening.css';
+@import './styles/body-measures.css';
 @import './styles/homework-library-admin.css';
 @import './styles/client-segments.css';
 @import './styles/client-inbox.css';
@@ -1412,78 +1413,6 @@ button {
   padding: 6px 10px;
   font-size: 0.82rem;
   border-radius: 10px;
-}
-
-.measure-grid {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 2px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-}
-
-.measure-summary__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-
-/* One-line row, scroll horizontally */
-.measure-grid::-webkit-scrollbar {
-  height: 8px;
-}
-
-.measure-grid::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-}
-
-.measure-grid::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-}
-
-.measure-tile {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.36));
-  padding: 6px 8px;
-  min-height: 40px;
-  width: 64px;
-  height: 64px;
-  min-width: 64px;
-  min-height: 64px;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  scroll-snap-align: start;
-}
-
-.measure-tile__label {
-  color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.measure-tile__value {
-  margin-top: 2px;
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: -0.02em;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
 }
 
 .measure-history-panel {

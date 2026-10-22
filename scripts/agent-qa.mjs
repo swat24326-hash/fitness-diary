@@ -40,6 +40,7 @@ run('welcome splash greeting', 'node', ['scripts/verify-welcome-splash-greeting.
 run('exercise formats', 'node', ['scripts/verify-exercise-format.mjs'])
 run('exercise catalog save', 'node', ['scripts/verify-exercise-catalog-save.mjs'])
 run('training set laterality', 'node', ['scripts/verify-training-set-laterality.mjs'])
+run('body measures', 'node', ['scripts/verify-body-measures.mjs'])
 run('training persist status', 'node', ['scripts/verify-training-persist-status.mjs'])
 run('training membership debit', 'node', ['scripts/verify-training-membership-debit.mjs'])
 run('training membership tile', 'node', ['scripts/verify-training-membership-tile.mjs'])
