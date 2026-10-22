@@ -9,6 +9,7 @@ import { generateHomeworkWeek } from './homeworkWeekGenerator.js'
 import { buildHomeworkAppSnapshot } from '../homeworkAppSendCore.js'
 import { CLUB_OPS_TIMEZONE, todayInTimeZoneIso } from '../../dateRu.js'
 import { isUuid, stableUuid } from '../../stableUuid.js'
+import { homeworkAutoPlanId } from './homeworkAutoPlanId.js'
 import { assertTrainerClientRowPush } from '../../clientRowPushCore.js'
 import { screeningAnswered, screeningHomeworkInputs, screeningNeedsClearance } from '../../health/healthScreeningCore.js'
 
@@ -24,7 +25,7 @@ const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 export const homeworkStableUuid = stableUuid
 
 export const homeworkAutoRowId = (clientId) => homeworkStableUuid(`homework_auto:${clientId}`)
-export const homeworkAutoPlanId = (clientId, sundayIso) => homeworkStableUuid(`homework_auto_plan:${clientId}:${sundayIso}`)
+export { homeworkAutoPlanId } from './homeworkAutoPlanId.js'
 
 function dayMs(iso) {
   return Date.parse(`${iso}T00:00:00Z`)

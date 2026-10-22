@@ -1,9 +1,12 @@
 /**
  * Лента уведомлений тренера (планшет): виртуально из client_plans в IndexedDB.
- * Сообщения-события (не ссылки в карточку): «отправлен · ещё не прочитал» / «прочитал».
- * Непрочитанное для бейджа = тренер ещё не отметил; без приложения pending не кладём.
+ * Только то, что приложение отправило само: воскресное задание и рацион после пересчёта.
+ * Текст — «Задание отправлено» / «Рацион отправлен». Кнопка «В приложение» и «прочитал» сюда не пишутся.
+ * Красная точка гаснет, когда тренер открыл строку.
  */
 import { clientNotificationsBadgeText, clientNotificationsEntryLabelRu } from '../client/clientNotificationsCore.js'
+import { isHomeworkAutoPlanRow } from '../homework/auto/homeworkAutoPlanId.js'
+import { isNutritionAutoPlanRow } from '../nutrition/nutritionAutoPlanId.js'
 
 export const TRAINER_NOTIFICATIONS_PATH = '/trainer/notifications'
 export const COACH_NOTIFICATIONS_PATH = '/coach/notifications'
@@ -15,31 +18,26 @@ function clientName(clientsById, id) {
   return String(get(id)?.name ?? '').trim() || 'Клиент'
 }
 
-function hasAppLookup(hasAppByClientId, clientId) {
-  if (!hasAppByClientId) return null
-  if (hasAppByClientId instanceof Map) {
-    if (!hasAppByClientId.has(clientId)) return null
-    return hasAppByClientId.get(clientId) === true
-  }
-  if (!Object.prototype.hasOwnProperty.call(hasAppByClientId, clientId)) return null
-  return hasAppByClientId[clientId] === true
+const AUTO_TITLE = Object.freeze({
+  homework: 'Задание отправлено',
+  nutrition: 'Рацион отправлен',
+})
+
+function isAutoPlanRow(row) {
+  return isHomeworkAutoPlanRow(row) || isNutritionAutoPlanRow(row)
 }
 
 /**
  * @param {object[]} plans — строки client_plans (отметки или полные)
  * @param {Map<string, { name?: string }>|Record<string, { name?: string }>} clientsById
- * @param {{ hasAppByClientId?: Map<string, boolean>|Record<string, boolean> }} [opts]
- *        true/false — знаем статус; нет ключа — не знаем (показываем «ещё не открыл»).
  */
-export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts = {}) {
-  const hasAppByClientId = opts.hasAppByClientId
-  /** Последняя отправка на пару клиент+вид — одна строка в ленте, без пачки «прочитал» за каждый старый рацион. */
+export function buildTrainerNotificationsFromPlans(plans, clientsById = {}) {
+  /** Последняя авто-отправка на пару клиент+вид. Ручные «В приложение» не берём. */
   const latestByKey = new Map()
 
   for (const row of plans ?? []) {
-    if (!row?.id || !row.sent_at) continue
-    const kind = row.kind === 'nutrition' ? 'nutrition' : row.kind === 'homework' ? 'homework' : null
-    if (!kind) continue
+    if (!row?.id || !row.sent_at || !isAutoPlanRow(row)) continue
+    const kind = row.kind === 'nutrition' ? 'nutrition' : 'homework'
     const cid = String(row.client_id ?? '')
     const key = `${cid}:${kind}`
     const prev = latestByKey.get(key)
@@ -50,30 +48,11 @@ export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts
   for (const row of latestByKey.values()) {
     const kind = row.kind === 'nutrition' ? 'nutrition' : 'homework'
     const cid = String(row.client_id ?? '')
-    const name = clientName(clientsById, cid)
-    const what = kind === 'nutrition' ? 'рацион' : 'задание'
-    if (row.client_seen_at) {
-      const first = name.split(/\s+/)[0] || name
-      out.push({
-        id: String(row.id),
-        kind: `${kind}_opened`,
-        title: `${first} прочитал(а) ${what}`,
-        body: name,
-        created_at: String(row.client_seen_at),
-        read_at: String(row.client_seen_at),
-        client_id: cid,
-      })
-      continue
-    }
-    const app = hasAppLookup(hasAppByClientId, cid)
-    // Только если точно есть живой вход в /me. Нет приложения / статус неизвестен —
-    // не шумим: иначе «ещё не открыл» висит вечно или приходит зря.
-    if (app !== true) continue
     out.push({
       id: String(row.id),
-      kind: `${kind}_pending`,
-      title: `${what[0].toUpperCase()}${what.slice(1)} отправлен · ещё не прочитал`,
-      body: name,
+      kind: `${kind}_sent`,
+      title: AUTO_TITLE[kind],
+      body: clientName(clientsById, cid),
       created_at: String(row.sent_at),
       read_at: null,
       client_id: cid,
@@ -84,16 +63,9 @@ export function buildTrainerNotificationsFromPlans(plans, clientsById = {}, opts
   return out
 }
 
-/** client_id из неоткрытых планов — чтобы узнать has_app одним проходом. */
-export function trainerNotificationPendingClientIds(plans) {
-  const ids = new Set()
-  for (const row of plans ?? []) {
-    if (!row?.id || !row.sent_at || row.client_seen_at) continue
-    if (row.kind !== 'nutrition' && row.kind !== 'homework') continue
-    const cid = String(row.client_id ?? '').trim()
-    if (cid) ids.add(cid)
-  }
-  return [...ids]
+/** Раньше отсюда брали клиентов без «прочитал», чтобы спросить has_app. Лента больше так не смотрит. */
+export function trainerNotificationPendingClientIds() {
+  return []
 }
 
 export function trainerNotificationsUnreadCount(items) {

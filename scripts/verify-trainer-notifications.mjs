@@ -18,6 +18,8 @@ import {
   trainerNotificationsEntryLabelRu,
   trainerNotificationsUnreadCount,
 } from '../src/lib/trainer/trainerNotificationsCore.js'
+import { homeworkAutoPlanId } from '../src/lib/homework/auto/homeworkAutoPlanId.js'
+import { nutritionAutoPlanId } from '../src/lib/nutrition/nutritionAutoPlanId.js'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -40,20 +42,9 @@ const empty = buildTrainerNotificationsFromPlans([], clients)
 ok(empty.length === 0 && trainerNotificationsUnreadCount(empty) === 0, 'пусто')
 
 const itemsUnknown = buildTrainerNotificationsFromPlans(plans, clients)
-ok(itemsUnknown.length === 1 && itemsUnknown[0].id === 'p2', 'без карты has_app — только открытые, pending скрыт')
-ok(itemsUnknown[0].kind === 'nutrition_opened' && itemsUnknown[0].read_at, 'открытый рацион')
-ok(itemsUnknown[0].title.includes('прочитал') && itemsUnknown[0].title.includes('рацион'), 'текст «прочитал»')
-ok(!itemsUnknown[0].deep_link, 'без deep_link — сообщение, не ссылка')
-ok(trainerNotificationsUnreadCount(itemsUnknown) === 0, 'без has_app pending не в unread')
-
-const items = buildTrainerNotificationsFromPlans(plans, clients, { hasAppByClientId: { c1: true } })
-ok(items.length === 2 && items[0].id === 'p2', 'новые сверху')
-ok(items[1].kind === 'homework_pending' && !items[1].read_at, 'ещё не прочитал — только при has_app')
-ok(
-  items[1].title.includes('отправлен') && items[1].title.includes('ещё не прочитал') && items[1].body.includes('Анна'),
-  'текст ожидания',
-)
-ok(trainerNotificationsUnreadCount(items) === 1, 'unread только ждущие с приложением')
+ok(itemsUnknown.length === 0, 'ручные отправки — и задание, и рацион — в ленту не попадают')
+ok(!buildTrainerNotificationsFromPlans(plans, clients)[0]?.deep_link, 'без deep_link — сообщение, не ссылка')
+ok(trainerNotificationsUnreadCount(itemsUnknown) === 0, 'ручное не считается непрочитанным')
 ok(trainerNotificationsBadgeText(1) === '1', 'счётчик')
 ok(trainerNotificationsEntryLabelRu(1) === 'Уведомления: новых 1', 'aria')
 ok(trainerInboxHeaderBadgeCount(2, 1) === 3, 'бейдж шапки: сумма')
@@ -87,7 +78,7 @@ const deduped = buildTrainerNotificationsFromPlans(
   clients,
   { hasAppByClientId: { c1: true } },
 )
-ok(deduped.length === 1 && deduped[0].id === 'a2', 'несколько отправок — одна строка (последняя)')
+ok(deduped.length === 0, 'несколько ручных рационов в ленту не попадают')
 
 const openedSpam = buildTrainerNotificationsFromPlans(
   [
@@ -99,19 +90,51 @@ const openedSpam = buildTrainerNotificationsFromPlans(
   clients,
   { hasAppByClientId: { c3: true } },
 )
-ok(openedSpam.length === 1 && openedSpam[0].id === 'o4' && openedSpam[0].kind === 'nutrition_pending', 'старые «прочитал» не копятся — только статус последней отправки')
+ok(openedSpam.length === 0, 'открытый вручную рацион не становится строкой «прочитал»')
 
-ok(
-  trainerNotificationPendingClientIds(plans).includes('c1') && !trainerNotificationPendingClientIds(plans).includes('c2'),
-  'pending client ids',
+const sun = '2026-10-18'
+const autoId = nutritionAutoPlanId('c3', sun)
+const autoSent = buildTrainerNotificationsFromPlans(
+  [
+    {
+      id: autoId,
+      client_id: 'c3',
+      kind: 'nutrition',
+      sent_at: '2026-10-18T07:10:00.000Z',
+      client_seen_at: '2026-10-18T12:00:00.000Z',
+    },
+    { id: 'manual-later', client_id: 'c3', kind: 'nutrition', sent_at: '2026-10-20T07:10:00.000Z', client_seen_at: null },
+  ],
+  clients,
+  { hasAppByClientId: { c3: true } },
 )
+ok(
+  autoSent.length === 1 && autoSent[0].id === autoId && autoSent[0].title === 'Рацион отправлен' && !autoSent[0].read_at,
+  'авто-рацион: «Рацион отправлен», даже если клиент уже открыл; поздняя ручная отправка строку не подменяет',
+)
+ok(autoSent[0].body.includes('Семенов'), 'в строке имя клиента')
 
-ok(isTrainerPendingNotificationKind('nutrition_pending') && !isTrainerPendingNotificationKind('nutrition_opened'), 'pending kind')
-const withPending = buildTrainerNotificationsFromPlans(plans, clients, { hasAppByClientId: { c1: true } })
-const acknowledged = withTrainerPendingDismissal({}, 'p1', '2026-10-17T15:00:00Z')
-const afterAck = applyTrainerNotificationDismissals(withPending, acknowledged)
-ok(afterAck.length === 2, 'прочитал — обе строки на месте')
-ok(afterAck.find((x) => x.id === 'p1')?.read_at === '2026-10-17T15:00:00Z', 'pending помечен прочитанным')
+ok(trainerNotificationPendingClientIds(plans).length === 0, 'has_app для ленты больше не спрашиваем')
+
+ok(isTrainerPendingNotificationKind('homework_pending') && !isTrainerPendingNotificationKind('homework_sent'), 'старый pending-kind')
+const hwId = homeworkAutoPlanId('c1', sun)
+const autoHw = buildTrainerNotificationsFromPlans(
+  [
+    {
+      id: hwId,
+      client_id: 'c1',
+      kind: 'homework',
+      sent_at: '2026-10-18T07:10:00.000Z',
+      client_seen_at: '2026-10-18T12:00:00.000Z',
+    },
+  ],
+  clients,
+)
+ok(autoHw.length === 1 && autoHw[0].title === 'Задание отправлено' && !autoHw[0].read_at, 'авто-задание: «Задание отправлено», без «прочитал»')
+const acknowledged = withTrainerPendingDismissal({}, hwId, '2026-10-18T15:00:00Z')
+const afterAck = applyTrainerNotificationDismissals(autoHw, acknowledged)
+ok(afterAck.length === 1, 'тренер открыл — строка остаётся')
+ok(afterAck[0].read_at === '2026-10-18T15:00:00Z', 'точка гаснет')
 ok(trainerNotificationsUnreadCount(afterAck) === 0, 'после прочтения бейдж клиентов чистый')
 
 console.log('verify-trainer-notifications: ok')

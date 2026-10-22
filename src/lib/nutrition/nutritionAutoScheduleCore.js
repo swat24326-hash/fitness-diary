@@ -2,7 +2,8 @@
  * Авто-питание по воскресеньям: пересчёт КБЖУ при смене веса ≥ 3 кг и отправка в client_plans.
  * Окно и пауза «ручная отправка» — те же, что у авто-ДЗ (один cron на ВМ).
  */
-import { stableUuid, isUuid } from '../stableUuid.js'
+import { isUuid } from '../stableUuid.js'
+import { nutritionAutoPlanId } from './nutritionAutoPlanId.js'
 import { getHealthCurrentWeightKg } from '../clientWeightCore.js'
 import { NUTRITION_GOAL_OPTIONS } from './nutritionMacrosCore.js'
 import { normalizeNutritionSurvey } from './nutritionPlanBuilder.js'
@@ -31,8 +32,7 @@ export { addDaysIso, isSundayIso, nextHomeworkAutoSunday, homeworkAutoUpcomingSu
 
 export const formatNutritionAutoDay = formatHomeworkAutoDay
 
-export const nutritionAutoPlanId = (clientId, sundayIso) =>
-  stableUuid(`nutrition_auto_plan:${clientId}:${sundayIso}`)
+export { nutritionAutoPlanId } from './nutritionAutoPlanId.js'
 
 /** Deep link в карточку → вкладка питания. */
 export function nutritionAutoTrainerCardPath(clientId) {

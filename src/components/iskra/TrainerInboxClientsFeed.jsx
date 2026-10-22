@@ -24,7 +24,7 @@ export function TrainerInboxClientsFeed() {
   if (!items.length) {
     return (
       <p className="iskra-inbox__empty muted">
-        Пока тихо. Здесь — когда рацион или задание ушли клиенту и когда он их прочитал.
+        Пока тихо. Здесь — когда задание или рацион ушли клиенту сами.
       </p>
     )
   }
