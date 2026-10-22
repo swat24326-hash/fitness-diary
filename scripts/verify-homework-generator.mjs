@@ -1,4 +1,6 @@
-import { generateHomeworkWeek } from '../src/lib/homework/auto/homeworkWeekGenerator.js'
+import { generateHomeworkWeek, generateHomeworkWeeks } from '../src/lib/homework/auto/homeworkWeekGenerator.js'
+import { groupHomeworkSessionBlocks } from '../src/lib/homework/homeworkSessionGroups.js'
+import { patchHomeworkStackExercise } from '../src/lib/homework/homeworkStackDraft.js'
 import { homeworkMainDose } from '../src/lib/homework/auto/homeworkGoalFormulas.js'
 import { homeworkAutoDefaultsFromHealth } from '../src/lib/homework/auto/homeworkAutoDefaults.js'
 import { HOMEWORK_LIBRARY } from '../src/lib/homework/library/homeworkLibrary.js'
@@ -80,6 +82,13 @@ const other = generateHomeworkWeek({ ...base, week: 1, variant: 1 }).draft
 const names = (d) => items(d).map((i) => i.name).join('|')
 ok(JSON.stringify(w1) === JSON.stringify(w1b), 'одинаковые настройки — одинаковая неделя')
 ok(names(w1) === names(w2) && names(w1) === names(w4), 'внутри блока упражнения те же (меняется только нагрузка)')
+const stacked = generateHomeworkWeeks(base)
+ok(stacked.ok && stacked.weeks.length === 4 && stacked.weeks[3].week === 4, 'блок — четыре недели')
+const grouped = groupHomeworkSessionBlocks(w1.blocks)
+ok(grouped.sessions.map((s) => s.key).join('') === 'АБВ' && grouped.sessions[0].parts.length === 3, 'занятия А Б В, у каждого три части')
+const stackDraft = { ...w1, stack: stacked.weeks, stackWeek: 1 }
+const patched = patchHomeworkStackExercise(stackDraft, 1, 0, 0, { sets: 9 })
+ok(patched.blocks[0].exercises[0].sets !== 9 && patched.stack[1].draft.blocks[0].exercises[0].sets === 9, 'правка второй недели не затирает неделю, которая уйдёт')
 ok(JSON.stringify(mainItems(w1).map((i) => i.reps)) !== JSON.stringify(mainItems(w2).map((i) => i.reps)), 'неделя 2 тяжелее недели 1')
 ok(names(mainItems(other).length ? other : w1) !== names(w1), '«Другой набор» меняет упражнения')
 const mainIds = mainItems(w1).map((i) => i.library_id)

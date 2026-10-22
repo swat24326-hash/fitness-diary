@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Shuffle, Sparkles } from 'lucide-react'
 import { HOMEWORK_AVOID, HOMEWORK_GOALS, HOMEWORK_LEVELS } from '../../lib/homework/library/homeworkLibraryTags.js'
 import { HOMEWORK_BLOCK_WEEKS } from '../../lib/homework/auto/homeworkGoalFormulas.js'
-import { generateHomeworkWeek } from '../../lib/homework/auto/homeworkWeekGenerator.js'
+import { generateHomeworkWeek, generateHomeworkWeeks } from '../../lib/homework/auto/homeworkWeekGenerator.js'
 import { homeworkAutoDefaultsFromHealth } from '../../lib/homework/auto/homeworkAutoDefaults.js'
 import {
   buildHomeworkAutoWeek,
@@ -63,6 +63,8 @@ export function HomeworkAutoSection({ client, onDraft }) {
   const [error, setError] = useState('')
   const [hydrated, setHydrated] = useState(false)
   const sunday = homeworkAutoUpcomingSunday()
+  /** Список внизу уже собран этим экраном — дальше смена цифры его пересобирает. */
+  const shown = useRef(false)
   const limitsHold =
     enabled && homeworkAutoHoldReason({ row, client, health, screening, sundayIso: sunday, lastManualDay: auto.lastManualDay }) === 'limits'
 
@@ -84,17 +86,75 @@ export function HomeworkAutoSection({ client, onDraft }) {
     setVariant(row.block_shift ?? 0)
   }, [loaded, hydrated, row, health, screening])
 
-  /** Смена настройки: при включённой автоотправке сразу сохраняем. */
-  const setting = (setter, field) => (value) => {
-    setter(value)
-    if (enabled) void save({ [field]: value })
+  const withWeeks = (draft, opts, variant, activeWeek) => {
+    const block = generateHomeworkWeeks({ ...opts, variant })
+    if (!block.ok) return draft
+    const stack = block.weeks.map((item) => (item.week === activeWeek ? { ...item, draft } : item))
+    return { ...draft, stack, stackWeek: activeWeek, sendSunday: sunday }
   }
 
   const showSunday = (scheduled) => {
     const res = buildHomeworkAutoWeek(scheduled, sunday, screening, library)
     if (!res.ok) return setError(NO_EXERCISES)
     setError('')
-    onDraft({ ...res.draft, auto_sunday: sunday }, `Так уйдёт в воскресенье ${formatHomeworkAutoDay(sunday)}. Можно поправить и отправить сами.`)
+    shown.current = true
+    const draft = withWeeks(
+      res.draft,
+      {
+        library,
+        goal: scheduled.goal,
+        ...screeningHomeworkInputs(scheduled, screening),
+        sex: scheduled.sex,
+        sessions: scheduled.sessions,
+        seed: scheduled.client_id || clientId,
+      },
+      res.block,
+      res.week,
+    )
+    onDraft({ ...draft, auto_sunday: sunday }, `Так уйдёт в воскресенье ${formatHomeworkAutoDay(sunday)}. Можно поправить и отправить сами.`)
+  }
+
+  const build = (nextVariant, overrides = {}) => {
+    const fields = { goal, level, avoid, sessions, sex, week, ...overrides }
+    const inputs = screeningHomeworkInputs({ level: fields.level, avoid: fields.avoid }, screening)
+    const res = generateHomeworkWeek({
+      library,
+      goal: fields.goal,
+      ...inputs,
+      sex: fields.sex,
+      sessions: fields.sessions,
+      week: fields.week,
+      seed: clientId,
+      variant: nextVariant,
+    })
+    if (!res.ok) return setError(NO_EXERCISES)
+    setError('')
+    setVariant(nextVariant)
+    shown.current = true
+    onDraft(
+      withWeeks(
+        res.draft,
+        { library, goal: fields.goal, ...inputs, sex: fields.sex, sessions: fields.sessions, seed: clientId },
+        nextVariant,
+        fields.week,
+      ),
+    )
+  }
+
+  /** «2 / 3» и остальные кнопки: при автоотправке список внизу пересобирается сразу. */
+  const applyPlan = (patch) => {
+    if (enabled && row) {
+      void save(patch)
+      showSunday({ ...row, goal, level, avoid, sessions, sex, block_shift: variant, ...patch })
+      return
+    }
+    if (shown.current) build(variant, patch)
+  }
+
+  const setting = (setter, field) => (value) => {
+    const same = field === 'goal' ? value === goal : field === 'level' ? value === level : field === 'sessions' ? value === sessions : false
+    setter(value)
+    if (!same) applyPlan({ [field]: value })
   }
 
   /** Включена автоотправка — «другой набор» начинает новый блок с ближайшего воскресенья. */
@@ -103,23 +163,6 @@ export function HomeworkAutoSection({ client, onDraft }) {
     setVariant(variant + 1)
     void save(newBlock)
     showSunday({ ...row, goal, level, avoid, sessions, ...newBlock })
-  }
-
-  const build = (nextVariant) => {
-    const res = generateHomeworkWeek({
-      library,
-      goal,
-      ...screeningHomeworkInputs({ level, avoid }, screening),
-      sex,
-      sessions,
-      week,
-      seed: clientId,
-      variant: nextVariant,
-    })
-    if (!res.ok) return setError(NO_EXERCISES)
-    setError('')
-    setVariant(nextVariant)
-    onDraft(res.draft)
   }
 
   const enable = () =>
@@ -137,7 +180,7 @@ export function HomeworkAutoSection({ client, onDraft }) {
           sunday={sunday}
           onEnable={enable}
           onDisable={() => save({ enabled: false })}
-          onPreview={() => showSunday(row)}
+          onPreview={() => showSunday({ ...row, goal, level, avoid, sessions, sex, block_shift: variant })}
           onShuffle={shuffleScheduled}
         />
       ) : null}
@@ -158,7 +201,15 @@ export function HomeworkAutoSection({ client, onDraft }) {
         />
         <Chips label="Занятий в неделю" options={SESSIONS.map((n) => [n, String(n)])} value={sessions} onChange={setting(setSessions, 'sessions')} />
         {!enabled ? (
-          <Chips label="Неделя нагрузки" options={WEEKS.map((w) => [w, `${w} из ${HOMEWORK_BLOCK_WEEKS}`])} value={week} onChange={setWeek} />
+          <Chips
+            label="Неделя нагрузки"
+            options={WEEKS.map((w) => [w, `${w} из ${HOMEWORK_BLOCK_WEEKS}`])}
+            value={week}
+            onChange={(w) => {
+              setWeek(w)
+              if (w !== week && shown.current) build(variant, { week: w })
+            }}
+          />
         ) : null}
         {fromScreening ? <p className="muted homework-auto__hint">{fromScreening}</p> : null}
         {emphasis ? <p className="muted homework-auto__hint">{emphasis}</p> : null}

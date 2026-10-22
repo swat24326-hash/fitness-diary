@@ -190,3 +190,14 @@ export function generateHomeworkWeek(opts) {
     },
   }
 }
+
+/** Четыре недели одного набора: упражнения те же, от недели меняется только нагрузка. */
+export function generateHomeworkWeeks(opts) {
+  const weeks = []
+  for (let week = 1; week <= HOMEWORK_BLOCK_WEEKS; week++) {
+    const res = generateHomeworkWeek({ ...opts, week })
+    if (!res.ok) return res
+    weeks.push({ week, draft: res.draft })
+  }
+  return { ok: true, weeks }
+}

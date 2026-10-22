@@ -53,7 +53,13 @@ export function homeworkAutoUpcomingSunday(now = new Date()) {
 /** «18.10» */
 export const formatHomeworkAutoDay = (iso) => `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}`
 
-/** Неделя блока для воскресенья: блок 4 недели, «другой набор» (block_shift) — новый блок с недели 1. */
+/** Воскресенье, когда уйдёт эта неделя блока. activeSunday — отправка недели activeWeek. */
+export function homeworkWeekSendIso(activeSundayIso, activeWeek, week) {
+  const delta = (Math.round(Number(week) || 1) - Math.round(Number(activeWeek) || 1)) * 7
+  return addDaysIso(activeSundayIso, delta)
+}
+
+/** Неделя блока для воскресенья: 4 недели, потом новый набор и снова неделя 1. Рассылка не останавливается. */
 export function homeworkAutoWeekOf(row, sundayIso) {
   const idx = Math.max(0, Math.floor((dayMs(sundayIso) - dayMs(row.anchor_date)) / (7 * 86_400_000)))
   return {
@@ -130,7 +136,7 @@ export function healthLimitsText(health, max = 120) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
-/** Воскресенье, с которого придёт новый набор упражнений. */
+/** Воскресенье, с которого блок снова пойдёт с недели 1 (тот же набор, если тренер его не сменил). */
 export function homeworkAutoNextBlockSunday(row, sundayIso) {
   const { week } = homeworkAutoWeekOf(row, sundayIso)
   return addDaysIso(sundayIso, (HOMEWORK_BLOCK_WEEKS - week + 1) * 7)

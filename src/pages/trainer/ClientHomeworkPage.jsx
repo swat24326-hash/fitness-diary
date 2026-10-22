@@ -10,10 +10,12 @@ import {
   applyHomeworkPresetToDraft,
   countHomeworkExercises,
   emptyHomeworkDraft,
-  patchHomeworkDraftExercise,
-  removeExerciseFromHomeworkDraft,
-  setHomeworkDraftComment,
 } from '../../lib/homework/homeworkPlanCore.js'
+import {
+  patchHomeworkStackExercise,
+  removeHomeworkStackExercise,
+  setHomeworkStackComment,
+} from '../../lib/homework/homeworkStackDraft.js'
 import { sendHomeworkDraft } from '../../lib/homework/homeworkShareCore.js'
 import { HomeworkPlanDisplay } from '../../components/trainer/HomeworkPlanDisplay.jsx'
 import { buildHomeworkAppSnapshot } from '../../lib/homework/homeworkAppSendCore.js'
@@ -331,9 +333,13 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
         readOnly={readOnly}
         busy={busy}
         statusMsg={statusMsg}
-        onCommentChange={(v) => setDraft((d) => setHomeworkDraftComment(d, v))}
-        onPatchExercise={(bIdx, exIdx, patch) => setDraft((d) => patchHomeworkDraftExercise(d, bIdx, exIdx, patch))}
-        onRemoveExercise={(bIdx, exIdx) => setDraft((d) => removeExerciseFromHomeworkDraft(d, bIdx, exIdx))}
+        onCommentChange={(v) => setDraft((d) => setHomeworkStackComment(d, v))}
+        onPatchExercise={(bIdx, exIdx, patch, weekIndex) =>
+          setDraft((d) => patchHomeworkStackExercise(d, weekIndex, bIdx, exIdx, patch))
+        }
+        onRemoveExercise={(bIdx, exIdx, weekIndex) =>
+          setDraft((d) => removeHomeworkStackExercise(d, weekIndex, bIdx, exIdx))
+        }
         onClear={onClear}
         onSendMax={() => onSend('max')}
         onSendOther={() => onSend('other')}

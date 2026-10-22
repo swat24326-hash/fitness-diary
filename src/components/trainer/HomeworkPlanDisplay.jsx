@@ -1,6 +1,7 @@
 import { Send, Share2, Trash2 } from 'lucide-react'
 import { countHomeworkExercises } from '../../lib/homework/homeworkPlanCore.js'
 import { ClientPlanAppButton, ClientPlanAppStatus } from './ClientPlanAppButton.jsx'
+import { HomeworkWeekStack } from './HomeworkWeekStack.jsx'
 
 /**
  * Превью черновика ДЗ + комментарий + отправка в Max / другой мессенджер / приложение клиента.
@@ -49,7 +50,17 @@ export function HomeworkPlanDisplay({
       </header>
 
       <div className="homework-preview__blocks">
-        {(draft.blocks ?? []).map((block, bIdx) =>
+        {draft.stack?.length ? (
+          <HomeworkWeekStack
+            weeks={draft.stack}
+            activeWeek={draft.stackWeek}
+            sendSunday={draft.sendSunday}
+            readOnly={readOnly}
+            onPatchExercise={(weekIndex, bIdx, exIdx, patch) => onPatchExercise?.(bIdx, exIdx, patch, weekIndex)}
+            onRemoveExercise={(weekIndex, bIdx, exIdx) => onRemoveExercise?.(bIdx, exIdx, weekIndex)}
+          />
+        ) : null}
+        {!draft.stack?.length ? (draft.blocks ?? []).map((block, bIdx) => (
           (block.exercises ?? []).length ? (
             <div key={`${block.label}-${bIdx}`} className="homework-preview__block">
               <h4 className="homework-preview__block-title">{block.label}</h4>
@@ -111,8 +122,8 @@ export function HomeworkPlanDisplay({
                 ))}
               </ul>
             </div>
-          ) : null,
-        )}
+          ) : null
+        )) : null}
       </div>
 
       {!readOnly ? (

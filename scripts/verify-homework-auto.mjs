@@ -14,6 +14,7 @@ import {
   homeworkAutoRowId,
   homeworkAutoUpcomingSunday,
   homeworkAutoWeekOf,
+  homeworkWeekSendIso,
   homeworkStableUuid,
   nextHomeworkAutoSunday,
   normalizeHomeworkAutoRow,
@@ -60,11 +61,15 @@ ok(homeworkAutoUpcomingSunday(new Date('2026-10-18T07:00:00Z')) === '2026-10-25'
 const wk = (shift, day) => homeworkAutoWeekOf({ anchor_date: SUN, block_shift: shift }, day)
 ok(wk(0, SUN).week === 1 && wk(0, SUN).block === 0, 'первое воскресенье — неделя 1')
 ok(wk(0, '2026-11-08').week === 4 && wk(0, '2026-11-08').block === 0, 'четвёртое — неделя 4 того же блока')
-ok(wk(0, '2026-11-15').week === 1 && wk(0, '2026-11-15').block === 1, 'пятое — новый блок с недели 1')
+ok(wk(0, '2026-11-15').week === 1 && wk(0, '2026-11-15').block === 1, 'пятое — новый набор и снова неделя 1, рассылка идёт')
 ok(wk(2, SUN).block === 2, '«другой набор» сдвигает блок')
 ok(wk(0, '2026-10-11').week === 1, 'до начала блока — неделя 1, не минус')
-ok(homeworkAutoNextBlockSunday({ anchor_date: SUN }, SUN) === '2026-11-15', 'новый набор — через 4 недели от старта')
-ok(homeworkAutoNextBlockSunday({ anchor_date: SUN }, '2026-11-08') === '2026-11-15', 'на 4-й неделе новый набор — в следующее воскресенье')
+ok(homeworkWeekSendIso('2026-10-25', 1, 1) === '2026-10-25', 'неделя 1 уходит в это воскресенье')
+ok(homeworkWeekSendIso('2026-10-25', 1, 2) === '2026-11-01', 'неделя 2 — через 7 дней')
+ok(homeworkWeekSendIso('2026-10-25', 1, 4) === '2026-11-15', 'неделя 4 — через 21 день')
+ok(homeworkWeekSendIso('2026-11-08', 3, 1) === '2026-10-25', 'прошедшая неделя блока — раньше текущего воскресенья')
+ok(homeworkAutoNextBlockSunday({ anchor_date: SUN }, SUN) === '2026-11-15', 'повтор с недели 1 — через 4 недели от старта')
+ok(homeworkAutoNextBlockSunday({ anchor_date: SUN }, '2026-11-08') === '2026-11-15', 'на 4-й неделе повтор — в следующее воскресенье')
 
 // --- Текст противопоказаний на экране ---
 ok(healthLimitsText({ contraindications: 'Грыжа L5', diseases: 'гипертония' }) === 'Грыжа L5 · гипертония', 'противопоказания и болезни — одной строкой')
@@ -146,10 +151,11 @@ ok(JSON.stringify(buildHomeworkAppSnapshot(preview.draft).payload) === JSON.stri
 ok(buildHomeworkAutoPlan({ row, client: { ...client, trainer_id: null }, sundayIso: SUN, now }).plan.sent_by === TRAINER, 'без тренера у клиента — от автора настроек')
 const names = (day, r = row) => buildHomeworkAutoWeek(r, day).draft.blocks.flatMap((b) => b.exercises.map((e) => e.name)).join('|')
 ok(names(SUN) === names('2026-11-08'), 'весь блок — те же упражнения')
-ok(names(SUN) !== names('2026-11-15'), 'новый блок — другой набор')
+ok(names(SUN) !== names('2026-11-15'), 'пятое воскресенье — другой набор, рассылка не останавливается')
 ok(names(SUN) !== names(SUN, { ...row, block_shift: 1 }), '«другой набор» меняет упражнения')
 const reps = (day) => buildHomeworkAutoWeek(row, day).draft.comment
 ok(reps(SUN).includes('Неделя 1 из 4') && reps('2026-10-25').includes('Неделя 2 из 4'), 'неделя блока растёт каждое воскресенье')
+ok(reps('2026-11-15').includes('Неделя 1 из 4'), 'новый набор снова с недели 1')
 ok(buildHomeworkAutoWeek(row, SUN).draft.blocks[0].label.includes('Разминка'), 'занятие начинается с разминки')
 
 // --- Cron на ВМ (поддельная база) ---
