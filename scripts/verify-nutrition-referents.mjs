@@ -3,6 +3,7 @@ import {
   computeNutritionReferents,
   isWithinReferentBand,
   macroTargetsFromReferents,
+  nutritionPerKgCaption,
 } from '../src/lib/nutrition/nutritionReferentsCore.js'
 
 let failed = 0
@@ -42,6 +43,10 @@ ok(referents != null, 'referents computed')
 ok(referents.kcal.aim <= referents.kcal.max, 'kcal aim not above max')
 ok(referents.kcal.aim >= referents.kcal.min, 'kcal aim not below min')
 ok(referents.protein.aim === Math.round(1.6 * 75), 'protein aim lower bound 1.6 g/kg')
+ok(nutritionPerKgCaption(referents, 'protein') === '1,4–2,2 г/кг', 'подпись белка — граммы на кг')
+ok(nutritionPerKgCaption(referents, 'fat') === '0,7–1 г/кг', 'подпись жира — граммы на кг')
+ok(nutritionPerKgCaption(referents, 'kcal')?.endsWith('ккал/кг'), 'подпись ккал — на кг веса')
+ok(nutritionPerKgCaption(referents, 'carbs')?.endsWith('г/кг'), 'подпись углеводов — на кг веса')
 
 const macros = macroTargetsFromReferents(referents)
 ok(macros.proteinG === referents.protein.aim, 'macro targets use referent aim')

@@ -54,6 +54,8 @@ ok(macros.proteinG > 0 && macros.fatG > 0 && macros.carbsG > 0, 'macros positive
 
 ok(Math.abs(mealSlotsRatiosSum(4) - 1) < 0.001, '4 meals ratios sum 1')
 ok(getMealSlots(4).length === 4, '4 meal slots')
+ok(Math.abs(mealSlotsRatiosSum(2) - 1) < 0.001 && getMealSlots(2).map((s) => s.id).join() === 'breakfast,dinner', '2 приёма: завтрак и ужин')
+ok(normalizeNutritionSurvey({ mealsPerDay: 2 }).mealsPerDay === 2, 'опросник сохраняет 2 приёма')
 
 const filtered = filterNutritionProductsByExclusions(['cottage_cheese_5', 'bread_whole'], ['lactose'])
 ok(!filtered.includes('cottage_cheese_5'), 'lactose exclusion')
@@ -70,6 +72,8 @@ const target = built.plan?.kcalTarget ?? 0
 const actual = built.plan?.totals?.kcal ?? 0
 ok(Math.abs(actual - target) <= target * 0.1, `totals within 10% of target (${actual} vs ${target})`)
 ok(built.plan?.basis?.weightKg === 75, 'plan stores basis weight')
+const twoMeals = buildNutritionPlan(health, { ...survey, mealsPerDay: 2 })
+ok(twoMeals.ok && twoMeals.plan?.dayPlan?.length === 2, `2 приёма собираются: ${twoMeals.errors?.join('; ') ?? ''}`)
 for (const meal of built.plan?.dayPlan ?? []) {
   ok(meal.items.length >= 2, `${meal.label} has items`)
   ok(meal.subtotal.kcal > 0, `${meal.label} subtotal`)

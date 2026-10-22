@@ -51,7 +51,7 @@ export function recipeSlotsPerDay(mealsPerDay) {
  * @returns {NutritionMealPrep[]}
  */
 export function mealPrepModesForDay(mealsPerDay, dayIndex = 0) {
-  const n = Math.max(3, Math.min(6, Number(mealsPerDay) || 4))
+  const n = Math.max(2, Math.min(6, Number(mealsPerDay) || 4))
   const recipeCount = recipeSlotsPerDay(n)
   /** @type {NutritionMealPrep[]} */
   const modes = Array.from({ length: n }, () => 'base')
@@ -59,7 +59,9 @@ export function mealPrepModesForDay(mealsPerDay, dayIndex = 0) {
 
   /** Индексы слотов под рецепт (0 = завтрак). */
   let recipeIdx = []
-  if (n === 3) {
+  if (n === 2) {
+    recipeIdx = rot === 1 ? [1] : [0]
+  } else if (n === 3) {
     recipeIdx = rot === 0 ? [0] : rot === 1 ? [1] : [2]
   } else if (n === 4) {
     // Как в хорошем примере: 2 рецепта, 2 базы

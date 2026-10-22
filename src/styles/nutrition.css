@@ -423,6 +423,7 @@
 .nutrition-kpi__ref {
   font-size: 0.75rem;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .nutrition-kpi__chip--ok {

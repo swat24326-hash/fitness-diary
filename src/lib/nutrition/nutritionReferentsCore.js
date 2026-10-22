@@ -1,5 +1,30 @@
 import { computeBmr, computeTdee } from './nutritionMacrosCore.js'
 
+/** Граммы на кг веса. Белок и жир — норма, углеводы остаются от ккал. */
+export const NUTRITION_PROTEIN_G_PER_KG = { min: 1.4, max: 2.2, aim: 1.6 }
+export const NUTRITION_FAT_G_PER_KG = { min: 0.7, max: 1, aim: 0.8 }
+
+function rateText(n) {
+  const r = Math.round(Number(n) * 10) / 10
+  if (!Number.isFinite(r)) return ''
+  return (Number.isInteger(r) ? String(r) : r.toFixed(1)).replace('.', ',')
+}
+
+function gramsPerKgLabel(band) {
+  return `${rateText(band.min)}–${rateText(band.max)} г/кг`
+}
+
+/** Мелкая подпись под целью: как норма переводится в граммы и ккал. */
+export function nutritionPerKgCaption(referents, key) {
+  const weightKg = Number(referents?.weightKg)
+  if (!referents || !weightKg) return null
+  if (key === 'protein') return gramsPerKgLabel(NUTRITION_PROTEIN_G_PER_KG)
+  if (key === 'fat') return gramsPerKgLabel(NUTRITION_FAT_G_PER_KG)
+  if (key === 'carbs') return `${rateText(referents.carbs.min / weightKg)}–${rateText(referents.carbs.max / weightKg)} г/кг`
+  if (key === 'kcal') return `${rateText(referents.kcal.aim / weightKg)} ккал/кг`
+  return null
+}
+
 /** @typedef {{ min: number, max: number, aim: number }} ReferentBand */
 
 /** @typedef {{ min: number, max: number, aim: number, tdee: number, bmr: number }} KcalReferents */
@@ -44,16 +69,16 @@ export function computeNutritionReferents(input) {
 
   /** @type {ReferentBand} */
   const protein = {
-    min: Math.round(1.4 * weightKg),
-    max: Math.round(2.2 * weightKg),
-    aim: Math.round(1.6 * weightKg),
+    min: Math.round(NUTRITION_PROTEIN_G_PER_KG.min * weightKg),
+    max: Math.round(NUTRITION_PROTEIN_G_PER_KG.max * weightKg),
+    aim: Math.round(NUTRITION_PROTEIN_G_PER_KG.aim * weightKg),
   }
 
   /** @type {ReferentBand} */
   const fat = {
-    min: Math.round(0.7 * weightKg),
-    max: Math.round(1.0 * weightKg),
-    aim: Math.round(0.8 * weightKg),
+    min: Math.round(NUTRITION_FAT_G_PER_KG.min * weightKg),
+    max: Math.round(NUTRITION_FAT_G_PER_KG.max * weightKg),
+    aim: Math.round(NUTRITION_FAT_G_PER_KG.aim * weightKg),
   }
 
   const carbsKcalAim = Math.max(0, kcal.aim - protein.aim * 4 - fat.aim * 9)

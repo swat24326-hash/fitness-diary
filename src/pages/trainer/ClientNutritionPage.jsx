@@ -1050,6 +1050,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 ))}
               </div>
               <p className="muted nutrition-hint">
+                {survey.mealsPerDay === 2 && 'Завтрак · ужин'}
                 {survey.mealsPerDay === 3 && 'Завтрак · обед · ужин'}
                 {survey.mealsPerDay === 4 && 'Завтрак · перекус · обед · ужин'}
                 {survey.mealsPerDay === 5 && 'Завтрак · перекус · обед · полдник · ужин'}

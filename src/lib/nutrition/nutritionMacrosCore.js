@@ -19,7 +19,7 @@ export const NUTRITION_ACTIVITY_OPTIONS = [
   { id: 'very_high', label: 'Очень высокая', factor: 1.9 },
 ]
 
-export const NUTRITION_MEALS_PER_DAY_OPTIONS = [3, 4, 5, 6]
+export const NUTRITION_MEALS_PER_DAY_OPTIONS = [2, 3, 4, 5, 6]
 
 export const NUTRITION_EXCLUSION_OPTIONS = [
   { id: 'lactose', label: 'Без лактозы' },

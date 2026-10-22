@@ -1,5 +1,6 @@
 import { RefreshCw, Share2 } from 'lucide-react'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
+import { nutritionPerKgCaption } from '../../lib/nutrition/nutritionReferentsCore.js'
 import { NutritionTableBlock } from './NutritionTableBlock.jsx'
 import { NutritionMealRecipeBlock } from './NutritionMealRecipeBlock.jsx'
 import { ClientPlanAppButton, ClientPlanAppStatus } from './ClientPlanAppButton.jsx'
@@ -71,6 +72,7 @@ export function NutritionPlanDisplay({
       label: 'ккал',
       value: displayPlan.totals?.kcal ?? '—',
       ref: refs ? `цель ~${refs.kcal.aim}` : displayPlan.kcalTarget ? `~${displayPlan.kcalTarget}` : null,
+      perKg: nutritionPerKgCaption(refs, 'kcal'),
       ok: referentCheck?.kcal,
     },
     {
@@ -78,6 +80,7 @@ export function NutritionPlanDisplay({
       label: 'Б',
       value: displayPlan.totals?.proteinG ?? '—',
       ref: refs ? `${refs.protein.min}–${refs.protein.max}` : null,
+      perKg: nutritionPerKgCaption(refs, 'protein'),
       ok: referentCheck?.protein,
     },
     {
@@ -85,6 +88,7 @@ export function NutritionPlanDisplay({
       label: 'Ж',
       value: displayPlan.totals?.fatG ?? '—',
       ref: refs ? `${refs.fat.min}–${refs.fat.max}` : null,
+      perKg: nutritionPerKgCaption(refs, 'fat'),
       ok: referentCheck?.fat,
     },
     {
@@ -92,6 +96,7 @@ export function NutritionPlanDisplay({
       label: 'У',
       value: displayPlan.totals?.carbsG ?? '—',
       ref: refs ? `${refs.carbs.min}–${refs.carbs.max}` : null,
+      perKg: nutritionPerKgCaption(refs, 'carbs'),
       ok: referentCheck?.carbs,
     },
   ]
@@ -131,6 +136,7 @@ export function NutritionPlanDisplay({
                 <span className="nutrition-kpi__label">{item.label}</span>
                 <span className="nutrition-kpi__value">{item.value}</span>
                 {item.ref ? <span className="nutrition-kpi__ref">{item.ref}</span> : null}
+                {item.perKg ? <span className="nutrition-kpi__ref">{item.perKg}</span> : null}
               </div>
             ))}
           </div>

@@ -22,6 +22,7 @@ function ok(cond, msg) {
 
 ok(recipeSlotsPerDay(4) === 2, '4 meals → 2 recipes')
 ok(recipeSlotsPerDay(3) === 1, '3 meals → 1 recipe')
+ok(mealPrepModesForDay(2, 0).length === 2 && mealPrepModesForDay(2, 0).filter((m) => m === 'recipe').length === 1, '2 приёма — один рецепт')
 
 const m0 = mealPrepModesForDay(4, 0)
 const c0 = countPrepInModes(m0)

@@ -64,7 +64,7 @@ export function normalizeNutritionSurvey(raw) {
     age: Number.isFinite(Number(o.age)) ? Number(o.age) : undefined,
     activityLevel: typeof o.activityLevel === 'string' ? o.activityLevel : undefined,
     goalKind: typeof o.goalKind === 'string' ? o.goalKind : undefined,
-    mealsPerDay: meals >= 3 && meals <= 6 ? meals : undefined,
+    mealsPerDay: meals >= 2 && meals <= 6 ? meals : undefined,
     exclusions: Array.isArray(o.exclusions) ? o.exclusions.map(String) : [],
     avoidProductIds: Array.isArray(o.avoidProductIds) ? o.avoidProductIds.map(String) : [],
     productSelectMode: mode,

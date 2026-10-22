@@ -4,6 +4,12 @@
  */
 export function getMealSlots(mealsPerDay) {
   const n = Number(mealsPerDay)
+  if (n === 2) {
+    return [
+      { id: 'breakfast', label: 'Завтрак', ratio: 0.45 },
+      { id: 'dinner', label: 'Ужин', ratio: 0.55 },
+    ]
+  }
   if (n === 3) {
     return [
       { id: 'breakfast', label: 'Завтрак', ratio: 0.25 },
