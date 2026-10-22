@@ -34,7 +34,9 @@ import { MembershipManager } from '../../components/MembershipManager'
 import { ModalHeader } from '../../components/ModalHeader'
 import { calcBmiFromHeightWeight, getBmiMeta } from '../../lib/bmiScaleCore'
 import { useAppToast } from '../../hooks/useAppToast'
-import { isNutritionPlanStale, nutritionPlanStaleMessage } from '../../lib/nutrition/nutritionPlanStaleCore'
+import { nutritionStaleNotice } from '../../lib/nutrition/nutritionStaleNoticeCore.js'
+import { calendarDayInTimeZoneIso } from '../../lib/dateRu'
+import { useClientPlanSend } from './useClientPlanSend'
 import { parseNutritionJsonField } from '../../lib/nutrition/nutritionPlanService'
 import { needsWeightImportRefresh, pickLastWeightEntryDate } from '../../lib/weightImportCore'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
@@ -197,15 +199,17 @@ export function ClientOverview({
   }, [health])
 
   const nutritionTabHref = useMemo(() => `${location.pathname}?tab=nutrition`, [location.pathname])
+  const nutritionSend = useClientPlanSend('nutrition', client, true)
   const savedNutritionPlan = useMemo(() => parseNutritionJsonField(health?.nutrition_plan), [health?.nutrition_plan])
-  const nutritionStaleMessage = useMemo(
-    () => nutritionPlanStaleMessage(health, savedNutritionPlan),
-    [health, savedNutritionPlan],
+  const nutritionStale = useMemo(
+    () =>
+      nutritionStaleNotice(health, savedNutritionPlan, health?.nutrition_survey, {
+        client,
+        lastManualDay: nutritionSend.mark?.sent_at ? calendarDayInTimeZoneIso(nutritionSend.mark.sent_at) : null,
+      }),
+    [health, savedNutritionPlan, client, nutritionSend.mark],
   )
-  const showNutritionStale = useMemo(
-    () => Boolean(savedNutritionPlan && isNutritionPlanStale(health, savedNutritionPlan) && nutritionStaleMessage),
-    [health, savedNutritionPlan, nutritionStaleMessage],
-  )
+  const showNutritionStale = Boolean(nutritionStale)
   const weightImportPending = useMemo(
     () => needsWeightImportRefresh(trainingWeights, weightEntries),
     [trainingWeights, weightEntries],
@@ -453,7 +457,7 @@ export function ClientOverview({
         </div>
         {showNutritionStale ? (
           <section className="card nutrition-stale-banner" role="status" style={{ marginTop: 12 }}>
-            <p style={{ margin: 0 }}>{nutritionStaleMessage}</p>
+            <p style={{ margin: 0 }}>{nutritionStale.text}</p>
             <Link to={nutritionTabHref} className="btn btn-ghost btn-xs" style={{ marginTop: 10 }}>
               Открыть «Питание»
             </Link>

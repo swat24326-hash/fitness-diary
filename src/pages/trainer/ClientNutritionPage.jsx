@@ -20,7 +20,7 @@ import { buildNutritionCatalogMap, catalogSourceLabel } from '../../lib/nutritio
 import { isNutritionHealthReady } from '../../lib/nutrition/nutritionPlanBuilder.js'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 import { getHealthSex } from '../../lib/healthCardCore'
-import { isNutritionPlanStale, nutritionPlanStaleMessage } from '../../lib/nutrition/nutritionPlanStaleCore.js'
+import { nutritionStaleNotice } from '../../lib/nutrition/nutritionStaleNoticeCore.js'
 import { listNutritionProductsForClub } from '../../lib/nutrition/nutritionProductsService.js'
 import { pullNutritionProductsForClubFromCloud } from '../../lib/pullReferenceData.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -219,8 +219,11 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     () => (rawDisplayPlan?.days?.length ? pickWeekDayPlan(rawDisplayPlan, activeDayIndex) : rawDisplayPlan),
     [rawDisplayPlan, activeDayIndex],
   )
-  const planStale = isNutritionPlanStale(health, savedPlan)
-  const staleMessage = nutritionPlanStaleMessage(health, savedPlan)
+  const nutritionLastManualDay = planApp.mark?.sent_at ? calendarDayInTimeZoneIso(planApp.mark.sent_at) : null
+  const staleNotice = nutritionStaleNotice(health, savedPlan, savedSurvey, {
+    client,
+    lastManualDay: nutritionLastManualDay,
+  })
   const daySummary = useMemo(() => buildDayProductSummary(displayPlan), [displayPlan])
   const referentCheck = useMemo(
     () => assessTotalsAgainstReferents(displayPlan?.totals, displayPlan?.referents),
@@ -603,7 +606,6 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     })
 
   const nutritionAutoSunday = useMemo(() => nutritionAutoUpcomingSunday(), [])
-  const nutritionLastManualDay = planApp.mark?.sent_at ? calendarDayInTimeZoneIso(planApp.mark.sent_at) : null
 
   const persistNutritionAutoSurvey = async (patch) => {
     if (readOnly || !client?.id || !health) return
@@ -748,10 +750,10 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
         Ориентировочный рацион для клиента, не медицинское назначение. Справочник: <strong>{catalogLabel}</strong>.
       </p>
 
-      {planStale && staleMessage && pageView === PAGE_VIEWS.ration ? (
+      {staleNotice && pageView === PAGE_VIEWS.ration ? (
         <section className="card nutrition-stale-banner" role="status">
-          <p style={{ margin: 0 }}>{staleMessage}</p>
-          {!readOnly ? (
+          <p style={{ margin: 0 }}>{staleNotice.text}</p>
+          {!readOnly && staleNotice.mode === 'ask' ? (
             <div className="nutrition-stale-banner__actions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
               <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void rescaleKbju()}>
                 Пересчитать КБЖУ
@@ -760,6 +762,17 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 Пересобрать блюда
               </button>
             </div>
+          ) : null}
+          {!readOnly && staleNotice.mode === 'auto' ? (
+            <button
+              type="button"
+              className="btn btn-touch btn-ghost"
+              style={{ marginTop: 10 }}
+              disabled={busy}
+              onClick={() => void rescaleKbju()}
+            >
+              Пересчитать сейчас
+            </button>
           ) : null}
         </section>
       ) : null}

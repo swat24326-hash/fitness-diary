@@ -16,6 +16,7 @@ import {
 import { buildNutritionCatalogMap } from '../src/lib/nutrition/nutritionCatalogResolve.js'
 import { normalizeClientPlanPushPayload } from '../src/lib/clientPlans/clientPlanCore.js'
 import { runNutritionAutoSend } from '../api/_lib/nutritionAuto/nutritionAutoJob.js'
+import { nutritionStaleNotice } from '../src/lib/nutrition/nutritionStaleNoticeCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -182,6 +183,41 @@ ok(
     trainerPush.body.includes('4') &&
     trainerPush.url.includes('tab=nutrition'),
   'push тренеру: заголовок и тело',
+)
+
+const stalePlan = {
+  basis: { weightKg: 94, heightCm: 180 },
+  dayPlan: [{ slot: 'breakfast', title: 'Омлет' }],
+  totals: { kcal: 1800 },
+}
+const staleHealth = { current_weight_kg: 101, height_cm: 180 }
+const friday = new Date('2026-10-23T10:00:00Z')
+const autoOn = nutritionStaleNotice(staleHealth, stalePlan, { nutritionAutoPush: true }, { now: friday })
+ok(
+  autoOn?.mode === 'auto' &&
+    autoOn.text.includes('94 → 101') &&
+    autoOn.text.includes('25.10') &&
+    !autoOn.text.includes('Пересчитайте'),
+  'авто включена и сдвиг ≥ 3 кг — обещаем воскресенье, не ручной пересчёт',
+)
+const autoOff = nutritionStaleNotice(staleHealth, stalePlan, { nutritionAutoPush: false }, { now: friday })
+ok(autoOff?.mode === 'ask' && autoOff.text.includes('Пересчитайте КБЖУ'), 'авто выключена — просим пересчитать')
+const small = nutritionStaleNotice(
+  { current_weight_kg: 95, height_cm: 180 },
+  stalePlan,
+  { nutritionAutoPush: true },
+  { now: friday },
+)
+ok(small?.mode === 'ask' && small.text.includes('3 кг'), 'сдвиг меньше 3 кг — само не обещаем')
+const sentThisWeek = nutritionStaleNotice(staleHealth, stalePlan, { nutritionAutoPush: true }, {
+  now: friday,
+  lastManualDay: '2026-10-23',
+})
+ok(
+  sentThisWeek?.mode === 'auto' &&
+    sentThisWeek.text.includes('уже отправляли') &&
+    sentThisWeek.text.includes('01.11'),
+  'ручная отправка на этой неделе — это воскресенье пропускаем, следующее обещаем',
 )
 
 if (failed) {
