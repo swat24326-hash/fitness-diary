@@ -12,6 +12,7 @@ import {
   emptyHomeworkDraft,
 } from '../../lib/homework/homeworkPlanCore.js'
 import {
+  addHomeworkStackExercise,
   patchHomeworkStackExercise,
   removeHomeworkStackExercise,
   setHomeworkStackComment,
@@ -339,6 +340,9 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
         }
         onRemoveExercise={(bIdx, exIdx, weekIndex) =>
           setDraft((d) => removeHomeworkStackExercise(d, weekIndex, bIdx, exIdx))
+        }
+        onAddExercise={(bIdx, entry, weekIndex) =>
+          setDraft((d) => addHomeworkStackExercise(d, weekIndex, bIdx, entry))
         }
         onClear={onClear}
         onSendMax={() => onSend('max')}

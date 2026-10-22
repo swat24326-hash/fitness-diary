@@ -13,6 +13,7 @@ export function HomeworkPlanDisplay({
   onCommentChange,
   onPatchExercise,
   onRemoveExercise,
+  onAddExercise,
   onSendMax,
   onSendOther,
   onClear,
@@ -58,6 +59,7 @@ export function HomeworkPlanDisplay({
             readOnly={readOnly}
             onPatchExercise={(weekIndex, bIdx, exIdx, patch) => onPatchExercise?.(bIdx, exIdx, patch, weekIndex)}
             onRemoveExercise={(weekIndex, bIdx, exIdx) => onRemoveExercise?.(bIdx, exIdx, weekIndex)}
+            onAddExercise={(weekIndex, bIdx, entry) => onAddExercise?.(bIdx, entry, weekIndex)}
           />
         ) : null}
         {!draft.stack?.length ? (draft.blocks ?? []).map((block, bIdx) => (

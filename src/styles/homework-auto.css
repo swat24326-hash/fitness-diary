@@ -262,3 +262,93 @@
 .homework-session {
   background: transparent;
 }
+
+.homework-add {
+  display: grid;
+  gap: 8px;
+}
+
+.homework-add__open.btn-touch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.homework-add__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.homework-add__mark--btn {
+  padding: 0;
+  cursor: pointer;
+}
+
+.homework-add__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.homework-add__search .input {
+  flex: 1;
+  min-height: 48px;
+}
+
+.homework-add__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.homework-add__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.homework-add__opt.btn-touch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.homework-add__opt > span:first-child {
+  min-width: 0;
+}

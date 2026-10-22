@@ -25,8 +25,10 @@ export function normalizeHomeworkExerciseItem(raw) {
   }
   const how = String(r.how ?? '').trim().slice(0, 220)
   const tip = String(r.tip ?? '').trim().slice(0, 240)
+  const libraryId = String(r.library_id ?? '').trim()
   if (how) item.how = how
   if (tip) item.tip = tip
+  if (libraryId) item.library_id = libraryId
   return item
 }
 

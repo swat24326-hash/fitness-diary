@@ -179,7 +179,7 @@ export function screeningSummary(rawAnswers) {
     avoid: [...avoid],
     noImpact,
     level: SCREEN_LEVEL_BY_EXPERIENCE[life.experience] ?? null,
-    sessions: life.home_days ? (Number(life.home_days) >= 3 ? 3 : 2) : null,
+    sessions: life.home_days ? (Number(life.home_days) >= 3 ? 3 : Number(life.home_days) === 1 ? 1 : 2) : null,
     equipment: life.equipment ? ['none', ...life.equipment.filter((e) => e !== 'mat')] : null,
     badges,
   }
@@ -225,7 +225,8 @@ export function screeningHomeworkLine(summary) {
   if (summary.noImpact) parts.push('без прыжков')
   if (summary.gentle) parts.push('щадящая нагрузка')
   else if (summary.level) parts.push(`уровень ${summary.level} из 3`)
-  if (summary.sessions) parts.push(`${summary.sessions} занятия в неделю`)
+  if (summary.sessions === 1) parts.push('1 занятие в неделю')
+  else if (summary.sessions) parts.push(`${summary.sessions} занятия в неделю`)
   if (summary.equipment) {
     const eq = summary.equipment.filter((e) => e !== 'none').map((e) => SCREEN_EQUIPMENT[e].toLowerCase())
     parts.push(eq.length ? `дома: ${eq.join(', ')}` : 'дома без инвентаря')

@@ -15,6 +15,7 @@ import {
   HOMEWORK_GOAL_FORMULAS,
   HOMEWORK_SESSION_KEYS,
   homeworkMainDose,
+  homeworkSessionsCount,
 } from './homeworkGoalFormulas.js'
 
 const WARMUP_COUNT = 3
@@ -89,7 +90,11 @@ function commentText(format, week, sessions) {
     format === 'circuit'
       ? 'Основная часть — по кругу: упражнения подряд, отдых между ними как указано, после круга 1–2 минуты.'
       : 'Основная часть: сделайте все подходы одного упражнения, потом переходите к следующему.'
-  return `${sessions} занятия в неделю, между ними день отдыха. ${how} Неделя ${week} из ${HOMEWORK_BLOCK_WEEKS}: нагрузка понемногу растёт. Боль — остановитесь и напишите тренеру.`
+  const pace =
+    sessions === 1
+      ? '1 занятие в неделю.'
+      : `${sessions} занятия в неделю, между ними день отдыха.`
+  return `${pace} ${how} Неделя ${week} из ${HOMEWORK_BLOCK_WEEKS}: нагрузка понемногу растёт. Боль — остановитесь и напишите тренеру.`
 }
 
 /**
@@ -116,7 +121,7 @@ export function generateHomeworkWeek(opts) {
   const byId = new Map(library.map((e) => [e.id, e]))
   const level = Math.min(3, Math.max(1, Math.round(Number(opts.level) || 1)))
   const week = Math.min(HOMEWORK_BLOCK_WEEKS, Math.max(1, Math.round(Number(opts.week) || 1)))
-  const sessions = opts.sessions === 3 ? 3 : 2
+  const sessions = homeworkSessionsCount(opts.sessions)
   const emphasis = opts.sex === 'female' ? 'lower' : opts.sex === 'male' ? 'upper' : null
   const random = makeRandom(`${opts.seed ?? ''}:${goal}:${level}:${opts.variant ?? 0}`)
   const base = {

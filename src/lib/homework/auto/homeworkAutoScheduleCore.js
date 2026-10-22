@@ -4,7 +4,7 @@
  * тренер видит ровно то, что уйдёт.
  */
 import { HOMEWORK_AVOID, HOMEWORK_GOALS } from '../library/homeworkLibraryTags.js'
-import { HOMEWORK_BLOCK_WEEKS } from './homeworkGoalFormulas.js'
+import { HOMEWORK_BLOCK_WEEKS, homeworkSessionsCount } from './homeworkGoalFormulas.js'
 import { generateHomeworkWeek } from './homeworkWeekGenerator.js'
 import { buildHomeworkAppSnapshot } from '../homeworkAppSendCore.js'
 import { CLUB_OPS_TIMEZONE, todayInTimeZoneIso } from '../../dateRu.js'
@@ -92,7 +92,7 @@ export function normalizeHomeworkAutoRow(row) {
       goal: row.goal,
       level: Math.min(3, Math.max(1, Math.round(Number(row?.level) || 1))),
       avoid,
-      sessions: Number(row?.sessions) === 3 ? 3 : 2,
+      sessions: homeworkSessionsCount(row?.sessions),
       sex: row?.sex === 'female' || row?.sex === 'male' ? row.sex : null,
       limits_ok: row?.limits_ok === true,
       anchor_date: String(row.anchor_date),

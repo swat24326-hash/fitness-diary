@@ -1,6 +1,7 @@
 import { generateHomeworkWeek, generateHomeworkWeeks } from '../src/lib/homework/auto/homeworkWeekGenerator.js'
 import { groupHomeworkSessionBlocks } from '../src/lib/homework/homeworkSessionGroups.js'
-import { patchHomeworkStackExercise } from '../src/lib/homework/homeworkStackDraft.js'
+import { addHomeworkStackExercise, patchHomeworkStackExercise } from '../src/lib/homework/homeworkStackDraft.js'
+import { filterHomeworkLibrary } from '../src/lib/homework/library/homeworkLibrary.js'
 import { homeworkMainDose } from '../src/lib/homework/auto/homeworkGoalFormulas.js'
 import { homeworkAutoDefaultsFromHealth } from '../src/lib/homework/auto/homeworkAutoDefaults.js'
 import { HOMEWORK_LIBRARY } from '../src/lib/homework/library/homeworkLibrary.js'
@@ -35,7 +36,7 @@ let warmCardioFirst = true
 const avoidSets = [[], ...ALL_AVOID.map((a) => [a]), ALL_AVOID]
 for (const goal of Object.keys(HOMEWORK_GOALS)) {
   for (const level of [1, 2, 3]) {
-    for (const sessions of [2, 3]) {
+    for (const sessions of [1, 2, 3]) {
       for (const avoid of avoidSets) {
         const res = generateHomeworkWeek({ goal, level, sessions, avoid, seed: 'c1', sex: 'female' })
         if (!res.ok) {
@@ -89,6 +90,25 @@ ok(grouped.sessions.map((s) => s.key).join('') === 'АБВ' && grouped.sessions[
 const stackDraft = { ...w1, stack: stacked.weeks, stackWeek: 1 }
 const patched = patchHomeworkStackExercise(stackDraft, 1, 0, 0, { sets: 9 })
 ok(patched.blocks[0].exercises[0].sets !== 9 && patched.stack[1].draft.blocks[0].exercises[0].sets === 9, 'правка второй недели не затирает неделю, которая уйдёт')
+const warmIds = new Set((stackDraft.blocks[0].exercises ?? []).map((ex) => ex.library_id))
+const extra = filterHomeworkLibrary(HOMEWORK_LIBRARY, {
+  phase: 'warmup',
+  allowImpact: false,
+  equipment: ['none', 'support', 'band', 'dumbbells'],
+}).find((e) => !warmIds.has(e.id))
+const added = extra ? addHomeworkStackExercise(stackDraft, 1, 0, extra) : null
+ok(Boolean(extra && added), 'в разминку можно добавить упражнение из библиотеки')
+ok(
+  added?.blocks[0].exercises.length === stackDraft.blocks[0].exercises.length
+    && added?.stack[1].draft.blocks[0].exercises.at(-1)?.name === extra?.name
+    && added?.stack[1].draft.blocks[0].exercises.at(-1)?.how,
+  'добавленное встаёт в конец своей недели и с описанием',
+)
+ok(
+  extra && addHomeworkStackExercise(added, 1, 0, extra).stack[1].draft.blocks[0].exercises.length
+    === added.stack[1].draft.blocks[0].exercises.length,
+  'то же упражнение второй раз не дублируется',
+)
 ok(JSON.stringify(mainItems(w1).map((i) => i.reps)) !== JSON.stringify(mainItems(w2).map((i) => i.reps)), 'неделя 2 тяжелее недели 1')
 ok(names(mainItems(other).length ? other : w1) !== names(w1), '«Другой набор» меняет упражнения')
 const mainIds = mainItems(w1).map((i) => i.library_id)

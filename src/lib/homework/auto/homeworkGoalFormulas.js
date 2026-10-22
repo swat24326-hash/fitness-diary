@@ -6,6 +6,12 @@
 export const HOMEWORK_SESSION_KEYS = ['А', 'Б', 'В']
 export const HOMEWORK_BLOCK_WEEKS = 4
 
+/** 1, 2 или 3 занятия. Пустое и любое другое число — 2, как раньше. */
+export function homeworkSessionsCount(value) {
+  const n = Math.round(Number(value))
+  return n === 1 || n === 3 ? n : 2
+}
+
 /**
  * circuit — круговая: упражнения подряд на время, sets = число кругов;
  * sets — подходы: все подходы упражнения, потом следующее.

@@ -16,7 +16,7 @@ import { useHomeworkLibrary } from '../../hooks/useHomeworkLibrary.js'
 import { HomeworkAutoScheduleCard } from './HomeworkAutoScheduleCard.jsx'
 
 const LEVELS = [1, 2, 3]
-const SESSIONS = [2, 3]
+const SESSIONS = [1, 2, 3]
 const WEEKS = Array.from({ length: HOMEWORK_BLOCK_WEEKS }, (_, i) => i + 1)
 const NO_EXERCISES = 'Не нашлось упражнений под эти ограничения — уберите часть ограничений'
 

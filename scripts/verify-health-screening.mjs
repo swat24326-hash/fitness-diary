@@ -62,6 +62,7 @@ ok(s.answered && s.flags.includes('heart') && s.needsClearance, 'сердце «
 ok(s.avoid.includes('pressure') && s.avoid.includes('knees'), 'сердце → беречь давление, колено → колени')
 ok(s.noImpact, 'прыжки вызывают боль → без прыжков')
 ok(s.level === 2 && s.sessions === 3, 'стаж 6 мес–2 года → уровень 2; 3 дня → 3 занятия')
+ok(screeningSummary({ life: { home_days: '1' } }).sessions === 1, '1 день дома → 1 занятие')
 ok(s.equipment.join() === 'none,band', 'дома: без инвентаря + резинка')
 ok(s.pulseUnreliable, 'сердце → пульс не ориентир')
 ok(s.badges.some((b) => b.tone === 'danger' && b.text.startsWith('Сердце: аритмия')), 'метка «Сердце: аритмия» — красная')

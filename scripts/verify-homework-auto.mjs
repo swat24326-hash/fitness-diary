@@ -102,6 +102,7 @@ ok(!norm({ anchor_date: '2026-10-14' }).ok, 'начало блока не вос
 ok(!norm({ skip_date: '2026-10-17' }).ok, 'пропустить можно только воскресенье')
 ok(JSON.stringify(norm({ avoid: ['knees', 'hack', 'knees'] }).data.avoid) === '["knees"]', 'ограничения — только из словаря, без повторов')
 ok(norm({ level: 9 }).data.level === 3 && norm({ sessions: 5 }).data.sessions === 2, 'уровень и число занятий в рамках')
+ok(norm({ sessions: 1 }).data.sessions === 1, 'одно занятие в неделю сохраняется')
 ok(!norm({ updated_by: 'x' }).ok, 'без автора — отказ')
 ok(!('payload' in norm({ payload: { x: 1 } }).data), 'лишние поля не проходят в таблицу')
 

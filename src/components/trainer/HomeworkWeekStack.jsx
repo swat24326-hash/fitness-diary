@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { HOMEWORK_BLOCK_WEEKS } from '../../lib/homework/auto/homeworkGoalFormulas.js'
 import { formatHomeworkAutoDay, homeworkWeekSendIso } from '../../lib/homework/auto/homeworkAutoScheduleCore.js'
+import { homeworkPhaseFromLabel } from '../../lib/homework/homeworkAddExercise.js'
 import { groupHomeworkSessionBlocks } from '../../lib/homework/homeworkSessionGroups.js'
+import { HomeworkAddExercise } from './HomeworkAddExercise.jsx'
 
 function ExerciseRow({ ex, readOnly, onPatch, onRemove }) {
   return (
@@ -73,7 +75,7 @@ function Burger({ className, startOpen, summary, children }) {
   )
 }
 
-function SessionBurger({ session, weekIndex, readOnly, open, sendDay, onPatch, onRemove }) {
+function SessionBurger({ session, weekIndex, readOnly, open, sendDay, onPatch, onRemove, onAdd }) {
   const count = session.parts.reduce((n, part) => n + (part.block.exercises?.length ?? 0), 0)
   return (
     <Burger
@@ -101,6 +103,13 @@ function SessionBurger({ session, weekIndex, readOnly, open, sendDay, onPatch, o
                 />
               ))}
             </ul>
+            {!readOnly ? (
+              <HomeworkAddExercise
+                phase={homeworkPhaseFromLabel(part.block.label)}
+                taken={part.block.exercises}
+                onAdd={(entry) => onAdd?.(weekIndex, part.blockIdx, entry)}
+              />
+            ) : null}
           </div>
         ))}
       </div>
@@ -117,7 +126,15 @@ function weekSendLabel(sendSunday, activeWeek, week, current) {
   return day
 }
 
-export function HomeworkWeekStack({ weeks, activeWeek = 1, sendSunday = null, readOnly = false, onPatchExercise, onRemoveExercise }) {
+export function HomeworkWeekStack({
+  weeks,
+  activeWeek = 1,
+  sendSunday = null,
+  readOnly = false,
+  onPatchExercise,
+  onRemoveExercise,
+  onAddExercise,
+}) {
   const stamp = weeks.map((item) => item.draft?.blocks?.length ?? 0).join('-')
   return (
     <div className="homework-weeks" key={`${activeWeek}:${stamp}`}>
@@ -148,6 +165,7 @@ export function HomeworkWeekStack({ weeks, activeWeek = 1, sendSunday = null, re
                   sendDay={sendDay}
                   onPatch={onPatchExercise}
                   onRemove={onRemoveExercise}
+                  onAdd={onAddExercise}
                 />
               ))}
               {rest.map((part) => (
@@ -164,6 +182,13 @@ export function HomeworkWeekStack({ weeks, activeWeek = 1, sendSunday = null, re
                       />
                     ))}
                   </ul>
+                  {!readOnly ? (
+                    <HomeworkAddExercise
+                      phase={homeworkPhaseFromLabel(part.block.label)}
+                      taken={part.block.exercises}
+                      onAdd={(entry) => onAddExercise?.(weekIndex, part.blockIdx, entry)}
+                    />
+                  ) : null}
                 </div>
               ))}
             </div>
