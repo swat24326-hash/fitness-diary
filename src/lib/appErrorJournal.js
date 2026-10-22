@@ -94,12 +94,12 @@ export function getSyncNeedsAttention() {
 }
 
 /**
- * Нужно ли показывать предупреждение (точка на меню): очередь, последний сбой Sync или серьёзные ошибки в журнале.
+ * Нужно ли показывать предупреждение (точка на меню): очередь или серьёзные ошибки в журнале.
+ * Прошлое замечание при пустой очереди метку не держит — в настройках тогда нечего показать.
  * @param {number} [queueCount]
  */
 export function computeNeedsUserAttention(queueCount = 0) {
-  if (queueCount > 0) return true
-  if (syncNeedsAttention) return true
+  if (Math.max(0, Number(queueCount) || 0) > 0) return true
   if (getPersistentErrorCount() > 0) return true
   return false
 }
@@ -148,11 +148,9 @@ export function reportSyncOutcome({ queueCount, hadError = false }) {
     const list = readRaw()
     const kept = list.filter((r) => !isRecoverableTransientError(r))
     if (kept.length !== list.length) writeRaw(kept)
-    syncNeedsAttention = getPersistentErrorCount() > 0
-  } else {
-    // Очередь не пуста или были замечания pull — внимание; транзиентные в журнале не чистим.
-    syncNeedsAttention = true
   }
+  // Замечание при пустой очереди журнал не стирает, но красную метку не держит.
+  syncNeedsAttention = queue > 0 || getPersistentErrorCount() > 0
 
   notifyChanged()
   notifySyncAttention()

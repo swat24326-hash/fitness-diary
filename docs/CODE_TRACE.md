@@ -54,7 +54,7 @@
 
 | Слой | Путь |
 |------|------|
-| Оркестрация | `src/lib/syncService.js`, `src/components/AppHeader.jsx` (кнопка Sync) |
+| Оркестрация | `src/lib/syncService.js`, `src/components/AppHeader.jsx` (кнопка Sync). Красная метка меню: `src/lib/headerAttentionTarget.js` — профиль только при «Синхронизировать (N)», иначе «Помощь» |
 | Очередь | `src/lib/localDb.js` (`sync_queue`, `removeSyncItemAfterPush`), `src/lib/syncQueueAckCore.js` (снять элемент после push или оставить, если правка влилась в полёте), `src/lib/syncQueueOrphans.js`, `src/lib/syncUnsyncedCore.js` (`recordForPush`, `resolveAfterPushAck` — ответ push / «дубликат» в IDB) |
 | Челленджи push | `src/lib/challengeService.js`, `src/lib/syncHeaderPullAdmin.js` (только unsynced) |
 | Справочник упражнений | `src/lib/exerciseService.js`, `src/lib/exerciseMutationCore.js` (insert/update не ждут сеть) |

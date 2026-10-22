@@ -37,6 +37,7 @@ import {
 import { recoverApp } from '../lib/appLifecycle'
 import { subscribeAppUpdatePending } from '../lib/appUpdateState'
 import { consumeReopenMyProfileState } from '../lib/profile/myProfileEvents.js'
+import { resolveHeaderAttentionTarget } from '../lib/headerAttentionTarget.js'
 
 const GeminiAnalyticsPanel = lazy(() =>
   import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
@@ -108,6 +109,12 @@ export function AppHeader() {
     setErrorJournalOpen,
     openErrorJournal,
   } = useHeaderSync({ user, isAdmin, isSalesManager: isSalesManager || isSupervisor, supabaseReady, searchParams, menuOpen, closeMenu })
+  const menuAttention = resolveHeaderAttentionTarget({
+    syncPending: syncHasPending,
+    needsAttention,
+    updatePending,
+    persistentErrors: persistentErrorCount,
+  })
 
   const showAdminClubSelect = isAdmin && location.pathname.startsWith('/admin')
   const adminClub = useAdminClubContext({
@@ -569,7 +576,7 @@ export function AppHeader() {
             'btn-ghost',
             'app-header__action',
             'app-header__burger',
-            needsAttention && !menuOpen ? 'app-header__burger--has-errors' : '',
+            menuAttention.burger && !menuOpen ? 'app-header__burger--has-errors' : '',
           ]
             .filter(Boolean)
             .join(' ')}
@@ -579,7 +586,7 @@ export function AppHeader() {
           onClick={() => setMenuOpen((o) => !o)}
         >
           <Menu size={22} aria-hidden />
-          {needsAttention && !menuOpen ? (
+          {menuAttention.burger && !menuOpen ? (
             <span className="app-header__error-dot" aria-hidden title="Требует внимания: очередь sync или ошибка" />
           ) : null}
           <span className="sr-only">Меню аккаунта</span>
@@ -590,7 +597,7 @@ export function AppHeader() {
               name={myName}
               avatar={myAvatar}
               hint="Мой профиль и настройки"
-              attention={needsAttention || updatePending}
+              attention={menuAttention.profile}
               onClick={() => {
                 setMenuOpen(false)
                 openProfile()
@@ -687,6 +694,7 @@ export function AppHeader() {
               isAdmin={isAdmin}
               errorCount={persistentErrorCount}
               updatePending={updatePending}
+              remark={menuAttention.helpRemark}
               onOpen={() => {
                 setMenuOpen(false)
                 openErrorJournal()

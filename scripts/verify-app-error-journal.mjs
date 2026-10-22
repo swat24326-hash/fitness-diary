@@ -30,6 +30,7 @@ const {
   getPersistentErrorCount,
   computeNeedsUserAttention,
 } = await import('../src/lib/appErrorJournal.js')
+const { resolveHeaderAttentionTarget } = await import('../src/lib/headerAttentionTarget.js')
 
 clearAppErrors()
 assert.equal(getAppErrorCount(), 0)
@@ -74,7 +75,7 @@ recordAppError({
 assert.ok(isRecoverableTransientError(getAppErrors(1)[0]), 'pull offline fallback is recoverable')
 reportSyncOutcome({ queueCount: 0, hadError: true })
 assert.equal(getAppErrorCount(), 1, 'recoverable pull stays while Sync had remarks')
-assert.equal(computeNeedsUserAttention(0), true)
+assert.equal(computeNeedsUserAttention(0), false, 'замечание без очереди не держит красную метку')
 
 reportSyncOutcome({ queueCount: 0, hadError: false })
 assert.equal(getAppErrorCount(), 0, 'recoverable pull cleared after clean Sync')
@@ -105,5 +106,44 @@ assert.equal(computeNeedsUserAttention(3), true)
 
 clearRecoverableAppErrors()
 assert.equal(getAppErrorCount(), 0)
+
+const queued = resolveHeaderAttentionTarget({
+  syncPending: true,
+  needsAttention: true,
+  updatePending: false,
+  persistentErrors: 0,
+})
+assert.equal(queued.profile, true, 'очередь ведёт в профиль: там «Синхронизировать (N)»')
+assert.equal(queued.burger, true)
+assert.equal(queued.helpRemark, false)
+
+const ghost = resolveHeaderAttentionTarget({
+  syncPending: false,
+  needsAttention: true,
+  updatePending: false,
+  persistentErrors: 0,
+})
+assert.equal(ghost.profile, false, 'без очереди метка не на профиле')
+assert.equal(ghost.help, true)
+assert.equal(ghost.helpRemark, true, 'замечание без журнала — на «Помощи»')
+
+const serious = resolveHeaderAttentionTarget({
+  syncPending: false,
+  needsAttention: true,
+  updatePending: false,
+  persistentErrors: 2,
+})
+assert.equal(serious.profile, false)
+assert.equal(serious.helpRemark, false, 'серьёзные ошибки показывают число, не «!»')
+
+const updateOnly = resolveHeaderAttentionTarget({
+  syncPending: false,
+  needsAttention: false,
+  updatePending: true,
+  persistentErrors: 0,
+})
+assert.equal(updateOnly.profile, false, 'обновление не в настройках профиля')
+assert.equal(updateOnly.help, true)
+assert.equal(updateOnly.burger, false)
 
 console.log('verify-app-error-journal: OK')
