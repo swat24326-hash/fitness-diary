@@ -2,7 +2,7 @@ import { createServiceDataClient } from '../pgRest/serviceClient.js'
 
 const TABLE = 'device_health'
 const COLS =
-  'id, user_id, device_id, club_id, label, bundle_id, problems, server_problems, queue_count, last_report_at, last_pull_ok_at, problem_since, notified_at, notified_codes, resolved_at, resolved_codes, created_at'
+  'id, user_id, device_id, club_id, label, bundle_id, problems, server_problems, queue_count, queue_lines, last_report_at, last_pull_ok_at, problem_since, notified_at, notified_codes, resolved_at, resolved_codes, created_at'
 
 function result(res) {
   return { data: res.data ?? null, error: res.error?.message ?? null }

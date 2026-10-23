@@ -14,7 +14,8 @@ import {
 } from '../api/_lib/deviceHealth/deviceHealthCore.js'
 import { runDeviceHealthJob } from '../api/_lib/deviceHealth/deviceHealthJob.js'
 import { deviceHealthInstruction, normalizeDeviceHealthCodes } from '../src/lib/deviceHealth/deviceHealthCatalog.js'
-import { collectDeviceProblems, nextPullMark } from '../src/lib/deviceHealth/deviceHealthSignalsCore.js'
+import { sanitizeDeviceQueueLines, summarizeDeviceQueue } from '../src/lib/deviceHealth/deviceHealthQueueCore.js'
+import { collectDeviceProblems, deviceReportKey, nextPullMark } from '../src/lib/deviceHealth/deviceHealthSignalsCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -77,8 +78,50 @@ const rep = sanitizeDeviceReport({ problems: ['db_blocked', 'server_no_pull', 'h
 ok(eq(rep.problems, ['db_blocked']), 'планшет не может прислать server_no_pull и чужие коды')
 ok(rep.bundle_id === 'DQmv9keG' && rep.queue_count === 7, 'сборка и очередь')
 ok(sanitizeDeviceReport({ bundle_id: '<script>' }).bundle_id === null, 'мусор в сборке отброшен')
+ok(sanitizeDeviceReport({ problems: [] }).queue_lines === undefined, 'без строк очереди поле не трогаем')
+
+const stuckItem = {
+  table_name: 'clients',
+  operation: 'update',
+  retry_count: 10,
+  last_error: 'Нельзя снять тренера с клиента',
+  data: { name: 'Клиент Тест', notes: 'секрет карточки', trainer_id: null },
+}
+const summary = summarizeDeviceQueue([
+  { table_name: 'trainings', operation: 'insert', retry_count: 0 },
+  stuckItem,
+])
+ok(summary.length === 1 && summary[0].who === 'Клиент Тест' && summary[0].error === 'Нельзя снять тренера с клиента', 'в отчёт — имя и текст отказа')
+ok(!JSON.stringify(summary).includes('секрет'), 'тело записи в отчёт не попадает')
+ok(summarizeDeviceQueue(null) === null, 'очередь не прочиталась — null, чтобы не затереть прошлый текст')
+ok(summarizeDeviceQueue([]).length === 0, 'пустая очередь — пустой список')
+const noisy = Array.from({ length: 6 }, (_, i) => ({ table_name: 'clients', operation: 'update', retry_count: i + 1, last_error: `ошибка ${i}` }))
+ok(summarizeDeviceQueue(noisy).length === 5 && summarizeDeviceQueue(noisy)[0].retries === 6, 'не больше 5 строк, сначала с большим числом попыток')
+ok(
+  deviceReportKey(['queue_stuck'], 'abc', summary) !== deviceReportKey(['queue_stuck'], 'abc', [{ ...summary[0], error: 'другой текст' }]),
+  'новый текст отказа меняет отпечаток отчёта',
+)
+
+const lines = sanitizeDeviceQueueLines([{ ...summary[0], error: `${'а'.repeat(200)}`, op: 'drop', who: 'Имя\nклуб' }])
+ok(lines.length === 1 && lines[0].op === '' && lines[0].error.length === 160 && !lines[0].who.includes('\n'), 'сервер режет длину и чужое действие')
+ok(lines[0].text.includes('Клиент') && lines[0].text.includes('попыток 10'), 'текст для карточки по-русски')
+ok(sanitizeDeviceQueueLines('нет').length === 0, 'мусор вместо списка — пусто')
 
 const ctx = { userId: 'u1', deviceId: 'd1', clubId: 'c1', label: 'Планшет', now: NOW }
+const reported = sanitizeDeviceReport({ problems: ['queue_stuck'], queue_count: 1, queue_lines: summary })
+const saved = applyDeviceReport(null, reported, ctx)
+ok(saved.queue_lines[0].text.includes('Нельзя снять тренера'), 'отчёт сохраняет текст отказа')
+ok(applyDeviceReport(saved, reported, { ...ctx, now: NOW + 20_000 }) === null, 'тот же текст через 20 с — не пишем')
+const changed = sanitizeDeviceReport({
+  problems: ['queue_stuck'],
+  queue_lines: [{ ...summary[0], error: 'Сервер занят' }],
+})
+ok(applyDeviceReport(saved, changed, { ...ctx, now: NOW + 20_000 })?.queue_lines[0].error === 'Сервер занят', 'новый отказ пишем сразу, не ждём минуту')
+const kept = applyDeviceReport(saved, sanitizeDeviceReport({ problems: ['queue_stuck'] }), { ...ctx, now: NOW + 30 * MIN })
+ok(kept.queue_lines[0].error === 'Нельзя снять тренера с клиента', 'отчёт без строк не затирает уже известный отказ')
+const clearedLines = applyDeviceReport(saved, sanitizeDeviceReport({ problems: ['queue_stuck'], queue_lines: [] }), { ...ctx, now: NOW + 30 * MIN })
+ok(eq(clearedLines.queue_lines, []), 'пустая очередь снимает текст')
+
 const first = applyDeviceReport(null, rep, ctx)
 ok(first.problem_since === new Date(NOW).toISOString() && eq(first.problems, ['db_blocked']), 'первая проблема — problem_since = сейчас')
 ok(applyDeviceReport({ ...first, id: 'r1' }, rep, { ...ctx, now: NOW + 20_000 }) === null, 'тот же отчёт через 20 с — не пишем')
@@ -142,12 +185,18 @@ ok(planDevicePush({ ...old, resolved_at: 'x', resolved_codes: ['db_blocked'] }, 
 const payload = buildDevicePushPayload(crit, 'Кукареко', { codes: ['db_blocked'], reminder: false })
 ok(payload.tag === 'device-health-r1' && payload.url === '/admin/health', 'push: свой tag на устройство и ссылка на центр')
 ok(payload.title.includes('Кукареко') && payload.body.includes('Скажите тренеру'), 'push: тренер и что сказать')
+const withLine = buildDevicePushPayload(
+  { ...crit, queue_lines: [{ text: 'Клиент: изменение · попыток 10 · Нельзя снять тренера с клиента' }] },
+  'Кукареко',
+  { codes: ['queue_stuck'], reminder: false },
+)
+ok(withLine.body.includes('Нельзя снять тренера с клиента') && withLine.body.includes('Скажите тренеру'), 'push: текст отказа, не только код сбоя')
 
 const view = toDeviceHealthView({ ...crit, queue_count: 3 }, { trainerName: 'Кукареко', clubName: 'X•fit' })
 ok(view.critical && view.needs_attention && view.instruction.length > 0 && !('notified_codes' in view), 'вид для админа')
 
 // --- Раскладка для админа
-const { splitDeviceHealth, deviceHealthMessageHref } = await import('../src/lib/admin/deviceHealthViewCore.js')
+const { groupDeviceAttention, splitDeviceHealth, deviceHealthMessageHref } = await import('../src/lib/admin/deviceHealthViewCore.js')
 const split = splitDeviceHealth([
   { id: 'a', trainer_name: 'Яна', needs_attention: true, critical: false, problem_since: '2026-10-14T06:00:00Z' },
   { id: 'b', trainer_name: 'Борис', needs_attention: true, critical: true, problem_since: '2026-10-14T08:00:00Z' },
@@ -157,6 +206,16 @@ ok(eq(split.attention.map((d) => d.id), ['b', 'a']), 'внимание: крит
 ok(eq(split.all.map((d) => d.id), ['c', 'b', 'a']), 'все устройства: по имени тренера')
 const href = deviceHealthMessageHref({ user_id: 'u 1', codes: ['db_blocked'], instruction: 'Перезагрузите' })
 ok(href.startsWith('/messages?dm=u%201&text=') && decodeURIComponent(href).includes('Перезагрузите'), 'ссылка в чат с готовым текстом')
+const sameLine = [{ text: 'Клиент: изменение · Нельзя снять тренера с клиента' }]
+const grouped = groupDeviceAttention([
+  { id: 'z', trainer_name: 'Захар', codes: ['queue_stuck'], queue_lines: sameLine, needs_attention: true },
+  { id: 'k', trainer_name: 'Кукареко', codes: ['queue_stuck'], queue_lines: sameLine, needs_attention: true },
+  { id: 'd', trainer_name: 'Дмитрий', codes: ['db_blocked'], needs_attention: true },
+  { id: 'y', trainer_name: 'Яна', codes: ['queue_stuck'], queue_lines: [{ text: 'Другой отказ' }], needs_attention: true },
+  { id: 'm', trainer_name: 'Мария', codes: ['queue_stuck', 'auth_stuck'], queue_lines: sameLine, needs_attention: true },
+])
+ok(grouped.length === 4 && grouped[0].map((d) => d.id).join(',') === 'z,k', 'одинаковый отказ — одна группа, два планшета')
+ok(grouped[1][0].id === 'd' && grouped[2][0].id === 'y' && grouped[3][0].id === 'm', 'без текста, другой отказ и другие коды — отдельные карточки')
 
 // --- Cron: server_no_pull + push админам, повтор не шлёт
 const jobRows = [

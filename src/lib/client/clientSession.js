@@ -79,6 +79,13 @@ export function patchClientMeCache(patch) {
   if (data !== cache.data) writeJson(CACHE_KEY, { ...cache, data })
 }
 
+/** Пока запрос числа был в пути, диалог уже прочитали — старый ответ не возвращает единичку. */
+let chatAttentionEpoch = 0
+
+export function clientChatAttentionEpoch() {
+  return chatAttentionEpoch
+}
+
 /** Число на вкладке «Сообщения» в кэше /me — чтобы другие экраны не рисовали старую единичку. */
 export function writeClientChatAttention(count) {
   const next = Math.max(0, Math.floor(Number(count) || 0))
@@ -87,6 +94,7 @@ export function writeClientChatAttention(count) {
 
 /** Открыли один непрочитанный диалог. Список потом запишет точное число. */
 export function noteClientChatRead() {
+  chatAttentionEpoch += 1
   const current = Number(readClientMeCache()?.data?.chat_attention) || 0
   if (current > 0) writeClientChatAttention(current - 1)
 }

@@ -93,7 +93,8 @@
 | Вход тренера `/coach` по QR в приложении | `src/pages/coach/CoachSignInPage.jsx`, `CoachQrScanSheet.jsx`, `useCoachQrScan.js`, `src/lib/coach/coachInviteTokenCore.js`, общий `src/hooks/useQrFrameScan.js` — verify `scripts/verify-coach-invite-token.mjs` |
 | Юр.страницы → обратно в `/me` | `src/lib/legal/legalPageCloseCore.js`, `src/components/legal/LegalPageShell.jsx`, `LegalAppEntryBar.jsx` — verify `scripts/verify-legal-page-close.mjs` |
 | «Выбрать фото» у клиента | Меню ☰ снимается по нажатию мимо (`src/hooks/usePopoverDismiss.js`). Окно «Мой профиль» — портал, но жило внутри меню (`ClientMenu.jsx` → `ProfileMenuUser.jsx` → `ProfilePhotoSheet.jsx`). Тап по кнопке снимал меню вместе с окном (INC-2026-10-23-04). e2e `profileAvatar` |
-| Единичка на «Сообщениях» | Вкладка: `ClientTabs.jsx` (`chat_attention` с `/api/client-me`). Список диалогов: `useClientChat.js` — число приходит в `chat-list` и раньше не ставилось на вкладку (INC-2026-10-23-05). e2e `clientChat` |
+| Кнопка тухнет на телефоне | `.btn:hover` в `src/index.css` сильнее `.btn-primary` и на таче залипает после системного окна (выбор фото). Наведение только при мыши (INC-2026-10-23-06). e2e `profileAvatar` |
+| Единичка на «Сообщениях» | Вкладка: `ClientTabs.jsx`. Пока экран открыт число спрашивает `useClientChatAttention.js` (список диалогов, сразу / push / 15 с) — старый ноль главной его не перекрывает (INC-2026-10-23-07). Прочтение: `useClientChat.js` + `noteClientChatRead` (INC-2026-10-23-05). e2e `clientChat` |
 | SW / обновление | `src/lib/appLifecycle.js`, `src/lib/appUpdateApplyService.js`, `src/lib/appBuildInfo.js` |
 | Verify | `scripts/verify-auth-sign-in-fallback.mjs`, `scripts/verify-auth-sign-in-fast-path.mjs`, `scripts/verify-auth-session-recover.mjs`, `scripts/verify-client-handoff.mjs` |
 | Docs | [PWA.md](./PWA.md), [CLIENT_APP.md](./CLIENT_APP.md), [RUNBOOK.md](./RUNBOOK.md) §4, INCIDENTS **E** |
@@ -223,7 +224,7 @@
 |------|------|
 | SW / баннер | `src/lib/appUpdateApplyService.js`, `vite.config.js` (PWA) |
 | Диагностика | `src/lib/appBuildInfo.js` — поле «Сборка» в Помощь → Диагностика |
-| Центр сбоев устройств | планшет: `src/lib/deviceHealth/` (сигналы, отметки, `deviceHealthReporter.js`); сервер: `api/_lib/deviceHealth/` (core, handler, job), cron `scripts/device-health-vm.mjs`; админ: `src/pages/admin/AdminDeviceHealthPage.jsx`, `HeaderDeviceHealthButton.jsx`; тренер: `HeaderHelpButton.jsx` |
+| Центр сбоев устройств | планшет: `src/lib/deviceHealth/` (сигналы, отметки, `deviceHealthReporter.js`, строки очереди `deviceHealthQueueCore.js`); сервер: `api/_lib/deviceHealth/` (core, handler, job), cron `scripts/device-health-vm.mjs`; админ: `src/pages/admin/AdminDeviceHealthPage.jsx`, `HeaderDeviceHealthButton.jsx`; тренер: `HeaderHelpButton.jsx` |
 | Verify | `scripts/verify-app-stability.mjs` |
 | Docs | [PWA.md](./PWA.md), [RELEASE.md](./RELEASE.md), INCIDENTS **P** |
 

@@ -8,6 +8,7 @@ import {
   deviceHealthInstruction,
   normalizeDeviceHealthCodes,
 } from '../../../src/lib/deviceHealth/deviceHealthCatalog.js'
+import { sanitizeDeviceQueueLines } from '../../../src/lib/deviceHealth/deviceHealthQueueCore.js'
 
 /** Устройство «на связи»: планшет шлёт отчёт раз в 30 минут, пока приложение на экране. */
 export const DEVICE_ALIVE_MS = 45 * 60_000
@@ -33,6 +34,12 @@ function sameCodes(a, b) {
   return normalizeDeviceHealthCodes(a).join(',') === normalizeDeviceHealthCodes(b).join(',')
 }
 
+function queueSig(lines) {
+  return (Array.isArray(lines) ? lines : [])
+    .map((l) => [l?.table, l?.op, l?.retries, l?.error, l?.who].join('\u001f'))
+    .join('\n')
+}
+
 /** Тело отчёта планшета → только разрешённое; номер устройства — из заголовка, не из тела. */
 export function sanitizeDeviceReport(body) {
   const b = body && typeof body === 'object' ? body : {}
@@ -42,6 +49,9 @@ export function sanitizeDeviceReport(body) {
     problems: normalizeDeviceHealthCodes(b.problems, DEVICE_CLIENT_CODES),
     bundle_id: BUNDLE_RE.test(bundle) ? bundle : null,
     queue_count: Number.isFinite(queue) ? Math.min(Math.max(queue, 0), 100_000) : 0,
+    queue_lines: sanitizeDeviceQueueLines(
+      Object.prototype.hasOwnProperty.call(b, 'queue_lines') ? b.queue_lines : undefined,
+    ),
   }
 }
 
@@ -82,7 +92,8 @@ export function applyDeviceReport(prev, report, { userId, deviceId, clubId, labe
     lastAt != null &&
     now - lastAt < REPORT_MIN_INTERVAL_MS &&
     sameCodes(prev.problems, report.problems) &&
-    prev.bundle_id === report.bundle_id
+    prev.bundle_id === report.bundle_id &&
+    (report.queue_lines == null || queueSig(prev.queue_lines) === queueSig(report.queue_lines))
   ) {
     return null
   }
@@ -95,6 +106,7 @@ export function applyDeviceReport(prev, report, { userId, deviceId, clubId, labe
     label: label ?? prev?.label ?? null,
     bundle_id: report.bundle_id,
     queue_count: report.queue_count,
+    queue_lines: report.queue_lines == null ? (prev?.queue_lines ?? []) : report.queue_lines,
     problems: report.problems,
     server_problems: keepServer,
     last_report_at: nowIso,
@@ -160,9 +172,11 @@ export function planDevicePush(row, now, opsMinutes) {
 export function buildDevicePushPayload(row, trainerName, plan) {
   const name = String(trainerName ?? '').trim() || 'Тренер'
   const titles = plan.codes.map((c) => DEVICE_HEALTH_CODES[c].title).join('; ')
+  const line = Array.isArray(row.queue_lines) ? String(row.queue_lines[0]?.text ?? '').trim() : ''
+  const why = line ? ` ${line}.` : ''
   return {
     title: plan.reminder ? `Всё ещё сбой планшета: ${name}` : `Сбой планшета: ${name}`,
-    body: `${titles}. Скажите тренеру: ${DEVICE_HEALTH_CODES[plan.codes[0]].tellTrainer}`,
+    body: `${titles}.${why} Скажите тренеру: ${DEVICE_HEALTH_CODES[plan.codes[0]].tellTrainer}`,
     url: '/admin/health',
     tag: `device-health-${row.id}`,
   }
@@ -180,6 +194,10 @@ export function toDeviceHealthView(row, { trainerName, clubName } = {}) {
     label: row.label ?? null,
     bundle_id: row.bundle_id ?? null,
     queue_count: Number(row.queue_count ?? 0),
+    queue_lines: (Array.isArray(row.queue_lines) ? row.queue_lines : [])
+      .map((l) => ({ text: String(l?.text ?? '').trim() }))
+      .filter((l) => l.text)
+      .slice(0, 5),
     last_report_at: row.last_report_at ?? null,
     last_pull_ok_at: row.last_pull_ok_at ?? null,
     problem_since: row.problem_since ?? null,

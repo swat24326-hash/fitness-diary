@@ -20,6 +20,41 @@ export function splitDeviceHealth(devices) {
   return { attention, all }
 }
 
+/** Ключ «один и тот же отказ»: те же коды и тот же текст очереди. Без текста не склеиваем. */
+function refusalKey(device) {
+  const lines = (Array.isArray(device?.queue_lines) ? device.queue_lines : [])
+    .map((line) => String(line?.text ?? '').trim())
+    .filter(Boolean)
+    .sort()
+  if (!lines.length) return ''
+  const codes = [...(device.codes ?? [])].map((code) => String(code)).sort()
+  return `${codes.join(',')}\n${lines.join('\n')}`
+}
+
+/**
+ * «Требуют внимания» → группы. Одинаковый отказ — одна группа, порядок групп как у первой карточки.
+ * @returns {object[][]}
+ */
+export function groupDeviceAttention(attention) {
+  const groups = []
+  const at = new Map()
+  for (const device of attention ?? []) {
+    const key = refusalKey(device)
+    if (!key) {
+      groups.push([device])
+      continue
+    }
+    const index = at.get(key)
+    if (index == null) {
+      at.set(key, groups.length)
+      groups.push([device])
+    } else {
+      groups[index].push(device)
+    }
+  }
+  return groups
+}
+
 export function deviceCodeTitle(code) {
   return DEVICE_HEALTH_CODES[code]?.title ?? code
 }

@@ -1234,9 +1234,13 @@ button {
     transform 0.15s var(--ease-out);
 }
 
-.btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(34, 197, 94, 0.35);
+/* Только мышь. На телефоне :hover залипает после отмены «Выбрать фото» и гасит зелёную кнопку,
+   пока не нажмёшь другую. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(34, 197, 94, 0.35);
+  }
 }
 
 .btn:active {
@@ -1252,13 +1256,15 @@ button {
   filter: none;
 }
 
-.btn:disabled:hover,
-.btn[disabled]:hover {
-  background: var(--bg-muted);
-  border-color: var(--border);
-  filter: none;
-  box-shadow: none;
-  transform: none;
+@media (hover: hover) and (pointer: fine) {
+  .btn:disabled:hover,
+  .btn[disabled]:hover {
+    background: var(--bg-muted);
+    border-color: var(--border);
+    filter: none;
+    box-shadow: none;
+    transform: none;
+  }
 }
 
 .btn:focus-visible {
@@ -1274,9 +1280,13 @@ button {
   box-shadow: 0 4px 20px var(--accent-glow);
 }
 
-.btn-primary:hover {
-  filter: brightness(1.06);
-  box-shadow: 0 6px 28px var(--accent-glow);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: linear-gradient(165deg, var(--accent-bright), var(--accent) 45%, var(--accent-dim));
+    border-color: transparent;
+    filter: brightness(1.06);
+    box-shadow: 0 6px 28px var(--accent-glow);
+  }
 }
 
 .btn-primary:disabled,
@@ -1289,19 +1299,23 @@ button {
   opacity: 0.72;
 }
 
-.btn-primary:disabled:hover,
-.btn-primary[disabled]:hover {
-  background: color-mix(in srgb, var(--accent) 22%, var(--bg-muted, #122018));
-  filter: grayscale(0.4) brightness(0.9);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:disabled:hover,
+  .btn-primary[disabled]:hover {
+    background: color-mix(in srgb, var(--accent) 22%, var(--bg-muted, #122018));
+    filter: grayscale(0.4) brightness(0.9);
+    box-shadow: none;
+  }
 }
 
 .btn-ghost {
   background: transparent;
 }
 
-.btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.05);
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
 .btn-icon-square {
@@ -2627,9 +2641,11 @@ tr:last-child td {
   box-shadow: none;
 }
 
-.btn-primary.btn-primary--incomplete:hover {
-  opacity: 0.52;
-  filter: saturate(0.65);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary.btn-primary--incomplete:hover {
+    opacity: 0.52;
+    filter: saturate(0.65);
+  }
 }
 
 .training-completion-hint {

@@ -7,7 +7,12 @@ import {
   searchClientChat,
   sendClientChatMessage,
 } from '../../lib/client/clientChatService.js'
-import { ClientSessionGoneError, noteClientChatRead, writeClientChatAttention } from '../../lib/client/clientSession.js'
+import {
+  ClientSessionGoneError,
+  clientChatAttentionEpoch,
+  noteClientChatRead,
+  writeClientChatAttention,
+} from '../../lib/client/clientSession.js'
 import { useChatThread } from '../../hooks/useChatThread.js'
 import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { peekScreenCache, readScreenCache, writeScreenCache } from '../../lib/screenCache/screenCacheStore.js'
@@ -29,14 +34,16 @@ export function useClientChats() {
   const genRef = useRef(0)
   const reload = useCallback(() => {
     const gen = ++genRef.current
+    const epoch = clientChatAttentionEpoch()
     setState((s) => ({ ...s, status: 'loading', error: '' }))
     fetchClientChats()
       .then(({ threads, attention }) => {
         if (gen !== genRef.current) return
         freshRef.current = true
         const count = Math.max(0, Number(attention) || 0)
-        setState({ threads, attention: count, status: 'ready', error: '' })
-        writeClientChatAttention(count)
+        const still = epoch === clientChatAttentionEpoch()
+        setState((s) => ({ threads, attention: still ? count : s.attention, status: 'ready', error: '' }))
+        if (still) writeClientChatAttention(count)
         void writeScreenCache(LIST_CACHE, threads)
       })
       .catch((e) => {

@@ -547,5 +547,11 @@ export function createFakeChat(state) {
     }
   }
 
-  return { state: chat, client, staff, attentionForClient }
+  function fromTrainer(clientId, body) {
+    const row = state.clients.find((c) => c.id === clientId)
+    if (!row) return null
+    return send(row, 'trainer', 'staff', row.trainer_id, { body })
+  }
+
+  return { state: chat, client, staff, attentionForClient, fromTrainer }
 }

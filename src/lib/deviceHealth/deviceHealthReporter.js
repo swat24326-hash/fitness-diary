@@ -9,6 +9,7 @@ import { deviceHeaders } from '../deviceIdentity.js'
 import { listSyncQueue } from '../localDb.js'
 import { LOCAL_DB_UPGRADE_BLOCKED, isLocalDbUpgradeBlocked } from '../localDbUpgradeWait.js'
 import { noteBuildProbe, readPullMark } from './deviceHealthMarks.js'
+import { summarizeDeviceQueue } from './deviceHealthQueueCore.js'
 import { collectDeviceProblems, deviceReportKey } from './deviceHealthSignalsCore.js'
 
 export const DEVICE_HEALTH_EVENT = 'fitness-diary-device-health'
@@ -105,10 +106,13 @@ async function check() {
     setCurrent(problems)
     if (!online) return
     const bundleId = getClientBundleId()
-    const key = deviceReportKey(problems, bundleId)
+    const lines = summarizeDeviceQueue(queue)
+    const key = deviceReportKey(problems, bundleId, lines)
     const sent = readSent()
     if (sent?.key === key && now - Number(sent.at) < HEARTBEAT_MS) return
-    if (await sendReport({ problems, bundle_id: bundleId, queue_count: queue?.length ?? 0 })) {
+    const payload = { problems, bundle_id: bundleId, queue_count: queue?.length ?? 0 }
+    if (lines != null) payload.queue_lines = lines
+    if (await sendReport(payload)) {
       try {
         localStorage.setItem(SENT_KEY, JSON.stringify({ key, at: now }))
       } catch {

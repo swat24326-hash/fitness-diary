@@ -3,15 +3,17 @@ import { MonitorSmartphone, RefreshCw } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { useDeviceHealthList } from '../../hooks/useDeviceHealth.js'
 import { formatBuildAgeRu } from '../../lib/appBuildInfo.js'
-import { deviceCodeTitle, splitDeviceHealth } from '../../lib/admin/deviceHealthViewCore.js'
+import { deviceCodeTitle, groupDeviceAttention, splitDeviceHealth } from '../../lib/admin/deviceHealthViewCore.js'
 import { AdminDiagnostics } from './AdminDiagnostics.jsx'
 import { DeviceHealthCard } from './DeviceHealthCard.jsx'
+import { DeviceHealthGroupCard } from './DeviceHealthGroupCard.jsx'
 
 /** /admin/health — центр сбоев: какие планшеты тренеров сейчас не в порядке и что сказать тренеру. */
 export function AdminDeviceHealthPage() {
   const { devices, error, busyId, reload, resolve } = useDeviceHealthList()
   const [selfOpen, setSelfOpen] = useState(false)
   const { attention, all } = splitDeviceHealth(devices)
+  const groups = groupDeviceAttention(attention)
   return (
     <section className="admin-section-shell device-health">
       <AdminSectionHeader
@@ -39,8 +41,22 @@ export function AdminDeviceHealthPage() {
       ) : null}
       {attention.length ? (
         <ul className="device-health__cards">
-          {attention.map((d) => (
-            <DeviceHealthCard key={d.id} device={d} busy={busyId === d.id} onResolve={(id) => void resolve(id)} />
+          {groups.map((group) => (
+            group.length === 1 ? (
+              <DeviceHealthCard
+                key={group[0].id}
+                device={group[0]}
+                busy={busyId === group[0].id}
+                onResolve={(id) => void resolve(id)}
+              />
+            ) : (
+              <DeviceHealthGroupCard
+                key={group.map((device) => device.id).join(',')}
+                devices={group}
+                busyId={busyId}
+                onResolve={(id) => void resolve(id)}
+              />
+            )
           ))}
         </ul>
       ) : null}

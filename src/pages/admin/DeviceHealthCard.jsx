@@ -32,6 +32,16 @@ export function DeviceHealthCard({ device, busy, onResolve }) {
           </li>
         ))}
       </ul>
+      {device.queue_lines?.length ? (
+        <div className="device-health-card__queue" data-testid="device-health-queue">
+          <span className="device-health-card__say-label">Не уходит с планшета</span>
+          <ul>
+            {device.queue_lines.map((line, i) => (
+              <li key={`${line.text}-${i}`}>{line.text}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <p className="device-health-card__meta muted">
         {device.problem_since ? `Сбой ${formatBuildAgeRu(device.problem_since)}` : null}
         {device.last_report_at ? ` · планшет на связи ${formatBuildAgeRu(device.last_report_at)}` : null}

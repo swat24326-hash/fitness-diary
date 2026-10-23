@@ -76,6 +76,12 @@ async function photoFlow(c, page, row, label, shot, readRow, { layout = 'phone',
     `${label}: фото нет — «Выбрать фото»`,
   )
 
+  const pickBtn = sheet.getByRole('button', { name: 'Выбрать фото' })
+  await pickBtn.hover()
+  c.ok(
+    await pickBtn.evaluate((el) => globalThis.getComputedStyle(el).backgroundImage.includes('gradient')),
+    `${label}: «Выбрать фото» после наведения остаётся зелёной, не тухнет`,
+  )
   // Настоящий тап, не setInputFiles: у клиента меню закрывается по pointerdown мимо себя
   // и раньше снимало окно вместе с кнопкой — галерея не открывалась.
   const chooserPromise = page.waitForEvent('filechooser', { timeout: 8_000 })

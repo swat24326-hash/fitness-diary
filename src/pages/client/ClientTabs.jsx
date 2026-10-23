@@ -4,6 +4,7 @@ import { inboxBadgeText, inboxButtonLabelRu } from '../../lib/client/clientInbox
 import { CLIENT_PLAN_ROUTES, clientPlanFresh, clientPlanTabTarget } from '../../lib/client/clientPlanUiCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
+import { useClientChatAttention } from './useClientChatAttention.js'
 
 const PLAN_PATHS = Object.values(CLIENT_PLAN_ROUTES)
 
@@ -35,13 +36,15 @@ function Tab({ to, end, active, icon: Icon, label, ariaLabel, badge = '', dot = 
 }
 
 /**
- * Нижние вкладки /me — как у тренера. Число на «Сообщениях»: со списка диалогов, если экран его уже
- * получил, иначе с последнего /me (или кэша). Точка «Новое» на «От тренера» — с кэша.
+ * Нижние вкладки /me — как у тренера. Число на «Сообщениях» само проверяется, пока экран открыт
+ * (свежая проверка важнее старого ответа главной). До первой проверки — число экрана или кэш.
+ * Точка «Новое» на «От тренера» — с кэша.
  */
 export function ClientTabs({ attention }) {
   const { pathname } = useLocation()
+  const live = useClientChatAttention()
   const cached = readClientMeCache()?.data
-  const count = attention ?? clientAttention(cached)
+  const count = live ?? attention ?? clientAttention(cached)
   const fresh = clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition')
   return (
     <nav className="coach-tabs" aria-label="Разделы">

@@ -417,6 +417,31 @@ async function clientReads(c, browser, backend, chat) {
   }
 }
 
+/** Телефон остаётся на главной: тренер пишет — единичка загорается сама, без перехода по вкладкам. */
+async function badgeOnHome(c, browser, backend, chat) {
+  const context = await newE2eContext(browser, backend, IPHONE)
+  const page = await context.newPage()
+  try {
+    await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
+    c.ok(await reaches(page.getByRole('link', { name: 'Сообщения', exact: true })), 'главная: после прочитанного чата единички нет')
+    chat.fromTrainer(CLIENT_ID, 'Жду вас в зале')
+    c.ok(
+      await page
+        .getByRole('link', { name: 'Сообщения: новых 1' })
+        .waitFor({ timeout: 20_000 })
+        .then(() => true)
+        .catch(() => false),
+      'главная: новое сообщение само зажигает единичку, без смены вкладки',
+    )
+  } catch (e) {
+    await screenshot(page, 'client-chat-home-badge-FAIL').catch(() => null)
+    c.ok(false, `главная: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
+}
+
 export async function run(browser) {
   const c = createChecks('client-chat')
   const backend = createFakeBackend(completedTodaySeed())
@@ -426,5 +451,7 @@ export async function run(browser) {
   await trainerReplies(c, browser, backend, chat)
   wireClient(backend, chat)
   await clientReads(c, browser, backend, chat)
+  wireClient(backend, chat)
+  await badgeOnHome(c, browser, backend, chat)
   return c.failures
 }

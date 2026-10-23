@@ -103,27 +103,31 @@ function adminSeed() {
 
 async function adminSide(browser, c) {
   const backend = createFakeBackend(adminSeed())
-  const device = {
-    id: 'dh-1',
-    user_id: TRAINER_ID,
-    trainer_name: 'Тренер Тестов',
-    club_name: 'Клуб E2E',
-    label: 'Android · Chrome',
+  const line = 'Клиент: изменение · попыток 10 · Нельзя снять тренера с клиента'
+  const otherId = 'e2e00000-0000-4000-8000-0000000000b2'
+  const shared = {
     codes: ['db_blocked'],
     critical: true,
     needs_attention: true,
     problem_since: new Date(Date.now() - 20 * 60_000).toISOString(),
     last_report_at: new Date(Date.now() - 2 * 60_000).toISOString(),
-    queue_count: 3,
+    queue_count: 1,
+    queue_lines: [{ text: line }],
     instruction: 'Закройте приложение на всех вкладках и перезагрузите планшет (выключить и включить). Данные на планшете не пропадут.',
   }
+  const devices = [
+    { ...shared, id: 'dh-1', user_id: TRAINER_ID, trainer_name: 'Тренер Тестов', club_name: 'Клуб E2E', label: 'Android · Chrome' },
+    { ...shared, id: 'dh-2', user_id: otherId, trainer_name: 'Тренер Второй', club_name: 'Клуб E2E', label: 'Планшет 2' },
+  ]
   backend.adminData = (req) => {
     const action = req.searchParams.get('action')
     if (action === 'device-health' && req.method === 'GET') {
-      return { status: 200, json: { devices: [device], attention: device.needs_attention ? 1 : 0 } }
+      const attention = devices.filter((device) => device.needs_attention).length
+      return { status: 200, json: { devices, attention } }
     }
     if (action === 'device-health-resolve' && req.method === 'POST') {
-      if (req.body?.id === device.id) Object.assign(device, { needs_attention: false })
+      const hit = devices.find((device) => device.id === req.body?.id)
+      if (hit) hit.needs_attention = false
       return { status: 200, json: { ok: true } }
     }
     return null
@@ -134,17 +138,26 @@ async function adminSide(browser, c) {
     await loginUi(page, ADMIN_LOGIN, ADMIN_PASSWORD)
     const icon = page.getByTestId('header-device-health')
     await icon.waitFor({ timeout: 15_000 })
-    c.ok(await until(async () => (await icon.innerText()).trim() === '1'), 'шапка админа: «Сбои устройств» с числом 1')
+    c.ok(await until(async () => (await icon.innerText()).trim() === '2'), 'шапка админа: «Сбои устройств» с числом 2')
     await icon.click()
     await page.waitForURL((u) => u.pathname === '/admin/health', { timeout: 10_000 })
     const card = page.getByTestId('device-health-card')
     await card.waitFor({ timeout: 10_000 })
-    c.ok((await card.innerText()).includes('Скажите тренеру'), 'карточка: что сказать тренеру')
-    const href = await card.getByRole('link', { name: /Написать тренеру/ }).getAttribute('href')
-    c.ok(String(href).startsWith(`/messages?dm=${TRAINER_ID}&text=`), '«Написать тренеру» — чат с тренером и готовым текстом')
+    c.ok(await card.count() === 1, 'одинаковый отказ — одна карточка на два планшета')
+    const text = await card.innerText()
+    c.ok(text.includes('Скажите тренеру'), 'карточка: что сказать тренеру')
+    c.ok(text.includes('Нельзя снять тренера с клиента'), 'карточка: текст отказа из очереди')
+    c.ok(text.includes('Тренер Тестов') && text.includes('Тренер Второй'), 'в карточке оба тренера')
+    const links = card.getByRole('link', { name: /Написать/ })
+    c.ok(await links.count() === 2, 'написать можно каждому')
+    const hrefs = [await links.nth(0).getAttribute('href'), await links.nth(1).getAttribute('href')]
+    c.ok(hrefs.some((href) => String(href).startsWith(`/messages?dm=${TRAINER_ID}&text=`)), '«Написать» — чат с готовым текстом')
     await screenshot(page, 'device-health-admin')
 
-    await card.getByRole('button', { name: /Решено/ }).click()
+    await card.getByRole('button', { name: /Решено/ }).first().click()
+    c.ok(await until(async () => (await icon.innerText()).trim() === '1'), '«Решено» у одного — в шапке остался второй')
+    c.ok(await until(async () => (await page.getByRole('button', { name: /Решено/ }).count()) === 1), 'осталась карточка второго тренера')
+    await page.getByRole('button', { name: /Решено/ }).click()
     c.ok(
       await page.getByTestId('device-health-ok').waitFor({ timeout: 10_000 }).then(() => true).catch(() => false),
       '«Решено» — карточка ушла, «Все планшеты в порядке»',

@@ -46,7 +46,10 @@ export function nextPullMark(prev, ok, now) {
   return { okAt: p.okAt ?? null, failSince: p.failSince ?? now, failCount: Number(p.failCount ?? 0) + 1 }
 }
 
-/** Отпечаток для «отчёт изменился» — порядок кодов уже нормализован. */
-export function deviceReportKey(problems, bundleId) {
-  return `${(problems ?? []).join(',')}|${bundleId ?? ''}`
+/** Отпечаток для «отчёт изменился». lines = null — очередь не прочиталась, отпечаток не меняем из‑за неё. */
+export function deviceReportKey(problems, bundleId, lines) {
+  const lineKey = lines == null
+    ? '*'
+    : lines.map((l) => [l.table, l.op, l.retries, l.error, l.who].join(':')).join(';')
+  return `${(problems ?? []).join(',')}|${bundleId ?? ''}|${lineKey}`
 }
