@@ -17,6 +17,7 @@ import {
   assertTrainerClubId,
   needsClientClubForTrainerCheck,
 } from '../../src/lib/trainer/trainerPushClubBindingCore.js'
+import { assertTrainerClientTrainerIdUpdate } from '../../src/lib/trainer/trainerClientPushAuthCore.js'
 import { assertChallengeClub } from '../../src/lib/challengePushClubCore.js'
 import { assertClientPlanPush } from '../../src/lib/clientPlans/clientPlanCore.js'
 import { assertHomeworkAutoPush } from '../../src/lib/homework/auto/homeworkAutoScheduleCore.js'
@@ -603,14 +604,8 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       }
       if (!(await canAccessClient(ctx, id))) return { ok: false, error: 'Нет доступа к клиенту' }
       if (op === 'update') {
-        if (Object.prototype.hasOwnProperty.call(payload, 'trainer_id')) {
-          if (payload.trainer_id == null || String(payload.trainer_id) === '') {
-            return { ok: false, error: 'Нельзя снять тренера с клиента' }
-          }
-          if (String(payload.trainer_id) !== String(user.id)) {
-            return { ok: false, error: 'Нельзя переназначить клиента другому тренеру' }
-          }
-        }
+        const trainerIdCheck = assertTrainerClientTrainerIdUpdate(payload, user.id)
+        if (!trainerIdCheck.ok) return trainerIdCheck
         if (payload.desk_hall === 'tz' || payload.desk_hall === 'az') {
           return { ok: false, error: 'Desk ТЗ/АЗ может менять только администратор' }
         }
