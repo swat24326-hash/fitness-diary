@@ -79,6 +79,18 @@ export function patchClientMeCache(patch) {
   if (data !== cache.data) writeJson(CACHE_KEY, { ...cache, data })
 }
 
+/** Число на вкладке «Сообщения» в кэше /me — чтобы другие экраны не рисовали старую единичку. */
+export function writeClientChatAttention(count) {
+  const next = Math.max(0, Math.floor(Number(count) || 0))
+  patchClientMeCache((data) => (Number(data.chat_attention) === next ? data : { ...data, chat_attention: next }))
+}
+
+/** Открыли один непрочитанный диалог. Список потом запишет точное число. */
+export function noteClientChatRead() {
+  const current = Number(readClientMeCache()?.data?.chat_attention) || 0
+  if (current > 0) writeClientChatAttention(current - 1)
+}
+
 export const CLIENT_OFFLINE_RU = 'Нет связи с сервером — проверьте интернет'
 
 /** Метка операции в адресе — только для журнала скорости API на сервере ([api-timing]); сервер её не читает. */

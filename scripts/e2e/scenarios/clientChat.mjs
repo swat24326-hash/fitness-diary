@@ -298,6 +298,14 @@ async function clientReads(c, browser, backend, chat) {
     await page.waitForURL(`${ORIGIN}/me/chat/trainer`)
     const reply = page.locator('.chat-msg:not(.chat-msg--mine)', { hasText: REPLY })
     c.ok(await reaches(reply), 'клиент видит ответ тренера')
+    await page.getByRole('link', { name: 'К списку' }).click()
+    await page.waitForURL(`${ORIGIN}/me/inbox`)
+    c.ok(
+      await reaches(page.getByRole('link', { name: 'Сообщения', exact: true })),
+      'вышел из диалога — единичка на «Сообщениях» погасла, без смены вкладки',
+    )
+    await page.getByRole('link', { name: /^Тренер · / }).click()
+    await page.waitForURL(`${ORIGIN}/me/chat/trainer`)
     const trainerName = backend.state.users.find((u) => u.id === TRAINER_ID)?.name
     c.ok(await reaches(reply.getByText(trainerName)), 'у ответа подписано имя тренера')
     c.ok((await reply.locator('a', { hasText: 'ozon.ru/t/abc' }).getAttribute('href')) === 'https://ozon.ru/t/abc', 'сайт без https:// в ответе — кликабелен')

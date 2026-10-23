@@ -76,7 +76,12 @@ async function photoFlow(c, page, row, label, shot, readRow, { layout = 'phone',
     `${label}: фото нет — «Выбрать фото»`,
   )
 
-  await page.getByTestId('profile-photo-input').setInputFiles(PNG)
+  // Настоящий тап, не setInputFiles: у клиента меню закрывается по pointerdown мимо себя
+  // и раньше снимало окно вместе с кнопкой — галерея не открывалась.
+  const chooserPromise = page.waitForEvent('filechooser', { timeout: 8_000 })
+  await sheet.getByRole('button', { name: 'Выбрать фото' }).click()
+  c.ok(await sheet.isVisible(), `${label}: «Выбрать фото» не закрывает окно`)
+  await (await chooserPromise).setFiles(PNG)
   const stage = page.getByTestId('avatar-crop-stage')
   await stage.waitFor({ timeout: 10_000 })
   await sheet.getByRole('slider', { name: 'Увеличение' }).fill('2')

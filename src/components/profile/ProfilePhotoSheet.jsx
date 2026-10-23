@@ -19,8 +19,9 @@ function release(image) {
 /**
  * «Мой профиль», как в Telegram: крупное фото (или инициалы), «Выбрать фото» → обрезка в круг → «Готово», «Удалить фото»;
  * ниже — «Настройки» своего приложения (settings). Пункт, открывающий другое окно, закрывает меню — и это окно вместе с ним.
- * Портал в body: шапка и меню с position:fixed / blur запирали бы окно в своей рамке. mousedown не выпускаем —
- * иначе меню под окном закрылось бы вместе с ним.
+ * Портал в body: шапка и меню с position:fixed / blur запирали бы окно в своей рамке.
+ * pointerdown и mousedown не выпускаем: меню клиента закрывается по pointerdown мимо себя
+ * и сняло бы это окно вместе с собой — «Выбрать фото» не успевает открыть галерею.
  * links — переходы своего приложения сразу под фото, чтобы не листать до них (тренеру — «Статистика и зарплата»).
  * layout: phone — клиент и телефон тренера; tablet — тренер на планшете; desk — менеджер / управляющий / админ на мониторе.
  * @param {{ open: boolean, onClose: () => void, name: string, avatar: ReturnType<typeof import('../../hooks/useMyAvatar.js').useMyAvatar>,
@@ -78,7 +79,15 @@ export function ProfilePhotoSheet({ open, onClose, name, avatar, settings = null
   }
 
   return createPortal(
-    <div className="modal-overlay profile-photo-overlay" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={close} onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay profile-photo-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      onClick={close}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <div
         className={`modal-panel profile-photo profile-photo--${layout}`}
         onClick={(e) => e.stopPropagation()}

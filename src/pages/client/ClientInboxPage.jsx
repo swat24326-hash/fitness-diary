@@ -24,6 +24,7 @@ export function ClientInboxPage() {
       actions={<ClientPageActions onRefresh={() => chats.reload()} refreshing={chats.status === 'loading'} />}
       club={cached?.club ?? null}
       tabs
+      attention={chats.attention == null ? undefined : chats.attention}
     >
       <ClientPageTitle title="Сообщения" back={false} />
       <ClientChatThreadsSection threads={chats.threads} error={chats.status === 'error' ? chats.error : ''} />
