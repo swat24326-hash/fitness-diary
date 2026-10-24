@@ -27,6 +27,7 @@ import { PUSH_APP_COACH } from '../../../src/lib/push/pushTargetUrlCore.js'
 import { sendJson, setCors } from '../adminSupabase.js'
 import { loadInChunks } from '../batchCore.js'
 import { handleStaffChatGet, handleStaffChatPost } from '../chat/chatStaffHandler.js'
+import { handleStaffStoriesGet, handleStaffStoriesPost } from '../stories/storyHandler.js'
 import { sendChatContacts } from '../chat/chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice } from '../chat/staffDmHandler.js'
 import { handleStaffGroupGet, handleStaffGroupPost } from '../chat/staffGroupRoutes.js'
@@ -105,6 +106,7 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'schedule-range') return sendCoachScheduleRange(ctx, req, res)
   if (view === 'clients') return sendCoachClients(ctx, res)
   if (view === 'push-status') return sendPushStatus(ctx, req, res)
+  if (view === 'stories') return handleStaffStoriesGet(ctx, req.query, res)
   if (view === 'chats') return handleStaffChatGet(ctx, { query: { view: 'list' } }, res)
   if (view === 'contacts') return sendChatContacts(ctx, res)
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
@@ -123,6 +125,7 @@ async function handleGet(ctx, req, res, store) {
 
 async function handlePost(ctx, res, body, store) {
   const op = String(body.op ?? '')
+  if (op.startsWith('story-')) return handleStaffStoriesPost(ctx, { ...body, op: op.slice('story-'.length) }, res)
   if (op === 'handoff') return issueCoachHandoff(ctx, res, store)
   if (isAvatarAction(op)) return sendAvatarOp(res, ctx.supabaseAdmin, { table: 'users', side: 'staff', id: String(ctx.user.id) }, op, body)
   if (COACH_SCHEDULE_WRITE_OPS.includes(op)) return handleCoachScheduleWrite(ctx, res, op, body)

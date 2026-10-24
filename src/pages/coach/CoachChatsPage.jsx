@@ -12,6 +12,7 @@ import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { CoachShell } from './CoachShell.jsx'
 import { CoachLoadState, CoachStatus } from './CoachStatus.jsx'
 import { useCoachLoad } from './useCoachLoad.js'
+import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
 
 const CONTACTS_CACHE = screenCacheKey('coach', 'contacts')
 const clientHref = (c) => `/coach/chat/${c.id}`
@@ -44,6 +45,8 @@ export function CoachChatsPage() {
         listLabel="Диалоги"
         folders={<ChatFolders folders={folders} active={active.id} onChange={pick} />}
         list={
+          <>
+          <ClubStoryRail channel="coach" />
           <ChatContactList
             key={active.id}
             contacts={active.contacts}
@@ -52,6 +55,7 @@ export function CoachChatsPage() {
             onInvite={clients ? setInviting : undefined}
             pinned={active.group ? <StaffGroupRow group={active.group} to="/coach/group" /> : null}
           />
+          </>
         }
       />
     )

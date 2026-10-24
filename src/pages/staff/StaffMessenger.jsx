@@ -20,6 +20,7 @@ import {
 } from '../../lib/chat/staffMessengerCore.js'
 import { StaffInboxItemPane } from './StaffInboxItemPane.jsx'
 import { StaffMessengerList } from './StaffMessengerList.jsx'
+import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
 
 const ICON = {
   [CHAT_FOLDER_CLIENTS]: Users,
@@ -81,7 +82,12 @@ export function StaffMessenger({ chats, inbox }) {
           onChange={(id) => setParams(staffMessengerParams(params, { folder: id }), { replace: true })}
         />
       }
-      list={<StaffMessengerList key={folderId} folder={folder} chats={chats} inbox={inbox} open={open} href={href} />}
+      list={
+        <>
+          <ClubStoryRail />
+          <StaffMessengerList key={folderId} folder={folder} chats={chats} inbox={inbox} open={open} href={href} />
+        </>
+      }
       thread={
         open?.type === 'dm' ? (
           <StaffDmPane key={open.userId} userId={open.userId} onSent={reloadChats} backTo={closeHref} back={back} />

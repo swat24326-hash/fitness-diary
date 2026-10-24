@@ -6,6 +6,7 @@ import { ClientChatThreadsSection } from './ClientChatThreadsSection.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { useClientChats } from './useClientChat.js'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
+import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
 
 /**
  * /me/inbox — только диалоги (тренер, менеджер, жалобы).
@@ -27,6 +28,7 @@ export function ClientInboxPage() {
       attention={chats.attention == null ? undefined : chats.attention}
     >
       <ClientPageTitle title="Сообщения" back={false} />
+      <ClubStoryRail channel="client" />
       <ClientChatThreadsSection threads={chats.threads} error={chats.status === 'error' ? chats.error : ''} />
     </ClientMeShell>
   )

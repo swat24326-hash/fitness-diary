@@ -1,0 +1,259 @@
+.stories-rail {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space);
+  padding: var(--space) var(--space) 0;
+}
+
+.stories-rail__circle,
+.stories-rail__add {
+  box-sizing: border-box;
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  min-height: 72px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-muted);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+
+.stories-rail__add.btn-touch {
+  width: 72px;
+  height: 72px;
+  min-height: 72px;
+  padding: 0;
+}
+
+.stories-view__close.btn-touch {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+}
+
+.stories-rail__circle {
+  padding: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.stories-rail__circle.is-new {
+  border-color: var(--accent);
+}
+
+.stories-rail__circle small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.stories-rail__add {
+  background: transparent;
+}
+
+.stories-rail__error,
+.stories-compose__error,
+.stories-view__status {
+  color: var(--danger);
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.stories-view__status {
+  color: var(--text-muted);
+}
+
+.stories-view__status--error {
+  color: var(--danger);
+}
+
+.stories-compose,
+.stories-view {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  color: var(--text);
+}
+
+.stories-view {
+  flex-direction: column;
+  gap: 12px;
+  padding:
+    max(12px, env(safe-area-inset-top, 0px))
+    16px
+    max(16px, env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+}
+
+.stories-compose {
+  align-items: center;
+  justify-content: center;
+  padding: var(--space);
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+}
+
+.stories-compose__card {
+  width: min(420px, 100%);
+  max-height: min(720px, 100%);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: var(--space);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-soft);
+}
+
+.stories-compose__card h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.stories-compose label,
+.stories-compose__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stories-compose__row {
+  flex-direction: row;
+}
+
+.stories-compose__row label {
+  flex: 1;
+}
+
+.stories-compose input,
+.stories-compose select {
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0 12px;
+}
+
+.stories-compose__file {
+  justify-content: center;
+}
+
+.stories-compose__photos {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stories-compose__photos li {
+  position: relative;
+}
+
+.stories-compose__photos img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.stories-compose__photos button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--text);
+}
+
+.stories-compose__actions,
+.stories-view__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stories-view img {
+  position: relative;
+  z-index: 0;
+  flex: 1;
+  object-fit: contain;
+  min-height: 0;
+  width: 100%;
+}
+
+.stories-view__bars {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+}
+
+.stories-view__bars span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text) 35%, transparent);
+}
+
+.stories-view__bars span.is-on {
+  background: var(--text);
+}
+
+.stories-view__close {
+  position: absolute;
+  z-index: 3;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: 12px;
+  width: 48px;
+  height: 48px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  border: 0;
+  border-radius: 50%;
+}
+
+.stories-view__prev,
+.stories-view__next {
+  position: absolute;
+  z-index: 1;
+  top: 72px;
+  bottom: 120px;
+  width: 40%;
+  background: transparent;
+  border: 0;
+  color: transparent;
+}
+
+.stories-view__prev {
+  left: 0;
+}
+
+.stories-view__next {
+  right: 0;
+}
+
+.stories-view__foot {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

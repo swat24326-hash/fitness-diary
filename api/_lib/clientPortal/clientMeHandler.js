@@ -11,6 +11,7 @@
  * POST /api/client-me { action: 'plan-list' | 'plan-item' } — задание от тренера и рацион (../clientPlans/clientPlansClientHandler.js).
  * POST /api/client-me { action: 'rating-get' | 'rating-answer' | 'rating-dismiss' } — оценка после абонемента (../clientRatings/clientRatingHandler.js).
  * POST /api/client-me { action: 'membership-notice-read' } — прочитано оповещение об абонементе.
+ * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' } — реклама своего клуба.
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -31,6 +32,7 @@ import {
 import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
+import { handleClientStories } from '../stories/storyHandler.js'
 
 async function sendClientManifest(res, clubId, handoff) {
   const { data, error } = await createServiceDataClient().from('clubs').select('name').eq('id', clubId).maybeSingle()
@@ -85,6 +87,8 @@ export async function clientMeHandler(req, res) {
     else if (String(body?.action ?? '').startsWith('rating-')) await handleClientRatingPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('membership-notice-')) {
       await handleClientMembershipNoticePost(createServiceDataClient(), ctx, body, res)
+    } else if (String(body?.action ?? '').startsWith('story-')) {
+      await handleClientStories(createServiceDataClient(), ctx, body, res)
     } else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }

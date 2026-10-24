@@ -22,6 +22,7 @@ import { ClientOnboardingBanner } from './ClientOnboardingBanner.jsx'
 import { ClientSignInPanel } from './ClientSignInPanel.jsx'
 import { useClientMe } from './useClientMe.js'
 import { useSparkRebuild } from './useSparkRebuild.js'
+import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
 
 /** /me — приложение клиента: данные клуба; установка и напоминания — баннеры первого входа и меню. */
 export function ClientMePage() {
@@ -85,6 +86,7 @@ export function ClientMePage() {
         </p>
       ) : null}
       <ClientOnboardingBanner clubName={data.club?.name || ''} />
+      <ClubStoryRail channel="client" />
       <ClientProgressCard
         progress={data.progress}
         sparkBuild={spark.build}

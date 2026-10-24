@@ -144,6 +144,7 @@ run('screen cache (клиент и телефон тренера: 7 дней, п
 run('client session clear (вылет ≠ стереть; Выйти / другой человек — стереть)', 'node', ['scripts/verify-client-session-clear.mjs'])
 run('privacy policy A2 (/privacy, ссылки на входах)', 'node', ['scripts/verify-privacy-policy.mjs'])
 run('chat rules (/chat-rules, ссылки на входах)', 'node', ['scripts/verify-chat-rules.mjs'])
+run('stories клуба (реклама: кто выкладывает, свой клуб, срок)', 'node', ['scripts/verify-stories.mjs'])
 run('legal page close (крестик, без аэропорта ссылок)', 'node', ['scripts/verify-legal-page-close.mjs'])
 run('nav page switch (жест назад, replace, возврат с legal)', 'node', ['scripts/verify-nav-page-switch.mjs'])
 run('nav back replace (алиас page-switch)', 'node', ['scripts/verify-nav-back-replace.mjs'])

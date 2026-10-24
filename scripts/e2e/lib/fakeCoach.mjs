@@ -115,6 +115,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       if (req.body?.op === 'client-invite') return clientInvite(user, req.body.client_id)
       const { message_id, emoji, reply_to, audio, sec, wave, once, silent, attach, client_msg_id } = req.body ?? {}
       const op = req.body?.op
+      if (String(op).startsWith('story-')) return { status: 200, json: { ok: true, stories: [], can_publish: false } }
       if (String(op).startsWith('group-')) return staff({}, req.body)
       if (op === 'dm-send') {
         return staff({}, { op: 'dm-send', user_id: req.body.user_id, body: req.body.body, sticker: req.body.sticker, audio, sec, wave, once, attach, client_msg_id, reply_to, silent })
@@ -149,6 +150,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       })
       return { status: 200, json: { today, clients } }
     }
+    if (view === 'stories') return { status: 200, json: { stories: [], can_publish: false } }
     if (view === 'chats') return staff({ view: 'list' })
     if (view === 'contacts') return staff({ view: 'contacts' })
     if (view === 'dm-thread') return staff({ view: 'dm-thread', user_id: q.get('user_id') })

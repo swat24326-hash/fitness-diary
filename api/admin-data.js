@@ -80,6 +80,7 @@ import { handleStaffInboxGet, handleStaffInboxPost } from './_lib/inbox/inboxSta
 import { handleSurveyPointsGet, handleSurveyPointsPost } from './_lib/inbox/inboxPointsHandler.js'
 import { handleClientRatingsAdminGet } from './_lib/clientRatings/clientRatingAdminHandler.js'
 import { handleStaffChatGet, handleStaffChatPost } from './_lib/chat/chatStaffHandler.js'
+import { handleStaffStoriesGet, handleStaffStoriesPost } from './_lib/stories/storyHandler.js'
 import { VIDEO_OPS_STAFF, isVideoUpload, videoSendBody } from './_lib/chat/chatVideoHandler.js'
 import { handleTrainerDeviceSetPost, handleTrainerDevicesGet } from './_lib/trainerDevicesAdmin.js'
 import {
@@ -137,6 +138,7 @@ async function handler(req, res) {
       'my-inbox',
       'survey-points',
       'chat',
+      'stories',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -334,6 +336,11 @@ async function handler(req, res) {
       if (!ctx) return
       return handleStaffChatPost(ctx, res, body)
     }
+    if (action === 'stories') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleStaffStoriesPost(ctx, body, res)
+    }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
@@ -402,6 +409,12 @@ async function handler(req, res) {
     const ctx = await requireAuthUser(req, res)
     if (!ctx) return
     return handleStaffChatGet(ctx, req, res)
+  }
+
+  if (action === 'stories') {
+    const ctx = await requireAuthUser(req, res)
+    if (!ctx) return
+    return handleStaffStoriesGet(ctx, req.query, res)
   }
 
   if (action === 'staff-link') {

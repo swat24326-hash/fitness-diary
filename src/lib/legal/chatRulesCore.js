@@ -8,7 +8,7 @@ import { CHAT_RULES_LINK_RU, CHAT_RULES_PATH } from './privacyPolicyCore.js'
 export { CHAT_RULES_LINK_RU, CHAT_RULES_PATH }
 
 export const CHAT_RULES_TITLE = `Правила переписки · ${PRODUCT_BRAND_NAME}`
-export const CHAT_RULES_UPDATED = '2026-10-18'
+export const CHAT_RULES_UPDATED = '2026-10-25'
 
 /**
  * @returns {{ id: string, title: string, body: string }[]}
@@ -35,6 +35,11 @@ export function chatRulesSections() {
       id: 'files',
       title: 'Фото, голос и файлы',
       body: `Фото, PDF и голосовые в приложении хранятся сутки (кроме стикеров); текст сообщений хранится дольше — по правилам ниже. Не отправляйте материалы, которые нельзя показывать клубу или которые нарушают закон. Клуб может удалить запрещённое содержимое.`,
+    },
+    {
+      id: 'stories',
+      title: 'Сторис',
+      body: `Кружок клуба видят клиенты и сотрудники этого клуба. Выкладывают главный админ и управляющий. Не кладите в кадр документы, банковские карты, детей, раздевалку, вес и замеры. Автор или управляющий клуба может снять сторис раньше срока. Файл удаляется, когда срок вышел.`,
     },
     {
       id: 'keep',

@@ -17,6 +17,10 @@ import {
 } from '../../lib/chat/staffColumnsCore.js'
 import { STAFF_VIEW_GROUPS, staffGroupsRailItem } from '../../lib/chat/staffGroupCore.js'
 import { useStaffMessengerRefresh } from '../../hooks/useStaffMessengerRefresh.js'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { readLastAdminClub } from '../../lib/clubContext.js'
+import { storyUuid } from '../../lib/stories/storyClubCore.js'
+import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
 import '../../styles/admin-messenger.css'
 
 const EMPTY_RU = { [STAFF_VIEW_UNREAD]: 'Все ответили — новых нет' }
@@ -30,6 +34,7 @@ const ICON = { [STAFF_VIEW_ALL]: Users, [STAFF_VIEW_UNREAD]: Inbox, [STAFF_VIEW_
  * @param {{ chatList: ReturnType<typeof import('../../hooks/useStaffChat.js').useStaffChats> }} props
  */
 export function AdminMessenger({ chatList }) {
+  const { user } = useAuth()
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const dm = params.get('dm') ?? ''
@@ -83,6 +88,7 @@ export function AdminMessenger({ chatList }) {
       }
       list={
         <>
+          <ClubStoryRail clubId={storyUuid(view) ? view : readLastAdminClub(user?.id)} />
           <label className="chat-contacts__search">
             <Search size={18} aria-hidden />
             <input

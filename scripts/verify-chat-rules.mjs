@@ -33,7 +33,7 @@ ok(PRIVACY_POLICY_PATH === '/privacy', 'политика отдельно на /
 console.log('разделы')
 const sections = chatRulesSections()
 const ids = sections.map((s) => s.id)
-for (const id of ['club', 'tone', 'secrets', 'files', 'keep', 'help']) {
+for (const id of ['club', 'tone', 'secrets', 'files', 'stories', 'keep', 'help']) {
   ok(ids.includes(id), `раздел ${id}`)
 }
 const blob = sections.map((s) => `${s.title} ${s.body}`).join('\n')
