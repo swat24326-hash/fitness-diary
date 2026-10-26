@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { STORY_CAPTION_MAX, STORY_MAX_FRAMES } from '../../lib/stories/storyClubCore.js'
 import { prepareStoryPhoto } from '../../lib/stories/storyPhotoPrepare.js'
@@ -30,7 +31,7 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
     setFrames(next)
   }
 
-  return (
+  return createPortal(
     <div className="stories-compose" role="dialog" aria-modal="true" aria-label="Реклама клуба">
     <form
       className="stories-compose__card"
@@ -126,6 +127,7 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
         </button>
       </span>
     </form>
-    </div>
+    </div>,
+    document.body,
   )
 }

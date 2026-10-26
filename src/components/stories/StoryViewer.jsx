@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { useStoryReel } from './useStoryReel.js'
 import { StoryViewers } from './StoryViewers.jsx'
@@ -31,8 +32,8 @@ export function StoryViewer({ stories, loadFrame, onSeen, onClose, onCta, onRemo
   if (!current) return null
   const cta = current.story.cta
   const leaveClass = motion === 'back' ? 'is-out-back' : 'is-out'
-  return (
-    <div className={`stories-view${paused ? ' is-paused' : ''}`} role="dialog" aria-label={current.story.label_ru}>
+  return createPortal(
+    <div className={`stories-view${paused ? ' is-paused' : ''}`} role="dialog" aria-modal="true" aria-label={current.story.label_ru}>
       <div className="stories-view__bars">
         {flat.map((item, i) => (
           <span key={`${item.story.id}-${item.frame.id}`} className={i < index ? 'is-done' : i === index && playing ? 'is-run' : ''}>
@@ -80,6 +81,7 @@ export function StoryViewer({ stories, loadFrame, onSeen, onClose, onCta, onRemo
         </span>
         <StoryViewers viewers={current.story.viewers} open={who} onToggle={() => setWho((v) => !v)} />
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
