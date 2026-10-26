@@ -47,6 +47,7 @@ export function NutritionPlanDisplay({
   exportStatus = '',
   onExportMessengers,
   onItemGramsChange,
+  gramsEditRev = 0,
   onSwapMeal,
   onSelectDay,
   activeDayIndex = 0,
@@ -249,6 +250,7 @@ export function NutritionPlanDisplay({
                 planUnsaved={planUnsaved}
                 mealSlot={meal.slot}
                 onItemGramsChange={onItemGramsChange}
+                gramsEditRev={gramsEditRev}
               />
             </article>
           ))}

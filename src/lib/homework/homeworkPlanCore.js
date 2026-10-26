@@ -63,7 +63,7 @@ export function applyHomeworkPresetToDraft(preset) {
     title: row.title,
     mode: 'preset',
     presetId: row.id,
-    comment: '',
+    comment: row.description ? String(row.description).trim().slice(0, 500) : '',
     blocks,
   }
 }

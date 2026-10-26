@@ -296,17 +296,13 @@ export function TrainerScheduleEntryModal({
                 .filter(Boolean)
                 .join(' ')}
             >
-              <span>{mode === 'clients' ? 'Примечание' : 'Текст'}</span>
+              <span>{mode === 'clients' ? 'Примечание, необязательно' : 'Текст'}</span>
               <textarea
                 className="textarea"
                 value={form.title}
                 onChange={(ev) => form.setTitle(ev.target.value)}
                 rows={mode === 'clients' ? 2 : 4}
-                placeholder={
-                  mode === 'clients'
-                    ? 'Необязательно: фокус, зал, пожелание…'
-                    : 'Например: обед, созвон, подготовка зала'
-                }
+                placeholder={mode === 'clients' ? 'Фокус, зал, пожелание' : 'Например: обед, созвон, подготовка зала'}
                 maxLength={240}
               />
             </label>
@@ -328,15 +324,17 @@ export function TrainerScheduleEntryModal({
               {trainingChip ? <> · <span className="trainer-schedule-modal__chip">{trainingChip}</span></> : null}
             </p>
 
-            <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />
+            {deleteAsk ? null : (
+              <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />
+            )}
 
-            {singleClientId ? (
+            {deleteAsk || !singleClientId ? null : (
               <p className="trainer-schedule-modal__link-row">
                 <Link to={`/trainer/clients/${singleClientId}`} className="u-no-decoration">
                   Открыть карточку клиента
                 </Link>
               </p>
-            ) : null}
+            )}
 
             {error ? (
               <p className="trainer-schedule-modal__error" role="alert">

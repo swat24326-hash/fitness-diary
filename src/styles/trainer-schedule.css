@@ -916,6 +916,12 @@
   min-height: auto;
 }
 
+.trainer-schedule-modal__form-body > .trainer-schedule-modal__field--note-aside textarea {
+  flex: 0 0 auto;
+  min-height: 72px;
+  max-height: 96px;
+}
+
 /* Симметрия: две равные колонки; на iPhone узкие fixed-width ломали type=time. */
 .trainer-schedule-modal__row {
   display: grid;

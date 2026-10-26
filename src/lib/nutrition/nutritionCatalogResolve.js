@@ -87,11 +87,35 @@ export function listCatalogProductsByGroup(catalogMap, group) {
 }
 
 /**
- * @param {Map<string, ResolvedNutritionProduct>} catalogMap
+ * Найти продукт в карте клуба, иначе по названию / встроенному справочнику.
+ * Старые рационы могут хранить builtin-id, а в клубе уже UUID с тем же названием.
+ * @param {Map<string, ResolvedNutritionProduct> | null | undefined} catalogMap
  * @param {string} id
+ * @param {{ label?: string } | string} [optsOrLabel]
  */
-export function resolveCatalogProduct(catalogMap, id) {
-  return catalogMap.get(id) ?? null
+export function resolveCatalogProduct(catalogMap, id, optsOrLabel) {
+  const key = String(id ?? '').trim()
+  if (key && catalogMap?.get) {
+    const hit = catalogMap.get(key)
+    if (hit) return hit
+  }
+  const labelRaw =
+    typeof optsOrLabel === 'string' ? optsOrLabel : optsOrLabel && typeof optsOrLabel === 'object' ? optsOrLabel.label : ''
+  const label = normalizeProductLabel(labelRaw)
+  if (label && catalogMap?.values) {
+    for (const p of catalogMap.values()) {
+      if (normalizeProductLabel(p.label) === label) return p
+    }
+  }
+  if (key) {
+    const builtin = NUTRITION_PRODUCT_CATALOG.find((p) => p.id === key)
+    if (builtin) return { ...builtin, source: 'builtin' }
+  }
+  if (label) {
+    const builtin = BUILTIN_BY_LABEL.get(label)
+    if (builtin) return { ...builtin, source: 'builtin' }
+  }
+  return null
 }
 
 /**

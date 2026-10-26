@@ -9,6 +9,7 @@ export function NutritionTableBlock({
   planUnsaved = false,
   mealSlot,
   onItemGramsChange,
+  gramsEditRev = 0,
   tableClassName = '',
 }) {
   const canEdit = !readOnly && planUnsaved && mealSlot && onItemGramsChange
@@ -41,7 +42,7 @@ export function NutritionTableBlock({
                         step={5}
                         inputMode="decimal"
                         defaultValue={row.grams ?? ''}
-                        key={`${mealSlot}-${row.productId}-${row.grams}`}
+                        key={`${mealSlot}-${row.productId}-${row.grams}-r${gramsEditRev}`}
                         onBlur={(e) => onItemGramsChange(mealSlot, row.productId, e.target.value)}
                       />
                       <span className="muted">г</span>
@@ -90,7 +91,7 @@ export function NutritionTableBlock({
                         step={5}
                         inputMode="decimal"
                         defaultValue={row.grams ?? ''}
-                        key={`card-${mealSlot}-${row.productId}-${row.grams}`}
+                        key={`card-${mealSlot}-${row.productId}-${row.grams}-r${gramsEditRev}`}
                         onBlur={(e) => onItemGramsChange(mealSlot, row.productId, e.target.value)}
                       />
                       <span className="muted">г</span>

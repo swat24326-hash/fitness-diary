@@ -15,23 +15,48 @@ function sumItems(items) {
 }
 
 /**
+ * Запасной пересчёт без справочника: те же БЖУ на грамм, что уже в строке рациона.
+ * @param {object} existing
+ * @param {number} grams
+ */
+function scaleItemMacros(existing, grams) {
+  const prev = Number(existing?.grams)
+  const g = roundGrams(grams)
+  if (!existing || !(prev > 0) || !(g > 0)) return null
+  const ratio = g / prev
+  return {
+    productId: existing.productId,
+    label: existing.label,
+    grams: g,
+    portionLabel: `${g} г`,
+    kcal: Math.round((existing.kcal ?? 0) * ratio),
+    proteinG: Math.round((existing.proteinG ?? 0) * ratio * 10) / 10,
+    fatG: Math.round((existing.fatG ?? 0) * ratio * 10) / 10,
+    carbsG: Math.round((existing.carbsG ?? 0) * ratio * 10) / 10,
+  }
+}
+
+/**
  * @param {Map<string, import('./nutritionCatalogResolve.js').ResolvedNutritionProduct>} catalogMap
  * @param {string} productId
  * @param {number} grams
+ * @param {object} [existingItem]
  */
-export function recalcItemFromGrams(catalogMap, productId, grams) {
-  const p = resolveCatalogProduct(catalogMap, productId)
-  if (!p) return null
-  const clamped = clampProductGrams(productId, roundGrams(grams), p)
-  const portion = formatProductPortion(p, clamped)
-  const m = macrosForGrams(p, portion.grams)
-  return {
-    productId: p.id,
-    label: p.label,
-    grams: portion.grams,
-    portionLabel: portion.display,
-    ...m,
+export function recalcItemFromGrams(catalogMap, productId, grams, existingItem) {
+  const p = resolveCatalogProduct(catalogMap, productId, { label: existingItem?.label })
+  if (p) {
+    const clamped = clampProductGrams(productId, roundGrams(grams), p)
+    const portion = formatProductPortion(p, clamped)
+    const m = macrosForGrams(p, portion.grams)
+    return {
+      productId: existingItem?.productId ?? p.id,
+      label: existingItem?.label ?? p.label,
+      grams: portion.grams,
+      portionLabel: portion.display,
+      ...m,
+    }
   }
+  return scaleItemMacros(existingItem, grams)
 }
 
 /** @param {object} plan */
@@ -77,7 +102,8 @@ export function setPlanItemGrams(plan, catalogMap, mealSlot, productId, grams, o
   if (!meal) return syncWeekDayTotals(recalcPlanTotals(next))
   const idx = meal.items.findIndex((i) => i.productId === productId)
   if (idx < 0) return syncWeekDayTotals(recalcPlanTotals(next))
-  const item = recalcItemFromGrams(catalogMap, productId, grams)
+  const prev = meal.items[idx]
+  const item = recalcItemFromGrams(catalogMap, productId, grams, prev)
   if (!item) return syncWeekDayTotals(recalcPlanTotals(next))
   meal.items[idx] = { ...item, userEdited: true }
   return syncWeekDayTotals(recalcPlanTotals(next))

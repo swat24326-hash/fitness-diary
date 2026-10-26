@@ -11,21 +11,25 @@
 export function TrainerScheduleDeleteChoice({ count, busy = false, onOne, onFollowing, onCancel }) {
   const n = Math.max(1, Math.floor(Number(count) || 1))
   const multi = n > 1
+  const followingExtra = multi ? n - 1 : 0
   return (
     <div className="trainer-schedule-delete-choice" role="group" aria-label="Удалить запись">
       <p className="trainer-schedule-delete-choice__text">
         {multi
-          ? `Ещё ${n - 1} похожих вперёд (то же время и клиент или заметка). Удалить только эту или все с этого дня?`
+          ? `Удалить эту и ещё ${followingExtra} таких же вперёд?`
           : 'Удалить запись из расписания?'}
       </p>
+      {multi ? (
+        <p className="trainer-schedule-delete-choice__meta">То же время и клиент или заметка.</p>
+      ) : null}
       <div className="trainer-schedule-delete-choice__actions">
         {multi ? (
           <>
-            <button type="button" className="btn btn-secondary btn-danger-outline" disabled={busy} onClick={onOne}>
+            <button type="button" className="btn btn-secondary" disabled={busy} onClick={onOne}>
               Только эту
             </button>
             <button type="button" className="btn btn-secondary btn-danger-outline" disabled={busy} onClick={onFollowing}>
-              Эту и следующие · {n}
+              Эту и следующие
             </button>
           </>
         ) : (

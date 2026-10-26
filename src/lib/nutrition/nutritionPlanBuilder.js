@@ -207,10 +207,16 @@ export function buildNutritionPlan(health, survey, catalogMap) {
     })
   }
 
+  const allowedIds = [
+    ...(productIdsByGroup.protein ?? []),
+    ...(productIdsByGroup.fat ?? []),
+    ...(productIdsByGroup.carbs ?? []),
+  ]
   dayPlan = topUpDayPlanTowardTargets(
     dayPlan,
     { kcalTarget, proteinAim: macros?.proteinG ?? referents?.protein?.aim },
     catalog,
+    { allowedIds },
   )
   const totals = sumItems(dayPlan.flatMap((m) => m.items))
 

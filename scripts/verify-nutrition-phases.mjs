@@ -94,13 +94,55 @@ ok(week7.ok && week7.plan?.days?.length === 7, '7-day week (Неделя)')
 ok(daysAreDistinct(week7.plan?.days ?? []), '7 days not clones of Monday')
 const monItem = week7.plan.days[0].dayPlan[0]?.items?.[0]
 if (monItem) {
-  const edited = setPlanItemGrams(week7.plan, catalog, week7.plan.days[0].dayPlan[0].slot, monItem.productId, 55, {
+  const targetG = monItem.grams === 55 ? 40 : 55
+  const edited = setPlanItemGrams(week7.plan, catalog, week7.plan.days[0].dayPlan[0].slot, monItem.productId, targetG, {
     dayIndex: 0,
   })
-  ok(edited.days?.[0]?.dayPlan?.[0]?.items?.some((i) => i.productId === monItem.productId && i.grams === 55), 'gram edit syncs into days[0]')
+  ok(
+    edited.days?.[0]?.dayPlan?.[0]?.items?.some((i) => i.productId === monItem.productId && i.grams === targetG),
+    'gram edit syncs into days[0]',
+  )
+  const editedItem = edited.days?.[0]?.dayPlan?.[0]?.items?.find((i) => i.productId === monItem.productId)
+  ok(editedItem && editedItem.kcal !== monItem.kcal, 'gram edit recalculates item kcal')
+  ok(edited.days?.[0]?.totals?.kcal !== week7.plan.days[0].totals?.kcal, 'gram edit recalculates day totals')
   ok(
     edited.days?.[1]?.dayPlan?.[0]?.items?.[0]?.grams === week7.plan.days[1].dayPlan[0]?.items?.[0]?.grams,
     'gram edit does not wipe other week days',
+  )
+
+  // Клубной карте нет builtin-id из старого рациона — ищем по названию / запасной пересчёт.
+  const clubOnly = new Map([
+    [
+      'uuid-other',
+      {
+        id: 'uuid-other',
+        label: monItem.label,
+        group: 'protein',
+        proteinPer100: 20,
+        fatPer100: 5,
+        carbsPer100: 0,
+        source: 'club',
+      },
+    ],
+  ])
+  const labelTarget = targetG === 60 ? 45 : 60
+  const byLabel = setPlanItemGrams(week7.plan, clubOnly, week7.plan.days[0].dayPlan[0].slot, monItem.productId, labelTarget, {
+    dayIndex: 0,
+  })
+  const byLabelItem = byLabel.days?.[0]?.dayPlan?.[0]?.items?.find((i) => i.productId === monItem.productId)
+  ok(byLabelItem?.grams === labelTarget && byLabelItem.kcal > 0, 'gram edit resolves club product by label')
+
+  const emptyMap = new Map()
+  const scaleTarget = monItem.grams === 40 ? 25 : 40
+  const scaled = setPlanItemGrams(week7.plan, emptyMap, week7.plan.days[0].dayPlan[0].slot, monItem.productId, scaleTarget, {
+    dayIndex: 0,
+  })
+  const scaledItem = scaled.days?.[0]?.dayPlan?.[0]?.items?.find((i) => i.productId === monItem.productId)
+  ok(
+    scaledItem?.grams === scaleTarget &&
+      scaledItem.kcal !== monItem.kcal &&
+      scaled.days?.[0]?.totals?.kcal !== week7.plan.days[0].totals?.kcal,
+    'gram edit without catalog scales macros and totals',
   )
 }
 

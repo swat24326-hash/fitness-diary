@@ -50,6 +50,7 @@ ok(row?.items?.blocks?.length > 0, 'preset blocks normalized')
 const draft = applyHomeworkPresetToDraft(row)
 ok(draft?.mode === 'preset', 'apply preset mode')
 ok(isHomeworkDraftReady(draft), 'draft ready after preset')
+ok(draft?.comment === seed0.description, 'preset description becomes draft comment')
 ok(setHomeworkDraftComment(draft, '  Через день  ').comment === 'Через день', 'comment trim')
 
 const catalog = [

@@ -96,6 +96,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
   const [catalogLabel, setCatalogLabel] = useState('Базовый справочник')
   const [confirmDialog, setConfirmDialog] = useState(null)
   const [activeDayIndex, setActiveDayIndex] = useState(0)
+  const [gramsEditRev, setGramsEditRev] = useState(0)
   const planApp = useClientPlanSend('nutrition', client, readOnly)
 
   const surveyLoadedRef = useRef(false)
@@ -393,6 +394,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     })
     setDraftPlan(next)
     setPlanUnsaved(true)
+    setGramsEditRev((n) => n + 1)
     setError(null)
   }
 
@@ -891,6 +893,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
             onSendApp={sendToApp}
             clubName={clubName}
             onItemGramsChange={onItemGramsChange}
+            gramsEditRev={gramsEditRev}
             onSwapMeal={onSwapMeal}
             onSelectDay={onSelectDay}
             activeDayIndex={activeDayIndex}
@@ -1176,6 +1179,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 onSendApp={sendToApp}
                 clubName={clubName}
                 onItemGramsChange={onItemGramsChange}
+                gramsEditRev={gramsEditRev}
                 onSwapMeal={onSwapMeal}
                 onSelectDay={onSelectDay}
                 activeDayIndex={activeDayIndex}
