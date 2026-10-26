@@ -19,6 +19,7 @@ import {
 } from '../../lib/stories/storyApi.js'
 import { STORY_OFFLINE_RU } from '../../lib/stories/storyClubCore.js'
 import { StoryCompose } from './StoryCompose.jsx'
+import { StoryRing } from './StoryRing.jsx'
 import { StoryViewer } from './StoryViewer.jsx'
 
 const API = {
@@ -94,13 +95,16 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
       {stories.length ? (
         <button
           type="button"
-          className={`stories-rail__circle${unseen ? ' is-new' : ''}`}
+          className="stories-rail__circle"
           onClick={() => setOpen(true)}
           aria-label={unseen ? `${stories[0].label_ru}, есть новое` : stories[0].label_ru}
           title={canPublish ? `${stories[0].label_ru}, ${views} просмотров` : stories[0].label_ru}
         >
-          <span>{stories[0].label_ru}</span>
-          {canPublish ? <small>{views}</small> : null}
+          <StoryRing stories={stories} />
+          <span className="stories-rail__face">
+            <span>{stories[0].label_ru}</span>
+            {canPublish ? <small>{views}</small> : null}
+          </span>
         </button>
       ) : null}
       {canPublish ? (
@@ -114,7 +118,10 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
           stories={stories}
           loadFrame={api.frame}
           onSeen={onSeen}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            setOpen(false)
+            if (canPublish) load()
+          }}
           onCta={
             channel === 'client'
               ? (cta) => {

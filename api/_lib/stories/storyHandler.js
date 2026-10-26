@@ -3,6 +3,7 @@
  * Список и выкладка — сотрудник (admin-data / телефон тренера) и клиент своего клуба (только смотреть).
  */
 import { randomUUID } from 'node:crypto'
+import { loadInChunks } from '../batchCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { checkAttachBytes, checkAttachUpload } from '../../../src/lib/chat/chatAttachCore.js'
 import { deleteVoice, putVoice, getVoice } from '../chat/chatVoiceStorage.js'
@@ -27,6 +28,7 @@ import {
   storyStorageKey,
   storyUuid,
   storyViewerKey,
+  storyViewerPublic,
   viewClubId,
   storyExpiresAt,
 } from '../../../src/lib/stories/storyClubCore.js'
@@ -43,6 +45,26 @@ async function rows(query) {
   const { data, error } = await query
   if (error) throw error
   return data ?? []
+}
+
+async function viewerNames(db, clubId, viewRows) {
+  const staffIds = []
+  const clientIds = []
+  for (const row of viewRows) {
+    const key = String(row.user_key ?? '').toLowerCase()
+    if (key.startsWith('u:')) staffIds.push(key.slice(2))
+    if (key.startsWith('c:')) clientIds.push(key.slice(2))
+  }
+  const [users, clients] = await Promise.all([
+    loadInChunks([...new Set(staffIds)], (part) => rows(db.from('users').select('id, name').in('id', part))),
+    loadInChunks([...new Set(clientIds)], (part) =>
+      rows(db.from('clients').select('id, name').eq('club_id', clubId).in('id', part)),
+    ),
+  ])
+  const names = {}
+  for (const user of users) names[`u:${String(user.id).toLowerCase()}`] = user.name
+  for (const client of clients) names[`c:${String(client.id).toLowerCase()}`] = client.name
+  return names
 }
 
 function liveRow(row, now) {
@@ -71,10 +93,15 @@ async function listClubStories(db, clubId, viewerKey, withViews) {
   )
   const seen = new Set(seenRows.map((r) => r.story_id))
   const viewRows = withViews
-    ? await rows(db.from('club_story_views').select('story_id').in('story_id', ids))
+    ? await rows(db.from('club_story_views').select('story_id, user_key, seen_at').in('story_id', ids))
     : []
-  const views = new Map()
-  for (const row of viewRows) views.set(row.story_id, (views.get(row.story_id) ?? 0) + 1)
+  const names = withViews ? await viewerNames(db, clubId, viewRows) : {}
+  const viewersOf = new Map()
+  for (const row of viewRows) {
+    const list = viewersOf.get(row.story_id) ?? []
+    list.push(row)
+    viewersOf.set(row.story_id, list)
+  }
   const byStory = new Map()
   for (const frame of frames) {
     const list = byStory.get(frame.story_id) ?? []
@@ -88,7 +115,9 @@ async function listClubStories(db, clubId, viewerKey, withViews) {
     cta: s.cta,
     expires_at: s.expires_at,
     seen: seen.has(s.id),
-    ...(withViews ? { views: views.get(s.id) ?? 0 } : {}),
+    ...(withViews
+      ? { views: (viewersOf.get(s.id) ?? []).length, viewers: storyViewerPublic(viewersOf.get(s.id), names) }
+      : {}),
     frames: byStory.get(s.id) ?? [],
   }))
 }

@@ -13,7 +13,7 @@ export const STORY_MAX_FRAMES = 5
 export const STORY_CAPTION_MAX = 200
 export const STORY_MIN_DAYS = 1
 export const STORY_MAX_DAYS = 7
-export const STORY_PHOTO_MAX_BYTES = 500_000
+export const STORY_PHOTO_MAX_BYTES = 650_000
 
 export const STORY_FORBIDDEN_RU = 'Выложить сторис клуба могут администратор и управляющий'
 export const STORY_PICK_CLUB_RU = 'Выберите клуб'
@@ -114,6 +114,22 @@ export function storyPhotoBytesOk(bytes) {
   return Number.isInteger(bytes) && bytes >= 100 && bytes <= STORY_PHOTO_MAX_BYTES
 }
 
+/** Дуги кольца: одно фото — круг, два — полукруги. Яркость решает seen сторис. */
+export function storyRingSegments(stories) {
+  const items = []
+  for (const story of stories ?? []) {
+    const frames = Array.isArray(story?.frames) && story.frames.length ? story.frames : [{ id: story?.id }]
+    for (const frame of frames) {
+      items.push({ id: `${story?.id}:${frame?.id ?? items.length}`, seen: Boolean(story?.seen) })
+    }
+  }
+  const n = items.length
+  if (!n) return []
+  const gap = n === 1 ? 0 : Math.min(0.045, 0.5 / n)
+  const sweep = (1 - gap * n) / n
+  return items.map((item, i) => ({ ...item, start: i * (sweep + gap), sweep }))
+}
+
 export function canRemoveClubStory(kind, { authorId, userId }) {
   if (kind === 'admin' || kind === 'supervisor') return true
   return Boolean(authorId) && authorId === userId
@@ -122,6 +138,27 @@ export function canRemoveClubStory(kind, { authorId, userId }) {
 export function storyViewerKey(side, id) {
   const who = side === 'client' ? 'c' : 'u'
   return `${who}:${String(id).toLowerCase()}`
+}
+
+const VIEWER_KEY = /^(u|c):([0-9a-f-]{36})$/
+
+/** Имена зрителей для своего клуба. Чужой ключ и сырой id наружу не отдаём. */
+export function storyViewerPublic(rows, names) {
+  const list = []
+  for (const row of rows ?? []) {
+    const key = String(row?.user_key ?? '').toLowerCase()
+    const match = VIEWER_KEY.exec(key)
+    if (!match) continue
+    const side = match[1] === 'c' ? 'client' : 'staff'
+    const name = String(names?.[key] ?? '').trim()
+    list.push({
+      name: name || (side === 'client' ? 'Клиент' : 'Сотрудник'),
+      side,
+      seen_at: row.seen_at ?? null,
+    })
+  }
+  list.sort((a, b) => String(b.seen_at ?? '').localeCompare(String(a.seen_at ?? '')))
+  return list
 }
 
 export function storyStorageKey(clubId, storyId, pos, mime) {

@@ -70,7 +70,13 @@ export function suggestErrorHint(row) {
   const text = `${row?.error ?? ''} ${row?.context ?? ''}`.toLowerCase()
   const status = row?.status
 
-  if (status === 401 || /unauthorized|не авториз|jwt|session/i.test(text)) {
+  if (/homework_auto_sessions_check/i.test(text)) {
+    return 'В авто-ДЗ выбрано число занятий, которое база ещё не принимала. Обновите приложение и нажмите Sync — «1», «2» и «3» уходят нормально.'
+  }
+  if (/violates check constraint|check constraint/i.test(text)) {
+    return 'Данные не проходят проверку на сервере. Обновите приложение; если повторяется — скопируйте отчёт администратору.'
+  }
+  if (status === 401 || /unauthorized|не авториз|jwt|сессия истекла|invalid.?jwt/i.test(text)) {
     return 'Сессия истекла: выйдите из аккаунта и войдите снова.'
   }
   if (status === 403 || /forbidden|доступ запрещ/i.test(text)) {
@@ -78,9 +84,6 @@ export function suggestErrorHint(row) {
   }
   if (/trainings_type_check|type_check|списание/i.test(text)) {
     return 'Старый формат тренировки в очереди. Обновите приложение (перезагрузка страницы) и нажмите Sync.'
-  }
-  if (/violates check constraint|check constraint/i.test(text)) {
-    return 'Данные не проходят проверку на сервере. Обновите приложение; если повторяется — скопируйте отчёт администратору.'
   }
   if (status === 409 || /duplicate|unique|already exists|409/i.test(text)) {
     return 'Запись уже есть в облаке. Обычно помогает повторная синхронизация.'

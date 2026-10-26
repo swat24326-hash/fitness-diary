@@ -20,9 +20,11 @@ import {
   storyIsLive,
   storyLabelRu,
   storyPhotoBytesOk,
+  storyRingSegments,
   storyStaffKind,
   storyStorageKey,
   storyViewerKey,
+  storyViewerPublic,
   viewClubId,
 } from '../src/lib/stories/storyClubCore.js'
 
@@ -61,6 +63,15 @@ ok(storyFramesOk(1) && storyFramesOk(STORY_MAX_FRAMES) && !storyFramesOk(0) && !
 ok(storyCaptionOk('акция').caption === 'акция' && storyCaptionOk('я'.repeat(201)).ok === false && storyCaptionOk('').caption === '', 'подпись до 200')
 ok(storyCtaOk('chat') === 'chat' && storyCtaOk('membership') === 'membership' && storyCtaOk('site') === null, 'кнопка — чат или абонемент')
 ok(storyLabelRu('promo') === 'Акция' && storyLabelRu('news') === 'Новость', 'подписи кружка')
+const one = storyRingSegments([{ id: 'a', seen: false, frames: [{ id: 'f1' }] }])
+const two = storyRingSegments([{ id: 'a', seen: false, frames: [{ id: 'f1' }, { id: 'f2' }] }])
+const mixed = storyRingSegments([
+  { id: 'a', seen: true, frames: [{ id: 'f1' }] },
+  { id: 'b', seen: false, frames: [{ id: 'f2' }] },
+])
+ok(one.length === 1 && one[0].sweep === 1 && one[0].seen === false, 'одно фото — целое яркое кольцо')
+ok(two.length === 2 && two.every((s) => !s.seen) && Math.abs(two[0].sweep - two[1].sweep) < 0.001 && two[0].sweep < 0.5, 'два фото — два полукруга')
+ok(mixed[0].seen === true && mixed[1].seen === false, 'смотренная дуга тусклая, новая яркая')
 ok(storyPhotoBytesOk(STORY_PHOTO_MAX_BYTES) && !storyPhotoBytesOk(STORY_PHOTO_MAX_BYTES + 1), 'фото не больше лимита пачки')
 const now = Date.parse('2026-10-25T12:00:00Z')
 const exp = storyExpiresAt(now, 2)
@@ -73,6 +84,19 @@ const key = storyStorageKey(CLUB, STORY, 0, 'image/jpeg')
 ok(key === `story/${CLUB}/${STORY}/0.jpg` && isStoryStorageKey(key), 'ключ в папке story/')
 ok(!isStoryStorageKey('voice/att/u-1/a.jpg') && !isStoryStorageKey(`story/${CLUB}/${STORY}/0.svg`), 'чужой ключ не отдаём')
 ok(storyViewerKey('client', CLUB) === `c:${CLUB}` && storyViewerKey('staff', CLUB) === `u:${CLUB}`, 'кто смотрел — клиент и сотрудник отдельно')
+const viewers = storyViewerPublic(
+  [
+    { user_key: `c:${CLUB}`, seen_at: '2026-10-25T10:00:00Z' },
+    { user_key: `u:${OTHER}`, seen_at: '2026-10-25T12:00:00Z' },
+    { user_key: 'guest', seen_at: '2026-10-25T13:00:00Z' },
+  ],
+  { [`c:${CLUB}`]: 'Анна', [`u:${OTHER}`]: 'Иван' },
+)
+ok(
+  viewers.length === 2 && viewers[0].name === 'Иван' && viewers[0].side === 'staff' && viewers[1].name === 'Анна' && !JSON.stringify(viewers).includes(CLUB),
+  'список зрителей — имена своего клуба, без сырого id',
+)
+ok(storyViewerPublic([{ user_key: `c:${CLUB}`, seen_at: null }], {})[0].name === 'Клиент', 'без имени остаётся «Клиент»')
 ok(canRemoveClubStory('supervisor', { authorId: OTHER, userId: CLUB }) && canRemoveClubStory('admin', { authorId: OTHER, userId: CLUB }), 'админ и управляющий снимают')
 ok(!canRemoveClubStory('staff', { authorId: OTHER, userId: CLUB }), 'тренер чужую не снимает')
 

@@ -40,6 +40,23 @@ assert.ok(suggestErrorHint(errors[0]).includes('Обновите'))
 assert.ok(suggestErrorHint(errors[1]).includes('сет'))
 assert.ok(
   suggestErrorHint({
+    source: 'sync',
+    status: 400,
+    error: 'Значение не прошло проверку (check constraint violation) [homework_auto_sessions_check]',
+    context: 'homework_auto · update',
+  }).includes('авто-ДЗ'),
+  'sessions_check — не «сессия истекла»',
+)
+assert.ok(
+  !suggestErrorHint({
+    source: 'sync',
+    status: 400,
+    error: 'check constraint violation [homework_auto_sessions_check]',
+  }).includes('Сессия истекла'),
+  'sessions в имени constraint не путаем с сессией входа',
+)
+assert.ok(
+  suggestErrorHint({
     source: 'pull',
     error: 'справочник: AbortError: Lock broken by another request with the steal option.',
   }).includes('Параллельный'),

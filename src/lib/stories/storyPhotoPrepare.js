@@ -1,7 +1,9 @@
 /** Сжать фото сторис в браузере, чтобы пачка из 5 кадров влезла в запрос. */
 import { STORY_PHOTO_MAX_BYTES } from './storyClubCore.js'
 
-const MAX_SIDE = 1280
+const MAX_SIDE = 1600
+const START_QUALITY = 0.86
+const MIN_QUALITY = 0.52
 
 function blobToFrame(blob, w, h) {
   return new Promise((resolve, reject) => {
@@ -26,7 +28,10 @@ export function prepareStoryPhoto(file) {
       const canvas = document.createElement('canvas')
       canvas.width = w
       canvas.height = h
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      const ctx = canvas.getContext('2d')
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, 0, 0, w, h)
       URL.revokeObjectURL(url)
       const tryQuality = (quality) => {
         canvas.toBlob(async (blob) => {
@@ -34,8 +39,8 @@ export function prepareStoryPhoto(file) {
             reject(new Error('Фото не открылось — попробуйте другое'))
             return
           }
-          if (blob.size > STORY_PHOTO_MAX_BYTES && quality > 0.4) {
-            tryQuality(quality - 0.12)
+          if (blob.size > STORY_PHOTO_MAX_BYTES && quality > MIN_QUALITY) {
+            tryQuality(Math.max(MIN_QUALITY, quality - 0.08))
             return
           }
           if (blob.size > STORY_PHOTO_MAX_BYTES) {
@@ -45,7 +50,7 @@ export function prepareStoryPhoto(file) {
           resolve(await blobToFrame(blob, w, h))
         }, 'image/jpeg', quality)
       }
-      tryQuality(0.72)
+      tryQuality(START_QUALITY)
     }
     img.onerror = () => {
       URL.revokeObjectURL(url)
