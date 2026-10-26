@@ -192,9 +192,10 @@
 |------|------|
 | Домен | `src/lib/admin/salesManagerStatsAgg.js`, `src/lib/admin/salesPlanMatrixCompare.js`, `src/lib/pnk/` |
 | Заявка/клип | `src/lib/admin/saleClipCore.js`, `saleClipInstantCore.js` (`planFulfillAwaitingSaleClip`), `saleClipPullPruneCore.js`, `api/_lib/saleClipsReconcile.js`, `api/_lib/saleClipInstantWrite.js` (INC-2026-09-18-01: БЗ ≠ done; INC-2026-10-21-02: старая awaiting закрывается менеджером, не планшетом) |
+| Glance главной × шапка Продаж | `AdminHomeSalesPlanGlance.jsx`, `salesPlanGlanceSession.js` (`loadSig` / `salesPlanGlanceLooksSame`), расход: `supervisorExpenseCore.js` (`resolveExpenseRubFromForm`), черновик: `adminSalesDraftStorage.js` (`resolveExpenseDraftAfterLoad` — пустой не затирает сервер) |
 | UI | `src/pages/admin/AdminSales.jsx`, `src/pages/admin/SalesPnk.jsx`, компоненты `SalesPlan*`, `SalesStrategy*` |
 | API | `api/_lib/adminData/salesHandlers.js`, `api/_lib/adminData/pnkHandlers.js` |
-| Verify | `scripts/verify-sale-clips.mjs`, `scripts/verify-sales-plan-matrix-compare.mjs`, `scripts/verify-club-finance-forecast.mjs` (полный каталог: `verify-sales-*.mjs` в [TESTING.md](./TESTING.md)) |
+| Verify | `scripts/verify-sale-clips.mjs`, `scripts/verify-sales-plan-matrix-compare.mjs`, `scripts/verify-club-finance-forecast.mjs`, `scripts/verify-sales-plan-glance-sig.mjs`, `scripts/verify-admin-sales-draft.mjs` (полный каталог: `verify-sales-*.mjs` в [TESTING.md](./TESTING.md)) |
 | Docs | [SALES_MANAGER.md](./SALES_MANAGER.md), [PNK_FUNNEL.md](./PNK_FUNNEL.md), INCIDENTS **M** |
 
 ### N — импорт Excel, мост оплат

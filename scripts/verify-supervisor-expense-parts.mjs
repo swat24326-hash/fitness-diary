@@ -4,10 +4,13 @@
  */
 import {
   emptyExpenseForm,
+  expenseFormHasAmount,
   expenseFormToPayload,
   expenseRowToForm,
   patchExpenseFormPart,
+  resolveExpenseRubFromForm,
   sumExpenseParts,
+  syncExpenseFormTotals,
   SUPERVISOR_EXPENSE_PART_KEYS,
   SUPERVISOR_EXPENSE_PART_LABELS,
 } from '../src/lib/admin/supervisorExpenseCore.js'
@@ -73,6 +76,17 @@ ok(SUPERVISOR_EXPENSE_PART_LABELS.expense_deposits === 'Оклады', 'label О
 ok(SUPERVISOR_EXPENSE_PART_LABELS.expense_sales === 'Отдел продаж', 'label Отдел продаж')
 ok(partsRow.expense_sales === '40000', 'row sales')
 ok(partsRow.expense_month === '400000', 'row total')
+
+ok(resolveExpenseRubFromForm(filled) === 150000, 'resolve rub from parts')
+ok(
+  resolveExpenseRubFromForm({ ...emptyExpenseForm(), expense_month: '500000' }) === 500000,
+  'resolve rub from legacy month only',
+)
+ok(expenseFormHasAmount(filled), 'filled has amount')
+ok(!expenseFormHasAmount(emptyExpenseForm()), 'empty has no amount')
+const unsynced = { ...emptyExpenseForm(), expense_rent: '500000', expense_month: '' }
+ok(resolveExpenseRubFromForm(unsynced) === 500000, 'resolve ignores empty month when parts set')
+ok(syncExpenseFormTotals(unsynced).expense_month === '500000', 'sync fills month from parts')
 
 if (failed) process.exit(1)
 console.log('verify-supervisor-expense-parts: all passed')

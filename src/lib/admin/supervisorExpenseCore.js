@@ -64,6 +64,37 @@ export function sumExpenseParts(form) {
   return Math.round(sum * 100) / 100
 }
 
+/**
+ * Сумма расхода для чистой прибыли / прогноза: сначала статьи, иначе legacy expense_month.
+ * @param {Record<string, string> | null | undefined} form
+ * @returns {number}
+ */
+export function resolveExpenseRubFromForm(form) {
+  const sum = sumExpenseParts(form)
+  if (Number.isFinite(sum) && !Number.isNaN(sum) && sum > 0) return sum
+  const month = parseExpensePartMoney(form?.expense_month)
+  if (Number.isFinite(month) && !Number.isNaN(month) && month > 0) return month
+  return 0
+}
+
+/** Есть ли ненулевой расход (статьи или итого). */
+export function expenseFormHasAmount(form) {
+  return resolveExpenseRubFromForm(form) > 0
+}
+
+/**
+ * Подтянуть expense_month из статей (после restore черновика / частичного form).
+ * @param {Record<string, string>} form
+ */
+export function syncExpenseFormTotals(form) {
+  const next = { ...form }
+  const sum = sumExpenseParts(next)
+  if (Number.isFinite(sum) && !Number.isNaN(sum)) {
+    next.expense_month = sum > 0 ? String(sum) : ''
+  }
+  return next
+}
+
 export function emptyExpenseForm() {
   /** @type {Record<string, string>} */
   const form = { expense_month: '' }

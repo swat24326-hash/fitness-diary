@@ -1185,10 +1185,13 @@ export {
 
 export {
   emptyExpenseForm,
+  expenseFormHasAmount,
   expenseFormToPayload,
   expenseRowToForm,
   patchExpenseFormPart,
+  resolveExpenseRubFromForm,
   sumExpenseParts,
+  syncExpenseFormTotals,
   SUPERVISOR_EXPENSE_PART_KEYS,
   SUPERVISOR_EXPENSE_PART_LABELS,
   SUPERVISOR_EXPENSE_SELECT_COLS,

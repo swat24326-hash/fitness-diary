@@ -2,6 +2,7 @@
  * Локальные черновики отчётов продаж — переживают перезагрузку вкладки на планшете.
  */
 import { salesPlanFormHasTarget } from './salesPlanPresenceCore.js'
+import { expenseFormHasAmount, syncExpenseFormTotals } from './supervisorExpenseCore.js'
 
 export const SALES_DRAFT_STORAGE_VERSION = 1
 export const SALES_DRAFT_PREFIX = `fit_sales_draft_v${SALES_DRAFT_STORAGE_VERSION}`
@@ -245,9 +246,18 @@ export function resolveExpenseDraftAfterLoad({ draft, serverFp, expenseForm }) {
   if (!shouldRestoreSalesDraft(draft, serverFp)) {
     return { restored: false, expenseForm }
   }
+  const raw =
+    draft.expenseForm && typeof draft.expenseForm === 'object'
+      ? /** @type {Record<string, string>} */ (draft.expenseForm)
+      : expenseForm
+  const next = syncExpenseFormTotals(raw)
+  // Как у плана: пустой локальный «хвост» не затирает сохранённый расход (иначе шапка Продаж ≠ главная).
+  if (expenseFormHasAmount(expenseForm) && !expenseFormHasAmount(next)) {
+    return { restored: false, expenseForm, discardStaleEmpty: true }
+  }
   return {
     restored: true,
-    expenseForm: draft.expenseForm && typeof draft.expenseForm === 'object' ? draft.expenseForm : expenseForm,
+    expenseForm: next,
   }
 }
 

@@ -14,7 +14,7 @@ import {
   expenseRowToForm,
   planRowToForm,
   monthPartsFromIso,
-  parseSalesMoney,
+  resolveExpenseRubFromForm,
   resolvePlanFactFromMonthSummary,
 } from '../../lib/admin/salesReportCore'
 import { buildClubFinanceForecast } from '../../lib/admin/clubFinanceForecastCore'
@@ -281,6 +281,9 @@ export function AdminSales({ accessMode = 'admin' }) {
       expenseForm: nextExpenseForm,
     })
     nextExpenseForm = expenseResolved.expenseForm
+    if (expenseResolved.discardStaleEmpty) {
+      clearSalesDraft(salesFinanceDraftKey(cid, bundle.year, bundle.month))
+    }
 
     setPlanForm(nextPlanForm)
     setPlanPromotions(normalizePromotionsFromDb(bundle.plan?.promotions))
@@ -432,7 +435,8 @@ export function AdminSales({ accessMode = 'admin' }) {
               clubId,
               reportDate,
               profile: 'shell',
-              preferApi: isSalesManager,
+              // Тот же контур, что glance на главной: расход и месяц через API.
+              preferApi: true,
             }).then((b) => ({
               kind: 'shell',
               bundle: b,
@@ -449,7 +453,7 @@ export function AdminSales({ accessMode = 'admin' }) {
               reportDate,
               profile: 'daily',
               includeFitCity: wantFitCity,
-              preferApi: isSalesManager,
+              preferApi: true,
             }).then((b) => ({ kind: 'daily', bundle: b })),
           )
         } else if (wantFitCity && profilesRef.current.daily) {
@@ -459,7 +463,7 @@ export function AdminSales({ accessMode = 'admin' }) {
               reportDate,
               profile: 'daily',
               includeFitCity: true,
-              preferApi: isSalesManager,
+              preferApi: true,
             }).then((b) => ({ kind: 'fit', bundle: b })),
           )
         }
@@ -701,12 +705,11 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   const heroFinanceForecast = useMemo(() => {
     if (isSalesManager) return null
-    const expenseRaw = parseSalesMoney(expenseForm.expense_month)
     return buildClubFinanceForecast({
       monthRows: monthDays,
       year: yearMonth.year,
       month: yearMonth.month,
-      expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
+      expense: resolveExpenseRubFromForm(expenseForm),
       membershipTypes: payrollMembershipTypes,
       planForm,
       planConfig: payrollCtx.planConfig,
@@ -718,7 +721,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     monthDays,
     yearMonth.year,
     yearMonth.month,
-    expenseForm.expense_month,
+    expenseForm,
     payrollMembershipTypes,
     planForm,
     payrollCtx,

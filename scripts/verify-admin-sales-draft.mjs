@@ -1,13 +1,16 @@
 import {
   clearClubSalesDrafts,
+  fingerprintExpenseDraft,
   fingerprintPlanDraft,
   resolveDailyDraftAfterLoad,
+  resolveExpenseDraftAfterLoad,
   salesDailyDraftKey,
   salesFinanceDraftKey,
   salesPlanDraftKey,
   shouldRestoreSalesDraft,
   uniqueSalesDraftHints,
 } from '../src/lib/admin/adminSalesDraftStorage.js'
+import { emptyExpenseForm } from '../src/lib/admin/supervisorExpenseCore.js'
 
 let failed = 0
 
@@ -63,5 +66,39 @@ ok(
 
 clearClubSalesDrafts({ clubId: 'c', year: 2026, month: 8, reportDate: '2026-08-14' })
 ok(true, 'clearClubSalesDrafts runs without throw')
+
+const serverExpense = {
+  ...emptyExpenseForm(),
+  expense_rent: '500000',
+  expense_month: '500000',
+}
+const emptyExpense = emptyExpenseForm()
+const serverExpenseFp = fingerprintExpenseDraft(serverExpense)
+const emptyExpenseFp = fingerprintExpenseDraft(emptyExpense)
+const expenseBlocked = resolveExpenseDraftAfterLoad({
+  draft: {
+    v: 1,
+    serverBaselineFp: serverExpenseFp,
+    fingerprint: emptyExpenseFp,
+    expenseForm: emptyExpense,
+  },
+  serverFp: serverExpenseFp,
+  expenseForm: serverExpense,
+})
+ok(!expenseBlocked.restored && expenseBlocked.discardStaleEmpty, 'refuse empty expense draft over server')
+ok(expenseBlocked.expenseForm.expense_month === '500000', 'keeps server expense total')
+
+const expensePartsOnly = resolveExpenseDraftAfterLoad({
+  draft: {
+    v: 1,
+    serverBaselineFp: serverExpenseFp,
+    fingerprint: 'edited-parts',
+    expenseForm: { ...emptyExpenseForm(), expense_rent: '400000', expense_month: '' },
+  },
+  serverFp: serverExpenseFp,
+  expenseForm: serverExpense,
+})
+ok(expensePartsOnly.restored, 'restore non-empty expense draft')
+ok(expensePartsOnly.expenseForm.expense_month === '400000', 'sync month from draft parts')
 
 process.exit(failed > 0 ? 1 : 0)

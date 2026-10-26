@@ -7,8 +7,8 @@ import { fetchClubSalesBundle } from '../../lib/admin/adminSalesService.js'
 import {
   expenseRowToForm,
   monthPartsFromIso,
-  parseSalesMoney,
   planRowToForm,
+  resolveExpenseRubFromForm,
   resolvePlanFactFromMonthSummary,
 } from '../../lib/admin/salesReportCore.js'
 import { buildClubFinanceForecast } from '../../lib/admin/clubFinanceForecastCore.js'
@@ -19,6 +19,7 @@ import {
   isSalesPlanGlanceFresh,
   peekSalesPlanGlanceSession,
   readSalesPlanGlanceSession,
+  salesPlanGlanceLoadSig,
   salesPlanGlanceLooksSame,
   writeSalesPlanGlanceSession,
 } from '../../lib/admin/salesPlanGlanceSession.js'
@@ -56,7 +57,7 @@ async function buildPayloadFromBundle(bundle, clubId, payrollCtx) {
     level3: Number(form.plan_level_3) || 0,
   }
   const expenseForm = expenseRowToForm(bundle.expense)
-  const expenseRaw = parseSalesMoney(expenseForm.expense_month)
+  const expenseRaw = resolveExpenseRubFromForm(expenseForm)
   const ctx = payrollCtx ?? {
     planConfig: null,
     profilesByTrainerId: null,
@@ -69,21 +70,24 @@ async function buildPayloadFromBundle(bundle, clubId, payrollCtx) {
       : Array.isArray(bundle.membershipTypes)
         ? bundle.membershipTypes
         : []
+  const monthRows = Array.isArray(bundle.monthDays) ? bundle.monthDays : []
+  const forecastBundle = {
+    year: Number(bundle.year) || parts?.year || 0,
+    month: Number(bundle.month) || parts?.month || 0,
+    monthRows,
+    membershipTypes: payTypes,
+    planForm: form,
+    expense: expenseRaw,
+    planConfig: ctx.planConfig,
+    profilesByTrainerId: ctx.profilesByTrainerId,
+    clubId,
+    loadSig: salesPlanGlanceLoadSig({ monthRows, expense: expenseRaw }),
+  }
   return {
     monthLabel: parts ? `${name} ${parts.year}` : '',
     fact: resolvePlanFactFromMonthSummary(bundle.monthSummary),
     planLevels: levels,
-    forecastBundle: {
-      year: Number(bundle.year) || parts?.year || 0,
-      month: Number(bundle.month) || parts?.month || 0,
-      monthRows: Array.isArray(bundle.monthDays) ? bundle.monthDays : [],
-      membershipTypes: payTypes,
-      planForm: form,
-      expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
-      planConfig: ctx.planConfig,
-      profilesByTrainerId: ctx.profilesByTrainerId,
-      clubId,
-    },
+    forecastBundle,
   }
 }
 

@@ -274,7 +274,9 @@
 | R1: нет prod URL в `src/`/`api/` | `verify-r1-portability.mjs` |
 | Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
 | Управляющий: club scope / один на клуб / без журнала удалений | `verify-supervisor-access.mjs` |
-| Расход управляющего: статьи + итог / legacy → «Расходы» | `verify-supervisor-expense-parts.mjs` |
+| Расход управляющего: статьи + итог / legacy → «Расходы»; resolve из статей | `verify-supervisor-expense-parts.mjs` |
+| Черновик расхода: пустой не затирает сервер | `verify-admin-sales-draft.mjs` |
+| Glance плана на главной: loadSig по часам ПЗ/АЗ + расход | `verify-sales-plan-glance-sig.mjs` |
 | Структура: фильтр тренеров/менеджеров/управляющих по `?club=` | `verify-filter-staff-by-club.mjs` |
 | Мои Звонки: конфиг на клуб + merge с env | `verify-moi-zvonki-club-config.mjs` |
 | Массовые SMS клуба: получатели, код, очередь, rate-limit | `verify-club-sms-campaign.mjs` |
