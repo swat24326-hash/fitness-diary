@@ -287,8 +287,10 @@ export async function run(browser) {
     await page.waitForTimeout(300)
     await scrollBoardTo(page, 14 * 60)
     await entryAt(page, '15:00').click()
-    page.once('dialog', (d) => void d.accept())
-    await page.getByRole('dialog').getByRole('button', { name: 'Удалить' }).click()
+    const delDlg = page.getByRole('dialog')
+    await delDlg.getByRole('button', { name: 'Удалить' }).click()
+    await delDlg.getByText('Удалить запись из расписания?').waitFor({ timeout: 5_000 })
+    await delDlg.getByRole('group', { name: 'Удалить запись' }).getByRole('button', { name: 'Удалить' }).click()
     c.ok(await waitFor(() => at(900).length === 0, 10_000), 'сервер: запись удалена')
 
     /* Завершённая тренировка не двигается. */

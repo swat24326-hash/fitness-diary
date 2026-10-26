@@ -3,6 +3,7 @@
  * только через сервер. Запись устарела или удалена (409/404) — onStale перечитывает экран.
  */
 import { COACH_SCHEDULE_EDIT_FIELDS } from '../trainer/coachScheduleEditCore.js'
+import { listScheduleFollowingSiblings } from '../trainer/trainerScheduleRecurrenceCore.js'
 import {
   deleteCoachScheduleEntry,
   saveCoachScheduleCopies,
@@ -33,7 +34,23 @@ export function createCoachScheduleActions({ onStale, onSessionGone }) {
   return {
     save,
     saveCopies: (entry, days) => run(() => saveCoachScheduleCopies(pickEditable({ ...entry, id: undefined }), days)),
-    remove: (entry) => run(() => deleteCoachScheduleEntry(entry?.id, entry?.updated_at)),
+    /**
+     * @param {object} entry
+     * @param {{ scope?: 'one' | 'following', entries?: object[] }} [opts]
+     */
+    remove: async (entry, opts = {}) => {
+      if (opts.scope === 'following') {
+        const rows = listScheduleFollowingSiblings(opts.entries ?? [], entry)
+        let deleted = 0
+        for (const row of rows) {
+          const res = await run(() => deleteCoachScheduleEntry(row?.id, row?.updated_at))
+          if (!res.ok) return { ...res, deleted }
+          deleted += 1
+        }
+        return { ok: true, deleted }
+      }
+      return run(() => deleteCoachScheduleEntry(entry?.id, entry?.updated_at))
+    },
     move: (entry, dayIso, startMinutes) => save({ id: entry?.id, day_date: dayIso, start_minutes: startMinutes }, entry),
   }
 }

@@ -79,3 +79,45 @@ export function planScheduleRepeatCopies(repeat, base, existing) {
   const create = days.filter((d) => !hasScheduleDuplicateOnDay(existing, base, d))
   return { days: create, skipped: days.length - create.length }
 }
+
+/**
+ * Ключ «тот же слот» без series_id: время + клиенты или текст заметки.
+ * @param {{ start_minutes?: number, client_ids?: unknown, title?: string }} entry
+ */
+export function scheduleEntryContentKey(entry) {
+  const mins = Number(entry?.start_minutes)
+  if (!Number.isFinite(mins)) return ''
+  const ids = normalizeScheduleClientIds(entry?.client_ids).sort().join(',')
+  if (ids) return `${mins}|c:${ids}`
+  return `${mins}|t:${String(entry?.title ?? '').trim()}`
+}
+
+/**
+ * Похожие записи с этого дня вперёд (то же время, клиенты/заметка, день недели, тренер).
+ * Без series_id в БД — эвристика для «удалить эту и следующие», как в Google.
+ * Включает якорь; отсортированы по дню.
+ * @param {object[]} entries
+ * @param {object} anchor
+ * @returns {object[]}
+ */
+export function listScheduleFollowingSiblings(entries, anchor) {
+  const day = String(anchor?.day_date ?? '').slice(0, 10)
+  const wd = scheduleWeekdayIndex(day)
+  const key = scheduleEntryContentKey(anchor)
+  const trainerId = String(anchor?.trainer_id ?? '').trim()
+  if (wd < 0 || !key) return anchor?.id ? [anchor] : []
+  const byId = new Map()
+  if (anchor?.id) byId.set(String(anchor.id), anchor)
+  for (const e of entries ?? []) {
+    const ed = String(e?.day_date ?? '').slice(0, 10)
+    if (!ed || ed < day) continue
+    if (scheduleWeekdayIndex(ed) !== wd) continue
+    if (scheduleEntryContentKey(e) !== key) continue
+    if (trainerId && String(e?.trainer_id ?? '').trim() !== trainerId) continue
+    const id = String(e?.id ?? '')
+    if (id) byId.set(id, e)
+  }
+  return [...byId.values()].sort((a, b) =>
+    String(a?.day_date ?? '').localeCompare(String(b?.day_date ?? '')),
+  )
+}

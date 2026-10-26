@@ -67,7 +67,7 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
       {
         start_minutes: parseScheduleTimeToMinutes(time) ?? -1,
         client_ids: mode === 'clients' ? selectedIds : [],
-        title: mode === 'note' ? title : '',
+        title: title.trim(),
       },
       entries,
     )
@@ -104,7 +104,7 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
       return { ok: false, error: `Длительность — от ${SCHEDULE_MIN_DURATION_MIN} до ${SCHEDULE_MAX_DURATION_MIN} минут` }
     }
     const client_ids = mode === 'clients' ? selectedIds : []
-    const note = mode === 'note' ? title.trim() : ''
+    const note = title.trim()
     if (scheduleKindRequiresClients(kind) && !client_ids.length) return { ok: false, error: 'Для тренировки выберите клиента' }
     if (!client_ids.length && !note) return { ok: false, error: 'Напишите заметку или выберите клиента' }
     if (isScheduleClientLimitExceeded(client_ids)) return { ok: false, error: SCHEDULE_TOO_MANY_CLIENTS_RU }

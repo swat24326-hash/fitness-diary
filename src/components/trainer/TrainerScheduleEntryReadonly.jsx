@@ -24,6 +24,7 @@ import { resolveScheduleEntryKind, scheduleKindLabel } from '../../lib/trainer/t
  *   onEdit?: () => void,
  *   onDelete?: () => void,
  *   onClose: () => void,
+ *   footer?: import('react').ReactNode,
  *   children?: import('react').ReactNode,
  * }} props clientsBase пустой — имена без ссылок на карточку (телефон тренера).
  */
@@ -39,6 +40,7 @@ export function TrainerScheduleEntryReadonly({
   onEdit,
   onDelete,
   onClose,
+  footer = null,
   children,
 }) {
   const clientIds = normalizeScheduleClientIds(draft?.client_ids)
@@ -139,6 +141,8 @@ export function TrainerScheduleEntryReadonly({
             {error}
           </p>
         ) : null}
+
+        {footer}
       </div>
     </div>
   )

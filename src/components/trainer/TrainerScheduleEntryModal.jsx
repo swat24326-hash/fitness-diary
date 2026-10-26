@@ -7,12 +7,14 @@ import {
   scheduleEntryTrainingStatusLabel,
 } from '../../lib/trainer/trainerScheduleTrainingCore.js'
 import { normalizeScheduleTimeInput } from '../../lib/trainer/trainerScheduleCore.js'
+import { listScheduleFollowingSiblings } from '../../lib/trainer/trainerScheduleRecurrenceCore.js'
 import { TrainerScheduleTrainingStart } from './TrainerScheduleTrainingStart.jsx'
 import { useScheduleEntryForm } from '../../hooks/useScheduleEntryForm.js'
 import { TrainerScheduleEntryReadonly } from './TrainerScheduleEntryReadonly.jsx'
 import { TrainerScheduleRepeatFields } from './TrainerScheduleRepeatFields.jsx'
 import { TrainerScheduleKindPicker } from './TrainerScheduleKindPicker.jsx'
 import { TrainerScheduleClientPicker } from './TrainerScheduleClientPicker.jsx'
+import { TrainerScheduleDeleteChoice } from './TrainerScheduleDeleteChoice.jsx'
 
 /**
  * @param {{
@@ -60,9 +62,15 @@ export function TrainerScheduleEntryModal({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [deleteAsk, setDeleteAsk] = useState(false)
   const editing = !draft?.id || editingId === draft.id
+  const followingSiblings = useMemo(
+    () => (draft?.id ? listScheduleFollowingSiblings(entries, draft) : []),
+    [draft, entries],
+  )
   useEffect(() => {
     setError('')
+    setDeleteAsk(false)
     if (!open) setEditingId(null)
   }, [open, draft])
 
@@ -130,24 +138,41 @@ export function TrainerScheduleEntryModal({
     }
   }
 
-  const onDelete = async () => {
+  /** @param {'one' | 'following'} scope */
+  const confirmDelete = async (scope) => {
     if (!draft?.id) return
-    if (!window.confirm('Удалить запись из расписания?')) return
     setBusy(true)
+    setError('')
     try {
-      const res = await actions.remove(draft)
+      const res = await actions.remove(
+        draft,
+        scope === 'following' ? { scope: 'following', entries } : { scope: 'one' },
+      )
       if (res && !res.ok) {
+        setDeleteAsk(false)
         setError(res.error ?? 'Не удалось удалить')
         return
       }
       onSaved()
       onClose()
     } catch (err) {
+      setDeleteAsk(false)
       setError(err instanceof Error ? err.message : 'Не удалось удалить')
     } finally {
       setBusy(false)
     }
   }
+
+  const deleteChoice =
+    deleteAsk && draft?.id ? (
+      <TrainerScheduleDeleteChoice
+        count={followingSiblings.length}
+        busy={busy}
+        onOne={() => void confirmDelete('one')}
+        onFollowing={() => void confirmDelete('following')}
+        onCancel={() => setDeleteAsk(false)}
+      />
+    ) : null
 
   if (draft?.id && (readOnly || !editing)) {
     return (
@@ -160,11 +185,14 @@ export function TrainerScheduleEntryModal({
         trainingChip={trainingChip}
         busy={busy}
         error={error}
-        onEdit={readOnly ? undefined : () => setEditingId(draft.id)}
-        onDelete={readOnly ? undefined : () => void onDelete()}
+        onEdit={readOnly || deleteAsk ? undefined : () => setEditingId(draft.id)}
+        onDelete={readOnly || deleteAsk ? undefined : () => setDeleteAsk(true)}
         onClose={onClose}
+        footer={deleteChoice}
       >
-        {readOnly ? null : <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />}
+        {readOnly || deleteAsk ? null : (
+          <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />
+        )}
       </TrainerScheduleEntryReadonly>
     )
   }
@@ -250,26 +278,38 @@ export function TrainerScheduleEntryModal({
           </div>
 
           <div className="trainer-schedule-modal__form-body">
-            {mode === 'note' ? (
-              <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
-                <span>Текст</span>
-                <textarea
-                  className="textarea"
-                  value={form.title}
-                  onChange={(ev) => form.setTitle(ev.target.value)}
-                  rows={4}
-                  placeholder="Например: обед, созвон, подготовка зала"
-                  maxLength={240}
-                />
-              </label>
-            ) : (
+            {mode === 'clients' ? (
               <TrainerScheduleClientPicker
                 clients={clients}
                 selectedIds={selectedIds}
                 onToggle={form.toggleClient}
                 clientInfoById={clientInfoById}
               />
-            )}
+            ) : null}
+            {/* Примечание не сбрасываем при смене категории / вкладки «Клиенты» — текст остаётся в поле. */}
+            <label
+              className={[
+                'trainer-schedule-modal__field',
+                'trainer-schedule-modal__field--wide',
+                mode === 'clients' ? 'trainer-schedule-modal__field--note-aside' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <span>{mode === 'clients' ? 'Примечание' : 'Текст'}</span>
+              <textarea
+                className="textarea"
+                value={form.title}
+                onChange={(ev) => form.setTitle(ev.target.value)}
+                rows={mode === 'clients' ? 2 : 4}
+                placeholder={
+                  mode === 'clients'
+                    ? 'Необязательно: фокус, зал, пожелание…'
+                    : 'Например: обед, созвон, подготовка зала'
+                }
+                maxLength={240}
+              />
+            </label>
           </div>
 
           <div className="trainer-schedule-modal__form-foot">
@@ -304,19 +344,28 @@ export function TrainerScheduleEntryModal({
               </p>
             ) : null}
 
-            <div className={`trainer-schedule-modal__actions${draft?.id ? '' : ' trainer-schedule-modal__actions--new'}`}>
-              {draft?.id ? (
-                <button type="button" className="btn btn-secondary btn-danger-outline" disabled={busy} onClick={() => void onDelete()}>
-                  Удалить
+            {deleteChoice}
+
+            {deleteAsk ? null : (
+              <div className={`trainer-schedule-modal__actions${draft?.id ? '' : ' trainer-schedule-modal__actions--new'}`}>
+                {draft?.id ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-danger-outline"
+                    disabled={busy}
+                    onClick={() => setDeleteAsk(true)}
+                  >
+                    Удалить
+                  </button>
+                ) : null}
+                <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
+                  Отмена
                 </button>
-              ) : null}
-              <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
-                Отмена
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={busy}>
-                {busy ? 'Сохранение…' : 'Сохранить'}
-              </button>
-            </div>
+                <button type="submit" className="btn btn-primary" disabled={busy}>
+                  {busy ? 'Сохранение…' : 'Сохранить'}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </div>

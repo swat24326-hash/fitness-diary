@@ -12,8 +12,10 @@ import {
   SCHEDULE_REPEAT_MAX_WEEKS,
   buildScheduleRepeatDays,
   hasScheduleDuplicateOnDay,
+  listScheduleFollowingSiblings,
   normalizeScheduleRepeatWeekdays,
   planScheduleRepeatCopies,
+  scheduleEntryContentKey,
   scheduleWeekdayIndex,
 } from '../src/lib/trainer/trainerScheduleRecurrenceCore.js'
 import {
@@ -100,6 +102,24 @@ ok(buildScheduleRepeatDays({ startDayIso: 'bad', weekdays: [0], weeks: 4 }).leng
   )
   const plan = planScheduleRepeatCopies({ startDayIso: '2026-10-12', weekdays: [0], weeks: 4 }, base, existing)
   ok(plan.days.join(',') === '2026-10-26,2026-11-02' && plan.skipped === 1, 'plan: skip duplicate day')
+}
+{
+  const rows = [
+    { id: 'a', trainer_id: 't1', day_date: '2026-10-12', start_minutes: 600, client_ids: ['c1'], title: '' },
+    { id: 'b', trainer_id: 't1', day_date: '2026-10-19', start_minutes: 600, client_ids: ['c1'], title: '' },
+    { id: 'c', trainer_id: 't1', day_date: '2026-10-26', start_minutes: 600, client_ids: ['c1'], title: '' },
+    { id: 'd', trainer_id: 't1', day_date: '2026-10-19', start_minutes: 600, client_ids: ['c2'], title: '' },
+    { id: 'e', trainer_id: 't1', day_date: '2026-10-20', start_minutes: 600, client_ids: ['c1'], title: '' },
+    { id: 'f', trainer_id: 't2', day_date: '2026-10-19', start_minutes: 600, client_ids: ['c1'], title: '' },
+    { id: 'g', trainer_id: 't1', day_date: '2026-10-05', start_minutes: 600, client_ids: ['c1'], title: '' },
+  ]
+  const from = rows[1]
+  ok(scheduleEntryContentKey(from) === '600|c:c1', 'content key: clients')
+  ok(scheduleEntryContentKey({ start_minutes: 600, title: ' Обед ' }) === '600|t:Обед', 'content key: note')
+  const following = listScheduleFollowingSiblings(rows, from)
+  ok(following.map((r) => r.id).join(',') === 'b,c', 'following: same weekday+time+client from day, skip past/other')
+  ok(listScheduleFollowingSiblings(rows, rows[0]).map((r) => r.id).join(',') === 'a,b,c', 'following from first includes all')
+  ok(listScheduleFollowingSiblings([], from).map((r) => r.id).join(',') === 'b', 'following: anchor alone if list empty')
 }
 
 /* --- Перенос --- */

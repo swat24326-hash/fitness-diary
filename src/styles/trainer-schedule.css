@@ -910,6 +910,12 @@
   min-height: 0;
 }
 
+/* Примечание рядом со списком клиентов — не отбирает половину высоты. */
+.trainer-schedule-modal__form-body > .trainer-schedule-modal__field--note-aside {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
 /* Симметрия: две равные колонки; на iPhone узкие fixed-width ломали type=time. */
 .trainer-schedule-modal__row {
   display: grid;

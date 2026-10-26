@@ -1,5 +1,5 @@
 /**
- * Ежедневник: линия «сейчас», «Сегодня», перенос записи, плашка «Отменить», повтор записи.
+ * Ежедневник: линия «сейчас», «Сегодня», перенос записи, плашка «Отменить», повтор записи, удаление хвоста.
  */
 
 /* --- Сейчас --- */
@@ -186,4 +186,30 @@
 .trainer-schedule-repeat__summary {
   margin: 0;
   font-size: 0.85rem;
+}
+
+/* --- Удалить эту / эту и следующие --- */
+.trainer-schedule-delete-choice {
+  margin-top: var(--space-3, 12px);
+  padding: var(--space-3, 12px);
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--danger, #e85d5d) 35%, transparent);
+  background: color-mix(in srgb, var(--danger, #e85d5d) 10%, transparent);
+}
+
+.trainer-schedule-delete-choice__text {
+  margin: 0 0 var(--space-3, 12px);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.trainer-schedule-delete-choice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trainer-schedule-delete-choice__actions .btn {
+  min-height: 44px;
+  flex: 1 1 auto;
 }

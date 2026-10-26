@@ -165,6 +165,20 @@ export async function deleteTrainerScheduleEntry(id) {
 }
 
 /**
+ * Удалить несколько слотов (например «эту и следующие» после повтора).
+ * @param {string[]} ids
+ */
+export async function deleteTrainerScheduleEntries(ids) {
+  const list = [...new Set((ids ?? []).map((id) => String(id ?? '').trim()).filter(Boolean))]
+  if (!list.length) return { ok: false, error: 'Не указана запись', deleted: 0 }
+  for (const pid of list) {
+    await deleteLocalWithSync('trainer_schedule_entries', pid, 'trainer_schedule_entries', { id: pid })
+  }
+  dispatchLocalDataChanged({ reason: 'trainer-schedule' })
+  return { ok: true, deleted: list.length }
+}
+
+/**
  * После смены клуба тренера — обновить club_id у его слотов (локально + sync).
  * @param {string} trainerId
  * @param {string | null | undefined} newClubId
