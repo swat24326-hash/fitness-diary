@@ -282,10 +282,14 @@
   background: #000;
 }
 
+/* Как в Telegram на компе: кадр 9:16 по центру, по бокам чёрные поля — не растягивать на весь монитор. */
 .stories-compose__preview {
-  width: 100%;
+  box-sizing: border-box;
   height: 100%;
-  object-fit: cover;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 9 / 16;
+  object-fit: contain;
   object-position: center;
   background: #000;
 }
