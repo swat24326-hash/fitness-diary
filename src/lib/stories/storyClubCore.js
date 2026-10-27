@@ -11,9 +11,15 @@ export const STORY_LABELS = Object.freeze(['news', 'promo'])
 export const STORY_CTA = Object.freeze(['none', 'chat', 'membership'])
 export const STORY_MAX_FRAMES = 5
 export const STORY_CAPTION_MAX = 200
-export const STORY_MIN_DAYS = 1
-export const STORY_MAX_DAYS = 7
+/** Как в Telegram: сторис клуба живёт ровно сутки. */
+export const STORY_LIFETIME_DAYS = 1
+export const STORY_MIN_DAYS = STORY_LIFETIME_DAYS
+export const STORY_MAX_DAYS = STORY_LIFETIME_DAYS
 export const STORY_PHOTO_MAX_BYTES = 650_000
+/** Подпись кружка без выбора «вид» в UI. */
+export const STORY_DEFAULT_LABEL = 'news'
+/** Без кнопки у клиента — как обычная сторис в Telegram. */
+export const STORY_DEFAULT_CTA = 'none'
 
 export const STORY_FORBIDDEN_RU = 'Выложить сторис клуба могут сотрудники этого клуба'
 export const STORY_BANNED_RU = 'Вам запретили выкладывать сторис клуба — обратитесь к управляющему'
@@ -21,7 +27,7 @@ export const STORY_BAN_TARGET_RU = 'Запретить выкладку можн
 export const STORY_PICK_CLUB_RU = 'Выберите клуб'
 export const STORY_OTHER_CLUB_RU = 'Это чужой клуб'
 export const STORY_NO_CLUB_RU = 'У вас не задан клуб — обратитесь к администратору'
-export const STORY_BAD_RU = 'Проверьте фото, подпись и срок'
+export const STORY_BAD_RU = 'Проверьте фото и подпись'
 export const STORY_GONE_RU = 'Сторис уже нет'
 export const STORY_OFFLINE_RU = 'Сторис откроются, когда появится связь'
 export const STORY_UNAVAILABLE_RU = 'Сторис пока недоступны'

@@ -125,7 +125,7 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
         </button>
       ) : null}
       {canPublish ? (
-        <button type="button" className="stories-rail__add btn-touch" onClick={() => setCompose(true)} aria-label="Выложить рекламу клуба" title="Выложить рекламу клуба">
+        <button type="button" className="stories-rail__add btn-touch" onClick={() => setCompose(true)} aria-label="Выложить сторис" title="Выложить сторис">
           <Plus size={20} aria-hidden />
         </button>
       ) : null}

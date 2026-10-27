@@ -156,100 +156,200 @@
   background: #000;
 }
 
+/* Выкладка — тот же тёмный полный экран, что просмотр (как в Telegram). */
 .stories-compose {
-  align-items: center;
-  justify-content: center;
-  padding: var(--space);
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  flex-direction: column;
+  background: #000;
+  color: #fff;
 }
 
-.stories-compose__card {
-  width: min(420px, 100%);
-  max-height: min(720px, 100%);
-  overflow: auto;
+.stories-compose__shell {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin: 0;
-  padding: var(--space);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-soft);
+  padding:
+    max(12px, env(safe-area-inset-top, 0px))
+    16px
+    max(16px, env(safe-area-inset-bottom, 0px));
 }
 
-.stories-compose__card h2 {
-  margin: 0;
-  font-size: 1.125rem;
+.stories-compose__top {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  gap: 8px;
 }
 
-.stories-compose label,
-.stories-compose__row {
+.stories-compose__heading {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
 }
 
-.stories-compose__row {
-  flex-direction: row;
+.stories-compose__heading strong {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
-.stories-compose__row label {
-  flex: 1;
+.stories-compose__heading span {
+  font-size: 0.8125rem;
+  color: color-mix(in srgb, #fff 55%, transparent);
 }
 
-.stories-compose input,
-.stories-compose select {
-  min-height: 48px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  padding: 0 12px;
-}
-
-.stories-compose__file {
-  justify-content: center;
-}
-
-.stories-compose__photos {
-  display: flex;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stories-compose__photos li {
-  position: relative;
-}
-
-.stories-compose__photos img {
-  width: 72px;
-  height: 72px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-}
-
-.stories-compose__photos button {
-  position: absolute;
-  top: 0;
-  right: 0;
+.stories-compose__icon.btn-touch,
+.stories-compose__drop.btn-touch {
   width: 48px;
   height: 48px;
+  min-height: 48px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
-  color: var(--text);
+  border-radius: 50%;
+  background: color-mix(in srgb, #fff 12%, transparent);
+  color: #fff;
+  display: grid;
+  place-items: center;
 }
 
-.stories-compose__actions,
+.stories-compose__top-spacer {
+  width: 48px;
+  height: 48px;
+}
+
+.stories-compose__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, #fff 6%, transparent);
+}
+
+.stories-compose__preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.stories-compose__empty {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: #fff;
+  font: inherit;
+}
+
+.stories-compose__empty span {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.stories-compose__empty small {
+  color: color-mix(in srgb, #fff 55%, transparent);
+  font-size: 0.875rem;
+}
+
+.stories-compose__film {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stories-compose__film li {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.stories-compose__thumb {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, #fff 10%, transparent);
+  color: #fff;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+
+.stories-compose__film li.is-active .stories-compose__thumb {
+  border-color: var(--accent);
+}
+
+.stories-compose__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stories-compose__thumb--add {
+  border-style: dashed;
+  border-color: color-mix(in srgb, #fff 35%, transparent);
+}
+
+.stories-compose__drop {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background: color-mix(in srgb, var(--bg) 75%, #000);
+}
+
+.stories-compose__caption input {
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, #fff 18%, transparent);
+  background: color-mix(in srgb, #fff 8%, transparent);
+  color: #fff;
+  padding: 0 14px;
+  font: inherit;
+}
+
+.stories-compose__caption input::placeholder {
+  color: color-mix(in srgb, #fff 45%, transparent);
+}
+
+.stories-compose__bar,
 .stories-view__actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.stories-compose__bar {
+  justify-content: flex-end;
+}
+
+.stories-compose__bar .btn-ghost {
+  color: #fff;
+  border-color: color-mix(in srgb, #fff 22%, transparent);
 }
 
 .stories-view__stage {

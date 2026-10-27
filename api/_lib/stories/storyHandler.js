@@ -12,8 +12,11 @@ import {
   STORY_BAD_RU,
   STORY_BANNED_RU,
   STORY_BAN_TARGET_RU,
+  STORY_DEFAULT_CTA,
+  STORY_DEFAULT_LABEL,
   STORY_FORBIDDEN_RU,
   STORY_GONE_RU,
+  STORY_LIFETIME_DAYS,
   STORY_OTHER_CLUB_RU,
   STORY_REACT_OWN_RU,
   STORY_UNAVAILABLE_RU,
@@ -24,8 +27,7 @@ import {
   isStoryStorageKey,
   publishClubId,
   storyCaptionOk,
-  storyCtaOk,
-  storyDaysOk,
+  storyExpiresAt,
   storyFramesOk,
   storyIsLive,
   storyLabelRu,
@@ -37,7 +39,6 @@ import {
   storyViewerKey,
   storyViewerPublic,
   viewClubId,
-  storyExpiresAt,
 } from '../../../src/lib/stories/storyClubCore.js'
 
 const fail = (res, status, error) => sendJson(res, status, { error })
@@ -349,10 +350,10 @@ async function publishStory(ctx, body, res, put) {
   const club = publishClubId({ kind, ownClubId: ctx.profile?.club_id, requestedClubId: body?.club_id })
   if (!club.ok) return fail(res, kind === 'staff' ? 403 : 400, club.error)
   if (await isPublishBanned(ctx.supabaseAdmin, club.clubId, ctx.user.id)) return fail(res, 403, STORY_BANNED_RU)
-  const label = STORY_LABELS_OK(body?.label)
-  const cta = storyCtaOk(body?.cta ?? 'none')
   const frames = Array.isArray(body?.frames) ? body.frames : []
-  if (!label || !cta || !storyDaysOk(body?.days) || !storyFramesOk(frames.length)) return fail(res, 400, STORY_BAD_RU)
+  if (!storyFramesOk(frames.length)) return fail(res, 400, STORY_BAD_RU)
+  const label = STORY_DEFAULT_LABEL
+  const cta = STORY_DEFAULT_CTA
   const prepared = []
   for (const frame of frames) {
     const caption = storyCaptionOk(frame?.caption)
@@ -371,7 +372,7 @@ async function publishStory(ctx, body, res, put) {
     author_id: ctx.user.id,
     label,
     cta,
-    expires_at: storyExpiresAt(Date.now(), Number(body.days)),
+    expires_at: storyExpiresAt(Date.now(), STORY_LIFETIME_DAYS),
   })
   if (error) throw error
   const keys = []
@@ -406,10 +407,6 @@ async function publishStory(ctx, body, res, put) {
     userId: ctx.user.id,
   })
   sendJson(res, 200, { club_id: club.clubId, can_publish: true, stories })
-}
-
-function STORY_LABELS_OK(label) {
-  return label === 'news' || label === 'promo' ? label : null
 }
 
 async function removeStory(ctx, body, res) {

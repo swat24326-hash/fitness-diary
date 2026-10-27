@@ -5,6 +5,9 @@ import {
   STORY_BANNED_RU,
   STORY_BAN_TARGET_RU,
   STORY_FORBIDDEN_RU,
+  STORY_DEFAULT_CTA,
+  STORY_DEFAULT_LABEL,
+  STORY_LIFETIME_DAYS,
   STORY_MAX_DAYS,
   STORY_MAX_FRAMES,
   STORY_OTHER_CLUB_RU,
@@ -111,10 +114,11 @@ ok(
 )
 
 console.log('кадр и срок')
-ok(storyDaysOk(1) && storyDaysOk(STORY_MAX_DAYS) && !storyDaysOk(0) && !storyDaysOk(STORY_MAX_DAYS + 1) && !storyDaysOk(1.5), 'срок 1…7 суток')
+ok(STORY_LIFETIME_DAYS === 1 && STORY_MAX_DAYS === 1 && STORY_DEFAULT_CTA === 'none' && STORY_DEFAULT_LABEL === 'news', 'выкладка — сутки без кнопки')
+ok(storyDaysOk(1) && !storyDaysOk(0) && !storyDaysOk(2) && !storyDaysOk(1.5), 'срок только сутки')
 ok(storyFramesOk(1) && storyFramesOk(STORY_MAX_FRAMES) && !storyFramesOk(0) && !storyFramesOk(6), '1…5 кадров')
 ok(storyCaptionOk('акция').caption === 'акция' && storyCaptionOk('я'.repeat(201)).ok === false && storyCaptionOk('').caption === '', 'подпись до 200')
-ok(storyCtaOk('chat') === 'chat' && storyCtaOk('membership') === 'membership' && storyCtaOk('site') === null, 'кнопка — чат или абонемент')
+ok(storyCtaOk('chat') === 'chat' && storyCtaOk('membership') === 'membership' && storyCtaOk('site') === null, 'старые кнопки в просмотре читаются')
 ok(storyLabelRu('promo') === 'Акция' && storyLabelRu('news') === 'Новость', 'подписи кружка')
 const one = storyRingSegments([{ id: 'a', seen: false, frames: [{ id: 'f1' }] }])
 const two = storyRingSegments([{ id: 'a', seen: false, frames: [{ id: 'f1' }, { id: 'f2' }] }])
@@ -127,7 +131,7 @@ ok(two.length === 2 && two.every((s) => !s.seen) && Math.abs(two[0].sweep - two[
 ok(mixed[0].seen === true && mixed[1].seen === false, 'смотренная дуга тусклая, новая яркая')
 ok(storyPhotoBytesOk(STORY_PHOTO_MAX_BYTES) && !storyPhotoBytesOk(STORY_PHOTO_MAX_BYTES + 1), 'фото не больше лимита пачки')
 const now = Date.parse('2026-10-25T12:00:00Z')
-const exp = storyExpiresAt(now, 2)
+const exp = storyExpiresAt(now, STORY_LIFETIME_DAYS)
 ok(storyIsLive({ expiresAt: exp, removedAt: null }, now + 1000), 'живая внутри срока')
 ok(!storyIsLive({ expiresAt: exp, removedAt: null }, Date.parse(exp)), 'после срока не в ряду')
 ok(!storyIsLive({ expiresAt: exp, removedAt: exp }, now), 'снятая не в ряду')
