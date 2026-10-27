@@ -15,7 +15,9 @@ export const STORY_MIN_DAYS = 1
 export const STORY_MAX_DAYS = 7
 export const STORY_PHOTO_MAX_BYTES = 650_000
 
-export const STORY_FORBIDDEN_RU = 'Выложить сторис клуба могут администратор и управляющий'
+export const STORY_FORBIDDEN_RU = 'Выложить сторис клуба могут сотрудники этого клуба'
+export const STORY_BANNED_RU = 'Вам запретили выкладывать сторис клуба — обратитесь к управляющему'
+export const STORY_BAN_TARGET_RU = 'Запретить выкладку можно только сотруднику клуба'
 export const STORY_PICK_CLUB_RU = 'Выберите клуб'
 export const STORY_OTHER_CLUB_RU = 'Это чужой клуб'
 export const STORY_NO_CLUB_RU = 'У вас не задан клуб — обратитесь к администратору'
@@ -23,6 +25,11 @@ export const STORY_BAD_RU = 'Проверьте фото, подпись и ср
 export const STORY_GONE_RU = 'Сторис уже нет'
 export const STORY_OFFLINE_RU = 'Сторис откроются, когда появится связь'
 export const STORY_UNAVAILABLE_RU = 'Сторис пока недоступны'
+export const STORY_REACT_OWN_RU = 'На свою сторис реакцию не ставят'
+export const STORY_REACT_BAD_RU = 'Такую реакцию поставить нельзя'
+
+/** Как в чате: быстрая полоска без личных сообщений. */
+export const STORY_REACTIONS = Object.freeze(['👍', '❤️', '🔥', '💪', '😂', '🙏'])
 
 const LABEL_RU = Object.freeze({ news: 'Новость', promo: 'Акция' })
 const EXT = Object.freeze({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })
@@ -40,7 +47,30 @@ export function storyStaffKind(role) {
 }
 
 export function canPublishClubStory(kind) {
+  return kind === 'admin' || kind === 'supervisor' || kind === 'staff'
+}
+
+/** Админ и управляющий: снять чужую, запретить сотруднику выкладывать. */
+export function canModerateClubStoryPublish(kind) {
   return kind === 'admin' || kind === 'supervisor'
+}
+
+/**
+ * Кого можно лишить выкладки. Цель — только сотрудник; себя и админ/управляющего — нет.
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+export function canBanClubStoryAuthor(moderatorKind, { targetKind, targetUserId, moderatorUserId }) {
+  if (!canModerateClubStoryPublish(moderatorKind)) return { ok: false, error: STORY_FORBIDDEN_RU }
+  const target = String(targetUserId ?? '').trim().toLowerCase()
+  const self = String(moderatorUserId ?? '').trim().toLowerCase()
+  if (!storyUuid(target) || !self || target === self) return { ok: false, error: STORY_BAN_TARGET_RU }
+  if (targetKind !== 'staff') return { ok: false, error: STORY_BAN_TARGET_RU }
+  return { ok: true }
+}
+
+/** Роль позволяет и нет бана по клубу. */
+export function canPublishClubStoryNow(kind, banned) {
+  return canPublishClubStory(kind) && !banned
 }
 
 export function storyLabelRu(label) {
@@ -140,6 +170,25 @@ export function storyViewerKey(side, id) {
   return `${who}:${String(id).toLowerCase()}`
 }
 
+/**
+ * emoji пусто / null — снять. Та же снова — тоже снять (toggle снаружи).
+ * @returns {{ ok: true, emoji: string|null } | { ok: false, error: string }}
+ */
+export function storyReactionOk(raw) {
+  if (raw == null || raw === '') return { ok: true, emoji: null }
+  const emoji = String(raw)
+  return STORY_REACTIONS.includes(emoji) ? { ok: true, emoji } : { ok: false, error: STORY_REACT_BAD_RU }
+}
+
+/** Следующее значение: та же — снять, другая — заменить. */
+export function storyReactionNext(current, tapped) {
+  const want = storyReactionOk(tapped)
+  if (!want.ok) return want
+  if (!want.emoji) return { ok: true, emoji: null }
+  if (current === want.emoji) return { ok: true, emoji: null }
+  return { ok: true, emoji: want.emoji }
+}
+
 const VIEWER_KEY = /^(u|c):([0-9a-f-]{36})$/
 
 /** Имена зрителей для своего клуба. Чужой ключ и сырой id наружу не отдаём. */
@@ -151,10 +200,12 @@ export function storyViewerPublic(rows, names) {
     if (!match) continue
     const side = match[1] === 'c' ? 'client' : 'staff'
     const name = String(names?.[key] ?? '').trim()
+    const reaction = STORY_REACTIONS.includes(row?.reaction) ? row.reaction : null
     list.push({
       name: name || (side === 'client' ? 'Клиент' : 'Сотрудник'),
       side,
       seen_at: row.seen_at ?? null,
+      reaction,
     })
   }
   list.sort((a, b) => String(b.seen_at ?? '').localeCompare(String(a.seen_at ?? '')))

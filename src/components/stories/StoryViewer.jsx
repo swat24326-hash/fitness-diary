@@ -2,24 +2,36 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { useStoryReel } from './useStoryReel.js'
+import { StoryReactBar } from './StoryReactBar.jsx'
 import { StoryViewers } from './StoryViewers.jsx'
 
 /**
  * Кадры одной или нескольких сторис клуба на весь экран.
  * Полоска сверху течёт около 5 секунд и сама открывает следующий кадр.
- * @param {{ stories: object[], loadFrame: (storyId: string, frameId: string) => Promise<{ data: string, mime: string }>, onSeen: (storyId: string) => void, onClose: () => void, onCta?: (cta: string) => void, onRemove?: (storyId: string) => void }} props
  */
-export function StoryViewer({ stories, loadFrame, onSeen, onClose, onCta, onRemove }) {
+export function StoryViewer({
+  stories,
+  loadFrame,
+  onSeen,
+  onClose,
+  onCta,
+  onRemove,
+  onBanPublish,
+  onUnbanPublish,
+  onReact,
+}) {
   const flat = useMemo(
     () => stories.flatMap((story) => story.frames.map((frame) => ({ story, frame }))),
     [stories],
   )
   const [who, setWho] = useState(false)
+  const [reactBusy, setReactBusy] = useState(false)
+  const [mineById, setMineById] = useState(() => Object.fromEntries(stories.map((s) => [s.id, s.my_reaction ?? null])))
   const { index, current, shown, leaving, motion, paused, error, playing, bindZone, onFillEnd } = useStoryReel({
     flat,
     loadFrame,
     onClose,
-    held: who,
+    held: who || reactBusy,
   })
   const storyId = current?.story.id
   const seenRef = useRef(onSeen)
@@ -29,9 +41,27 @@ export function StoryViewer({ stories, loadFrame, onSeen, onClose, onCta, onRemo
     if (storyId) seenRef.current(storyId)
   }, [storyId])
 
+  useEffect(() => {
+    setMineById(Object.fromEntries(stories.map((s) => [s.id, s.my_reaction ?? null])))
+  }, [stories])
+
   if (!current) return null
   const cta = current.story.cta
   const leaveClass = motion === 'back' ? 'is-out-back' : 'is-out'
+  const canReact = Boolean(onReact) && current.story.can_react !== false
+  const mine = mineById[current.story.id] ?? null
+
+  const pickReact = (emoji) => {
+    if (!onReact || reactBusy) return
+    setReactBusy(true)
+    onReact(current.story.id, emoji)
+      .then((res) => {
+        setMineById((prev) => ({ ...prev, [current.story.id]: res?.reaction ?? null }))
+      })
+      .catch(() => {})
+      .finally(() => setReactBusy(false))
+  }
+
   return createPortal(
     <div className={`stories-view${paused ? ' is-paused' : ''}`} role="dialog" aria-modal="true" aria-label={current.story.label_ru}>
       <div className="stories-view__bars">
@@ -62,6 +92,7 @@ export function StoryViewer({ stories, loadFrame, onSeen, onClose, onCta, onRemo
       <div className="stories-view__foot">
         <strong>{current.story.label_ru}</strong>
         {current.frame.caption ? <p>{current.frame.caption}</p> : null}
+        {canReact ? <StoryReactBar mine={mine} onPick={pickReact} busy={reactBusy} /> : null}
         <span className="stories-view__actions">
           {cta === 'chat' && onCta ? (
             <button type="button" className="btn btn-touch" onClick={() => onCta('chat')}>
@@ -73,12 +104,31 @@ export function StoryViewer({ stories, loadFrame, onSeen, onClose, onCta, onRemo
               Мой абонемент
             </button>
           ) : null}
-          {onRemove ? (
+          {onRemove && current.story.can_remove ? (
             <button type="button" className="btn btn-ghost btn-touch" onClick={() => onRemove(current.story.id)}>
               Снять
             </button>
           ) : null}
+          {onBanPublish && current.story.can_ban ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch"
+              onClick={() => onBanPublish(current.story.author_id)}
+            >
+              Запретить выкладывать
+            </button>
+          ) : null}
+          {onUnbanPublish && current.story.can_unban ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch"
+              onClick={() => onUnbanPublish(current.story.author_id)}
+            >
+              Разрешить снова
+            </button>
+          ) : null}
         </span>
+        {current.story.author_name ? <p className="stories-view__author">{current.story.author_name}</p> : null}
         <StoryViewers viewers={current.story.viewers} open={who} onToggle={() => setWho((v) => !v)} />
       </div>
     </div>,

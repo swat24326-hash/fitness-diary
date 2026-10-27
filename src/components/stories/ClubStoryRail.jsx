@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 import {
+  banCoachStoryPublish,
+  banStaffStoryPublish,
   fetchClientStories,
   fetchClientStoryFrame,
   fetchCoachStories,
@@ -11,11 +13,16 @@ import {
   fetchStaffStoryFrame,
   publishCoachStory,
   publishStaffStory,
+  reactClientStory,
+  reactCoachStory,
+  reactStaffStory,
   removeCoachStory,
   removeStaffStory,
   seenClientStory,
   seenCoachStory,
   seenStaffStory,
+  unbanCoachStoryPublish,
+  unbanStaffStoryPublish,
 } from '../../lib/stories/storyApi.js'
 import { STORY_OFFLINE_RU } from '../../lib/stories/storyClubCore.js'
 import { StoryCompose } from './StoryCompose.jsx'
@@ -27,22 +34,31 @@ const API = {
     list: fetchStaffStories,
     frame: fetchStaffStoryFrame,
     seen: seenStaffStory,
+    react: reactStaffStory,
     publish: publishStaffStory,
     remove: removeStaffStory,
+    ban: banStaffStoryPublish,
+    unban: unbanStaffStoryPublish,
   },
   coach: {
     list: () => fetchCoachStories(),
     frame: fetchCoachStoryFrame,
     seen: seenCoachStory,
+    react: reactCoachStory,
     publish: publishCoachStory,
     remove: removeCoachStory,
+    ban: (userId) => banCoachStoryPublish(userId),
+    unban: (userId) => unbanCoachStoryPublish(userId),
   },
   client: {
     list: () => fetchClientStories(),
     frame: fetchClientStoryFrame,
     seen: seenClientStory,
+    react: reactClientStory,
     publish: null,
     remove: null,
+    ban: null,
+    unban: null,
   },
 }
 
@@ -79,9 +95,10 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
   }, [load])
 
   const stories = pack?.stories ?? []
+  const bannedPublishers = Array.isArray(pack?.banned_publishers) ? pack.banned_publishers : []
   const unseen = stories.some((s) => !s.seen)
   const views = stories.reduce((sum, s) => sum + (s.views ?? 0), 0)
-  if (!stories.length && !canPublish && !error) return null
+  if (!stories.length && !canPublish && !bannedPublishers.length && !error) return null
 
   const onSeen = (id) => {
     setPack((prev) =>
@@ -113,6 +130,28 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
         </button>
       ) : null}
       {error && !stories.length ? <p className="stories-rail__error">{error}</p> : null}
+      {bannedPublishers.length && api.unban ? (
+        <ul className="stories-rail__banned">
+          {bannedPublishers.map((person) => (
+            <li key={person.user_id}>
+              <span>{person.name} · нельзя выкладывать</span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                onClick={() => {
+                  if (!window.confirm(`Снова разрешить ${person.name} выкладывать сторис?`)) return
+                  api
+                    .unban(person.user_id, clubId || pack?.club_id)
+                    .then(() => load())
+                    .catch((e) => setError(e?.message || STORY_OFFLINE_RU))
+                }}
+              >
+                Разрешить
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {open ? (
         <StoryViewer
           stories={stories}
@@ -131,7 +170,7 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
               : undefined
           }
           onRemove={
-            canPublish
+            api.remove
               ? (id) => {
                   if (!window.confirm('Снять эту рекламу?')) return
                   api
@@ -144,6 +183,34 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
                 }
               : undefined
           }
+          onBanPublish={
+            api.ban
+              ? (authorId) => {
+                  if (!window.confirm('Запретить этому сотруднику выкладывать сторис клуба? Живые кадры снимутся.')) {
+                    return
+                  }
+                  api
+                    .ban(authorId, clubId || pack?.club_id)
+                    .then(() => {
+                      setOpen(false)
+                      load()
+                    })
+                    .catch((e) => setError(e?.message || STORY_OFFLINE_RU))
+                }
+              : undefined
+          }
+          onUnbanPublish={
+            api.unban
+              ? (authorId) => {
+                  if (!window.confirm('Снова разрешить этому сотруднику выкладывать сторис?')) return
+                  api
+                    .unban(authorId, clubId || pack?.club_id)
+                    .then(() => load())
+                    .catch((e) => setError(e?.message || STORY_OFFLINE_RU))
+                }
+              : undefined
+          }
+          onReact={api.react ? (id, emoji) => api.react(id, emoji) : undefined}
         />
       ) : null}
       {compose ? (

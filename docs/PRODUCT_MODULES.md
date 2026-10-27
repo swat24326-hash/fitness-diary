@@ -18,7 +18,7 @@
 | **Прайс ПЗ** | ✅ облако + админ UI | `src/lib/priceList/`, `priceListHandlers`, вкладка Продажи → Прайс | [PRICE_LIST.md](./PRICE_LIST.md) |
 | **Лояльность ПЗ** | фазы A–G ✅ (правила, штамп, API, вкладка/чип, списание, журнал, архив/переезд, тумблер) | `src/lib/loyalty/`, `api/_lib/adminData/loyaltyHandlers.js`, `src/components/loyalty/` | [LOYALTY.md](./LOYALTY.md) |
 | **Управляющий** | ✅ роль `/club` в проде; единый утренний бриф — ⏸ P2 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) |
-| **Сторис** | ✅ этап 1 в проде с 25.10: реклама клуба. Свои сторис людей — позже | `src/lib/stories/`, `api/_lib/stories/` | [STORIES.md](./STORIES.md) |
+| **Сторис** | ✅ этап 1: реклама клуба (сотрудники выкладывают; бан выкладки — админ/управляющий). Свои сторис людей — позже | `src/lib/stories/`, `api/_lib/stories/` | [STORIES.md](./STORIES.md) |
 | **Сайт заявок** | ⏸ слой L2 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §7.3 |
 | **Касса (облако / физ.)** | ⏸ после РФ и после домена платежа | — | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) фазы D–E; [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) §4 |
 | **Паритет с DDX (карта)** | 📋 ориентир | — | [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md) — турникет/СКУД, B2C QR, групповые и т.д. |

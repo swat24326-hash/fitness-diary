@@ -11,7 +11,7 @@
  * POST /api/client-me { action: 'plan-list' | 'plan-item' } — задание от тренера и рацион (../clientPlans/clientPlansClientHandler.js).
  * POST /api/client-me { action: 'rating-get' | 'rating-answer' | 'rating-dismiss' } — оценка после абонемента (../clientRatings/clientRatingHandler.js).
  * POST /api/client-me { action: 'membership-notice-read' } — прочитано оповещение об абонементе.
- * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' } — реклама своего клуба.
+ * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' | 'story-react' } — реклама своего клуба.
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'

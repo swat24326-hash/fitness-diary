@@ -1,14 +1,21 @@
 /**
- * Реклама клуба в сторис: права, клуб, срок, кадры, ключ файла.
+ * Реклама клуба в сторис: права, клуб, срок, кадры, ключ файла, бан на выкладку.
  */
 import {
+  STORY_BANNED_RU,
+  STORY_BAN_TARGET_RU,
   STORY_FORBIDDEN_RU,
   STORY_MAX_DAYS,
   STORY_MAX_FRAMES,
   STORY_OTHER_CLUB_RU,
   STORY_PHOTO_MAX_BYTES,
   STORY_PICK_CLUB_RU,
+  STORY_REACT_BAD_RU,
+  STORY_REACTIONS,
+  canBanClubStoryAuthor,
+  canModerateClubStoryPublish,
   canPublishClubStory,
+  canPublishClubStoryNow,
   canRemoveClubStory,
   isStoryStorageKey,
   publishClubId,
@@ -20,6 +27,8 @@ import {
   storyIsLive,
   storyLabelRu,
   storyPhotoBytesOk,
+  storyReactionNext,
+  storyReactionOk,
   storyRingSegments,
   storyStaffKind,
   storyStorageKey,
@@ -31,6 +40,8 @@ import {
 const CLUB = '11111111-1111-4111-8111-111111111111'
 const OTHER = '22222222-2222-4222-8222-222222222222'
 const STORY = '33333333-3333-4333-8333-333333333333'
+const USER_A = '44444444-4444-4444-8444-444444444444'
+const USER_B = '55555555-5555-4555-8555-555555555555'
 
 let failed = 0
 function ok(cond, msg) {
@@ -44,11 +55,14 @@ function ok(cond, msg) {
 console.log('кто')
 ok(storyStaffKind('admin') === 'admin' && storyStaffKind('Администратор') === 'admin', 'админ')
 ok(storyStaffKind('supervisor') === 'supervisor' && storyStaffKind('управляющий') === 'supervisor', 'управляющий')
-ok(storyStaffKind('trainer') === 'staff' && storyStaffKind('sales_manager') === 'staff' && storyStaffKind('') === 'staff', 'остальные смотрят')
-ok(canPublishClubStory('admin') && canPublishClubStory('supervisor') && !canPublishClubStory('staff'), 'выкладывают админ и управляющий')
+ok(storyStaffKind('trainer') === 'staff' && storyStaffKind('sales_manager') === 'staff' && storyStaffKind('') === 'staff', 'остальные — сотрудники')
+ok(canPublishClubStory('admin') && canPublishClubStory('supervisor') && canPublishClubStory('staff'), 'выкладывают сотрудники клуба')
+ok(canPublishClubStoryNow('staff', false) && !canPublishClubStoryNow('staff', true), 'бан блокирует выкладку')
+ok(canModerateClubStoryPublish('admin') && canModerateClubStoryPublish('supervisor') && !canModerateClubStoryPublish('staff'), 'банят админ и управляющий')
 
 console.log('клуб')
-ok(publishClubId({ kind: 'staff', ownClubId: CLUB }).ok === false && publishClubId({ kind: 'staff', ownClubId: CLUB }).error === STORY_FORBIDDEN_RU, 'тренер не выкладывает')
+ok(publishClubId({ kind: 'staff', ownClubId: CLUB }).clubId === CLUB, 'сотрудник выкладывает в свой клуб')
+ok(publishClubId({ kind: 'staff', ownClubId: CLUB, requestedClubId: OTHER }).error === STORY_OTHER_CLUB_RU, 'сотрудник не пишет в чужой клуб')
 ok(publishClubId({ kind: 'supervisor', ownClubId: CLUB }).clubId === CLUB, 'управляющий — свой клуб')
 ok(publishClubId({ kind: 'supervisor', ownClubId: CLUB, requestedClubId: OTHER }).error === STORY_OTHER_CLUB_RU, 'управляющий не пишет в чужой клуб')
 ok(publishClubId({ kind: 'admin', requestedClubId: CLUB }).clubId === CLUB, 'админ выбирает клуб')
@@ -56,6 +70,45 @@ ok(publishClubId({ kind: 'admin' }).error === STORY_PICK_CLUB_RU, 'админ б
 ok(viewClubId({ kind: 'staff', ownClubId: CLUB, requestedClubId: OTHER }).error === STORY_OTHER_CLUB_RU, 'сотрудник не видит чужой клуб')
 ok(viewClubId({ kind: 'staff', ownClubId: CLUB }).clubId === CLUB, 'сотрудник видит свой клуб')
 ok(viewClubId({ kind: 'admin', requestedClubId: OTHER }).clubId === OTHER, 'админ смотрит выбранный клуб')
+
+console.log('бан')
+ok(
+  canBanClubStoryAuthor('supervisor', { targetKind: 'staff', targetUserId: USER_A, moderatorUserId: USER_B }).ok,
+  'управляющий банит сотрудника',
+)
+ok(
+  canBanClubStoryAuthor('admin', { targetKind: 'staff', targetUserId: USER_A, moderatorUserId: USER_B }).ok,
+  'админ банит сотрудника',
+)
+ok(
+  !canBanClubStoryAuthor('staff', { targetKind: 'staff', targetUserId: USER_A, moderatorUserId: USER_B }).ok &&
+    canBanClubStoryAuthor('staff', { targetKind: 'staff', targetUserId: USER_A, moderatorUserId: USER_B }).error ===
+      STORY_FORBIDDEN_RU,
+  'сотрудник не банит',
+)
+ok(
+  !canBanClubStoryAuthor('supervisor', { targetKind: 'admin', targetUserId: USER_A, moderatorUserId: USER_B }).ok &&
+    canBanClubStoryAuthor('supervisor', { targetKind: 'admin', targetUserId: USER_A, moderatorUserId: USER_B }).error ===
+      STORY_BAN_TARGET_RU,
+  'нельзя банить админа',
+)
+ok(
+  !canBanClubStoryAuthor('supervisor', { targetKind: 'staff', targetUserId: USER_A, moderatorUserId: USER_A }).ok,
+  'нельзя банить себя',
+)
+ok(typeof STORY_BANNED_RU === 'string' && STORY_BANNED_RU.includes('запретили'), 'текст бана на русском')
+
+console.log('реакции')
+ok(STORY_REACTIONS.length === 6 && STORY_REACTIONS.includes('❤️') && STORY_REACTIONS.includes('🔥'), 'набор как в чате')
+ok(storyReactionOk('🔥').emoji === '🔥' && storyReactionOk(null).emoji === null, 'реакция ок / снять')
+ok(!storyReactionOk('🍕').ok && storyReactionOk('🍕').error === STORY_REACT_BAD_RU, 'чужой смайлик нельзя')
+ok(storyReactionNext(null, '❤️').emoji === '❤️' && storyReactionNext('❤️', '❤️').emoji === null, 'та же снимает')
+ok(storyReactionNext('👍', '🔥').emoji === '🔥', 'другая заменяет')
+ok(
+  storyViewerPublic([{ user_key: `c:${CLUB}`, seen_at: '2026-10-25T10:00:00Z', reaction: '🔥' }], { [`c:${CLUB}`]: 'Анна' })[0]
+    .reaction === '🔥',
+  'в списке зрителей видна реакция',
+)
 
 console.log('кадр и срок')
 ok(storyDaysOk(1) && storyDaysOk(STORY_MAX_DAYS) && !storyDaysOk(0) && !storyDaysOk(STORY_MAX_DAYS + 1) && !storyDaysOk(1.5), 'срок 1…7 суток')
@@ -98,7 +151,8 @@ ok(
 )
 ok(storyViewerPublic([{ user_key: `c:${CLUB}`, seen_at: null }], {})[0].name === 'Клиент', 'без имени остаётся «Клиент»')
 ok(canRemoveClubStory('supervisor', { authorId: OTHER, userId: CLUB }) && canRemoveClubStory('admin', { authorId: OTHER, userId: CLUB }), 'админ и управляющий снимают')
-ok(!canRemoveClubStory('staff', { authorId: OTHER, userId: CLUB }), 'тренер чужую не снимает')
+ok(!canRemoveClubStory('staff', { authorId: OTHER, userId: CLUB }), 'сотрудник чужую не снимает')
+ok(canRemoveClubStory('staff', { authorId: CLUB, userId: CLUB }), 'сотрудник снимает свою')
 
 if (failed) {
   console.error(`\nverify-stories: ${failed} fail`)

@@ -17,8 +17,20 @@ export function removeStaffStory(id) {
   return inboxApiCall('stories', 'POST', {}, { op: 'remove', id })
 }
 
+export function banStaffStoryPublish(userId, clubId) {
+  return inboxApiCall('stories', 'POST', {}, { op: 'ban-publish', user_id: userId, club_id: clubId })
+}
+
+export function unbanStaffStoryPublish(userId, clubId) {
+  return inboxApiCall('stories', 'POST', {}, { op: 'unban-publish', user_id: userId, club_id: clubId })
+}
+
 export function seenStaffStory(id) {
   return inboxApiCall('stories', 'POST', {}, { op: 'seen', id })
+}
+
+export function reactStaffStory(id, emoji) {
+  return inboxApiCall('stories', 'POST', {}, { op: 'react', id, emoji })
 }
 
 export function fetchStaffStoryFrame(id, frameId) {
@@ -37,8 +49,20 @@ export function removeCoachStory(id) {
   return coachRequest({}, { op: 'story-remove', id })
 }
 
+export function banCoachStoryPublish(userId) {
+  return coachRequest({}, { op: 'story-ban-publish', user_id: userId })
+}
+
+export function unbanCoachStoryPublish(userId) {
+  return coachRequest({}, { op: 'story-unban-publish', user_id: userId })
+}
+
 export function seenCoachStory(id) {
   return coachRequest({}, { op: 'story-seen', id })
+}
+
+export function reactCoachStory(id, emoji) {
+  return coachRequest({}, { op: 'story-react', id, emoji })
 }
 
 export function fetchCoachStoryFrame(id, frameId) {
@@ -51,6 +75,10 @@ export function fetchClientStories() {
 
 export function seenClientStory(id) {
   return postClientMe({ action: 'story-seen', id })
+}
+
+export function reactClientStory(id, emoji) {
+  return postClientMe({ action: 'story-react', id, emoji })
 }
 
 export function fetchClientStoryFrame(id, frameId) {
