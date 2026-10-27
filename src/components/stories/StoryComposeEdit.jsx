@@ -3,6 +3,7 @@ import { Check, Minus, Plus, X } from 'lucide-react'
 import {
   STORY_EDIT_PRESETS,
   STORY_EDIT_ZOOM,
+  clampStoryEdit,
   storyEditApplyPreset,
   storyEditDefaults,
   storyEditFilterCss,
@@ -10,8 +11,9 @@ import {
 import { renderStoryPhotoEdit } from '../../lib/stories/storyPhotoEdit.js'
 
 /**
- * Лёгкий редактор фото перед выкладкой: кадр 9:16, зум/сдвиг, пресеты цвета.
- * Стиль — тот же тёмный полный экран сторис, акцент роли Ядра.
+ * Лёгкий редактор фото: кадр 9:16, зум/сдвиг, пресеты цвета.
+ * filter и transform на разных узлах — иначе на телефоне бывает чёрный экран.
+ * Эргономика: зум у правого края кадра, «Готово» внизу под большой палец.
  */
 export function StoryComposeEdit({ file, onDone, onCancel }) {
   const stageRef = useRef(null)
@@ -31,6 +33,13 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
 
   const setTone = (patch) => setEdit((prev) => ({ ...prev, ...patch, preset: 'custom' }))
 
+  const bumpZoom = (delta) => {
+    setEdit((prev) => {
+      const zoom = clampStoryEdit(+(prev.zoom + delta).toFixed(2), STORY_EDIT_ZOOM.min, STORY_EDIT_ZOOM.max)
+      return { ...prev, zoom }
+    })
+  }
+
   const onPointerDown = (e) => {
     if (busy) return
     e.currentTarget.setPointerCapture?.(e.pointerId)
@@ -46,8 +55,8 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
     const span = Math.max(0.05, 1 / edit.zoom)
     setEdit((prev) => ({
       ...prev,
-      ox: Math.max(-1, Math.min(1, drag.current.ox - dx / span)),
-      oy: Math.max(-1, Math.min(1, drag.current.oy - dy / span)),
+      ox: clampStoryEdit(drag.current.ox - dx / span, -1, 1),
+      oy: clampStoryEdit(drag.current.oy - dy / span, -1, 1),
     }))
   }
 
@@ -69,8 +78,9 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
   }
 
   const filter = storyEditFilterCss(edit)
-  const posX = 50 + edit.ox * 50
-  const posY = 50 + edit.oy * 50
+  /* Сдвиг в % от кадра; зум только scale — без object-position (он ломал превью на телефоне). */
+  const shiftX = -edit.ox * 12 * edit.zoom
+  const shiftY = -edit.oy * 12 * edit.zoom
 
   return (
     <div className="stories-compose-edit" role="dialog" aria-modal="true" aria-label="Правка фото">
@@ -85,20 +95,11 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
         >
           <X size={22} aria-hidden />
         </button>
-        <div className="stories-compose-edit__heading">
-          <strong>Кадр и цвет</strong>
-          <span>Как будет в сторис</span>
-        </div>
-        <button
-          type="button"
-          className="stories-compose-edit__icon stories-compose-edit__ok btn-touch"
-          onClick={() => void apply()}
-          disabled={busy}
-          aria-label="Готово"
-          title="Готово"
-        >
-          <Check size={22} aria-hidden />
-        </button>
+        <p className="stories-compose-edit__heading">
+          <strong>Правка кадра</strong>
+          <span>Тяните фото · зум справа</span>
+        </p>
+        <span className="stories-compose-edit__top-spacer" aria-hidden />
       </header>
 
       <div
@@ -110,47 +111,43 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
         onPointerCancel={onPointerUp}
       >
         {url ? (
-          <img
-            className="stories-compose-edit__img"
-            src={url}
-            alt=""
-            draggable={false}
-            style={{
-              filter,
-              objectPosition: `${posX}% ${posY}%`,
-              transform: `scale(${edit.zoom})`,
-            }}
-          />
+          <div
+            className="stories-compose-edit__pan"
+            style={{ transform: `translate3d(${shiftX}%, ${shiftY}%, 0) scale(${edit.zoom})` }}
+          >
+            <img className="stories-compose-edit__img" src={url} alt="" draggable={false} style={{ filter }} />
+          </div>
         ) : null}
         <div className="stories-compose-edit__veil" aria-hidden />
         <div className="stories-compose-edit__frame" aria-hidden />
-      </div>
 
-      <div className="stories-compose-edit__dock">
-        <div className="stories-compose-edit__zoom">
-          <button
-            type="button"
-            className="stories-compose-edit__zoom-btn btn-touch"
-            disabled={busy || edit.zoom <= STORY_EDIT_ZOOM.min}
-            onClick={() => setEdit((p) => ({ ...p, zoom: Math.max(STORY_EDIT_ZOOM.min, +(p.zoom - 0.15).toFixed(2)) }))}
-            aria-label="Мельче"
-            title="Мельче"
-          >
-            <Minus size={18} aria-hidden />
-          </button>
-          <span>Тяните кадр · зум</span>
+        <div className="stories-compose-edit__zoom" role="group" aria-label="Размер">
           <button
             type="button"
             className="stories-compose-edit__zoom-btn btn-touch"
             disabled={busy || edit.zoom >= STORY_EDIT_ZOOM.max}
-            onClick={() => setEdit((p) => ({ ...p, zoom: Math.min(STORY_EDIT_ZOOM.max, +(p.zoom + 0.15).toFixed(2)) }))}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => bumpZoom(0.15)}
             aria-label="Крупнее"
             title="Крупнее"
           >
-            <Plus size={18} aria-hidden />
+            <Plus size={20} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="stories-compose-edit__zoom-btn btn-touch"
+            disabled={busy || edit.zoom <= STORY_EDIT_ZOOM.min}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => bumpZoom(-0.15)}
+            aria-label="Мельче"
+            title="Мельче"
+          >
+            <Minus size={20} aria-hidden />
           </button>
         </div>
+      </div>
 
+      <div className="stories-compose-edit__dock">
         <ul className="stories-compose-edit__presets" aria-label="Цвет">
           {STORY_EDIT_PRESETS.map((p) => (
             <li key={p.id}>
@@ -166,42 +163,53 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
           ))}
         </ul>
 
-        <label className="stories-compose-edit__slider">
-          <span>Яркость</span>
-          <input
-            type="range"
-            min={-40}
-            max={40}
-            value={edit.brightness}
-            disabled={busy}
-            onChange={(e) => setTone({ brightness: Number(e.target.value) })}
-          />
-        </label>
-        <label className="stories-compose-edit__slider">
-          <span>Контраст</span>
-          <input
-            type="range"
-            min={-40}
-            max={40}
-            value={edit.contrast}
-            disabled={busy}
-            onChange={(e) => setTone({ contrast: Number(e.target.value) })}
-          />
-        </label>
-        <label className="stories-compose-edit__slider">
-          <span>Насыщенность</span>
-          <input
-            type="range"
-            min={-40}
-            max={40}
-            value={edit.saturation}
-            disabled={busy}
-            onChange={(e) => setTone({ saturation: Number(e.target.value) })}
-          />
-        </label>
+        <div className="stories-compose-edit__tones" aria-label="Точная настройка">
+          <label className="stories-compose-edit__slider">
+            <span>Ярк.</span>
+            <input
+              type="range"
+              min={-40}
+              max={40}
+              value={edit.brightness}
+              disabled={busy}
+              onChange={(e) => setTone({ brightness: Number(e.target.value) })}
+            />
+          </label>
+          <label className="stories-compose-edit__slider">
+            <span>Контр.</span>
+            <input
+              type="range"
+              min={-40}
+              max={40}
+              value={edit.contrast}
+              disabled={busy}
+              onChange={(e) => setTone({ contrast: Number(e.target.value) })}
+            />
+          </label>
+          <label className="stories-compose-edit__slider">
+            <span>Цвет</span>
+            <input
+              type="range"
+              min={-40}
+              max={40}
+              value={edit.saturation}
+              disabled={busy}
+              onChange={(e) => setTone({ saturation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
 
         {error ? <p className="stories-compose-edit__error">{error}</p> : null}
-        <p className="stories-compose-edit__hint">{busy ? 'Сохраняем…' : 'Галочка справа — в ленту'}</p>
+
+        <button
+          type="button"
+          className="stories-compose-edit__done btn-touch"
+          onClick={() => void apply()}
+          disabled={busy || !url}
+        >
+          <Check size={20} aria-hidden />
+          {busy ? 'Сохраняем…' : 'Готово'}
+        </button>
       </div>
     </div>
   )

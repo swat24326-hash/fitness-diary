@@ -161,29 +161,7 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
               <img className="stories-compose__preview" src={previewSrc(current)} alt="" />
             )
           ) : (
-            <div className="stories-compose__empty-wrap">
-              <button
-                type="button"
-                className="stories-compose__empty btn-touch"
-                onClick={() => fileRef.current?.click()}
-                disabled={busy}
-              >
-                <ImagePlus size={36} aria-hidden />
-                <span>Фото или видео из галереи</span>
-                <small>До {STORY_MAX_FRAMES} кадров · фото можно подрезать и подправить</small>
-              </button>
-              {canRecord ? (
-                <button
-                  type="button"
-                  className="stories-compose__cam btn-touch"
-                  onClick={() => setRecord(true)}
-                  disabled={busy}
-                >
-                  <Camera size={22} aria-hidden />
-                  Снять видео
-                </button>
-              ) : null}
-            </div>
+            <p className="stories-compose__hint">До {STORY_MAX_FRAMES} кадров · фото можно подрезать</p>
           )}
         </div>
 
@@ -217,36 +195,33 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
                   </button>
                 </li>
               ))}
-              {canAdd ? (
-                <li className="stories-compose__film-add">
-                  <button
-                    type="button"
-                    className="stories-compose__thumb stories-compose__thumb--add btn-touch"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={busy}
-                    aria-label="Ещё из галереи"
-                    title="Ещё из галереи"
-                  >
-                    <ImagePlus size={22} aria-hidden />
-                  </button>
-                </li>
-              ) : null}
-              {canAdd && canRecord ? (
-                <li className="stories-compose__film-add">
-                  <button
-                    type="button"
-                    className="stories-compose__thumb stories-compose__thumb--add btn-touch"
-                    onClick={() => setRecord(true)}
-                    disabled={busy}
-                    aria-label="Снять видео"
-                    title="Снять видео"
-                  >
-                    <Camera size={22} aria-hidden />
-                  </button>
-                </li>
-              ) : null}
             </ul>
           ) : null}
+
+          <div className="stories-compose__actions" role="group" aria-label="Добавить кадр">
+            <button
+              type="button"
+              className="stories-compose__action btn-touch"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy || !canAdd}
+              aria-label="Галерея"
+              title="Галерея"
+            >
+              <ImagePlus size={26} aria-hidden />
+            </button>
+            {canRecord ? (
+              <button
+                type="button"
+                className="stories-compose__action stories-compose__action--cam btn-touch"
+                onClick={() => setRecord(true)}
+                disabled={busy || !canAdd}
+                aria-label="Снять видео"
+                title="Снять видео"
+              >
+                <Camera size={26} aria-hidden />
+              </button>
+            ) : null}
+          </div>
 
           {current ? (
             <label className="stories-compose__caption">
