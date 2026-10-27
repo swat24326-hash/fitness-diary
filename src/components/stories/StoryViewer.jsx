@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { Trash2, X } from 'lucide-react'
 import { useStoryReel } from './useStoryReel.js'
 import { StoryReactBar } from './StoryReactBar.jsx'
 import { StoryViewers } from './StoryViewers.jsx'
@@ -109,11 +109,6 @@ export function StoryViewer({
               Мой абонемент
             </button>
           ) : null}
-          {onRemove && current.story.can_remove ? (
-            <button type="button" className="btn btn-ghost btn-touch" onClick={() => onRemove(current.story.id)}>
-              Снять
-            </button>
-          ) : null}
           {onBanPublish && current.story.can_ban ? (
             <button
               type="button"
@@ -133,7 +128,20 @@ export function StoryViewer({
             </button>
           ) : null}
         </span>
-        <StoryViewers viewers={current.story.viewers} open={who} onToggle={() => setWho((v) => !v)} />
+        <div className="stories-view__bottom">
+          <StoryViewers viewers={current.story.viewers} open={who} onToggle={() => setWho((v) => !v)} />
+          {onRemove && current.story.can_remove ? (
+            <button
+              type="button"
+              className="stories-view__remove btn-touch"
+              onClick={() => onRemove(current.story.id)}
+              aria-label="Снять сторис"
+              title="Снять сторис"
+            >
+              <Trash2 size={22} aria-hidden />
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>,
     document.body,
