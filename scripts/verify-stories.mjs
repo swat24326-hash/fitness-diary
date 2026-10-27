@@ -20,6 +20,8 @@ import {
   canPublishClubStory,
   canPublishClubStoryNow,
   canRemoveClubStory,
+  canSeeClubStoryViewers,
+  groupClubStoryAuthors,
   isStoryStorageKey,
   publishClubId,
   storyCaptionOk,
@@ -154,9 +156,20 @@ ok(
   'список зрителей — имена своего клуба, без сырого id',
 )
 ok(storyViewerPublic([{ user_key: `c:${CLUB}`, seen_at: null }], {})[0].name === 'Клиент', 'без имени остаётся «Клиент»')
-ok(canRemoveClubStory('supervisor', { authorId: OTHER, userId: CLUB }) && canRemoveClubStory('admin', { authorId: OTHER, userId: CLUB }), 'админ и управляющий снимают')
+ok(!canRemoveClubStory('admin', { authorId: OTHER, userId: CLUB }) && !canRemoveClubStory('supervisor', { authorId: OTHER, userId: CLUB }), 'чужую снимает только автор')
 ok(!canRemoveClubStory('staff', { authorId: OTHER, userId: CLUB }), 'сотрудник чужую не снимает')
-ok(canRemoveClubStory('staff', { authorId: CLUB, userId: CLUB }), 'сотрудник снимает свою')
+ok(canRemoveClubStory('staff', { authorId: CLUB, userId: CLUB }) && canRemoveClubStory('admin', { authorId: CLUB, userId: CLUB }), 'автор снимает свою')
+ok(canSeeClubStoryViewers({ authorId: CLUB, userId: CLUB }) && !canSeeClubStoryViewers({ authorId: OTHER, userId: CLUB }), 'кто смотрел — только у своих')
+const rails = groupClubStoryAuthors(
+  [
+    { id: '1', author_id: OTHER, author_name: 'Админ', seen: true, views: 9 },
+    { id: '2', author_id: CLUB, author_name: 'Тренер', seen: false, views: 3 },
+    { id: '3', author_id: OTHER, author_name: 'Админ', seen: false, views: 1 },
+  ],
+  { myUserId: CLUB },
+)
+ok(rails.length === 2 && rails[0].mine && rails[0].author_id === CLUB && rails[0].views === 3, 'свои кружок слева, просмотры свои')
+ok(rails[1].author_id === OTHER && rails[1].stories.length === 2 && rails[1].views == null && rails[1].unseen, 'чужой кружок без чужих просмотров')
 
 if (failed) {
   console.error(`\nverify-stories: ${failed} fail`)

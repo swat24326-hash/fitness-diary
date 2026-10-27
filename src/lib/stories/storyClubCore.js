@@ -166,9 +166,56 @@ export function storyRingSegments(stories) {
   return items.map((item, i) => ({ ...item, start: i * (sweep + gap), sweep }))
 }
 
-export function canRemoveClubStory(kind, { authorId, userId }) {
-  if (kind === 'admin' || kind === 'supervisor') return true
-  return Boolean(authorId) && authorId === userId
+/** Как в Telegram: снимает только автор. Модератор — через бан выкладки. */
+export function canRemoveClubStory(_kind, { authorId, userId }) {
+  const author = String(authorId ?? '').trim().toLowerCase()
+  const me = String(userId ?? '').trim().toLowerCase()
+  return Boolean(author && me && author === me)
+}
+
+/** «Кто смотрел» — только у своих сторис. */
+export function canSeeClubStoryViewers({ authorId, userId }) {
+  return canRemoveClubStory('staff', { authorId, userId })
+}
+
+/**
+ * Кружки в ряду: один автор — один кружок (как в Telegram).
+ * Свои слева, дальше непросмотренные, потом остальные.
+ * @returns {{ author_id: string, author_name: string, author_photo: string|null, mine: boolean, unseen: boolean, views: number|null, stories: object[] }[]}
+ */
+export function groupClubStoryAuthors(stories, { myUserId } = {}) {
+  const me = String(myUserId ?? '').trim().toLowerCase()
+  const order = []
+  const map = new Map()
+  for (const story of stories ?? []) {
+    const id = String(story?.author_id ?? '').trim().toLowerCase()
+    if (!id) continue
+    let group = map.get(id)
+    if (!group) {
+      group = {
+        author_id: id,
+        author_name: String(story?.author_name ?? '').trim() || 'Сотрудник',
+        author_photo: story?.author_photo || null,
+        mine: Boolean(me && id === me),
+        stories: [],
+      }
+      map.set(id, group)
+      order.push(group)
+    } else if (!group.author_photo && story?.author_photo) {
+      group.author_photo = story.author_photo
+    }
+    group.stories.push(story)
+  }
+  for (const group of order) {
+    group.unseen = group.stories.some((s) => !s.seen)
+    group.views = group.mine
+      ? group.stories.reduce((sum, s) => sum + (Number(s.views) || 0), 0)
+      : null
+  }
+  const mine = order.filter((g) => g.mine)
+  const rest = order.filter((g) => !g.mine)
+  rest.sort((a, b) => Number(b.unseen) - Number(a.unseen))
+  return [...mine, ...rest]
 }
 
 export function storyViewerKey(side, id) {

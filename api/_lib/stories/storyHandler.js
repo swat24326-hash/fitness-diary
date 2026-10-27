@@ -8,6 +8,7 @@ import { loadInChunks } from '../batchCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { checkAttachBytes, checkAttachUpload } from '../../../src/lib/chat/chatAttachCore.js'
 import { deleteVoice, putVoice, getVoice } from '../chat/chatVoiceStorage.js'
+import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
 import {
   STORY_BAD_RU,
   STORY_BANNED_RU,
@@ -24,6 +25,7 @@ import {
   canModerateClubStoryPublish,
   canPublishClubStoryNow,
   canRemoveClubStory,
+  canSeeClubStoryViewers,
   isStoryStorageKey,
   publishClubId,
   storyCaptionOk,
@@ -112,12 +114,16 @@ async function viewerNames(db, clubId, viewRows) {
 async function authorMeta(db, authorIds) {
   const ids = [...new Set(authorIds.map((id) => String(id ?? '').toLowerCase()).filter((id) => storyUuid(id)))]
   if (!ids.length) return new Map()
-  const users = await loadInChunks(ids, (part) => rows(db.from('users').select('id, name, role').in('id', part)))
+  const users = await loadInChunks(ids, (part) =>
+    rows(db.from('users').select('id, name, role, avatar_key').in('id', part)),
+  )
   const map = new Map()
   for (const user of users) {
-    map.set(String(user.id).toLowerCase(), {
+    const id = String(user.id).toLowerCase()
+    map.set(id, {
       name: String(user.name ?? '').trim() || 'Сотрудник',
       kind: storyStaffKind(user.role),
+      photo: avatarPhotoUrl(user.avatar_key, 'staff', id),
     })
   }
   return map
@@ -128,7 +134,7 @@ function liveRow(row, now) {
 }
 
 async function listClubStories(db, clubId, viewerKey, opts) {
-  const { withViews, kind, userId } = opts
+  const { kind, userId } = opts
   const now = Date.now()
   const stories = (
     await rows(
@@ -139,7 +145,7 @@ async function listClubStories(db, clubId, viewerKey, opts) {
         .is('removed_at', null)
         .gt('expires_at', new Date(now).toISOString())
         .order('created_at', { ascending: false })
-        .limit(20),
+        .limit(40),
     )
   ).filter((row) => liveRow(row, now))
   if (!stories.length) return []
@@ -160,18 +166,22 @@ async function listClubStories(db, clubId, viewerKey, opts) {
   }
   const seen = new Set(mineRows.map((r) => r.story_id))
   const myReaction = new Map(mineRows.map((r) => [r.story_id, r.reaction ?? null]))
+  const me = String(userId ?? '').toLowerCase()
+  const ownIds = stories
+    .filter((s) => canSeeClubStoryViewers({ authorId: s.author_id, userId }))
+    .map((s) => s.id)
   let viewRows = []
-  if (withViews) {
+  if (ownIds.length) {
     try {
       viewRows = await rows(
-        db.from('club_story_views').select('story_id, user_key, seen_at, reaction').in('story_id', ids),
+        db.from('club_story_views').select('story_id, user_key, seen_at, reaction').in('story_id', ownIds),
       )
     } catch (e) {
       if (!missingTable(e)) throw e
-      viewRows = await rows(db.from('club_story_views').select('story_id, user_key, seen_at').in('story_id', ids))
+      viewRows = await rows(db.from('club_story_views').select('story_id, user_key, seen_at').in('story_id', ownIds))
     }
   }
-  const names = withViews ? await viewerNames(db, clubId, viewRows) : {}
+  const names = ownIds.length ? await viewerNames(db, clubId, viewRows) : {}
   const viewersOf = new Map()
   for (const row of viewRows) {
     const list = viewersOf.get(row.story_id) ?? []
@@ -184,16 +194,18 @@ async function listClubStories(db, clubId, viewerKey, opts) {
     list.push({ id: frame.id, caption: frame.caption ?? '', w: frame.w, h: frame.h })
     byStory.set(frame.story_id, list)
   }
-  const authors = withViews ? await authorMeta(db, stories.map((s) => s.author_id)) : new Map()
-  const banned = withViews
+  const authors = await authorMeta(
+    db,
+    stories.map((s) => s.author_id),
+  )
+  const moderate = canModerateClubStoryPublish(kind)
+  const banned = moderate
     ? await bannedAuthorIds(
         db,
         clubId,
         stories.map((s) => s.author_id),
       )
     : new Set()
-  const moderate = canModerateClubStoryPublish(kind)
-  const me = String(userId ?? '').toLowerCase()
   return stories.map((s) => {
     const authorId = String(s.author_id ?? '').toLowerCase()
     const meta = authors.get(authorId)
@@ -203,6 +215,7 @@ async function listClubStories(db, clubId, viewerKey, opts) {
       targetUserId: authorId,
       moderatorUserId: userId,
     })
+    const ownViews = canSeeClubStoryViewers({ authorId, userId })
     return {
       id: s.id,
       label: s.label,
@@ -213,15 +226,20 @@ async function listClubStories(db, clubId, viewerKey, opts) {
       can_remove: canRemoveClubStory(kind, { authorId: s.author_id, userId }),
       can_react: Boolean(authorId) && authorId !== me,
       my_reaction: myReaction.get(s.id) ?? null,
-      ...(withViews
+      author_name: meta?.name ?? 'Сотрудник',
+      author_id: authorId,
+      author_photo: meta?.photo ?? null,
+      ...(ownViews
         ? {
             views: (viewersOf.get(s.id) ?? []).length,
             viewers: storyViewerPublic(viewersOf.get(s.id), names),
-            author_name: meta?.name ?? 'Сотрудник',
-            author_id: authorId,
+          }
+        : {}),
+      ...(moderate
+        ? {
             author_banned: authorBanned,
-            can_ban: moderate && banCheck.ok && !authorBanned,
-            can_unban: moderate && banCheck.ok && authorBanned,
+            can_ban: banCheck.ok && !authorBanned,
+            can_unban: banCheck.ok && authorBanned,
           }
         : {}),
       frames: byStory.get(s.id) ?? [],
@@ -267,11 +285,10 @@ export async function handleStaffStoriesGet(ctx, query, res) {
     const canPublish = canPublishClubStoryNow(kind, banned)
     const moderate = canModerateClubStoryPublish(kind)
     const items = await listClubStories(ctx.supabaseAdmin, club.clubId, storyViewerKey('staff', ctx.user.id), {
-      withViews: canPublish || moderate,
       kind,
       userId: ctx.user.id,
     })
-    const payload = { club_id: club.clubId, can_publish: canPublish, stories: items }
+    const payload = { club_id: club.clubId, can_publish: canPublish, me: ctx.user.id, stories: items }
     if (moderate) payload.banned_publishers = await listBannedPublishers(ctx.supabaseAdmin, club.clubId)
     sendJson(res, 200, payload)
   } catch (e) {
@@ -308,9 +325,8 @@ export async function handleClientStories(db, ctx, body, res) {
   try {
     if (action === 'story-list') {
       const stories = await listClubStories(db, clubId, storyViewerKey('client', ctx.clientId), {
-        withViews: false,
-        kind: 'staff',
-        userId: ctx.clientId,
+        kind: null,
+        userId: null,
       })
       sendJson(res, 200, { stories })
       return
@@ -402,11 +418,10 @@ async function publishStory(ctx, body, res, put) {
     return fail(res, 502, 'Не получилось выложить — попробуйте ещё раз')
   }
   const stories = await listClubStories(db, club.clubId, storyViewerKey('staff', ctx.user.id), {
-    withViews: true,
     kind,
     userId: ctx.user.id,
   })
-  sendJson(res, 200, { club_id: club.clubId, can_publish: true, stories })
+  sendJson(res, 200, { club_id: club.clubId, can_publish: true, me: ctx.user.id, stories })
 }
 
 async function removeStory(ctx, body, res) {

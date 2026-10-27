@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
@@ -24,7 +24,9 @@ import {
   unbanCoachStoryPublish,
   unbanStaffStoryPublish,
 } from '../../lib/stories/storyApi.js'
-import { STORY_OFFLINE_RU } from '../../lib/stories/storyClubCore.js'
+import { chatInitials } from '../../lib/chat/chatUiCore.js'
+import { groupClubStoryAuthors, STORY_OFFLINE_RU } from '../../lib/stories/storyClubCore.js'
+import { AvatarPhoto } from '../profile/AvatarPhoto.jsx'
 import { StoryCompose } from './StoryCompose.jsx'
 import { StoryRing } from './StoryRing.jsx'
 import { StoryViewer } from './StoryViewer.jsx'
@@ -63,15 +65,15 @@ const API = {
 }
 
 /**
- * Кружок рекламы своего клуба. channel: staff (планшет и админ), coach (телефон тренера), client.
- * @param {{ channel?: 'staff' | 'coach' | 'client', clubId?: string | null }} props
+ * Ряд кружков сторис клуба: один автор — один кружок (как в Telegram).
+ * channel: staff | coach | client.
  */
 export function ClubStoryRail({ channel = 'staff', clubId = null }) {
   const navigate = useNavigate()
   const api = API[channel]
   const [pack, setPack] = useState(null)
   const [error, setError] = useState('')
-  const [open, setOpen] = useState(false)
+  const [openAuthorId, setOpenAuthorId] = useState(null)
   const [compose, setCompose] = useState(false)
   const [busy, setBusy] = useState(false)
   const canPublish = channel !== 'client' && Boolean(pack?.can_publish)
@@ -95,10 +97,13 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
   }, [load])
 
   const stories = pack?.stories ?? []
+  const groups = useMemo(
+    () => groupClubStoryAuthors(stories, { myUserId: pack?.me }),
+    [stories, pack?.me],
+  )
+  const openGroup = groups.find((g) => g.author_id === openAuthorId) ?? null
   const bannedPublishers = Array.isArray(pack?.banned_publishers) ? pack.banned_publishers : []
-  const unseen = stories.some((s) => !s.seen)
-  const views = stories.reduce((sum, s) => sum + (s.views ?? 0), 0)
-  if (!stories.length && !canPublish && !bannedPublishers.length && !error) return null
+  if (!groups.length && !canPublish && !bannedPublishers.length && !error) return null
 
   const onSeen = (id) => {
     setPack((prev) =>
@@ -109,27 +114,47 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
 
   return (
     <div className="stories-rail">
-      {stories.length ? (
-        <button
-          type="button"
-          className="stories-rail__circle"
-          onClick={() => setOpen(true)}
-          aria-label={unseen ? `${stories[0].label_ru}, есть новое` : stories[0].label_ru}
-          title={canPublish ? `${stories[0].label_ru}, ${views} просмотров` : stories[0].label_ru}
-        >
-          <StoryRing stories={stories} />
-          <span className="stories-rail__face">
-            <span>{stories[0].label_ru}</span>
-            {canPublish ? <small>{views}</small> : null}
-          </span>
-        </button>
-      ) : null}
-      {canPublish ? (
-        <button type="button" className="stories-rail__add btn-touch" onClick={() => setCompose(true)} aria-label="Выложить сторис" title="Выложить сторис">
-          <Plus size={20} aria-hidden />
-        </button>
-      ) : null}
-      {error && !stories.length ? <p className="stories-rail__error">{error}</p> : null}
+      <div className="stories-rail__row">
+        {canPublish ? (
+          <button
+            type="button"
+            className="stories-rail__add btn-touch"
+            onClick={() => setCompose(true)}
+            aria-label="Выложить сторис"
+            title="Выложить сторис"
+          >
+            <Plus size={20} aria-hidden />
+          </button>
+        ) : null}
+        {groups.map((group) => {
+          const title = group.mine ? 'Вы' : group.author_name
+          const views = group.views
+          const initials = chatInitials(group.author_name) || '?'
+          return (
+            <button
+              key={group.author_id}
+              type="button"
+              className={`stories-rail__person${group.mine ? ' is-mine' : ''}`}
+              onClick={() => setOpenAuthorId(group.author_id)}
+              aria-label={group.unseen ? `${title}, есть новое` : title}
+              title={group.mine && views != null ? `${title}, ${views} просмотров` : title}
+            >
+              <span className="stories-rail__circle">
+                <StoryRing stories={group.stories} />
+                <span className="stories-rail__face">
+                  <AvatarPhoto
+                    src={group.author_photo}
+                    fallback={<span className="stories-rail__initials">{initials}</span>}
+                  />
+                </span>
+              </span>
+              <span className="stories-rail__name">{title}</span>
+              {group.mine && views != null ? <small className="stories-rail__views">{views}</small> : null}
+            </button>
+          )
+        })}
+      </div>
+      {error && !groups.length ? <p className="stories-rail__error">{error}</p> : null}
       {bannedPublishers.length && api.unban ? (
         <ul className="stories-rail__banned">
           {bannedPublishers.map((person) => (
@@ -152,19 +177,19 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
           ))}
         </ul>
       ) : null}
-      {open ? (
+      {openGroup ? (
         <StoryViewer
-          stories={stories}
+          stories={openGroup.stories}
           loadFrame={api.frame}
           onSeen={onSeen}
           onClose={() => {
-            setOpen(false)
-            if (canPublish) load()
+            setOpenAuthorId(null)
+            if (canPublish || openGroup.mine) load()
           }}
           onCta={
             channel === 'client'
               ? (cta) => {
-                  setOpen(false)
+                  setOpenAuthorId(null)
                   navigate(cta === 'chat' ? '/me/chat/sales' : CLIENT_HOME)
                 }
               : undefined
@@ -172,11 +197,11 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
           onRemove={
             api.remove
               ? (id) => {
-                  if (!window.confirm('Снять эту рекламу?')) return
+                  if (!window.confirm('Снять эту сторис?')) return
                   api
                     .remove(id)
                     .then(() => {
-                      setOpen(false)
+                      setOpenAuthorId(null)
                       load()
                     })
                     .catch((e) => setError(e?.message || STORY_OFFLINE_RU))
@@ -186,13 +211,13 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
           onBanPublish={
             api.ban
               ? (authorId) => {
-                  if (!window.confirm('Запретить этому сотруднику выкладывать сторис клуба? Живые кадры снимутся.')) {
+                  if (!window.confirm('Запретить этому сотруднику выкладывать сторис? Живые кадры снимутся.')) {
                     return
                   }
                   api
                     .ban(authorId, clubId || pack?.club_id)
                     .then(() => {
-                      setOpen(false)
+                      setOpenAuthorId(null)
                       load()
                     })
                     .catch((e) => setError(e?.message || STORY_OFFLINE_RU))

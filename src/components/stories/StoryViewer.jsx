@@ -63,7 +63,12 @@ export function StoryViewer({
   }
 
   return createPortal(
-    <div className={`stories-view${paused ? ' is-paused' : ''}`} role="dialog" aria-modal="true" aria-label={current.story.label_ru}>
+    <div
+      className={`stories-view${paused ? ' is-paused' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={current.story.author_name || current.story.label_ru}
+    >
       <div className="stories-view__bars">
         {flat.map((item, i) => (
           <span key={`${item.story.id}-${item.frame.id}`} className={i < index ? 'is-done' : i === index && playing ? 'is-run' : ''}>
@@ -81,7 +86,7 @@ export function StoryViewer({
             key={shown.frameId}
             className={`stories-view__frame${motion ? ` is-${motion}` : ''}`}
             src={shown.src}
-            alt={current.frame.caption || current.story.label_ru}
+            alt={current.frame.caption || current.story.author_name || current.story.label_ru}
           />
         ) : null}
       </div>
@@ -90,7 +95,7 @@ export function StoryViewer({
       <button type="button" className="stories-view__prev" aria-label="Предыдущий кадр" {...bindZone(-1)} />
       <button type="button" className="stories-view__next" aria-label="Следующий кадр" {...bindZone(1)} />
       <div className="stories-view__foot">
-        <strong>{current.story.label_ru}</strong>
+        <strong>{current.story.author_name || current.story.label_ru}</strong>
         {current.frame.caption ? <p>{current.frame.caption}</p> : null}
         {canReact ? <StoryReactBar mine={mine} onPick={pickReact} busy={reactBusy} /> : null}
         <span className="stories-view__actions">
@@ -128,7 +133,6 @@ export function StoryViewer({
             </button>
           ) : null}
         </span>
-        {current.story.author_name ? <p className="stories-view__author">{current.story.author_name}</p> : null}
         <StoryViewers viewers={current.story.viewers} open={who} onToggle={() => setWho((v) => !v)} />
       </div>
     </div>,

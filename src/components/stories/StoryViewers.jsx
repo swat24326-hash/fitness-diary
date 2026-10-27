@@ -21,8 +21,8 @@ function seenShortRu(iso) {
 }
 
 /**
- * Кто открыл эту акцию — нижний sheet как у зрителей сторис в Telegram.
- * Список есть только у того, кто может её выкладывать.
+ * Кто открыл эту сторис — нижний sheet как в Telegram.
+ * Список приходит только автору.
  */
 export function StoryViewers({ viewers, open, onToggle }) {
   const titleId = useId()
