@@ -9,7 +9,8 @@ const SUPERVISOR = new Set(['supervisor', 'управляющий'])
 
 export const STORY_LABELS = Object.freeze(['news', 'promo'])
 export const STORY_CTA = Object.freeze(['none', 'chat', 'membership'])
-export const STORY_MAX_FRAMES = 5
+/** Одна выкладка — один кадр (как в Telegram: взял → правка → опубликовал). Ещё кадр — снова «+». */
+export const STORY_MAX_FRAMES = 1
 export const STORY_CAPTION_MAX = 200
 /** Как в Telegram: сторис клуба живёт ровно сутки. */
 export const STORY_LIFETIME_DAYS = 1
@@ -150,6 +151,10 @@ export function storyCaptionOk(raw) {
   const caption = String(raw ?? '').replace(/\r\n?/g, '\n').trim()
   if (caption.length > STORY_CAPTION_MAX) return { ok: false }
   return { ok: true, caption }
+}
+
+export function storyLabelOk(label) {
+  return STORY_LABELS.includes(label) ? label : null
 }
 
 export function storyCtaOk(cta) {

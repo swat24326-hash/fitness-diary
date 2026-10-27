@@ -32,9 +32,11 @@ import {
   isStoryStorageKey,
   publishClubId,
   storyCaptionOk,
+  storyCtaOk,
   storyExpiresAt,
   storyFramesOk,
   storyIsLive,
+  storyLabelOk,
   storyLabelRu,
   storyPhotoBytesOk,
   storyReactionNext,
@@ -373,16 +375,24 @@ async function staffStoryMedia(ctx, op, body, res) {
   return sendFrame(ctx.supabaseAdmin, body, res, story.club_id)
 }
 
-async function finishPublish(ctx, clubId, prepared, put, res) {
+function publishMeta(body) {
+  return {
+    label: storyLabelOk(body?.label) || STORY_DEFAULT_LABEL,
+    cta: storyCtaOk(body?.cta) || STORY_DEFAULT_CTA,
+  }
+}
+
+async function finishPublish(ctx, clubId, prepared, put, res, meta = {}) {
   const kind = storyStaffKind(ctx.roleNorm)
   const id = randomUUID()
   const db = ctx.supabaseAdmin
+  const { label, cta } = publishMeta(meta)
   const { error } = await db.from('club_stories').insert({
     id,
     club_id: clubId,
     author_id: ctx.user.id,
-    label: STORY_DEFAULT_LABEL,
-    cta: STORY_DEFAULT_CTA,
+    label,
+    cta,
     expires_at: storyExpiresAt(Date.now(), STORY_LIFETIME_DAYS),
   })
   if (error) throw error
@@ -438,7 +448,7 @@ async function publishStory(ctx, body, res, put) {
     if (!mime) return fail(res, 400, STORY_BAD_RU)
     prepared.push({ bytes, mime, w: upload.w, h: upload.h, caption: caption.caption })
   }
-  return finishPublish(ctx, club.clubId, prepared, put, res)
+  return finishPublish(ctx, club.clubId, prepared, put, res, body)
 }
 
 /** Одно видео в сторис — бинарное тело (как видеокружок в чате), до 60 с. */
@@ -460,6 +470,7 @@ async function publishStoryVideo(ctx, body, res, put) {
     [{ bytes, mime: upload.mime, w: null, h: null, caption: caption.caption }],
     put,
     res,
+    body,
   )
 }
 

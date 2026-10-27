@@ -34,6 +34,7 @@ import {
   storyExpiresAt,
   storyFramesOk,
   storyIsLive,
+  storyLabelOk,
   storyLabelRu,
   storyMimeIsVideo,
   storyPhotoBytesOk,
@@ -154,9 +155,11 @@ ok(
 console.log('кадр и срок')
 ok(STORY_LIFETIME_DAYS === 1 && STORY_MAX_DAYS === 1 && STORY_DEFAULT_CTA === 'none' && STORY_DEFAULT_LABEL === 'news', 'выкладка — сутки без кнопки')
 ok(storyDaysOk(1) && !storyDaysOk(0) && !storyDaysOk(2) && !storyDaysOk(1.5), 'срок только сутки')
-ok(storyFramesOk(1) && storyFramesOk(STORY_MAX_FRAMES) && !storyFramesOk(0) && !storyFramesOk(6), '1…5 кадров')
+ok(storyFramesOk(1) && storyFramesOk(STORY_MAX_FRAMES) && !storyFramesOk(0) && !storyFramesOk(2), 'одна выкладка — один кадр')
+ok(STORY_MAX_FRAMES === 1, 'лимит как в Telegram — по одному')
 ok(storyCaptionOk('акция').caption === 'акция' && storyCaptionOk('я'.repeat(201)).ok === false && storyCaptionOk('').caption === '', 'подпись до 200')
-ok(storyCtaOk('chat') === 'chat' && storyCtaOk('membership') === 'membership' && storyCtaOk('site') === null, 'старые кнопки в просмотре читаются')
+ok(storyCtaOk('chat') === 'chat' && storyCtaOk('membership') === 'membership' && storyCtaOk('site') === null, 'кнопки у клиента')
+ok(storyLabelOk('promo') === 'promo' && storyLabelOk('news') === 'news' && storyLabelOk('ads') === null, 'вид акции/новости')
 ok(storyLabelRu('promo') === 'Акция' && storyLabelRu('news') === 'Новость', 'подписи кружка')
 const one = storyRingSegments([{ id: 'a', seen: false, frames: [{ id: 'f1' }] }])
 const two = storyRingSegments([{ id: 'a', seen: false, frames: [{ id: 'f1' }, { id: 'f2' }] }])
@@ -177,13 +180,14 @@ ok(
   storyPublishBatches([{ kind: 'photo' }, { kind: 'video' }, { kind: 'photo' }, { kind: 'photo' }]).length === 3,
   'пачки: фото | видео | фото+',
 )
-ok(
-  storyVideoPublishBody({
+{
+  const videoBody = storyVideoPublishBody({
     body: Buffer.from([1, 2, 3]),
-    query: { op: 'publish-video', sec: '12', caption: 'зал' },
-  })?.op === 'publish-video',
-  'бинарное тело сторис',
-)
+    query: { op: 'publish-video', sec: '12', caption: 'зал', label: 'promo', cta: 'chat' },
+  })
+  ok(videoBody?.op === 'publish-video', 'бинарное тело сторис')
+  ok(videoBody?.label === 'promo' && videoBody?.cta === 'chat', 'видео несёт вид и кнопку')
+}
 ok(storyVideoPublishBody({ body: Buffer.from([1]), query: { op: 'send', sec: '3' } }) == null, 'чужой op не сторис')
 const now = Date.parse('2026-10-25T12:00:00Z')
 const exp = storyExpiresAt(now, STORY_LIFETIME_DAYS)

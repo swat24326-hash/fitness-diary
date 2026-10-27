@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Camera, ImagePlus, X } from 'lucide-react'
-import { STORY_CAPTION_MAX, STORY_MAX_FRAMES } from '../../lib/stories/storyClubCore.js'
+import {
+  STORY_CAPTION_MAX,
+  STORY_DEFAULT_CTA,
+  STORY_MAX_FRAMES,
+} from '../../lib/stories/storyClubCore.js'
 import { prepareStoryVideo } from '../../lib/stories/storyVideoPrepare.js'
 import { isStoryVideoSupported } from '../../lib/stories/storyVideoRecord.js'
 import { StoryComposeEdit } from './StoryComposeEdit.jsx'
@@ -17,11 +21,13 @@ function previewSrc(frame) {
 }
 
 /**
- * Выкладка сторис клуба как в Telegram: фото (с лёгким редактором), видео из галереи или с камеры.
+ * Выкладка сторис клуба: один кадр (правка фото) → вид / кнопка у клиента → опубликовать.
  */
 export function StoryCompose({ busy, error, onClose, onSubmit }) {
   const [frames, setFrames] = useState([])
   const [active, setActive] = useState(0)
+  const [label, setLabel] = useState('promo')
+  const [cta, setCta] = useState(STORY_DEFAULT_CTA)
   const [localError, setLocalError] = useState('')
   const [record, setRecord] = useState(false)
   const [editQueue, setEditQueue] = useState([])
@@ -127,6 +133,8 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
             return
           }
           onSubmit({
+            label,
+            cta,
             frames: frames.map((frame) =>
               frame.kind === 'video'
                 ? { kind: 'video', blob: frame.blob, mime: frame.mime, sec: frame.sec, caption: frame.caption }
@@ -148,7 +156,7 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
           </button>
           <div className="stories-compose__heading">
             <strong>Новая сторис</strong>
-            <span>24 часа · фото с правкой или видео до 60 с</span>
+            <span>24 часа · одно фото или видео</span>
           </div>
           <span className="stories-compose__top-spacer" aria-hidden />
         </header>
@@ -161,13 +169,13 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
               <img className="stories-compose__preview" src={previewSrc(current)} alt="" />
             )
           ) : (
-            <p className="stories-compose__hint">До {STORY_MAX_FRAMES} кадров · фото можно подрезать</p>
+            <p className="stories-compose__hint">Одно фото или видео · фото можно подрезать</p>
           )}
         </div>
 
         <div className="stories-compose__dock">
           {frames.length ? (
-            <ul className="stories-compose__film" aria-label="Кадры">
+            <ul className="stories-compose__film" aria-label="Кадр">
               {frames.map((frame, i) => (
                 <li key={i} className={i === active ? 'is-active' : undefined}>
                   <button
@@ -198,44 +206,65 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
             </ul>
           ) : null}
 
-          <div className="stories-compose__actions" role="group" aria-label="Добавить кадр">
-            <button
-              type="button"
-              className="stories-compose__action btn-touch"
-              onClick={() => fileRef.current?.click()}
-              disabled={busy || !canAdd}
-              aria-label="Галерея"
-              title="Галерея"
-            >
-              <ImagePlus size={26} aria-hidden />
-            </button>
-            {canRecord ? (
+          {canAdd ? (
+            <div className="stories-compose__actions" role="group" aria-label="Добавить кадр">
               <button
                 type="button"
-                className="stories-compose__action stories-compose__action--cam btn-touch"
-                onClick={() => setRecord(true)}
-                disabled={busy || !canAdd}
-                aria-label="Снять видео"
-                title="Снять видео"
+                className="stories-compose__action btn-touch"
+                onClick={() => fileRef.current?.click()}
+                disabled={busy}
+                aria-label="Галерея"
+                title="Галерея"
               >
-                <Camera size={26} aria-hidden />
+                <ImagePlus size={26} aria-hidden />
               </button>
-            ) : null}
-          </div>
+              {canRecord ? (
+                <button
+                  type="button"
+                  className="stories-compose__action stories-compose__action--cam btn-touch"
+                  onClick={() => setRecord(true)}
+                  disabled={busy}
+                  aria-label="Снять видео"
+                  title="Снять видео"
+                >
+                  <Camera size={26} aria-hidden />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           {current ? (
-            <label className="stories-compose__caption">
-              <span className="u-visually-hidden">Подпись к кадру {active + 1}</span>
-              <input
-                value={current.caption}
-                maxLength={STORY_CAPTION_MAX}
-                placeholder="Подпись (необязательно)"
-                disabled={busy}
-                onChange={(e) =>
-                  setFrames(frames.map((item, n) => (n === active ? { ...item, caption: e.target.value } : item)))
-                }
-              />
-            </label>
+            <>
+              <div className="stories-compose__meta">
+                <label>
+                  Вид
+                  <select value={label} disabled={busy} onChange={(e) => setLabel(e.target.value)}>
+                    <option value="promo">Акция</option>
+                    <option value="news">Новость</option>
+                  </select>
+                </label>
+                <label>
+                  Кнопка у клиента
+                  <select value={cta} disabled={busy} onChange={(e) => setCta(e.target.value)}>
+                    <option value="none">Без кнопки</option>
+                    <option value="chat">Написать менеджеру</option>
+                    <option value="membership">Мой абонемент</option>
+                  </select>
+                </label>
+              </div>
+              <label className="stories-compose__caption">
+                <span className="u-visually-hidden">Подпись</span>
+                <input
+                  value={current.caption}
+                  maxLength={STORY_CAPTION_MAX}
+                  placeholder="Подпись (необязательно)"
+                  disabled={busy}
+                  onChange={(e) =>
+                    setFrames(frames.map((item, n) => (n === active ? { ...item, caption: e.target.value } : item)))
+                  }
+                />
+              </label>
+            </>
           ) : null}
 
           {localError || error ? <p className="stories-compose__error">{localError || error}</p> : null}
@@ -244,9 +273,11 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
             <button type="button" className="btn btn-ghost btn-touch" onClick={onClose} disabled={busy}>
               Отмена
             </button>
-            <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !frames.length}>
-              {busy ? 'Выкладываем…' : 'Опубликовать'}
-            </button>
+            {frames.length ? (
+              <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
+                {busy ? 'Выкладываем…' : 'Опубликовать'}
+              </button>
+            ) : null}
           </footer>
         </div>
 
@@ -254,10 +285,10 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
           ref={fileRef}
           type="file"
           accept="image/*,video/*"
-          multiple
           hidden
           onChange={(e) => {
-            void addFiles([...e.target.files])
+            const file = e.target.files?.[0]
+            if (file) void addFiles([file])
             e.target.value = ''
           }}
         />

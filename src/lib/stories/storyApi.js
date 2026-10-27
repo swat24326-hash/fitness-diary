@@ -11,7 +11,7 @@ export function fetchStaffStories(clubId) {
   return inboxApiCall('stories', 'GET', clubId ? { club_id: clubId } : {})
 }
 
-function publishStaffPhotos(clubId, frames) {
+function publishStaffPhotos(clubId, frames, meta = {}) {
   return inboxApiCall(
     'stories',
     'POST',
@@ -19,18 +19,22 @@ function publishStaffPhotos(clubId, frames) {
     {
       op: 'publish',
       club_id: clubId,
+      label: meta.label,
+      cta: meta.cta,
       frames: frames.map(({ data, w, h, caption }) => ({ data, w, h, caption })),
     },
     { timeoutMs: SLOW },
   )
 }
 
-function publishStaffVideo(clubId, frame) {
+function publishStaffVideo(clubId, frame, meta = {}) {
   const params = {
     op: 'publish-video',
     sec: String(frame.sec),
     ...(clubId ? { club_id: clubId } : {}),
     ...(frame.caption ? { caption: String(frame.caption) } : {}),
+    ...(meta.label ? { label: String(meta.label) } : {}),
+    ...(meta.cta ? { cta: String(meta.cta) } : {}),
   }
   return inboxApiCall('stories', 'POST', params, null, {
     raw: frame.blob,
@@ -41,11 +45,15 @@ function publishStaffVideo(clubId, frame) {
 /** Фото JSON; видео — бинарно (как в чате). Смесь — несколько сторис подряд. */
 export async function publishStaffStory(body) {
   const clubId = body?.club_id
+  const meta = { label: body?.label, cta: body?.cta }
   const batches = storyPublishBatches(body?.frames)
   if (!batches.length) throw new Error('Добавьте хотя бы одно фото или видео')
   let pack = null
   for (const batch of batches) {
-    pack = batch[0]?.kind === 'video' ? await publishStaffVideo(clubId, batch[0]) : await publishStaffPhotos(clubId, batch)
+    pack =
+      batch[0]?.kind === 'video'
+        ? await publishStaffVideo(clubId, batch[0], meta)
+        : await publishStaffPhotos(clubId, batch, meta)
   }
   return pack
 }
@@ -78,23 +86,27 @@ export function fetchCoachStories() {
   return coachRequest({ view: 'stories' })
 }
 
-function publishCoachPhotos(frames) {
+function publishCoachPhotos(frames, meta = {}) {
   return coachRequest(
     {},
     {
       op: 'story-publish',
+      label: meta.label,
+      cta: meta.cta,
       frames: frames.map(({ data, w, h, caption }) => ({ data, w, h, caption })),
     },
     { timeoutMs: SLOW },
   )
 }
 
-function publishCoachVideo(frame) {
+function publishCoachVideo(frame, meta = {}) {
   return coachRequest(
     {
       op: 'story-publish-video',
       sec: String(frame.sec),
       ...(frame.caption ? { caption: String(frame.caption) } : {}),
+      ...(meta.label ? { label: String(meta.label) } : {}),
+      ...(meta.cta ? { cta: String(meta.cta) } : {}),
     },
     null,
     { raw: frame.blob, timeoutMs: CHAT_VIDEO_FETCH_MS },
@@ -102,11 +114,15 @@ function publishCoachVideo(frame) {
 }
 
 export async function publishCoachStory(body) {
+  const meta = { label: body?.label, cta: body?.cta }
   const batches = storyPublishBatches(body?.frames)
   if (!batches.length) throw new Error('Добавьте хотя бы одно фото или видео')
   let pack = null
   for (const batch of batches) {
-    pack = batch[0]?.kind === 'video' ? await publishCoachVideo(batch[0]) : await publishCoachPhotos(batch)
+    pack =
+      batch[0]?.kind === 'video'
+        ? await publishCoachVideo(batch[0], meta)
+        : await publishCoachPhotos(batch, meta)
   }
   return pack
 }
