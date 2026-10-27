@@ -5,7 +5,7 @@ import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
 export const TRAINER_ATTENTION_GROUPS = [
   {
     id: 'base',
-    title: 'База и поводы',
+    title: 'Зал и поводы',
     keys: ['pnk', 'birthdays'],
   },
   {

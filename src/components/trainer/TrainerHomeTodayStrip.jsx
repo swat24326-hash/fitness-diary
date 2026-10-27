@@ -31,9 +31,8 @@ function AttentionTile({ card }) {
 }
 
 /**
- * Главная тренера — как на скрине планшета:
- * Сегодня внимание → Зал → База и поводы → По абонементу (столбиком).
- * Качество всегда в ряду «Зал», чтобы сетка не прыгала.
+ * Главная тренера: Сегодня внимание → Зал и поводы (3 в ряд) → По абонементу.
+ * Качество всегда первым в ряду с ПНК/ДР — сетка из 3 колонок не прыгает.
  */
 export function TrainerHomeTodayStrip({
   summary = null,
@@ -41,7 +40,17 @@ export function TrainerHomeTodayStrip({
   cqGlance = null,
   cqLoading = false,
 }) {
-  const groups = summary ? groupTrainerAttentionItems(buildTrainerAttentionItems(summary)) : []
+  const placeholderSummary = {
+    pnk: 0,
+    birthdays: 0,
+    expiring: 0,
+    expired_recent: 0,
+    stale: 0,
+    inactive: 0,
+  }
+  const groups = groupTrainerAttentionItems(
+    buildTrainerAttentionItems(summary || (attentionLoading ? placeholderSummary : null)),
+  )
   const baseGroup = groups.find((g) => g.id === 'base')
   const pathGroup = groups.find((g) => g.id === 'path')
   const cqCount = (Number(cqGlance?.thin) || 0) + (Number(cqGlance?.stuck) || 0)
@@ -69,46 +78,41 @@ export function TrainerHomeTodayStrip({
       </div>
 
       <div className="trainer-today-strip__rail">
-        <div className="trainer-today-strip__block trainer-today-strip__block--ops">
-          <h3 className="trainer-today-strip__block-title">Зал</h3>
-          <div className="trainer-today-strip__cluster trainer-today-strip__cluster--ops" aria-label="Зал">
-            {cqBusy ? (
-              <div className="trainer-today-tile trainer-today-tile--cq" aria-busy="true">
-                <span className="trainer-today-tile__icon" aria-hidden>
-                  <Gauge size={18} />
-                </span>
-                <span className="trainer-today-tile__count muted">…</span>
-                <span className="trainer-today-tile__label">Качество</span>
-                <span className="trainer-today-tile__hint muted">загрузка</span>
-              </div>
-            ) : (
-              <Link
-                to="/trainer/profile"
-                className="trainer-today-tile trainer-today-tile--cq u-no-decoration"
-                title={cqHeadline || undefined}
-              >
-                <span className="trainer-today-tile__icon" aria-hidden>
-                  <Gauge size={18} />
-                </span>
-                <span className="trainer-today-tile__count">{cqCount}</span>
-                <span className="trainer-today-tile__label">Качество</span>
-                <span className="trainer-today-tile__hint muted">подробнее</span>
-              </Link>
-            )}
-          </div>
-        </div>
-
         <div className="trainer-today-strip__block trainer-today-strip__block--base">
-          <h3 className="trainer-today-strip__block-title">База и поводы</h3>
-          {attentionLoading && !summary ? (
-            <p className="trainer-today-strip__clients-loading muted">…</p>
-          ) : (
-            <ul className="trainer-today-strip__cluster trainer-today-strip__cluster--base" aria-label="База и поводы">
-              {(baseGroup?.cards ?? []).map((card) => (
-                <AttentionTile key={card.key} card={card} />
-              ))}
-            </ul>
-          )}
+          <h3 className="trainer-today-strip__block-title">Зал и поводы</h3>
+          <ul
+            className="trainer-today-strip__cluster trainer-today-strip__cluster--base"
+            aria-label="Зал и поводы"
+          >
+            <li>
+              {cqBusy ? (
+                <div className="trainer-today-tile trainer-today-tile--cq" aria-busy="true">
+                  <span className="trainer-today-tile__icon" aria-hidden>
+                    <Gauge size={18} />
+                  </span>
+                  <span className="trainer-today-tile__count muted">…</span>
+                  <span className="trainer-today-tile__label">Качество</span>
+                  <span className="trainer-today-tile__hint muted">загрузка</span>
+                </div>
+              ) : (
+                <Link
+                  to="/trainer/profile"
+                  className="trainer-today-tile trainer-today-tile--cq u-no-decoration"
+                  title={cqHeadline || undefined}
+                >
+                  <span className="trainer-today-tile__icon" aria-hidden>
+                    <Gauge size={18} />
+                  </span>
+                  <span className="trainer-today-tile__count">{cqCount}</span>
+                  <span className="trainer-today-tile__label">Качество</span>
+                  <span className="trainer-today-tile__hint muted">подробнее</span>
+                </Link>
+              )}
+            </li>
+            {(baseGroup?.cards ?? []).map((card) => (
+              <AttentionTile key={card.key} card={card} />
+            ))}
+          </ul>
         </div>
 
         <div className="trainer-today-strip__block trainer-today-strip__block--path">
