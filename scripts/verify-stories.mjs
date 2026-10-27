@@ -55,6 +55,15 @@ import {
 } from '../src/lib/stories/storyGestureCore.js'
 import { storyPublishBatches } from '../src/lib/stories/storyPublishCore.js'
 import { storyVideoPublishBody } from '../api/_lib/stories/storyVideoBody.js'
+import {
+  STORY_EDIT_ASPECT,
+  STORY_EDIT_PRESETS,
+  clampStoryEdit,
+  storyEditApplyPreset,
+  storyEditDefaults,
+  storyEditFilterCss,
+  storyEditSourceRect,
+} from '../src/lib/stories/storyEditCore.js'
 
 const CLUB = '11111111-1111-4111-8111-111111111111'
 const OTHER = '22222222-2222-4222-8222-222222222222'
@@ -184,6 +193,21 @@ ok(storySwipeIntent({ dx: 0, dy: STORY_SWIPE_CLOSE_PX }) === 'close', 'свай�
 ok(storySwipeIntent({ dx: -80, dy: 10 }) === 'peer-next', 'свайп влево — следующий автор')
 ok(storySwipeIntent({ dx: 80, dy: 10 }) === 'peer-prev', 'свайп вправо — предыдущий автор')
 ok(storySwipeIntent({ dx: 5, dy: 5 }) === 'none', 'дрожь пальца не жест')
+
+console.log('редактор')
+ok(Math.abs(STORY_EDIT_ASPECT - 9 / 16) < 1e-9, 'кадр 9:16')
+ok(STORY_EDIT_PRESETS.length >= 4 && STORY_EDIT_PRESETS[0].id === 'orig', 'пресеты цвета')
+ok(clampStoryEdit(100, -40, 40) === 40 && clampStoryEdit(-99, -40, 40) === -40, 'clamp тона')
+ok(storyEditFilterCss({ brightness: 0, contrast: 0, saturation: 0 }) === 'brightness(100%) contrast(100%) saturate(100%)', 'фильтр как есть')
+ok(storyEditFilterCss(storyEditApplyPreset('bright')).includes('brightness(118%)'), 'пресет ярче')
+{
+  const wide = storyEditSourceRect(1920, 1080, storyEditDefaults())
+  ok(Math.abs(wide.sw / wide.sh - STORY_EDIT_ASPECT) < 0.02 && wide.sh === 1080, 'cover широкого — высота целиком')
+  const tall = storyEditSourceRect(1080, 1920, { zoom: 1, ox: 0, oy: 0 })
+  ok(Math.abs(tall.sw / tall.sh - STORY_EDIT_ASPECT) < 0.02 && tall.sw === 1080, 'cover высокого — ширина целиком')
+  const zoomed = storyEditSourceRect(1080, 1920, { zoom: 2, ox: 0, oy: 0 })
+  ok(zoomed.sw < tall.sw && zoomed.sh < tall.sh, 'зум уменьшает окно кадра')
+}
 
 console.log('файл')
 const key = storyStorageKey(CLUB, STORY, 0, 'image/jpeg')

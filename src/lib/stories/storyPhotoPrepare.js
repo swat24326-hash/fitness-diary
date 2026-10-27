@@ -5,7 +5,7 @@ const MAX_SIDE = 1600
 const START_QUALITY = 0.86
 const MIN_QUALITY = 0.52
 
-function blobToFrame(blob, w, h) {
+export function blobToStoryPhotoFrame(blob, w, h) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => {
@@ -47,7 +47,7 @@ export function prepareStoryPhoto(file) {
             reject(new Error('Фото больше лимита — выберите другое'))
             return
           }
-          resolve(await blobToFrame(blob, w, h))
+          resolve(await blobToStoryPhotoFrame(blob, w, h))
         }, 'image/jpeg', quality)
       }
       tryQuality(START_QUALITY)

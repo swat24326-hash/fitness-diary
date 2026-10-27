@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Camera, ImagePlus, X } from 'lucide-react'
 import { STORY_CAPTION_MAX, STORY_MAX_FRAMES } from '../../lib/stories/storyClubCore.js'
-import { prepareStoryPhoto } from '../../lib/stories/storyPhotoPrepare.js'
 import { prepareStoryVideo } from '../../lib/stories/storyVideoPrepare.js'
 import { isStoryVideoSupported } from '../../lib/stories/storyVideoRecord.js'
+import { StoryComposeEdit } from './StoryComposeEdit.jsx'
 import { StoryComposeRecord } from './StoryComposeRecord.jsx'
 
 function isVideoFile(file) {
@@ -17,14 +17,14 @@ function previewSrc(frame) {
 }
 
 /**
- * Выкладка сторис клуба как в Telegram: фото, видео из галереи или с камеры.
- * Срок всегда сутки, без кнопки у клиента — задаёт сервер.
+ * Выкладка сторис клуба как в Telegram: фото (с лёгким редактором), видео из галереи или с камеры.
  */
 export function StoryCompose({ busy, error, onClose, onSubmit }) {
   const [frames, setFrames] = useState([])
   const [active, setActive] = useState(0)
   const [localError, setLocalError] = useState('')
   const [record, setRecord] = useState(false)
+  const [editQueue, setEditQueue] = useState([])
   const fileRef = useRef(null)
   const canRecord = isStoryVideoSupported()
 
@@ -41,24 +41,35 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
 
   const addFrames = (items) => {
     setLocalError('')
-    const next = [...frames, ...items].slice(0, STORY_MAX_FRAMES)
-    setFrames(next)
-    if (next.length > frames.length) setActive(next.length - 1)
+    setFrames((prev) => {
+      const next = [...prev, ...items].slice(0, STORY_MAX_FRAMES)
+      if (next.length > prev.length) setActive(next.length - 1)
+      return next
+    })
   }
 
   const addFiles = async (list) => {
     setLocalError('')
-    const added = []
+    const room = STORY_MAX_FRAMES - frames.length
+    if (room <= 0) return
+    const photos = []
+    const videos = []
     for (const file of list) {
-      if (frames.length + added.length >= STORY_MAX_FRAMES) break
+      if (photos.length + videos.length >= room) break
+      if (isVideoFile(file)) videos.push(file)
+      else photos.push(file)
+    }
+    const added = []
+    for (const file of videos) {
       try {
-        added.push(isVideoFile(file) ? await prepareStoryVideo(file) : { ...(await prepareStoryPhoto(file)), kind: 'photo' })
+        added.push(await prepareStoryVideo(file))
       } catch (e) {
-        setLocalError(e?.message || 'Файл не открылся — попробуйте другой')
+        setLocalError(e?.message || 'Видео не открылось — попробуйте другое')
         break
       }
     }
     if (added.length) addFrames(added)
+    if (photos.length) setEditQueue((q) => [...q, ...photos].slice(0, room))
   }
 
   const dropFrame = (i) => {
@@ -76,6 +87,21 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
 
   const current = frames[active] ?? null
   const canAdd = frames.length < STORY_MAX_FRAMES
+  const editing = editQueue[0] ?? null
+
+  if (editing) {
+    return createPortal(
+      <StoryComposeEdit
+        file={editing}
+        onCancel={() => setEditQueue((q) => q.slice(1))}
+        onDone={(frame) => {
+          addFrames([frame])
+          setEditQueue((q) => q.slice(1))
+        }}
+      />,
+      document.body,
+    )
+  }
 
   if (record) {
     return createPortal(
@@ -122,7 +148,7 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
           </button>
           <div className="stories-compose__heading">
             <strong>Новая сторис</strong>
-            <span>24 часа · фото или видео до 60 с</span>
+            <span>24 часа · фото с правкой или видео до 60 с</span>
           </div>
           <span className="stories-compose__top-spacer" aria-hidden />
         </header>
@@ -144,7 +170,7 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
               >
                 <ImagePlus size={36} aria-hidden />
                 <span>Фото или видео из галереи</span>
-                <small>До {STORY_MAX_FRAMES} кадров · видео до 60 с</small>
+                <small>До {STORY_MAX_FRAMES} кадров · фото можно подрезать и подправить</small>
               </button>
               {canRecord ? (
                 <button
