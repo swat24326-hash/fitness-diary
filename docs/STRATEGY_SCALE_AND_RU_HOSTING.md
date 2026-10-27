@@ -348,11 +348,11 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Бэкап prod Supabase — проект не тронут, копия для отката (30.09).
 - [x] Репликация / dump → РФ Postgres (проверка целостности: counts clients/trainings/memberships) — `r3-copy-data.mjs`, 30.09.
 - [x] Cutover (30.09 ночь): **`https://app-core.ru`** → РФ ВМ (DNS A + HTTPS + `PUBLIC_ORIGIN`); Auth URLs. [R3_DOMAIN.md](./R3_DOMAIN.md).
-- [ ] Планшеты: новый ярлык PWA на `https://app-core.ru`.
+- [x] Планшеты: новый ярлык PWA на `https://app-core.ru` — владелец 27.10: все на новом адресе.
 - [x] 3–7 дней усиленного мониторинга Sync и статистики — владелец 06.10: 6 дней, всё работает нормально.
-- [ ] Rollback-план: DNS назад + старый Supabase read-only на окно.
+- [x] Rollback на старый Vercel/Supabase — больше невозможен (R4: оба края сняты). Откат прода — бэкап Managed PG + DNS/ВМ ([RUNBOOK.md](./RUNBOOK.md) §8).
 
-#### Фаза R4 — decommission старого края (✅ 16.10 — Supabase удалён; Vercel redirect пока держим)
+#### Фаза R4 — decommission старого края (✅ 27.10 — Supabase и Vercel сняты)
 
 - [x] Нет записи в старый Supabase: последняя запись во всех таблицах — 30.09 до 23:08 МСК (`scripts/r4-check-supabase-idle-vm.sh`, 07.10).
 - [x] Финальная выгрузка Supabase на ВМ (РФ): `/var/backups/fitness-diary/r4-supabase-2026-10-07/` (gzip NDJSON, 39 таблиц + auth.users, mode 700/600, владелец osapp); файл = облако по каждой таблице, в Managed PG строк ≥ (`scripts/r4-export-supabase.mjs`).
@@ -362,11 +362,11 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Своя ночная копия Managed PG на ВМ (`scripts/pg-backup-install-vm.sh`, 04:30 МСК, 14 дн.) ✅ 07.10 — плюс автокопии Yandex 7 дн.; восстановление — RUNBOOK §8.
 - [x] Защита кластера от удаления — ✅ 07.10 (GrokBot `2026-10-07-02`).
 - [x] Копия вне аккаунта Yandex — ноутбук владельца: `C:\fd-backups` (`pg-backup-pull-laptop.ps1`, свежий `fd-2026-10-16.dump.gpg` перед Delete); задача Планировщика `FitnessDiary-DB-Backup`.
-- [x] Supabase → **Delete project** ✅ 16.10 (команда владельца «R4»; CLI `projects delete hrylzinyasucjecltxpc`; список проектов пуст; `app-core.ru/api/health` 200). Vercel: **redirect оставляем** (старые ярлыки планшетов), Delete project Vercel — отдельно, когда ярлыки уйдут.
+- [x] Supabase → **Delete project** ✅ 16.10 (команда владельца «R4»; CLI `projects delete hrylzinyasucjecltxpc`; список проектов пуст; `app-core.ru/api/health` 200).
 - [x] CORS `/api/*` только свой домен — ✅ 12.10 на prod (`1ed24bf`) (`corsOriginCore.js` из `PUBLIC_ORIGIN`, `verify-cors-origin`).
 - [x] После удаления: убран `authPortSupabase.js` (порт только `AUTH_PROVIDER=own`); удалены `supabase/functions/` (legacy Edge). Ветки `DATA_BACKEND≠pg` в pgRest — ещё в коде для verify/локалки; прод всегда `pg`.
 - [x] [DEPLOY.md](./DEPLOY.md), [RUNBOOK.md](./RUNBOOK.md) §3–4c/§8, [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — хостер = РФ (12.10); GROWTH_PLAYBOOK уже с пометкой «история».
-- [ ] Vercel — отменить или оставить только CI-preview / redirect по решению команды (не блокер ПДн).
+- [x] Vercel → **Delete project** ✅ 27.10 (команда владельца «удаляй»; CLI `vercel project rm fitness-diary --yes`; алиас `fitness-diary-bice.vercel.app` → 404; `app-core.ru/api/health` 200). Проект `fitnes-academy` в аккаунте не трогали.
 
 ### 5.5. Риски и как снижаем
 
@@ -600,6 +600,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 | 2026-10-06 | Внешний пентест prod | Серьёзных дыр нет: RLS держит, API требует токен, перебор → 429, файлы скрыты. Одна находка — CORS `*` | Сузить CORS после R4; результат в §5.7 «Внешний пентест 2026-10-06» |
 | 2026-10-07 | **Старт R4** | Владелец делегировал («ты руководитель; безопасность, производительность, монетизация»). Главный риск — копия базы клиентов в Supabase вне РФ. Порядок: проверка «не пишут» → выгрузка на ВМ → ключи с ВМ → пауза проекта → удаление | Чеклист «Фаза R4» выше |
 | 2026-10-16 | **R4 Delete Supabase** | Команда владельца «R4». Бэкапы: daily на ВМ до 16.10, Object Storage `.gpg`, laptop `C:\fd-backups\fd-2026-10-16.dump.gpg`, экспорт `r4-supabase-2026-10-07`. Проект `hrylzinyasucjecltxpc` удалён (был INACTIVE с 07.10). Прод `app-core.ru` health 200. Код: без `authPortSupabase` / `supabase/functions/` | Vercel redirect пока; полный вынос `DATA_BACKEND≠pg` — по желанию |
+| 2026-10-27 | **R4 Delete Vercel** | Владелец: все на `app-core.ru`. CLI удалил проект `fitness-diary` (алиас `fitness-diary-bice.vercel.app` → 404). Прод health 200 | R4 закрыт полностью; `vercel.json` в репо — история, деплой только ВМ |
 
 ---
 

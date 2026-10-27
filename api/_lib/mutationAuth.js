@@ -18,6 +18,7 @@ import {
   needsClientClubForTrainerCheck,
 } from '../../src/lib/trainer/trainerPushClubBindingCore.js'
 import { assertTrainerClientTrainerIdUpdate } from '../../src/lib/trainer/trainerClientPushAuthCore.js'
+import { assertTrainerClientHallLifecyclePush } from '../../src/lib/trainer/trainerClientHallLifecyclePushAuthCore.js'
 import { assertChallengeClub } from '../../src/lib/challengePushClubCore.js'
 import { assertClientPlanPush } from '../../src/lib/clientPlans/clientPlanCore.js'
 import { assertHomeworkAutoPush } from '../../src/lib/homework/auto/homeworkAutoScheduleCore.js'
@@ -667,12 +668,6 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     }
 
     if (table_name === 'client_hall_lifecycle') {
-      const hall = String(payload.hall ?? '').trim().toLowerCase()
-      if (op === 'insert' || op === 'update') {
-        if (hall && hall !== 'pz') {
-          return { ok: false, error: 'Тренер может закрывать только направление ПЗ' }
-        }
-      }
       if (op === 'delete') {
         const { data: row } = await supabaseAdmin
           .from('client_hall_lifecycle')
@@ -680,9 +675,8 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
           .eq('id', remote_id)
           .maybeSingle()
         if (!row?.client_id) return { ok: true }
-        if (String(row.hall ?? '') !== 'pz') {
-          return { ok: false, error: 'Тренер может менять только направление ПЗ' }
-        }
+        const hallGate = assertTrainerClientHallLifecyclePush({ operation: 'delete', hall: row.hall })
+        if (!hallGate.ok) return hallGate
         return (await canAccessClient(ctx, row.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
       if (op === 'update') {
@@ -692,14 +686,27 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
           .eq('id', remote_id)
           .maybeSingle()
         if (!row?.client_id) return { ok: false, error: 'Запись направления не найдена' }
-        if (String(row.hall ?? '') !== 'pz') {
-          return { ok: false, error: 'Тренер может менять только направление ПЗ' }
-        }
+        const hallGate = assertTrainerClientHallLifecyclePush({
+          operation: 'update',
+          hall: payload.hall ?? row.hall,
+          close_reason: payload.close_reason,
+          ...(Object.prototype.hasOwnProperty.call(payload, 'closed_at')
+            ? { closed_at: payload.closed_at }
+            : {}),
+        })
+        if (!hallGate.ok) return hallGate
         if (!(await canAccessClient(ctx, row.client_id))) {
           return { ok: false, error: 'Нет доступа к клиенту' }
         }
         return assertPayloadClientMatchesExisting(payload, row.client_id)
       }
+      const hallGate = assertTrainerClientHallLifecyclePush({
+        operation: 'insert',
+        hall: payload.hall,
+        close_reason: payload.close_reason,
+        closed_at: payload.closed_at,
+      })
+      if (!hallGate.ok) return hallGate
       if (!(await canAccessClient(ctx, payload.client_id))) {
         return { ok: false, error: 'Нет доступа к клиенту' }
       }

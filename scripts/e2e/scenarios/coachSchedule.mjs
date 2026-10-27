@@ -304,6 +304,8 @@ export async function run(browser) {
     await scrollBoardTo(page, 22 * 60)
     await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 23:00"]').click()
     const group = page.getByRole('dialog')
+    await group.waitFor({ state: 'visible', timeout: 10_000 })
+    await group.getByLabel(GROUP[0]).waitFor({ state: 'visible', timeout: 10_000 })
     for (const name of GROUP) await group.getByLabel(name).check()
     c.ok((await group.getByTestId('schedule-clients-count').innerText()).includes('Выбрано 15 из 15'), 'группа: «Выбрано 15 из 15»')
     c.ok(await group.getByLabel(CLIENT_NAME).isDisabled(), 'группа: 16-го клиента отметить нельзя')

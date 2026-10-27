@@ -33,7 +33,7 @@
 
 **Ошибки БД в ответах:** клиент получает русский текст по SQLSTATE с нейтральным маркером класса (`duplicate key`, `foreign key violation`, `does not exist`, `permission denied`) и, если есть, именем ограничения в `[…]` (по нему подсказки «Помощи» на планшете) — без значений строк и эха ввода; `/rest/v1` сохраняет `code`, `details`/`hint` = null. Сырой текст — только в логе сервера (`api/_lib/dbErrorPublicCore.js`). Статусы не менялись. Остальные хендлеры (админка, ИСКРА, прайсы, ПНК…) получают ошибку из data client уже очищенной (`pgErrorForServer`): без `detail`/`hint`, эха ввода и ошибок подключения к базе; английский текст Postgres с именами таблиц/колонок остаётся (на нём фоллбэки старой схемы).
 
-С 01.10.2026 прод — свой Node-хост (`server/portableApiHost.js` подхватывает любой `api/<name>.js`), лимит Vercel Hobby больше не действует; `client-*` — 13–15-й файлы. Vercel оставлен только redirect'ом. Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer`. Legacy Edge `supabase/functions/*` для прода не нужен.
+С 01.10.2026 прод — свой Node-хост (`server/portableApiHost.js` подхватывает любой `api/<name>.js`), лимит Vercel Hobby больше не действует; `client-*` — 13–15-й файлы. Проект Vercel удалён 27.10 (R4). Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer`. Legacy Edge `supabase/functions/*` для прода не нужен.
 
 ---
 

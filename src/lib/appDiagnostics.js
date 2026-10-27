@@ -73,6 +73,10 @@ export function suggestErrorHint(row) {
   if (/homework_auto_sessions_check/i.test(text)) {
     return 'В авто-ДЗ выбрано число занятий, которое база ещё не принимала. Обновите приложение и нажмите Sync — «1», «2» и «3» уходят нормально.'
   }
+  // До общей ветки check: публичный текст уже содержит «check constraint» + [имя].
+  if (/trainings_type_check|type_check|списание/i.test(text)) {
+    return 'Старый формат тренировки в очереди. Обновите приложение (перезагрузка страницы) и нажмите Sync.'
+  }
   if (/violates check constraint|check constraint/i.test(text)) {
     return 'Данные не проходят проверку на сервере. Обновите приложение; если повторяется — скопируйте отчёт администратору.'
   }
@@ -81,9 +85,6 @@ export function suggestErrorHint(row) {
   }
   if (status === 403 || /forbidden|доступ запрещ/i.test(text)) {
     return 'Нет прав на операцию. Проверьте клуб и роль пользователя.'
-  }
-  if (/trainings_type_check|type_check|списание/i.test(text)) {
-    return 'Старый формат тренировки в очереди. Обновите приложение (перезагрузка страницы) и нажмите Sync.'
   }
   if (status === 409 || /duplicate|unique|already exists|409/i.test(text)) {
     return 'Запись уже есть в облаке. Обычно помогает повторная синхронизация.'

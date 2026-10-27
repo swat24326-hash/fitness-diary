@@ -31,6 +31,9 @@ import { addDaysToIso, todayLocalIso } from './dateRu.js'
 
 export const CLIENT_HALL_LIFECYCLE_TABLE = 'client_hall_lifecycle'
 
+/** Причина авто-закрытия зала без живого абона (каскад при close ПЗ и т.п.). */
+export const AUTO_CLOSE_HALL_REASON = 'Закончился абонемент'
+
 /**
  * @param {unknown} raw
  * @returns {import('./membershipHallCore.js').MembershipHall|null}
@@ -167,7 +170,7 @@ export function buildAutoCloseHallsWithoutLiveMembership(p = {}) {
       club_id: clubId,
       hall,
       closed_at: nowIso,
-      close_reason: 'Закончился абонемент',
+      close_reason: AUTO_CLOSE_HALL_REASON,
       close_reason_at: nowIso,
       expected_return_on: null,
       updated_at: nowIso,

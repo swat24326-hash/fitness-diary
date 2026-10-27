@@ -8,7 +8,7 @@
 
 Правила кода для Cursor — `.cursor/rules/` (политика). Этот handoff — **нарратив**: что за продукт и куда смотреть. Не дублировать политику целиком.
 
-**Хостинг (актуально 16.10.2026):** прод в РФ — Yandex Cloud: ВМ `os-hybrid-staging` (Node `server/` как сервис `os-hybrid` + Caddy) и Managed PostgreSQL `os-c2-staging`; свой Auth (`AUTH_PROVIDER=own`, `DATA_BACKEND=pg`). R3 cutover 01.10 ([R3_NIGHT.md](./R3_NIGHT.md)); **R4 ✅ 16.10** — проект Supabase удалён (копия ПДн больше не в США). Vercel — только redirect на `app-core.ru`. Имена `supabase*` в коде и `supabase/migrations/` — исторические (тот же SQL накатывается на PG `scripts/r2-pg-migrate-vm.sh`). Деплой — `scripts/deploy-vm.sh` / стенд (правило `fitness-diary-ship.mdc`). Портативность — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Стек / TypeScript — STRATEGY **§5.9**.  
+**Хостинг (актуально 27.10.2026):** прод в РФ — Yandex Cloud: ВМ `os-hybrid-staging` (Node `server/` как сервис `os-hybrid` + Caddy) и Managed PostgreSQL `os-c2-staging`; свой Auth (`AUTH_PROVIDER=own`, `DATA_BACKEND=pg`). R3 cutover 01.10 ([R3_NIGHT.md](./R3_NIGHT.md)); **R4 ✅** — Supabase удалён 16.10, проект Vercel `fitness-diary` удалён 27.10 (старый `*.vercel.app` больше не живёт). Имена `supabase*` в коде и `supabase/migrations/` — исторические (тот же SQL накатывается на PG `scripts/r2-pg-migrate-vm.sh`). Деплой — `scripts/deploy-vm.sh` / стенд (правило `fitness-diary-ship.mdc`). Портативность — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Стек / TypeScript — STRATEGY **§5.9**.  
 **Безопасность:** спринт после РФ (STRATEGY §5.7) ✅ 07.10; чеклист прода — [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md). Гигиена в фичах — `fitness-diary-security.mdc`.
 
 ---
@@ -28,7 +28,7 @@
 - статистика клуба, продажи / финансы, **ИСКРА** (AI-советник админки), качество ведения;
 - офлайн: **IndexedDB** + **очередь sync** → `/api/push-record(s)` → pull (`trainer-pull`, `admin-data`).
 
-Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`, Caddy — [R3_NIGHT.md](./R3_NIGHT.md)). Старый `https://fitness-diary-bice.vercel.app` — redirect 307. Supabase **удалён 16.10** (R4; выгрузка на ВМ `r4-supabase-2026-10-07`, бэкапы Managed PG в РФ + `C:\fd-backups`).
+Production: **https://app-core.ru** (с 01.10.2026: Yandex VM + Managed PG, `AUTH_PROVIDER=own`, `DATA_BACKEND=pg`, Caddy — [R3_NIGHT.md](./R3_NIGHT.md)). R4: Supabase удалён 16.10; Vercel-проект удалён 27.10 (старый `fitness-diary-bice.vercel.app` — 404). Бэкапы Managed PG в РФ + `C:\fd-backups`.
 
 Привязка устройств тренера (✅ в проде с 10.10 22:31 МСК): заголовок `x-device-id` на входе и продлении, таблица `user_devices`, экран админа `/admin/devices`; включается env `DEVICE_BINDING_SINCE` — [RUNBOOK §4e](./RUNBOOK.md).
 
