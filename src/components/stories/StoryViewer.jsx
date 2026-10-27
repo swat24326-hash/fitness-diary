@@ -8,8 +8,8 @@ import { StoryViewHead } from './StoryViewHead.jsx'
 import { StoryViewers } from './StoryViewers.jsx'
 
 /**
- * Кадры одной или нескольких сторис клуба на весь экран.
- * Полоска сверху течёт и сама открывает следующий кадр (фото ~5 с, видео — по длине).
+ * Просмотр сторис как в Instagram / ВК / Telegram:
+ * кадр в «телефоне» 9:16; на телефоне — на весь экран, на планшете и мониторе — по центру.
  */
 export function StoryViewer({
   stories,
@@ -100,108 +100,113 @@ export function StoryViewer({
       aria-modal="true"
       aria-label={current.story.author_name || current.story.label_ru}
       style={dragY ? { transform: `translate3d(0, ${dragY}px, 0)`, opacity: Math.max(0.45, 1 - dragY / 220) } : undefined}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
-      <div className="stories-view__bars">
-        {flat.map((item, i) => (
-          <span key={`${item.story.id}-${item.frame.id}`} className={i < index ? 'is-done' : i === index && playing ? 'is-run' : ''}>
-            <span
-              className="stories-view__fill"
-              style={i === index ? { animationDuration: `${fillSec}s` } : undefined}
-              onAnimationEnd={i === index ? onFillEnd : undefined}
-            />
+      <div className="stories-view__phone">
+        <div className="stories-view__bars">
+          {flat.map((item, i) => (
+            <span key={`${item.story.id}-${item.frame.id}`} className={i < index ? 'is-done' : i === index && playing ? 'is-run' : ''}>
+              <span
+                className="stories-view__fill"
+                style={i === index ? { animationDuration: `${fillSec}s` } : undefined}
+                onAnimationEnd={i === index ? onFillEnd : undefined}
+              />
+            </span>
+          ))}
+        </div>
+        <StoryViewHead
+          name={current.story.author_name || current.story.label_ru}
+          photo={current.story.author_photo}
+          createdAt={current.story.created_at}
+        />
+        <button type="button" className="stories-view__close btn-touch" onClick={onClose} aria-label="Закрыть">
+          <X size={22} aria-hidden />
+        </button>
+        <div className="stories-view__stage">
+          {leaving ? (
+            videoLeaving ? (
+              <video className={frameClass(leaveClass)} src={leaving.src} muted playsInline preload="auto" />
+            ) : (
+              <img className={frameClass(leaveClass)} src={leaving.src} alt="" />
+            )
+          ) : null}
+          {shown ? (
+            videoShown ? (
+              <video
+                key={shown.frameId}
+                ref={mediaRef}
+                className={frameClass(motion ? `is-${motion}` : '')}
+                src={shown.src}
+                autoPlay
+                playsInline
+                muted={false}
+                preload="auto"
+                onLoadedMetadata={(e) => onVideoMeta(e.currentTarget.duration)}
+                onEnded={onVideoEnded}
+              />
+            ) : (
+              <img
+                key={shown.frameId}
+                className={frameClass(motion ? `is-${motion}` : '')}
+                src={shown.src}
+                alt={current.frame.caption || current.story.author_name || current.story.label_ru}
+              />
+            )
+          ) : null}
+        </div>
+        {!shown && !error ? <p className="stories-view__status">Загружаем…</p> : null}
+        {error ? <p className="stories-view__status stories-view__status--error">{error}</p> : null}
+        <button type="button" className="stories-view__prev" aria-label="Предыдущий кадр" {...bindZone(-1)} />
+        <button type="button" className="stories-view__next" aria-label="Следующий кадр" {...bindZone(1)} />
+        <div className="stories-view__foot">
+          {current.frame.caption ? <p>{current.frame.caption}</p> : null}
+          {canReact ? <StoryReactBar mine={mine} onPick={pickReact} busy={reactBusy} /> : null}
+          <span className="stories-view__actions">
+            {cta === 'chat' && onCta ? (
+              <button type="button" className="btn btn-touch" onClick={() => onCta('chat')}>
+                Написать менеджеру
+              </button>
+            ) : null}
+            {cta === 'membership' && onCta ? (
+              <button type="button" className="btn btn-touch" onClick={() => onCta('membership')}>
+                Мой абонемент
+              </button>
+            ) : null}
+            {onBanPublish && current.story.can_ban ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                onClick={() => onBanPublish(current.story.author_id)}
+              >
+                Запретить выкладывать
+              </button>
+            ) : null}
+            {onUnbanPublish && current.story.can_unban ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                onClick={() => onUnbanPublish(current.story.author_id)}
+              >
+                Разрешить снова
+              </button>
+            ) : null}
           </span>
-        ))}
-      </div>
-      <StoryViewHead
-        name={current.story.author_name || current.story.label_ru}
-        photo={current.story.author_photo}
-        createdAt={current.story.created_at}
-      />
-      <button type="button" className="stories-view__close btn-touch" onClick={onClose} aria-label="Закрыть">
-        <X size={22} aria-hidden />
-      </button>
-      <div className="stories-view__stage">
-        {leaving ? (
-          videoLeaving ? (
-            <video className={frameClass(leaveClass)} src={leaving.src} muted playsInline preload="auto" />
-          ) : (
-            <img className={frameClass(leaveClass)} src={leaving.src} alt="" />
-          )
-        ) : null}
-        {shown ? (
-          videoShown ? (
-            <video
-              key={shown.frameId}
-              ref={mediaRef}
-              className={frameClass(motion ? `is-${motion}` : '')}
-              src={shown.src}
-              autoPlay
-              playsInline
-              muted={false}
-              preload="auto"
-              onLoadedMetadata={(e) => onVideoMeta(e.currentTarget.duration)}
-              onEnded={onVideoEnded}
-            />
-          ) : (
-            <img
-              key={shown.frameId}
-              className={frameClass(motion ? `is-${motion}` : '')}
-              src={shown.src}
-              alt={current.frame.caption || current.story.author_name || current.story.label_ru}
-            />
-          )
-        ) : null}
-      </div>
-      {!shown && !error ? <p className="stories-view__status">Загружаем…</p> : null}
-      {error ? <p className="stories-view__status stories-view__status--error">{error}</p> : null}
-      <button type="button" className="stories-view__prev" aria-label="Предыдущий кадр" {...bindZone(-1)} />
-      <button type="button" className="stories-view__next" aria-label="Следующий кадр" {...bindZone(1)} />
-      <div className="stories-view__foot">
-        {current.frame.caption ? <p>{current.frame.caption}</p> : null}
-        {canReact ? <StoryReactBar mine={mine} onPick={pickReact} busy={reactBusy} /> : null}
-        <span className="stories-view__actions">
-          {cta === 'chat' && onCta ? (
-            <button type="button" className="btn btn-touch" onClick={() => onCta('chat')}>
-              Написать менеджеру
-            </button>
-          ) : null}
-          {cta === 'membership' && onCta ? (
-            <button type="button" className="btn btn-touch" onClick={() => onCta('membership')}>
-              Мой абонемент
-            </button>
-          ) : null}
-          {onBanPublish && current.story.can_ban ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-touch"
-              onClick={() => onBanPublish(current.story.author_id)}
-            >
-              Запретить выкладывать
-            </button>
-          ) : null}
-          {onUnbanPublish && current.story.can_unban ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-touch"
-              onClick={() => onUnbanPublish(current.story.author_id)}
-            >
-              Разрешить снова
-            </button>
-          ) : null}
-        </span>
-        <div className="stories-view__bottom">
-          <StoryViewers viewers={current.story.viewers} open={who} onToggle={() => setWho((v) => !v)} />
-          {onRemove && current.story.can_remove ? (
-            <button
-              type="button"
-              className="stories-view__remove btn-touch"
-              onClick={() => onRemove(current.story.id)}
-              aria-label="Снять сторис"
-              title="Снять сторис"
-            >
-              <Trash2 size={22} aria-hidden />
-            </button>
-          ) : null}
+          <div className="stories-view__bottom">
+            <StoryViewers viewers={current.story.viewers} open={who} onToggle={() => setWho((v) => !v)} />
+            {onRemove && current.story.can_remove ? (
+              <button
+                type="button"
+                className="stories-view__remove btn-touch"
+                onClick={() => onRemove(current.story.id)}
+                aria-label="Снять сторис"
+                title="Снять сторис"
+              >
+                <Trash2 size={22} aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>,

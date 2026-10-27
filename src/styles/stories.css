@@ -177,8 +177,9 @@
 }
 
 .stories-view {
-  /* Полный экран как в Telegram: кадр edge-to-edge, UI поверх. */
-  flex-direction: column;
+  /* Оболочка на весь экран; сам кадр — в .stories-view__phone (9:16), как Instagram / ВК / Telegram. */
+  display: grid;
+  place-items: center;
   padding: 0;
   gap: 0;
   background: #000;
@@ -187,10 +188,24 @@
   user-select: none;
   touch-action: manipulation;
   transition: transform 0.12s linear, opacity 0.12s linear;
+  cursor: default;
 }
 
 .stories-view.is-drag {
   transition: none;
+}
+
+/* Телефон / планшет / монитор: одна рамка 9:16. На узком экране заполняет высоту; на широком — по центру. */
+.stories-view__phone {
+  position: relative;
+  box-sizing: border-box;
+  width: min(100vw, calc(100dvh * 9 / 16));
+  height: min(100dvh, calc(100vw * 16 / 9));
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  background: #000;
 }
 
 /* Выкладка — тот же тёмный полный экран, что просмотр (как в Telegram). */
@@ -1173,6 +1188,7 @@
   background: #000;
 }
 
+/* Фото внутри рамки 9:16 — cover по «телефону», не по всему монитору. */
 .stories-view__frame {
   position: absolute;
   inset: 0;
@@ -1492,27 +1508,95 @@ video.stories-view__frame {
   margin: 4px 0 2px;
 }
 
-.stories-view__react-btn {
-  display: grid;
-  place-items: center;
+/* Перебиваем .btn-touch (padding 12×20) — иначе смайлик уезжает вправо. */
+.stories-view__react-btn.btn-touch {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 44px;
+  min-width: 44px;
   min-height: 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+  color: #fff;
   font-size: 1.25rem;
   line-height: 1;
+  overflow: visible;
+}
+
+.stories-view__react-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  line-height: 1;
+  text-align: center;
+  /* Оптическая середина цветных emoji (Windows / Segoe) */
+  transform: translateY(0.04em);
 }
 
 .stories-view__react-btn.is-on {
   background: color-mix(in srgb, var(--accent) 35%, var(--bg-elevated));
-  transform: scale(1.08);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-.stories-view__react-btn:active:not(:disabled) {
-  transform: scale(1.18);
+.stories-view__react-btn.is-on .stories-view__react-emoji {
+  transform: translateY(0.04em) scale(1.06);
+}
+
+.stories-view__react-btn.is-pop .stories-view__react-emoji {
+  animation: stories-react-pop 0.42s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.stories-view__react-burst {
+  position: absolute;
+  left: 50%;
+  bottom: 55%;
+  z-index: 2;
+  font-size: 1.75rem;
+  line-height: 1;
+  pointer-events: none;
+  animation: stories-react-burst 0.52s var(--ease-out, ease) forwards;
+}
+
+@keyframes stories-react-pop {
+  0% {
+    transform: translateY(0.04em) scale(0.7);
+  }
+  45% {
+    transform: translateY(0.04em) scale(1.28);
+  }
+  100% {
+    transform: translateY(0.04em) scale(1);
+  }
+}
+
+@keyframes stories-react-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 40%) scale(0.35);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -10%) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -120%) scale(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stories-view__react-btn.is-pop .stories-view__react-emoji,
+  .stories-view__react-burst {
+    animation: none;
+  }
 }
 
 .stories-view__who-react {
