@@ -531,24 +531,35 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-/* Кадр 9:16 как в Telegram — превью на canvas, без CSS transform/filter */
+/* Сцена 9:16 — иначе canvas растягивал лицо в широкий flex-блок */
 .stories-compose-edit__stage {
   position: relative;
   z-index: 1;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   margin: 0 auto;
-  width: min(100%, calc(100dvh * 9 / 16));
+  width: min(100%, calc((100dvh - 11rem) * 9 / 16));
   max-width: 100%;
+  aspect-ratio: 9 / 16;
+  height: auto;
+  max-height: 100%;
   overflow: hidden;
   background: #000;
   touch-action: none;
-  cursor: grab;
   border-radius: var(--radius-sm);
 }
 
-.stories-compose-edit__stage:active {
+.stories-compose-edit__stage.is-crop {
+  cursor: grab;
+}
+
+.stories-compose-edit__stage.is-crop:active {
   cursor: grabbing;
+}
+
+.stories-compose-edit__stage.is-draw {
+  cursor: crosshair;
+  touch-action: none;
 }
 
 .stories-compose-edit__canvas {
@@ -619,11 +630,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: min(42dvh, 320px);
+  max-height: min(38dvh, 280px);
   padding:
-    12px
+    10px
     16px
-    max(12px, env(safe-area-inset-bottom, 0px));
+    max(10px, env(safe-area-inset-bottom, 0px));
   background:
     linear-gradient(
       to top,
@@ -639,6 +650,159 @@
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   user-select: auto;
+}
+
+.stories-compose-edit__tool-hint {
+  margin: 0;
+  padding: 4px 8px 2px;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.stories-compose-edit__draw {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stories-compose-edit__swatches {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stories-compose-edit__swatch.btn-touch {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 2px solid color-mix(in srgb, var(--text) 25%, transparent);
+  border-radius: 50%;
+  background: var(--swatch, #fff);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 25%, transparent);
+}
+
+.stories-compose-edit__swatch.is-on {
+  border-color: var(--accent-bright);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, #000 25%, transparent);
+}
+
+.stories-compose-edit__draw-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.stories-compose-edit__widths {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.stories-compose-edit__width.btn-touch {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+
+.stories-compose-edit__width.is-on {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.stories-compose-edit__width-dot {
+  display: block;
+  border-radius: 50%;
+  background: var(--text);
+}
+
+.stories-compose-edit__width-dot--s {
+  width: 6px;
+  height: 6px;
+}
+
+.stories-compose-edit__width-dot--m {
+  width: 10px;
+  height: 10px;
+}
+
+.stories-compose-edit__width-dot--l {
+  width: 14px;
+  height: 14px;
+}
+
+.stories-compose-edit__draw-act.btn-touch {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+
+.stories-compose-edit__draw-act:disabled {
+  opacity: 0.35;
+}
+
+.stories-compose-edit__tools {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.stories-compose-edit__tool.btn-touch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: 8px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.stories-compose-edit__tool.is-on {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-bright);
+}
+
+.stories-compose-edit__tool--done.btn-touch {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent-bright);
+}
+
+.stories-compose-edit__tool:disabled {
+  opacity: 0.45;
 }
 
 .stories-compose-edit__presets {
@@ -706,30 +870,6 @@
   color: var(--danger);
   font-size: 0.875rem;
   text-align: center;
-}
-
-/* Главный CTA в зоне большого пальца */
-.stories-compose-edit__done.btn-touch {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 52px;
-  margin-top: 4px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent) 32%, transparent);
-  color: var(--accent-bright);
-  font: inherit;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
-}
-
-.stories-compose-edit__done:disabled {
-  opacity: 0.45;
 }
 
 .stories-compose__dock {

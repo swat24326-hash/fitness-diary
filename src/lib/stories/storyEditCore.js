@@ -81,6 +81,7 @@ export function storyEditDefaults() {
     contrast: STORY_EDIT_CONTRAST.def,
     saturation: STORY_EDIT_SATURATION.def,
     preset: 'orig',
+    strokes: [],
   }
 }
 
@@ -113,5 +114,31 @@ export function storyEditSetZoom(edit, zoom) {
   return {
     ...edit,
     zoom: clampStoryEdit(zoom, STORY_EDIT_ZOOM.min, STORY_EDIT_ZOOM.max),
+  }
+}
+
+/**
+ * Куда рисовать кадр 9:16 внутри превью, чтобы не растягивать лицо.
+ * Лишние поля — чёрные (letterbox / pillarbox).
+ * @returns {{ dx: number, dy: number, dw: number, dh: number }}
+ */
+export function storyEditPreviewDest(canvasW, canvasH, aspect = STORY_EDIT_ASPECT) {
+  const tw = Math.max(1, Number(canvasW) || 1)
+  const th = Math.max(1, Number(canvasH) || 1)
+  const a = Number(aspect) > 0 ? Number(aspect) : STORY_EDIT_ASPECT
+  let dw
+  let dh
+  if (tw / th > a) {
+    dh = th
+    dw = th * a
+  } else {
+    dw = tw
+    dh = tw / a
+  }
+  return {
+    dx: (tw - dw) / 2,
+    dy: (th - dh) / 2,
+    dw,
+    dh,
   }
 }

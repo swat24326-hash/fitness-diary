@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Minus, Plus, X } from 'lucide-react'
+import { Check, Crop, Eraser, Minus, Palette, Pencil, Plus, Undo2, X } from 'lucide-react'
 import {
   STORY_EDIT_PRESETS,
   STORY_EDIT_ZOOM,
@@ -8,11 +8,25 @@ import {
   storyEditPanByDelta,
   storyEditSetZoom,
 } from '../../lib/stories/storyEditCore.js'
+import {
+  STORY_DRAW_COLORS,
+  STORY_DRAW_WIDTHS,
+  storyDrawAppendPoint,
+  storyDrawDefaults,
+  storyDrawNormFromClient,
+  storyDrawStartStroke,
+  storyDrawUndo,
+} from '../../lib/stories/storyEditDraw.js'
 import { paintStoryEditPreview, renderStoryPhotoEdit } from '../../lib/stories/storyPhotoEdit.js'
 
+const TOOL_TITLE = {
+  crop: { title: 'Кадр', hint: 'Тяните · щипок увеличивает' },
+  draw: { title: 'Рисунок', hint: 'Рисуйте пальцем по кадру' },
+  color: { title: 'Цвет', hint: 'Пресет или ползунки' },
+}
+
 /**
- * Редактор фото сторис как в Telegram: тяни кадр, щипок/± зум, пресеты цвета.
- * Превью на canvas (тот же кадр, что в ленту) — без CSS filter/transform, иначе WebView даёт чёрный экран.
+ * Редактор сторис как в Telegram: кадр / рисунок / цвет, превью на canvas 9:16.
  */
 export function StoryComposeEdit({ file, onDone, onCancel }) {
   const stageRef = useRef(null)
@@ -21,10 +35,13 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
   const live = useRef(storyEditDefaults())
   const drag = useRef(null)
   const pinch = useRef(null)
+  const drawActive = useRef(false)
   const pointers = useRef(new Map())
   const raf = useRef(0)
   const [url, setUrl] = useState('')
   const [edit, setEdit] = useState(() => storyEditDefaults())
+  const [pen, setPen] = useState(() => storyDrawDefaults())
+  const [tool, setTool] = useState('crop')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [ready, setReady] = useState(false)
@@ -56,6 +73,8 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
     const defaults = storyEditDefaults()
     live.current = defaults
     setEdit(defaults)
+    setPen(storyDrawDefaults())
+    setTool('crop')
     setError('')
     setReady(false)
     setBusy(false)
@@ -94,6 +113,25 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
   const onPointerDown = (e) => {
     if (busy || !ready) return
     e.currentTarget.setPointerCapture?.(e.pointerId)
+
+    if (tool === 'draw') {
+      const box = stageRef.current?.getBoundingClientRect()
+      if (!box) return
+      const point = storyDrawNormFromClient(e.clientX, e.clientY, box)
+      drawActive.current = true
+      live.current = {
+        ...live.current,
+        strokes: storyDrawStartStroke(live.current.strokes, {
+          color: pen.color,
+          width: pen.width,
+          point,
+        }),
+      }
+      schedulePaint()
+      return
+    }
+
+    if (tool !== 'crop') return
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (pointers.current.size === 1) {
       drag.current = { x: e.clientX, y: e.clientY, ox: live.current.ox, oy: live.current.oy }
@@ -108,14 +146,27 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
 
   const onPointerMove = (e) => {
     if (busy || !ready) return
+
+    if (tool === 'draw' && drawActive.current) {
+      const box = stageRef.current?.getBoundingClientRect()
+      if (!box) return
+      const point = storyDrawNormFromClient(e.clientX, e.clientY, box)
+      live.current = {
+        ...live.current,
+        strokes: storyDrawAppendPoint(live.current.strokes, point),
+      }
+      schedulePaint()
+      return
+    }
+
+    if (tool !== 'crop') return
     if (!pointers.current.has(e.pointerId)) return
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
     if (pinch.current && pointers.current.size >= 2) {
       const [a, b] = [...pointers.current.values()]
       const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1
-      const nextZoom = pinch.current.zoom * (dist / pinch.current.dist)
-      live.current = storyEditSetZoom(live.current, nextZoom)
+      live.current = storyEditSetZoom(live.current, pinch.current.zoom * (dist / pinch.current.dist))
       schedulePaint()
       return
     }
@@ -123,17 +174,20 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
     if (!drag.current) return
     const box = stageRef.current?.getBoundingClientRect()
     if (!box?.width || !box?.height) return
-    const dxNorm = (e.clientX - drag.current.x) / box.width
-    const dyNorm = (e.clientY - drag.current.y) / box.height
     live.current = storyEditPanByDelta(
       { ...live.current, ox: drag.current.ox, oy: drag.current.oy },
-      dxNorm,
-      dyNorm,
+      (e.clientX - drag.current.x) / box.width,
+      (e.clientY - drag.current.y) / box.height,
     )
     schedulePaint()
   }
 
   const onPointerUp = (e) => {
+    if (tool === 'draw') {
+      drawActive.current = false
+      setEdit({ ...live.current })
+      return
+    }
     pointers.current.delete(e.pointerId)
     if (pointers.current.size < 2) pinch.current = null
     if (pointers.current.size === 1) {
@@ -158,6 +212,9 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
     }
   }
 
+  const meta = TOOL_TITLE[tool] || TOOL_TITLE.crop
+  const strokeCount = edit.strokes?.length || 0
+
   return (
     <div className="stories-compose-edit" role="dialog" aria-modal="true" aria-label="Правка фото">
       <header className="stories-compose-edit__top">
@@ -172,8 +229,8 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
           <X size={22} aria-hidden />
         </button>
         <p className="stories-compose-edit__heading">
-          <strong>Кадр</strong>
-          <span>Тяните · щипок увеличивает</span>
+          <strong>{meta.title}</strong>
+          <span>{meta.hint}</span>
         </p>
         <button
           type="button"
@@ -189,7 +246,7 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
 
       <div
         ref={stageRef}
-        className="stories-compose-edit__stage"
+        className={`stories-compose-edit__stage${tool === 'crop' ? ' is-crop' : ''}${tool === 'draw' ? ' is-draw' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -199,101 +256,207 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
         <div className="stories-compose-edit__veil" aria-hidden />
         <div className="stories-compose-edit__frame" aria-hidden />
 
-        <div className="stories-compose-edit__zoom" role="group" aria-label="Размер">
-          <button
-            type="button"
-            className="stories-compose-edit__zoom-btn btn-touch"
-            disabled={busy || edit.zoom >= STORY_EDIT_ZOOM.max}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => bumpZoom(0.15)}
-            aria-label="Крупнее"
-            title="Крупнее"
-          >
-            <Plus size={20} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="stories-compose-edit__zoom-btn btn-touch"
-            disabled={busy || edit.zoom <= STORY_EDIT_ZOOM.min}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => bumpZoom(-0.15)}
-            aria-label="Мельче"
-            title="Мельче"
-          >
-            <Minus size={20} aria-hidden />
-          </button>
-        </div>
+        {tool === 'crop' ? (
+          <div className="stories-compose-edit__zoom" role="group" aria-label="Размер">
+            <button
+              type="button"
+              className="stories-compose-edit__zoom-btn btn-touch"
+              disabled={busy || edit.zoom >= STORY_EDIT_ZOOM.max}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => bumpZoom(0.15)}
+              aria-label="Крупнее"
+              title="Крупнее"
+            >
+              <Plus size={20} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="stories-compose-edit__zoom-btn btn-touch"
+              disabled={busy || edit.zoom <= STORY_EDIT_ZOOM.min}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => bumpZoom(-0.15)}
+              aria-label="Мельче"
+              title="Мельче"
+            >
+              <Minus size={20} aria-hidden />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="stories-compose-edit__dock">
-        <ul className="stories-compose-edit__presets" aria-label="Цвет">
-          {STORY_EDIT_PRESETS.map((p) => (
-            <li key={p.id}>
+        {tool === 'crop' ? (
+          <p className="stories-compose-edit__tool-hint">Сдвиньте фото — в ленту попадёт то, что в рамке</p>
+        ) : null}
+
+        {tool === 'draw' ? (
+          <div className="stories-compose-edit__draw">
+            <ul className="stories-compose-edit__swatches" aria-label="Цвет пера">
+              {STORY_DRAW_COLORS.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    className={`stories-compose-edit__swatch btn-touch${pen.color === c.hex ? ' is-on' : ''}`}
+                    style={{ '--swatch': c.hex }}
+                    disabled={busy}
+                    onClick={() => setPen((p) => ({ ...p, color: c.hex }))}
+                    aria-label={c.label}
+                    title={c.label}
+                  />
+                </li>
+              ))}
+            </ul>
+            <div className="stories-compose-edit__draw-row">
+              <div className="stories-compose-edit__widths" role="group" aria-label="Толщина">
+                {STORY_DRAW_WIDTHS.map((w) => (
+                  <button
+                    key={w.id}
+                    type="button"
+                    className={`stories-compose-edit__width btn-touch${pen.width === w.w ? ' is-on' : ''}`}
+                    disabled={busy}
+                    onClick={() => setPen((p) => ({ ...p, width: w.w }))}
+                    aria-label={w.label}
+                    title={w.label}
+                  >
+                    <span className={`stories-compose-edit__width-dot stories-compose-edit__width-dot--${w.id}`} />
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
-                className={`stories-compose-edit__preset btn-touch${edit.preset === p.id ? ' is-on' : ''}`}
-                disabled={busy}
-                onClick={() => commitUi({ ...live.current, ...storyEditApplyPreset(p.id) })}
+                className="stories-compose-edit__draw-act btn-touch"
+                disabled={busy || !strokeCount}
+                onClick={() => commitUi({ ...live.current, strokes: storyDrawUndo(live.current.strokes) })}
+                aria-label="Отменить штрих"
+                title="Отменить штрих"
               >
-                {p.label}
+                <Undo2 size={18} aria-hidden />
               </button>
-            </li>
-          ))}
-        </ul>
+              <button
+                type="button"
+                className="stories-compose-edit__draw-act btn-touch"
+                disabled={busy || !strokeCount}
+                onClick={() => commitUi({ ...live.current, strokes: [] })}
+                aria-label="Стереть всё"
+                title="Стереть всё"
+              >
+                <Eraser size={18} aria-hidden />
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-        <div className="stories-compose-edit__tones" aria-label="Точная настройка">
-          <label className="stories-compose-edit__slider">
-            <span>Ярк.</span>
-            <input
-              type="range"
-              min={-40}
-              max={40}
-              value={edit.brightness}
-              disabled={busy}
-              onChange={(e) =>
-                commitUi({ ...live.current, brightness: Number(e.target.value), preset: 'custom' })
-              }
-            />
-          </label>
-          <label className="stories-compose-edit__slider">
-            <span>Контр.</span>
-            <input
-              type="range"
-              min={-40}
-              max={40}
-              value={edit.contrast}
-              disabled={busy}
-              onChange={(e) =>
-                commitUi({ ...live.current, contrast: Number(e.target.value), preset: 'custom' })
-              }
-            />
-          </label>
-          <label className="stories-compose-edit__slider">
-            <span>Цвет</span>
-            <input
-              type="range"
-              min={-40}
-              max={40}
-              value={edit.saturation}
-              disabled={busy}
-              onChange={(e) =>
-                commitUi({ ...live.current, saturation: Number(e.target.value), preset: 'custom' })
-              }
-            />
-          </label>
-        </div>
+        {tool === 'color' ? (
+          <>
+            <ul className="stories-compose-edit__presets" aria-label="Пресеты">
+              {STORY_EDIT_PRESETS.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    className={`stories-compose-edit__preset btn-touch${edit.preset === p.id ? ' is-on' : ''}`}
+                    disabled={busy}
+                    onClick={() => commitUi({ ...live.current, ...storyEditApplyPreset(p.id) })}
+                  >
+                    {p.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="stories-compose-edit__tones" aria-label="Точная настройка">
+              <label className="stories-compose-edit__slider">
+                <span>Ярк.</span>
+                <input
+                  type="range"
+                  min={-40}
+                  max={40}
+                  value={edit.brightness}
+                  disabled={busy}
+                  onChange={(e) =>
+                    commitUi({ ...live.current, brightness: Number(e.target.value), preset: 'custom' })
+                  }
+                />
+              </label>
+              <label className="stories-compose-edit__slider">
+                <span>Контр.</span>
+                <input
+                  type="range"
+                  min={-40}
+                  max={40}
+                  value={edit.contrast}
+                  disabled={busy}
+                  onChange={(e) =>
+                    commitUi({ ...live.current, contrast: Number(e.target.value), preset: 'custom' })
+                  }
+                />
+              </label>
+              <label className="stories-compose-edit__slider">
+                <span>Цвет</span>
+                <input
+                  type="range"
+                  min={-40}
+                  max={40}
+                  value={edit.saturation}
+                  disabled={busy}
+                  onChange={(e) =>
+                    commitUi({ ...live.current, saturation: Number(e.target.value), preset: 'custom' })
+                  }
+                />
+              </label>
+            </div>
+          </>
+        ) : null}
 
         {error ? <p className="stories-compose-edit__error">{error}</p> : null}
 
-        <button
-          type="button"
-          className="stories-compose-edit__done btn-touch"
-          onClick={() => void apply()}
-          disabled={busy || !ready}
-        >
-          <Check size={20} aria-hidden />
-          {busy ? 'Сохраняем…' : 'Готово'}
-        </button>
+        <nav className="stories-compose-edit__tools" aria-label="Инструменты">
+          <button
+            type="button"
+            className={`stories-compose-edit__tool btn-touch${tool === 'crop' ? ' is-on' : ''}`}
+            disabled={busy}
+            onClick={() => setTool('crop')}
+            aria-label="Кадрирование"
+            title="Кадрирование"
+            aria-pressed={tool === 'crop'}
+          >
+            <Crop size={22} aria-hidden />
+            <span>Кадр</span>
+          </button>
+          <button
+            type="button"
+            className={`stories-compose-edit__tool btn-touch${tool === 'draw' ? ' is-on' : ''}`}
+            disabled={busy}
+            onClick={() => setTool('draw')}
+            aria-label="Рисование"
+            title="Рисование"
+            aria-pressed={tool === 'draw'}
+          >
+            <Pencil size={22} aria-hidden />
+            <span>Рисунок</span>
+          </button>
+          <button
+            type="button"
+            className={`stories-compose-edit__tool btn-touch${tool === 'color' ? ' is-on' : ''}`}
+            disabled={busy}
+            onClick={() => setTool('color')}
+            aria-label="Цветокоррекция"
+            title="Цветокоррекция"
+            aria-pressed={tool === 'color'}
+          >
+            <Palette size={22} aria-hidden />
+            <span>Цвет</span>
+          </button>
+          <button
+            type="button"
+            className="stories-compose-edit__tool stories-compose-edit__tool--done btn-touch"
+            disabled={busy || !ready}
+            onClick={() => void apply()}
+            aria-label="Готово"
+            title="Готово"
+          >
+            <Check size={22} aria-hidden />
+            <span>{busy ? '…' : 'Готово'}</span>
+          </button>
+        </nav>
       </div>
     </div>
   )

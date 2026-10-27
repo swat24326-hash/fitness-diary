@@ -64,9 +64,17 @@ import {
   storyEditDefaults,
   storyEditFilterCss,
   storyEditPanByDelta,
+  storyEditPreviewDest,
   storyEditSetZoom,
   storyEditSourceRect,
 } from '../src/lib/stories/storyEditCore.js'
+import {
+  STORY_DRAW_COLORS,
+  storyDrawAppendPoint,
+  storyDrawNormPoint,
+  storyDrawStartStroke,
+  storyDrawUndo,
+} from '../src/lib/stories/storyEditDraw.js'
 
 const CLUB = '11111111-1111-4111-8111-111111111111'
 const OTHER = '22222222-2222-4222-8222-222222222222'
@@ -213,6 +221,19 @@ ok(storyEditFilterCss(storyEditApplyPreset('bright')).includes('brightness(118%)
   const panned = storyEditPanByDelta(storyEditDefaults(), 0.5, 0)
   ok(panned.ox < 0 && panned.oy === 0, 'жест вправо сдвигает кадр влево по ox')
   ok(storyEditSetZoom(storyEditDefaults(), 9).zoom === STORY_EDIT_ZOOM.max, 'зум клампится')
+  const destWide = storyEditPreviewDest(1000, 400)
+  ok(Math.abs(destWide.dw / destWide.dh - STORY_EDIT_ASPECT) < 0.01 && destWide.dh === 400, 'превью в широком — без растяга')
+  const destTall = storyEditPreviewDest(300, 800)
+  ok(Math.abs(destTall.dw / destTall.dh - STORY_EDIT_ASPECT) < 0.01 && destTall.dw === 300, 'превью в высоком — без растяга')
+  ok(Array.isArray(storyEditDefaults().strokes) && storyEditDefaults().strokes.length === 0, 'рисунок пустой по умолчанию')
+  ok(STORY_DRAW_COLORS.length >= 3, 'цвета пера')
+  const dest = { dx: 10, dy: 20, dw: 100, dh: 200 }
+  const mid = storyDrawNormPoint(60, 120, dest)
+  ok(Math.abs(mid.x - 0.5) < 0.01 && Math.abs(mid.y - 0.5) < 0.01, 'точка пера в долях кадра')
+  let strokes = storyDrawStartStroke([], { color: '#fff', width: 0.02, point: { x: 0.1, y: 0.1 } })
+  strokes = storyDrawAppendPoint(strokes, { x: 0.2, y: 0.2 })
+  ok(strokes.length === 1 && strokes[0].points.length === 2, 'штрих набирает точки')
+  ok(storyDrawUndo(strokes).length === 0, 'отмена штриха')
 }
 
 console.log('файл')

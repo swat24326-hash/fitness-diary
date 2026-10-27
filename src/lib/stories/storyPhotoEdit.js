@@ -3,7 +3,8 @@
  * Превью рисуем на canvas тем же кадром — без CSS transform/filter (чёрный экран в WebView).
  */
 import { STORY_PHOTO_MAX_BYTES } from './storyClubCore.js'
-import { storyEditFilterCss, storyEditSourceRect } from './storyEditCore.js'
+import { storyEditFilterCss, storyEditPreviewDest, storyEditSourceRect } from './storyEditCore.js'
+import { paintStoryDrawStrokes } from './storyEditDraw.js'
 import { blobToStoryPhotoFrame } from './storyPhotoPrepare.js'
 
 const OUT_MAX = 1600
@@ -50,6 +51,7 @@ export function paintStoryEditPreview(canvas, img, edit = {}) {
   const iw = img.naturalWidth || img.width || 1
   const ih = img.naturalHeight || img.height || 1
   const { sx, sy, sw, sh } = storyEditSourceRect(iw, ih, edit)
+  const { dx, dy, dw, dh } = storyEditPreviewDest(tw, th)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, tw, th)
   ctx.fillStyle = '#000'
@@ -61,8 +63,10 @@ export function paintStoryEditPreview(canvas, img, edit = {}) {
   } catch {
     ctx.filter = 'none'
   }
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, tw, th)
+  /* Рисуем строго в 9:16 — не растягиваем в широкий stage */
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
   ctx.filter = 'none'
+  paintStoryDrawStrokes(ctx, edit.strokes, dx, dy, dw, dh)
 }
 
 /**
@@ -86,6 +90,7 @@ export async function renderStoryPhotoEdit(objectUrl, edit = {}) {
   ctx.filter = storyEditFilterCss(edit)
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h)
   ctx.filter = 'none'
+  paintStoryDrawStrokes(ctx, edit.strokes, 0, 0, w, h)
 
   let quality = START_Q
   let blob = await canvasToJpeg(canvas, quality)
