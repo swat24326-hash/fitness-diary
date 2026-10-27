@@ -15,6 +15,10 @@ import {
   STORY_PICK_CLUB_RU,
   STORY_REACT_BAD_RU,
   STORY_REACTIONS,
+  STORY_VIDEO_BAD_RU,
+  STORY_VIDEO_JSON_RU,
+  STORY_VIDEO_MAX_BYTES,
+  STORY_VIDEO_MAX_SEC,
   canBanClubStoryAuthor,
   canModerateClubStoryPublish,
   canPublishClubStory,
@@ -31,16 +35,26 @@ import {
   storyFramesOk,
   storyIsLive,
   storyLabelRu,
+  storyMimeIsVideo,
   storyPhotoBytesOk,
+  storyPostedShortRu,
   storyReactionNext,
   storyReactionOk,
   storyRingSegments,
   storyStaffKind,
   storyStorageKey,
+  storyVideoBytesOk,
+  storyVideoSecOk,
   storyViewerKey,
   storyViewerPublic,
   viewClubId,
 } from '../src/lib/stories/storyClubCore.js'
+import {
+  STORY_SWIPE_CLOSE_PX,
+  storySwipeIntent,
+} from '../src/lib/stories/storyGestureCore.js'
+import { storyPublishBatches } from '../src/lib/stories/storyPublishCore.js'
+import { storyVideoPublishBody } from '../api/_lib/stories/storyVideoBody.js'
 
 const CLUB = '11111111-1111-4111-8111-111111111111'
 const OTHER = '22222222-2222-4222-8222-222222222222'
@@ -132,15 +146,49 @@ ok(one.length === 1 && one[0].sweep === 1 && one[0].seen === false, 'одно ф
 ok(two.length === 2 && two.every((s) => !s.seen) && Math.abs(two[0].sweep - two[1].sweep) < 0.001 && two[0].sweep < 0.5, 'два фото — два полукруга')
 ok(mixed[0].seen === true && mixed[1].seen === false, 'смотренная дуга тусклая, новая яркая')
 ok(storyPhotoBytesOk(STORY_PHOTO_MAX_BYTES) && !storyPhotoBytesOk(STORY_PHOTO_MAX_BYTES + 1), 'фото не больше лимита пачки')
+ok(storyVideoBytesOk(STORY_VIDEO_MAX_BYTES) && !storyVideoBytesOk(STORY_VIDEO_MAX_BYTES + 1), 'видео не больше 15 МБ')
+ok(storyVideoSecOk(STORY_VIDEO_MAX_SEC) && !storyVideoSecOk(0) && !storyVideoSecOk(61), 'видео 1…60 с')
+ok(storyMimeIsVideo('video/mp4') && !storyMimeIsVideo('image/jpeg'), 'mime видео')
+ok(typeof STORY_VIDEO_BAD_RU === 'string' && STORY_VIDEO_BAD_RU.includes('60'), 'текст лимита видео')
+ok(typeof STORY_VIDEO_JSON_RU === 'string' && STORY_VIDEO_JSON_RU.includes('Видео'), 'видео не через JSON')
+ok(
+  storyPublishBatches([{ kind: 'photo' }, { kind: 'video' }, { kind: 'photo' }, { kind: 'photo' }]).length === 3,
+  'пачки: фото | видео | фото+',
+)
+ok(
+  storyVideoPublishBody({
+    body: Buffer.from([1, 2, 3]),
+    query: { op: 'publish-video', sec: '12', caption: 'зал' },
+  })?.op === 'publish-video',
+  'бинарное тело сторис',
+)
+ok(storyVideoPublishBody({ body: Buffer.from([1]), query: { op: 'send', sec: '3' } }) == null, 'чужой op не сторис')
 const now = Date.parse('2026-10-25T12:00:00Z')
 const exp = storyExpiresAt(now, STORY_LIFETIME_DAYS)
 ok(storyIsLive({ expiresAt: exp, removedAt: null }, now + 1000), 'живая внутри срока')
 ok(!storyIsLive({ expiresAt: exp, removedAt: null }, Date.parse(exp)), 'после срока не в ряду')
 ok(!storyIsLive({ expiresAt: exp, removedAt: exp }, now), 'снятая не в ряду')
+{
+  const todayIso = '2026-10-25T09:05:00Z'
+  const otherIso = '2026-10-24T09:05:00Z'
+  const clock = (iso) => {
+    const d = new Date(iso)
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+  ok(storyPostedShortRu(todayIso, now) === `сегодня · ${clock(todayIso)}`, 'время шапки — сегодня')
+  ok(storyPostedShortRu(otherIso, now) === `24.10 · ${clock(otherIso)}`, 'время шапки — другой день')
+}
+
+console.log('жесты')
+ok(storySwipeIntent({ dx: 0, dy: STORY_SWIPE_CLOSE_PX }) === 'close', 'свайп вниз — закрыть')
+ok(storySwipeIntent({ dx: -80, dy: 10 }) === 'peer-next', 'свайп влево — следующий автор')
+ok(storySwipeIntent({ dx: 80, dy: 10 }) === 'peer-prev', 'свайп вправо — предыдущий автор')
+ok(storySwipeIntent({ dx: 5, dy: 5 }) === 'none', 'дрожь пальца не жест')
 
 console.log('файл')
 const key = storyStorageKey(CLUB, STORY, 0, 'image/jpeg')
 ok(key === `story/${CLUB}/${STORY}/0.jpg` && isStoryStorageKey(key), 'ключ в папке story/')
+ok(isStoryStorageKey(storyStorageKey(CLUB, STORY, 1, 'video/mp4')), 'ключ видео mp4')
 ok(!isStoryStorageKey('voice/att/u-1/a.jpg') && !isStoryStorageKey(`story/${CLUB}/${STORY}/0.svg`), 'чужой ключ не отдаём')
 ok(storyViewerKey('client', CLUB) === `c:${CLUB}` && storyViewerKey('staff', CLUB) === `u:${CLUB}`, 'кто смотрел — клиент и сотрудник отдельно')
 const viewers = storyViewerPublic(

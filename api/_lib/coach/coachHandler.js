@@ -32,6 +32,7 @@ import { sendChatContacts } from '../chat/chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice } from '../chat/staffDmHandler.js'
 import { handleStaffGroupGet, handleStaffGroupPost } from '../chat/staffGroupRoutes.js'
 import { VIDEO_OPS_COACH, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
+import { storyVideoPublishBody } from '../stories/storyVideoBody.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
 import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { rows } from '../inbox/inboxStore.js'
@@ -205,6 +206,11 @@ export function createCoachHandler(auth = requireCoachUser, store = coachStore) 
     const ctx = await auth(req, res)
     if (!ctx) return
     if (req.method === 'GET') return handleGet(ctx, req, res, store)
-    return handlePost(ctx, res, isVideoUpload(req) ? videoSendBody(req, VIDEO_OPS_COACH) : parseBody(req.body), store)
+    return handlePost(
+      ctx,
+      res,
+      isVideoUpload(req) ? storyVideoPublishBody(req) ?? videoSendBody(req, VIDEO_OPS_COACH) : parseBody(req.body),
+      store,
+    )
   }
 }

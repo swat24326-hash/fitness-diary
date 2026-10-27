@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { loadInChunks } from '../batchCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { checkAttachBytes, checkAttachUpload } from '../../../src/lib/chat/chatAttachCore.js'
+import { checkVideoUpload } from '../../../src/lib/chat/chatVideoCore.js'
 import { deleteVoice, putVoice, getVoice } from '../chat/chatVoiceStorage.js'
 import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
 import {
@@ -21,6 +22,8 @@ import {
   STORY_OTHER_CLUB_RU,
   STORY_REACT_OWN_RU,
   STORY_UNAVAILABLE_RU,
+  STORY_VIDEO_BAD_RU,
+  STORY_VIDEO_JSON_RU,
   canBanClubStoryAuthor,
   canModerateClubStoryPublish,
   canPublishClubStoryNow,
@@ -38,6 +41,7 @@ import {
   storyStaffKind,
   storyStorageKey,
   storyUuid,
+  storyVideoSecOk,
   storyViewerKey,
   storyViewerPublic,
   viewClubId,
@@ -151,7 +155,7 @@ async function listClubStories(db, clubId, viewerKey, opts) {
   if (!stories.length) return []
   const ids = stories.map((s) => s.id)
   const frames = await rows(
-    db.from('club_story_frames').select('id, story_id, pos, w, h, caption').in('story_id', ids).order('pos'),
+    db.from('club_story_frames').select('id, story_id, pos, w, h, caption, mime').in('story_id', ids).order('pos'),
   )
   let mineRows = []
   try {
@@ -191,7 +195,13 @@ async function listClubStories(db, clubId, viewerKey, opts) {
   const byStory = new Map()
   for (const frame of frames) {
     const list = byStory.get(frame.story_id) ?? []
-    list.push({ id: frame.id, caption: frame.caption ?? '', w: frame.w, h: frame.h })
+    list.push({
+      id: frame.id,
+      caption: frame.caption ?? '',
+      w: frame.w,
+      h: frame.h,
+      mime: frame.mime ?? null,
+    })
     byStory.set(frame.story_id, list)
   }
   const authors = await authorMeta(
@@ -221,6 +231,7 @@ async function listClubStories(db, clubId, viewerKey, opts) {
       label: s.label,
       label_ru: storyLabelRu(s.label),
       cta: s.cta,
+      created_at: s.created_at,
       expires_at: s.expires_at,
       seen: seen.has(s.id),
       can_remove: canRemoveClubStory(kind, { authorId: s.author_id, userId }),
@@ -301,6 +312,7 @@ export async function handleStaffStoriesPost(ctx, body, res, put = putVoice) {
   const op = String(body?.op ?? '')
   try {
     if (op === 'publish') return publishStory(ctx, body, res, put)
+    if (op === 'publish-video') return publishStoryVideo(ctx, body, res, put)
     if (op === 'remove') return removeStory(ctx, body, res)
     if (op === 'ban-publish') return banPublish(ctx, body, res, true)
     if (op === 'unban-publish') return banPublish(ctx, body, res, false)
@@ -361,33 +373,16 @@ async function staffStoryMedia(ctx, op, body, res) {
   return sendFrame(ctx.supabaseAdmin, body, res, story.club_id)
 }
 
-async function publishStory(ctx, body, res, put) {
+async function finishPublish(ctx, clubId, prepared, put, res) {
   const kind = storyStaffKind(ctx.roleNorm)
-  const club = publishClubId({ kind, ownClubId: ctx.profile?.club_id, requestedClubId: body?.club_id })
-  if (!club.ok) return fail(res, kind === 'staff' ? 403 : 400, club.error)
-  if (await isPublishBanned(ctx.supabaseAdmin, club.clubId, ctx.user.id)) return fail(res, 403, STORY_BANNED_RU)
-  const frames = Array.isArray(body?.frames) ? body.frames : []
-  if (!storyFramesOk(frames.length)) return fail(res, 400, STORY_BAD_RU)
-  const label = STORY_DEFAULT_LABEL
-  const cta = STORY_DEFAULT_CTA
-  const prepared = []
-  for (const frame of frames) {
-    const caption = storyCaptionOk(frame?.caption)
-    const upload = checkAttachUpload({ kind: 'photo', data: frame?.data, w: frame?.w, h: frame?.h })
-    if (!caption.ok || !upload.ok || !storyPhotoBytesOk(upload.bytes)) return fail(res, 400, STORY_BAD_RU)
-    const bytes = Buffer.from(upload.data, 'base64')
-    const mime = checkAttachBytes('photo', bytes)
-    if (!mime) return fail(res, 400, STORY_BAD_RU)
-    prepared.push({ bytes, mime, w: upload.w, h: upload.h, caption: caption.caption })
-  }
   const id = randomUUID()
   const db = ctx.supabaseAdmin
   const { error } = await db.from('club_stories').insert({
     id,
-    club_id: club.clubId,
+    club_id: clubId,
     author_id: ctx.user.id,
-    label,
-    cta,
+    label: STORY_DEFAULT_LABEL,
+    cta: STORY_DEFAULT_CTA,
     expires_at: storyExpiresAt(Date.now(), STORY_LIFETIME_DAYS),
   })
   if (error) throw error
@@ -395,7 +390,7 @@ async function publishStory(ctx, body, res, put) {
   try {
     for (let pos = 0; pos < prepared.length; pos += 1) {
       const frame = prepared[pos]
-      const key = storyStorageKey(club.clubId, id, pos, frame.mime)
+      const key = storyStorageKey(clubId, id, pos, frame.mime)
       if (!isStoryStorageKey(key)) throw new Error('bad story key')
       await put(key, frame.bytes, frame.mime)
       keys.push(key)
@@ -417,11 +412,55 @@ async function publishStory(ctx, body, res, put) {
     console.warn('[stories]', e?.message || e)
     return fail(res, 502, 'Не получилось выложить — попробуйте ещё раз')
   }
-  const stories = await listClubStories(db, club.clubId, storyViewerKey('staff', ctx.user.id), {
+  const stories = await listClubStories(db, clubId, storyViewerKey('staff', ctx.user.id), {
     kind,
     userId: ctx.user.id,
   })
-  sendJson(res, 200, { club_id: club.clubId, can_publish: true, me: ctx.user.id, stories })
+  sendJson(res, 200, { club_id: clubId, can_publish: true, me: ctx.user.id, stories })
+}
+
+async function publishStory(ctx, body, res, put) {
+  const kind = storyStaffKind(ctx.roleNorm)
+  const club = publishClubId({ kind, ownClubId: ctx.profile?.club_id, requestedClubId: body?.club_id })
+  if (!club.ok) return fail(res, kind === 'staff' ? 403 : 400, club.error)
+  if (await isPublishBanned(ctx.supabaseAdmin, club.clubId, ctx.user.id)) return fail(res, 403, STORY_BANNED_RU)
+  const frames = Array.isArray(body?.frames) ? body.frames : []
+  if (!storyFramesOk(frames.length)) return fail(res, 400, STORY_BAD_RU)
+  const prepared = []
+  for (const frame of frames) {
+    const caption = storyCaptionOk(frame?.caption)
+    if (!caption.ok) return fail(res, 400, STORY_BAD_RU)
+    if (frame?.kind === 'video') return fail(res, 400, STORY_VIDEO_JSON_RU)
+    const upload = checkAttachUpload({ kind: 'photo', data: frame?.data, w: frame?.w, h: frame?.h })
+    if (!upload.ok || !storyPhotoBytesOk(upload.bytes)) return fail(res, 400, STORY_BAD_RU)
+    const bytes = Buffer.from(upload.data, 'base64')
+    const mime = checkAttachBytes('photo', bytes)
+    if (!mime) return fail(res, 400, STORY_BAD_RU)
+    prepared.push({ bytes, mime, w: upload.w, h: upload.h, caption: caption.caption })
+  }
+  return finishPublish(ctx, club.clubId, prepared, put, res)
+}
+
+/** Одно видео в сторис — бинарное тело (как видеокружок в чате), до 60 с. */
+async function publishStoryVideo(ctx, body, res, put) {
+  const kind = storyStaffKind(ctx.roleNorm)
+  const club = publishClubId({ kind, ownClubId: ctx.profile?.club_id, requestedClubId: body?.club_id })
+  if (!club.ok) return fail(res, kind === 'staff' ? 403 : 400, club.error)
+  if (await isPublishBanned(ctx.supabaseAdmin, club.clubId, ctx.user.id)) return fail(res, 403, STORY_BANNED_RU)
+  const caption = storyCaptionOk(body?.caption)
+  if (!caption.ok) return fail(res, 400, STORY_BAD_RU)
+  const bytes = body?.video?.buffer
+  const upload = checkVideoUpload({ bytes, sec: body?.video?.sec })
+  if (!upload.ok || !storyVideoSecOk(upload.sec)) {
+    return fail(res, upload.ok ? 400 : upload.status || 400, STORY_VIDEO_BAD_RU)
+  }
+  return finishPublish(
+    ctx,
+    club.clubId,
+    [{ bytes, mime: upload.mime, w: null, h: null, caption: caption.caption }],
+    put,
+    res,
+  )
 }
 
 async function removeStory(ctx, body, res) {

@@ -1,38 +1,94 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ImagePlus, X } from 'lucide-react'
+import { Camera, ImagePlus, X } from 'lucide-react'
 import { STORY_CAPTION_MAX, STORY_MAX_FRAMES } from '../../lib/stories/storyClubCore.js'
 import { prepareStoryPhoto } from '../../lib/stories/storyPhotoPrepare.js'
+import { prepareStoryVideo } from '../../lib/stories/storyVideoPrepare.js'
+import { isStoryVideoSupported } from '../../lib/stories/storyVideoRecord.js'
+import { StoryComposeRecord } from './StoryComposeRecord.jsx'
+
+function isVideoFile(file) {
+  return String(file?.type || '').startsWith('video/')
+}
+
+function previewSrc(frame) {
+  if (frame.kind === 'video') return frame.previewUrl || ''
+  return `data:image/jpeg;base64,${frame.data}`
+}
 
 /**
- * Выкладка сторис клуба как в Telegram: фото и подпись.
+ * Выкладка сторис клуба как в Telegram: фото, видео из галереи или с камеры.
  * Срок всегда сутки, без кнопки у клиента — задаёт сервер.
  */
 export function StoryCompose({ busy, error, onClose, onSubmit }) {
   const [frames, setFrames] = useState([])
   const [active, setActive] = useState(0)
   const [localError, setLocalError] = useState('')
+  const [record, setRecord] = useState(false)
   const fileRef = useRef(null)
+  const canRecord = isStoryVideoSupported()
 
-  const addFiles = async (list) => {
-    setLocalError('')
-    const next = [...frames]
-    for (const file of list) {
-      if (next.length >= STORY_MAX_FRAMES) break
-      try {
-        const photo = await prepareStoryPhoto(file)
-        next.push({ ...photo, caption: '' })
-      } catch (e) {
-        setLocalError(e?.message || 'Фото не открылось — попробуйте другое')
-        break
+  const framesRef = useRef(frames)
+  framesRef.current = frames
+  useEffect(
+    () => () => {
+      for (const frame of framesRef.current) {
+        if (frame.previewUrl) URL.revokeObjectURL(frame.previewUrl)
       }
-    }
+    },
+    [],
+  )
+
+  const addFrames = (items) => {
+    setLocalError('')
+    const next = [...frames, ...items].slice(0, STORY_MAX_FRAMES)
     setFrames(next)
     if (next.length > frames.length) setActive(next.length - 1)
   }
 
+  const addFiles = async (list) => {
+    setLocalError('')
+    const added = []
+    for (const file of list) {
+      if (frames.length + added.length >= STORY_MAX_FRAMES) break
+      try {
+        added.push(isVideoFile(file) ? await prepareStoryVideo(file) : { ...(await prepareStoryPhoto(file)), kind: 'photo' })
+      } catch (e) {
+        setLocalError(e?.message || 'Файл не открылся — попробуйте другой')
+        break
+      }
+    }
+    if (added.length) addFrames(added)
+  }
+
+  const dropFrame = (i) => {
+    const doomed = frames[i]
+    if (doomed?.previewUrl) URL.revokeObjectURL(doomed.previewUrl)
+    const next = frames.filter((_, n) => n !== i)
+    setFrames(next)
+    setActive((prev) => {
+      if (!next.length) return 0
+      if (prev > i) return prev - 1
+      if (prev === i) return Math.min(i, next.length - 1)
+      return prev
+    })
+  }
+
   const current = frames[active] ?? null
   const canAdd = frames.length < STORY_MAX_FRAMES
+
+  if (record) {
+    return createPortal(
+      <StoryComposeRecord
+        onCancel={() => setRecord(false)}
+        onDone={(frame) => {
+          addFrames([{ ...frame, caption: '' }])
+          setRecord(false)
+        }}
+      />,
+      document.body,
+    )
+  }
 
   return createPortal(
     <div className="stories-compose" role="dialog" aria-modal="true" aria-label="Новая сторис">
@@ -41,11 +97,15 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
         onSubmit={(e) => {
           e.preventDefault()
           if (!frames.length) {
-            setLocalError('Добавьте хотя бы одно фото')
+            setLocalError('Добавьте хотя бы одно фото или видео')
             return
           }
           onSubmit({
-            frames: frames.map(({ data, w, h, caption }) => ({ data, w, h, caption })),
+            frames: frames.map((frame) =>
+              frame.kind === 'video'
+                ? { kind: 'video', blob: frame.blob, mime: frame.mime, sec: frame.sec, caption: frame.caption }
+                : { kind: 'photo', data: frame.data, w: frame.w, h: frame.h, caption: frame.caption },
+            ),
           })
         }}
       >
@@ -62,113 +122,137 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
           </button>
           <div className="stories-compose__heading">
             <strong>Новая сторис</strong>
-            <span>24 часа · без кнопки</span>
+            <span>24 часа · фото или видео до 60 с</span>
           </div>
           <span className="stories-compose__top-spacer" aria-hidden />
         </header>
 
         <div className="stories-compose__stage">
           {current ? (
-            <img
-              className="stories-compose__preview"
-              src={`data:image/jpeg;base64,${current.data}`}
-              alt=""
-            />
+            current.kind === 'video' ? (
+              <video className="stories-compose__preview" src={previewSrc(current)} muted playsInline controls />
+            ) : (
+              <img className="stories-compose__preview" src={previewSrc(current)} alt="" />
+            )
           ) : (
-            <button
-              type="button"
-              className="stories-compose__empty btn-touch"
-              onClick={() => fileRef.current?.click()}
-              disabled={busy}
-            >
-              <ImagePlus size={36} aria-hidden />
-              <span>Добавить фото</span>
-              <small>До {STORY_MAX_FRAMES} кадров</small>
-            </button>
+            <div className="stories-compose__empty-wrap">
+              <button
+                type="button"
+                className="stories-compose__empty btn-touch"
+                onClick={() => fileRef.current?.click()}
+                disabled={busy}
+              >
+                <ImagePlus size={36} aria-hidden />
+                <span>Фото или видео из галереи</span>
+                <small>До {STORY_MAX_FRAMES} кадров · видео до 60 с</small>
+              </button>
+              {canRecord ? (
+                <button
+                  type="button"
+                  className="stories-compose__cam btn-touch"
+                  onClick={() => setRecord(true)}
+                  disabled={busy}
+                >
+                  <Camera size={22} aria-hidden />
+                  Снять видео
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
 
-        {frames.length ? (
-          <ul className="stories-compose__film" aria-label="Кадры">
-            {frames.map((frame, i) => (
-              <li key={i} className={i === active ? 'is-active' : undefined}>
-                <button
-                  type="button"
-                  className="stories-compose__thumb btn-touch"
-                  onClick={() => setActive(i)}
-                  aria-label={`Кадр ${i + 1}`}
-                  aria-current={i === active ? 'true' : undefined}
-                >
-                  <img src={`data:image/jpeg;base64,${frame.data}`} alt="" />
-                </button>
-                <button
-                  type="button"
-                  className="stories-compose__drop btn-touch"
-                  aria-label={`Убрать кадр ${i + 1}`}
-                  title={`Убрать кадр ${i + 1}`}
-                  disabled={busy}
-                  onClick={() => {
-                    const next = frames.filter((_, n) => n !== i)
-                    setFrames(next)
-                    setActive((prev) => {
-                      if (!next.length) return 0
-                      if (prev > i) return prev - 1
-                      if (prev === i) return Math.min(i, next.length - 1)
-                      return prev
-                    })
-                  }}
-                >
-                  <X size={16} aria-hidden />
-                </button>
-              </li>
-            ))}
-            {canAdd ? (
-              <li className="stories-compose__film-add">
-                <button
-                  type="button"
-                  className="stories-compose__thumb stories-compose__thumb--add btn-touch"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={busy}
-                  aria-label="Ещё фото"
-                  title="Ещё фото"
-                >
-                  <ImagePlus size={22} aria-hidden />
-                </button>
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
+        <div className="stories-compose__dock">
+          {frames.length ? (
+            <ul className="stories-compose__film" aria-label="Кадры">
+              {frames.map((frame, i) => (
+                <li key={i} className={i === active ? 'is-active' : undefined}>
+                  <button
+                    type="button"
+                    className="stories-compose__thumb btn-touch"
+                    onClick={() => setActive(i)}
+                    aria-label={`Кадр ${i + 1}`}
+                    aria-current={i === active ? 'true' : undefined}
+                  >
+                    {frame.kind === 'video' ? (
+                      <video src={previewSrc(frame)} muted playsInline preload="metadata" />
+                    ) : (
+                      <img src={previewSrc(frame)} alt="" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="stories-compose__drop btn-touch"
+                    aria-label={`Убрать кадр ${i + 1}`}
+                    title={`Убрать кадр ${i + 1}`}
+                    disabled={busy}
+                    onClick={() => dropFrame(i)}
+                  >
+                    <X size={16} aria-hidden />
+                  </button>
+                </li>
+              ))}
+              {canAdd ? (
+                <li className="stories-compose__film-add">
+                  <button
+                    type="button"
+                    className="stories-compose__thumb stories-compose__thumb--add btn-touch"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={busy}
+                    aria-label="Ещё из галереи"
+                    title="Ещё из галереи"
+                  >
+                    <ImagePlus size={22} aria-hidden />
+                  </button>
+                </li>
+              ) : null}
+              {canAdd && canRecord ? (
+                <li className="stories-compose__film-add">
+                  <button
+                    type="button"
+                    className="stories-compose__thumb stories-compose__thumb--add btn-touch"
+                    onClick={() => setRecord(true)}
+                    disabled={busy}
+                    aria-label="Снять видео"
+                    title="Снять видео"
+                  >
+                    <Camera size={22} aria-hidden />
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
 
-        {current ? (
-          <label className="stories-compose__caption">
-            <span className="u-visually-hidden">Подпись к кадру {active + 1}</span>
-            <input
-              value={current.caption}
-              maxLength={STORY_CAPTION_MAX}
-              placeholder="Подпись (необязательно)"
-              disabled={busy}
-              onChange={(e) =>
-                setFrames(frames.map((item, n) => (n === active ? { ...item, caption: e.target.value } : item)))
-              }
-            />
-          </label>
-        ) : null}
+          {current ? (
+            <label className="stories-compose__caption">
+              <span className="u-visually-hidden">Подпись к кадру {active + 1}</span>
+              <input
+                value={current.caption}
+                maxLength={STORY_CAPTION_MAX}
+                placeholder="Подпись (необязательно)"
+                disabled={busy}
+                onChange={(e) =>
+                  setFrames(frames.map((item, n) => (n === active ? { ...item, caption: e.target.value } : item)))
+                }
+              />
+            </label>
+          ) : null}
 
-        {localError || error ? <p className="stories-compose__error">{localError || error}</p> : null}
+          {localError || error ? <p className="stories-compose__error">{localError || error}</p> : null}
 
-        <footer className="stories-compose__bar">
-          <button type="button" className="btn btn-ghost btn-touch" onClick={onClose} disabled={busy}>
-            Отмена
-          </button>
-          <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !frames.length}>
-            {busy ? 'Выкладываем…' : 'Опубликовать'}
-          </button>
-        </footer>
+          <footer className="stories-compose__bar">
+            <button type="button" className="btn btn-ghost btn-touch" onClick={onClose} disabled={busy}>
+              Отмена
+            </button>
+            <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !frames.length}>
+              {busy ? 'Выкладываем…' : 'Опубликовать'}
+            </button>
+          </footer>
+        </div>
 
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           hidden
           onChange={(e) => {

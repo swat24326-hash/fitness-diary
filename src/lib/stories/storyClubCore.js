@@ -16,6 +16,12 @@ export const STORY_LIFETIME_DAYS = 1
 export const STORY_MIN_DAYS = STORY_LIFETIME_DAYS
 export const STORY_MAX_DAYS = STORY_LIFETIME_DAYS
 export const STORY_PHOTO_MAX_BYTES = 650_000
+/** Видео в кадре — как в чате: бинарный POST до 15 МБ / 60 с. */
+export const STORY_VIDEO_MAX_BYTES = 15 * 1024 * 1024
+export const STORY_VIDEO_MAX_SEC = 60
+export const STORY_VIDEO_MIN_SEC = 1
+/** Фото без видео — полоска ~5 с. */
+export const STORY_PHOTO_SEC = 5
 /** Подпись кружка без выбора «вид» в UI. */
 export const STORY_DEFAULT_LABEL = 'news'
 /** Без кнопки у клиента — как обычная сторис в Telegram. */
@@ -28,6 +34,8 @@ export const STORY_PICK_CLUB_RU = 'Выберите клуб'
 export const STORY_OTHER_CLUB_RU = 'Это чужой клуб'
 export const STORY_NO_CLUB_RU = 'У вас не задан клуб — обратитесь к администратору'
 export const STORY_BAD_RU = 'Проверьте фото и подпись'
+export const STORY_VIDEO_BAD_RU = 'Видео не подошло — до 60 секунд и не слишком тяжёлое'
+export const STORY_VIDEO_JSON_RU = 'Видео выкладывайте как файл — через камеру или из галереи'
 export const STORY_GONE_RU = 'Сторис уже нет'
 export const STORY_OFFLINE_RU = 'Сторис откроются, когда появится связь'
 export const STORY_UNAVAILABLE_RU = 'Сторис пока недоступны'
@@ -38,7 +46,13 @@ export const STORY_REACT_BAD_RU = 'Такую реакцию поставить 
 export const STORY_REACTIONS = Object.freeze(['👍', '❤️', '🔥', '💪', '😂', '🙏'])
 
 const LABEL_RU = Object.freeze({ news: 'Новость', promo: 'Акция' })
-const EXT = Object.freeze({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })
+const EXT = Object.freeze({
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+})
 
 export function storyUuid(raw) {
   return UUID_RE.test(String(raw ?? '').trim())
@@ -148,6 +162,38 @@ export function storyFramesOk(count) {
 
 export function storyPhotoBytesOk(bytes) {
   return Number.isInteger(bytes) && bytes >= 100 && bytes <= STORY_PHOTO_MAX_BYTES
+}
+
+export function storyVideoBytesOk(bytes) {
+  return Number.isInteger(bytes) && bytes >= 1000 && bytes <= STORY_VIDEO_MAX_BYTES
+}
+
+export function storyVideoSecOk(sec) {
+  const n = Number(sec)
+  return Number.isInteger(n) && n >= STORY_VIDEO_MIN_SEC && n <= STORY_VIDEO_MAX_SEC
+}
+
+export function storyMimeIsVideo(mime) {
+  return String(mime ?? '').startsWith('video/')
+}
+
+/**
+ * Время у шапки сторис как в Telegram: «сегодня · 14:32» или «25.10 · 14:32».
+ * @param {string|null|undefined} iso
+ * @param {number} [nowMs]
+ */
+export function storyPostedShortRu(iso, nowMs = Date.now()) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const clock = `${hh}:${mm}`
+  const now = new Date(nowMs)
+  if (d.toDateString() === now.toDateString()) return `сегодня · ${clock}`
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return `${day}.${month} · ${clock}`
 }
 
 /** Дуги кольца: одно фото — круг, два — полукруги. Яркость решает seen сторис. */
@@ -271,5 +317,5 @@ export function storyStorageKey(clubId, storyId, pos, mime) {
 }
 
 export function isStoryStorageKey(key) {
-  return /^story\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/\d\.(jpg|png|webp)$/.test(String(key ?? ''))
+  return /^story\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/\d\.(jpg|png|webp|mp4|webm)$/.test(String(key ?? ''))
 }

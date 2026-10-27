@@ -1,7 +1,9 @@
 /** Реклама клуба в сторис. Только онлайн — очередь sync не трогаем. */
 import { postClientMe } from '../client/clientSession.js'
 import { coachRequest } from '../coach/coachSession.js'
+import { CHAT_VIDEO_FETCH_MS } from '../chat/chatVideoTransport.js'
 import { inboxApiCall } from '../inbox/inboxAdminApiClient.js'
+import { storyPublishBatches } from './storyPublishCore.js'
 
 const SLOW = 60_000
 
@@ -9,8 +11,43 @@ export function fetchStaffStories(clubId) {
   return inboxApiCall('stories', 'GET', clubId ? { club_id: clubId } : {})
 }
 
-export function publishStaffStory(body) {
-  return inboxApiCall('stories', 'POST', {}, { op: 'publish', ...body }, { timeoutMs: SLOW })
+function publishStaffPhotos(clubId, frames) {
+  return inboxApiCall(
+    'stories',
+    'POST',
+    {},
+    {
+      op: 'publish',
+      club_id: clubId,
+      frames: frames.map(({ data, w, h, caption }) => ({ data, w, h, caption })),
+    },
+    { timeoutMs: SLOW },
+  )
+}
+
+function publishStaffVideo(clubId, frame) {
+  const params = {
+    op: 'publish-video',
+    sec: String(frame.sec),
+    ...(clubId ? { club_id: clubId } : {}),
+    ...(frame.caption ? { caption: String(frame.caption) } : {}),
+  }
+  return inboxApiCall('stories', 'POST', params, null, {
+    raw: frame.blob,
+    timeoutMs: CHAT_VIDEO_FETCH_MS,
+  })
+}
+
+/** Фото JSON; видео — бинарно (как в чате). Смесь — несколько сторис подряд. */
+export async function publishStaffStory(body) {
+  const clubId = body?.club_id
+  const batches = storyPublishBatches(body?.frames)
+  if (!batches.length) throw new Error('Добавьте хотя бы одно фото или видео')
+  let pack = null
+  for (const batch of batches) {
+    pack = batch[0]?.kind === 'video' ? await publishStaffVideo(clubId, batch[0]) : await publishStaffPhotos(clubId, batch)
+  }
+  return pack
 }
 
 export function removeStaffStory(id) {
@@ -41,8 +78,37 @@ export function fetchCoachStories() {
   return coachRequest({ view: 'stories' })
 }
 
-export function publishCoachStory(body) {
-  return coachRequest({}, { op: 'story-publish', ...body }, { timeoutMs: SLOW })
+function publishCoachPhotos(frames) {
+  return coachRequest(
+    {},
+    {
+      op: 'story-publish',
+      frames: frames.map(({ data, w, h, caption }) => ({ data, w, h, caption })),
+    },
+    { timeoutMs: SLOW },
+  )
+}
+
+function publishCoachVideo(frame) {
+  return coachRequest(
+    {
+      op: 'story-publish-video',
+      sec: String(frame.sec),
+      ...(frame.caption ? { caption: String(frame.caption) } : {}),
+    },
+    null,
+    { raw: frame.blob, timeoutMs: CHAT_VIDEO_FETCH_MS },
+  )
+}
+
+export async function publishCoachStory(body) {
+  const batches = storyPublishBatches(body?.frames)
+  if (!batches.length) throw new Error('Добавьте хотя бы одно фото или видео')
+  let pack = null
+  for (const batch of batches) {
+    pack = batch[0]?.kind === 'video' ? await publishCoachVideo(batch[0]) : await publishCoachPhotos(batch)
+  }
+  return pack
 }
 
 export function removeCoachStory(id) {

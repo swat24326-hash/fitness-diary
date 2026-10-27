@@ -102,8 +102,17 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
     [stories, pack?.me],
   )
   const openGroup = groups.find((g) => g.author_id === openAuthorId) ?? null
+  const openAuthorIndex = groups.findIndex((g) => g.author_id === openAuthorId)
   const bannedPublishers = Array.isArray(pack?.banned_publishers) ? pack.banned_publishers : []
   if (!groups.length && !canPublish && !bannedPublishers.length && !error) return null
+
+  const stepPeer = (delta) => {
+    if (openAuthorIndex < 0) return false
+    const next = groups[openAuthorIndex + delta]
+    if (!next) return false
+    setOpenAuthorId(next.author_id)
+    return true
+  }
 
   const onSeen = (id) => {
     setPack((prev) =>
@@ -179,9 +188,11 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
       ) : null}
       {openGroup ? (
         <StoryViewer
+          key={openGroup.author_id}
           stories={openGroup.stories}
           loadFrame={api.frame}
           onSeen={onSeen}
+          onPeer={stepPeer}
           onClose={() => {
             setOpenAuthorId(null)
             if (canPublish || openGroup.mine) load()

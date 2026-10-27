@@ -82,6 +82,7 @@ import { handleClientRatingsAdminGet } from './_lib/clientRatings/clientRatingAd
 import { handleStaffChatGet, handleStaffChatPost } from './_lib/chat/chatStaffHandler.js'
 import { handleStaffStoriesGet, handleStaffStoriesPost } from './_lib/stories/storyHandler.js'
 import { VIDEO_OPS_STAFF, isVideoUpload, videoSendBody } from './_lib/chat/chatVideoHandler.js'
+import { storyVideoPublishBody } from './_lib/stories/storyVideoBody.js'
 import { handleTrainerDeviceSetPost, handleTrainerDevicesGet } from './_lib/trainerDevicesAdmin.js'
 import {
   handleDeviceHealthGet,
@@ -144,7 +145,13 @@ async function handler(req, res) {
       sendJson(res, 405, { error: 'Method not allowed' })
       return
     }
-    const body = isVideoUpload(req) ? (action === 'chat' ? videoSendBody(req, VIDEO_OPS_STAFF) : null) : parseJsonBody(req)
+    const body = isVideoUpload(req)
+      ? action === 'chat'
+        ? videoSendBody(req, VIDEO_OPS_STAFF)
+        : action === 'stories'
+          ? storyVideoPublishBody(req)
+          : null
+      : parseJsonBody(req)
     if (!body) {
       sendJson(res, 400, { error: 'Invalid JSON' })
       return
