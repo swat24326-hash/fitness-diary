@@ -9,7 +9,8 @@ export const STORY_EDIT_ASPECT = 9 / 16
 export const STORY_EDIT_TONE_RANGE = Object.freeze({ min: -40, max: 40, step: 1, def: 0 })
 export const STORY_EDIT_FADE_RANGE = Object.freeze({ min: 0, max: 40, step: 1, def: 0 })
 export const STORY_EDIT_ENHANCE_RANGE = Object.freeze({ min: 0, max: 100, step: 1, def: 0 })
-export const STORY_EDIT_ZOOM = Object.freeze({ min: 1, max: 3, step: 0.05, def: 1 })
+/** zoom=1 — вся картинка в кадре 9:16 (поля чёрные); дальше приближение до cover и сильнее. */
+export const STORY_EDIT_ZOOM = Object.freeze({ min: 1, max: 4, step: 0.05, def: 1 })
 
 /** Совместимость со старыми именами. */
 export const STORY_EDIT_BRIGHTNESS = STORY_EDIT_TONE_RANGE
@@ -91,37 +92,44 @@ export function storyEditFilterCss(t = {}) {
 }
 
 /**
- * Область cover 9:16 внутри картинки при зуме и сдвиге.
- * @returns {{ sx: number, sy: number, sw: number, sh: number }}
+ * Куда положить картинку в кадре 9:16.
+ * zoom=1 — contain (весь баннер виден, поля чёрные); больше — приближение.
+ * @returns {{ dx: number, dy: number, dw: number, dh: number }}
  */
-export function storyEditSourceRect(imgW, imgH, { zoom = 1, ox = 0, oy = 0 } = {}) {
-  const w = Math.max(1, Number(imgW) || 1)
-  const h = Math.max(1, Number(imgH) || 1)
+export function storyEditImageDest(imgW, imgH, outW, outH, { zoom = 1, ox = 0, oy = 0 } = {}) {
+  const iw = Math.max(1, Number(imgW) || 1)
+  const ih = Math.max(1, Number(imgH) || 1)
+  const ow = Math.max(1, Number(outW) || 1)
+  const oh = Math.max(1, Number(outH) || 1)
   const z = clampStoryEdit(zoom, STORY_EDIT_ZOOM.min, STORY_EDIT_ZOOM.max)
-  const aspect = STORY_EDIT_ASPECT
-  let sw
-  let sh
-  if (w / h > aspect) {
-    sh = h / z
-    sw = sh * aspect
-  } else {
-    sw = w / z
-    sh = sw / aspect
-  }
-  sw = Math.min(w, Math.max(1, sw))
-  sh = Math.min(h, Math.max(1, sh))
-  const maxX = Math.max(0, w - sw)
-  const maxY = Math.max(0, h - sh)
+  const contain = Math.min(ow / iw, oh / ih)
+  const dw = iw * contain * z
+  const dh = ih * contain * z
+  const maxShiftX = Math.max(0, (dw - ow) / 2)
+  const maxShiftY = Math.max(0, (dh - oh) / 2)
   const nx = clampStoryEdit(ox, -1, 1)
   const ny = clampStoryEdit(oy, -1, 1)
-  const sx = maxX * (0.5 + nx * 0.5)
-  const sy = maxY * (0.5 + ny * 0.5)
   return {
-    sx: clampStoryEdit(sx, 0, maxX),
-    sy: clampStoryEdit(sy, 0, maxY),
-    sw,
-    sh,
+    dx: (ow - dw) / 2 - nx * maxShiftX,
+    dy: (oh - dh) / 2 - ny * maxShiftY,
+    dw,
+    dh,
   }
+}
+
+/**
+ * Зум, при котором картинка впервые закрывает кадр 9:16 (cover).
+ * У широкого баннера > 1 — при zoom=1 бока не режутся.
+ */
+export function storyEditCoverZoom(imgW, imgH, aspect = STORY_EDIT_ASPECT) {
+  const iw = Math.max(1, Number(imgW) || 1)
+  const ih = Math.max(1, Number(imgH) || 1)
+  const a = Number(aspect) > 0 ? Number(aspect) : STORY_EDIT_ASPECT
+  const imgAspect = iw / ih
+  if (!(imgAspect > 0)) return 1
+  if (imgAspect > a) return imgAspect / a
+  if (imgAspect < a) return a / imgAspect
+  return 1
 }
 
 export function storyEditDefaults() {

@@ -21,7 +21,7 @@ import {
 import { paintStoryEditPreview, renderStoryPhotoEdit } from '../../lib/stories/storyPhotoEdit.js'
 
 const TOOL_TITLE = {
-  crop: { title: 'Кадр', hint: 'Тяните · щипок увеличивает' },
+  crop: { title: 'Кадр', hint: 'Сначала вся картинка · плюс приближает' },
   draw: { title: 'Рисунок', hint: 'Рисуйте пальцем по кадру' },
   color: { title: 'Цвет', hint: 'Листайте ползунки вниз' },
 }
@@ -313,7 +313,7 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
         {/* Фиксированная высота панели — смена инструмента не меняет масштаб кадра */}
         <div className="stories-compose-edit__panel">
           {tool === 'crop' ? (
-            <p className="stories-compose-edit__tool-hint">Сдвиньте фото — в ленту попадёт то, что в рамке</p>
+            <p className="stories-compose-edit__tool-hint">Широкое фото целиком; плюс — крупнее, сдвиг — что в рамке</p>
           ) : null}
 
           {tool === 'draw' ? (

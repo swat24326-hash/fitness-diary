@@ -61,12 +61,13 @@ import {
   STORY_EDIT_ZOOM,
   clampStoryEdit,
   storyEditBipolarFill,
+  storyEditCoverZoom,
   storyEditDefaults,
   storyEditFilterCss,
+  storyEditImageDest,
   storyEditPanByDelta,
   storyEditPreviewDest,
   storyEditSetZoom,
-  storyEditSourceRect,
   storyEditTonePct,
 } from '../src/lib/stories/storyEditCore.js'
 import {
@@ -213,12 +214,18 @@ ok(storyEditFilterCss({}) === 'brightness(100%) contrast(100%) saturate(100%)', 
 ok(storyEditFilterCss({ enhance: 50 }).includes('brightness(1'), 'улучшение поднимает яркость')
 ok(storyEditFilterCss({ warmth: 20 }).includes('sepia'), 'теплота — sepia')
 {
-  const wide = storyEditSourceRect(1920, 1080, storyEditDefaults())
-  ok(Math.abs(wide.sw / wide.sh - STORY_EDIT_ASPECT) < 0.02 && wide.sh === 1080, 'cover широкого — высота целиком')
-  const tall = storyEditSourceRect(1080, 1920, { zoom: 1, ox: 0, oy: 0 })
-  ok(Math.abs(tall.sw / tall.sh - STORY_EDIT_ASPECT) < 0.02 && tall.sw === 1080, 'cover высокого — ширина целиком')
-  const zoomed = storyEditSourceRect(1080, 1920, { zoom: 2, ox: 0, oy: 0 })
-  ok(zoomed.sw < tall.sw && zoomed.sh < tall.sh, 'зум уменьшает окно кадра')
+  const frameW = 900
+  const frameH = 1600
+  const wideFit = storyEditImageDest(1920, 1080, frameW, frameH, storyEditDefaults())
+  ok(Math.abs(wideFit.dw - frameW) < 1 && wideFit.dh < frameH, 'широкий баннер при zoom=1 — вся ширина, поля сверху/снизу')
+  ok(storyEditCoverZoom(1920, 1080) > 2.5, 'широкий баннер до cover — заметный зум')
+  const coverZ = storyEditCoverZoom(1920, 1080)
+  const wideCover = storyEditImageDest(1920, 1080, frameW, frameH, { zoom: coverZ, ox: 0, oy: 0 })
+  ok(wideCover.dh + 1 >= frameH && wideCover.dw > frameW, 'на cover широкий закрывает высоту и выходит за бока')
+  const tallFit = storyEditImageDest(1080, 1920, frameW, frameH, { zoom: 1, ox: 0, oy: 0 })
+  ok(Math.abs(tallFit.dw - frameW) < 1 && Math.abs(tallFit.dh - frameH) < 1, 'ровно 9:16 — на весь кадр')
+  const zoomed = storyEditImageDest(1080, 1920, frameW, frameH, { zoom: 2, ox: 0, oy: 0 })
+  ok(zoomed.dw > tallFit.dw && zoomed.dh > tallFit.dh, 'зум увеличивает картинку в кадре')
   const panned = storyEditPanByDelta(storyEditDefaults(), 0.5, 0)
   ok(panned.ox < 0 && panned.oy === 0, 'жест вправо сдвигает кадр влево по ox')
   ok(storyEditSetZoom(storyEditDefaults(), 9).zoom === STORY_EDIT_ZOOM.max, 'зум клампится')
