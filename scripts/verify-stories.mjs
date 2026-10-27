@@ -57,16 +57,17 @@ import { storyPublishBatches } from '../src/lib/stories/storyPublishCore.js'
 import { storyVideoPublishBody } from '../api/_lib/stories/storyVideoBody.js'
 import {
   STORY_EDIT_ASPECT,
-  STORY_EDIT_PRESETS,
+  STORY_EDIT_TONES,
   STORY_EDIT_ZOOM,
   clampStoryEdit,
-  storyEditApplyPreset,
+  storyEditBipolarFill,
   storyEditDefaults,
   storyEditFilterCss,
   storyEditPanByDelta,
   storyEditPreviewDest,
   storyEditSetZoom,
   storyEditSourceRect,
+  storyEditTonePct,
 } from '../src/lib/stories/storyEditCore.js'
 import {
   STORY_DRAW_COLORS,
@@ -207,10 +208,10 @@ ok(storySwipeIntent({ dx: 5, dy: 5 }) === 'none', 'дрожь пальца не 
 
 console.log('редактор')
 ok(Math.abs(STORY_EDIT_ASPECT - 9 / 16) < 1e-9, 'кадр 9:16')
-ok(STORY_EDIT_PRESETS.length >= 4 && STORY_EDIT_PRESETS[0].id === 'orig', 'пресеты цвета')
 ok(clampStoryEdit(100, -40, 40) === 40 && clampStoryEdit(-99, -40, 40) === -40, 'clamp тона')
-ok(storyEditFilterCss({ brightness: 0, contrast: 0, saturation: 0 }) === 'brightness(100%) contrast(100%) saturate(100%)', 'фильтр как есть')
-ok(storyEditFilterCss(storyEditApplyPreset('bright')).includes('brightness(118%)'), 'пресет ярче')
+ok(storyEditFilterCss({}) === 'brightness(100%) contrast(100%) saturate(100%)', 'фильтр как есть')
+ok(storyEditFilterCss({ enhance: 50 }).includes('brightness(1'), 'улучшение поднимает яркость')
+ok(storyEditFilterCss({ warmth: 20 }).includes('sepia'), 'теплота — sepia')
 {
   const wide = storyEditSourceRect(1920, 1080, storyEditDefaults())
   ok(Math.abs(wide.sw / wide.sh - STORY_EDIT_ASPECT) < 0.02 && wide.sh === 1080, 'cover широкого — высота целиком')
@@ -234,6 +235,14 @@ ok(storyEditFilterCss(storyEditApplyPreset('bright')).includes('brightness(118%)
   strokes = storyDrawAppendPoint(strokes, { x: 0.2, y: 0.2 })
   ok(strokes.length === 1 && strokes[0].points.length === 2, 'штрих набирает точки')
   ok(storyDrawUndo(strokes).length === 0, 'отмена штриха')
+  ok(STORY_EDIT_TONES.length >= 6 && STORY_EDIT_TONES[0].id === 'enhance', 'тона списком как в Telegram')
+  ok(Math.abs(storyEditTonePct(0, -40, 40) - 50) < 0.01, 'ноль тона — центр ползунка')
+  const fill0 = storyEditBipolarFill(50)
+  ok(fill0.start === 50 && fill0.end === 50, 'заливка в нуле — точка в центре')
+  const fillPos = storyEditBipolarFill(75)
+  ok(fillPos.start === 50 && fillPos.end === 75, 'заливка в плюс — от центра вправо')
+  const fillNeg = storyEditBipolarFill(25)
+  ok(fillNeg.start === 25 && fillNeg.end === 50, 'заливка в минус — от центра влево')
 }
 
 console.log('файл')

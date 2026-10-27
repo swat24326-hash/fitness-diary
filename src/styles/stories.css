@@ -470,7 +470,7 @@
 
 .stories-compose-edit__top {
   position: relative;
-  z-index: 3;
+  z-index: 5;
   display: grid;
   grid-template-columns: 48px 1fr 48px;
   align-items: center;
@@ -482,7 +482,8 @@
     8px;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--bg) 78%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 55%, transparent) 70%,
     transparent 100%
   );
 }
@@ -638,42 +639,46 @@
 
 .stories-compose-edit__dock {
   position: relative;
-  z-index: 3;
+  z-index: 5;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding:
-    10px
+    12px
     16px
     max(10px, env(safe-area-inset-bottom, 0px));
   background:
     linear-gradient(
       to top,
-      color-mix(in srgb, var(--bg) 96%, transparent) 0%,
-      color-mix(in srgb, var(--bg-elevated) 78%, transparent) 70%,
-      transparent 100%
+      color-mix(in srgb, var(--bg) 98%, transparent) 0%,
+      color-mix(in srgb, var(--bg-elevated) 88%, transparent) 55%,
+      color-mix(in srgb, var(--bg) 72%, transparent) 100%
     );
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border-top: 1px solid var(--border-soft);
-  overflow: hidden;
+  overflow: visible;
   touch-action: pan-y;
   user-select: auto;
 }
 
-/* Одна высота под все инструменты — Кадр/Цвет не дёргают масштаб превью */
+/*
+ * Фиксированная высота: Кадр/Цвет не дёргают масштаб.
+ * В «Цвет» список ползунков листается вниз — как в Telegram.
+ */
 .stories-compose-edit__panel {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: stretch;
   gap: 8px;
-  height: 168px;
-  min-height: 168px;
-  max-height: 168px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-top: 2px;
 }
 
 .stories-compose-edit__tool-hint {
@@ -801,9 +806,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 56px;
-  padding: 8px 6px;
+  gap: 0;
+  min-height: 48px;
+  padding: 10px 6px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--text) 6%, transparent);
@@ -811,6 +816,11 @@
   font: inherit;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+/* Как в Telegram — только иконки, подпись в title/aria-label */
+.stories-compose-edit__tool > span {
+  display: none;
 }
 
 .stories-compose-edit__tool.is-on {
@@ -831,11 +841,13 @@
 
 .stories-compose-edit__presets {
   display: flex;
+  flex: 0 0 auto;
   gap: 8px;
   margin: 0;
-  padding: 2px 0;
+  padding: 4px 2px;
   list-style: none;
   overflow-x: auto;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   touch-action: pan-x;
@@ -866,27 +878,106 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
-.stories-compose-edit__tones {
+/* Список ползунков Telegram: подпись слева, трек справа, скролл вниз */
+.stories-compose-edit__sliders {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin: 0;
+  padding: 0 2px 8px;
+  list-style: none;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
-.stories-compose-edit__slider {
+.stories-compose-edit__slider-row {
   display: grid;
-  grid-template-columns: 3.25rem 1fr;
+  grid-template-columns: 7.5rem 1fr;
   align-items: center;
   gap: 10px;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
+  min-height: 44px;
 }
 
-.stories-compose-edit__slider input[type='range'] {
-  width: 100%;
+.stories-compose-edit__slider-label {
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stories-compose-edit__bipolar-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
   height: 44px;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.stories-compose-edit__bipolar {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
   margin: 0;
-  accent-color: var(--accent);
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--text) 18%, transparent) 0%,
+    color-mix(in srgb, var(--text) 18%, transparent) var(--fill-start, 50%),
+    var(--accent) var(--fill-start, 50%),
+    var(--accent) var(--fill-end, 50%),
+    color-mix(in srgb, var(--text) 18%, transparent) var(--fill-end, 50%),
+    color-mix(in srgb, var(--text) 18%, transparent) 100%
+  );
   cursor: pointer;
+}
+
+.stories-compose-edit__bipolar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, #fff);
+  box-shadow: 0 1px 4px color-mix(in srgb, #000 45%, transparent);
+}
+
+.stories-compose-edit__bipolar::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, #fff);
+  box-shadow: 0 1px 4px color-mix(in srgb, #000 45%, transparent);
+}
+
+.stories-compose-edit__bipolar::-moz-range-track {
+  height: 4px;
+  border: 0;
+  background: transparent;
+}
+
+.stories-compose-edit__bipolar-mid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 10px;
+  margin-left: -1px;
+  margin-top: -5px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text) 35%, transparent);
+  pointer-events: none;
 }
 
 .stories-compose-edit__error {

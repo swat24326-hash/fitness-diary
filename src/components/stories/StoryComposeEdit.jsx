@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Check, Crop, Eraser, Minus, Palette, Pencil, Plus, Undo2, X } from 'lucide-react'
 import {
-  STORY_EDIT_PRESETS,
+  STORY_EDIT_TONES,
   STORY_EDIT_ZOOM,
-  storyEditApplyPreset,
+  storyEditBipolarFill,
   storyEditDefaults,
   storyEditPanByDelta,
   storyEditSetZoom,
+  storyEditTonePct,
 } from '../../lib/stories/storyEditCore.js'
 import {
   STORY_DRAW_COLORS,
@@ -22,11 +23,12 @@ import { paintStoryEditPreview, renderStoryPhotoEdit } from '../../lib/stories/s
 const TOOL_TITLE = {
   crop: { title: 'Кадр', hint: 'Тяните · щипок увеличивает' },
   draw: { title: 'Рисунок', hint: 'Рисуйте пальцем по кадру' },
-  color: { title: 'Цвет', hint: 'Пресет или ползунки' },
+  color: { title: 'Цвет', hint: 'Листайте ползунки вниз' },
 }
 
 /**
- * Редактор сторис как в Telegram: кадр / рисунок / цвет, превью на canvas 9:16.
+ * Редактор сторис как в Telegram: кадр / рисунок / цвет.
+ * Цвет — список ползунков со скроллом (что не влезло — ниже).
  */
 export function StoryComposeEdit({ file, onDone, onCancel }) {
   const stageRef = useRef(null)
@@ -372,63 +374,43 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
           ) : null}
 
           {tool === 'color' ? (
-            <>
-              <ul className="stories-compose-edit__presets" aria-label="Пресеты">
-                {STORY_EDIT_PRESETS.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      className={`stories-compose-edit__preset btn-touch${edit.preset === p.id ? ' is-on' : ''}`}
-                      disabled={busy}
-                      onClick={() => commitUi({ ...live.current, ...storyEditApplyPreset(p.id) })}
-                    >
-                      {p.label}
-                    </button>
+            <ul className="stories-compose-edit__sliders" aria-label="Цвет">
+              {STORY_EDIT_TONES.map((tone) => {
+                const value = edit[tone.id] ?? tone.def
+                const pct = storyEditTonePct(value, tone.min, tone.max)
+                const fill = storyEditBipolarFill(pct)
+                const bipolar = tone.bipolar !== false && tone.min < 0
+                return (
+                  <li key={tone.id}>
+                    <label className="stories-compose-edit__slider-row">
+                      <span className="stories-compose-edit__slider-label">{tone.label}</span>
+                      <span className="stories-compose-edit__bipolar-wrap">
+                        <input
+                          type="range"
+                          className="stories-compose-edit__bipolar"
+                          min={tone.min}
+                          max={tone.max}
+                          step={tone.step}
+                          value={value}
+                          disabled={busy}
+                          style={{
+                            '--fill-start': `${bipolar ? fill.start : 0}%`,
+                            '--fill-end': `${bipolar ? fill.end : pct}%`,
+                          }}
+                          onChange={(e) =>
+                            commitUi({
+                              ...live.current,
+                              [tone.id]: Number(e.target.value),
+                            })
+                          }
+                        />
+                        {bipolar ? <span className="stories-compose-edit__bipolar-mid" aria-hidden /> : null}
+                      </span>
+                    </label>
                   </li>
-                ))}
-              </ul>
-              <div className="stories-compose-edit__tones" aria-label="Точная настройка">
-                <label className="stories-compose-edit__slider">
-                  <span>Ярк.</span>
-                  <input
-                    type="range"
-                    min={-40}
-                    max={40}
-                    value={edit.brightness}
-                    disabled={busy}
-                    onChange={(e) =>
-                      commitUi({ ...live.current, brightness: Number(e.target.value), preset: 'custom' })
-                    }
-                  />
-                </label>
-                <label className="stories-compose-edit__slider">
-                  <span>Контр.</span>
-                  <input
-                    type="range"
-                    min={-40}
-                    max={40}
-                    value={edit.contrast}
-                    disabled={busy}
-                    onChange={(e) =>
-                      commitUi({ ...live.current, contrast: Number(e.target.value), preset: 'custom' })
-                    }
-                  />
-                </label>
-                <label className="stories-compose-edit__slider">
-                  <span>Цвет</span>
-                  <input
-                    type="range"
-                    min={-40}
-                    max={40}
-                    value={edit.saturation}
-                    disabled={busy}
-                    onChange={(e) =>
-                      commitUi({ ...live.current, saturation: Number(e.target.value), preset: 'custom' })
-                    }
-                  />
-                </label>
-              </div>
-            </>
+                )
+              })}
+            </ul>
           ) : null}
         </div>
 
@@ -464,8 +446,8 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
             className={`stories-compose-edit__tool btn-touch${tool === 'color' ? ' is-on' : ''}`}
             disabled={busy}
             onClick={() => setTool('color')}
-            aria-label="Цветокоррекция"
-            title="Цветокоррекция"
+            aria-label="Цвет"
+            title="Цвет"
             aria-pressed={tool === 'color'}
           >
             <Palette size={22} aria-hidden />
