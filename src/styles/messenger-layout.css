@@ -53,11 +53,10 @@
   font-size: 1.1rem;
 }
 
-/* Планшет: папки кнопками переносятся на вторую строку — ни одна не прячется за край.
-   Телефон — одной строкой с прокруткой вбок, как вкладки мобильного Telegram (chat-contacts.css). */
-.msgr--tablet .chat-folders {
-  flex-wrap: wrap;
-  overflow-x: visible;
+/* Планшет/телефон: одна полоска папок, лишние — свайп вбок (не перенос на вторую строку). */
+.msgr--tablet .chat-folders,
+.msgr--phone .chat-folders {
+  flex-wrap: nowrap;
 }
 
 .msgr__status {
@@ -184,18 +183,30 @@
 .msgr--monitor .chat-folders {
   display: grid;
   gap: 2px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-.msgr--monitor .chat-folders__tab {
+.msgr--monitor .chat-folders__tab,
+.msgr--monitor .chat-folders__tab:first-child,
+.msgr--monitor .chat-folders__tab:last-child,
+.msgr--monitor .chat-folders__tab:only-child {
   justify-content: flex-start;
   gap: 10px;
   min-height: 42px;
   padding: 8px 12px;
   border: 0;
   border-radius: var(--radius-md);
+  box-shadow: none;
   font-size: 0.92rem;
   font-weight: 500;
   text-align: left;
+}
+
+.msgr--monitor .chat-folders__tab + .chat-folders__tab {
+  box-shadow: none;
 }
 
 .msgr--monitor .chat-folders__tab:hover {

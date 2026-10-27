@@ -1,35 +1,61 @@
-/* Папки «Сообщений»: вкладки, поиск, яркие (есть приложение) и тусклые строки. */
+/* Папки «Сообщений»: одна полоска с разделителями, поиск, яркие/тусклые строки. */
 .chat-folders {
   display: flex;
-  gap: 6px;
+  align-items: stretch;
+  gap: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+}
+
+.chat-folders::-webkit-scrollbar {
+  display: none;
 }
 
 .chat-folders__tab {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 0.94rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background 0.15s var(--ease-out, ease),
     color 0.15s var(--ease-out, ease);
 }
 
+.chat-folders__tab + .chat-folders__tab {
+  box-shadow: inset 1px 0 0 var(--border);
+}
+
 .chat-folders__tab--on {
-  border-color: transparent;
   background: var(--accent);
   color: color-mix(in srgb, var(--accent-dim) 25%, black);
+}
+
+.chat-folders__tab:first-child {
+  border-radius: 999px 0 0 999px;
+}
+
+.chat-folders__tab:last-child {
+  border-radius: 0 999px 999px 0;
+}
+
+.chat-folders__tab:only-child {
+  border-radius: 999px;
 }
 
 /* Иконка папки — только в столбике на мониторе (messenger-layout.css). */
@@ -40,7 +66,7 @@
 
 .chat-folders__count {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
@@ -55,13 +81,13 @@
 .chat-folders__badge {
   display: grid;
   place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   border-radius: 999px;
   background: var(--danger, #e5484d);
   color: #fff;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
 

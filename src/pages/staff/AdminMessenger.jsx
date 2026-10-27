@@ -76,19 +76,21 @@ export function AdminMessenger({ chatList }) {
       listLabel="Сотрудники"
       head={<MessengerHead icon={Mail} title="Сообщения сотрудников" short="Сотрудники" loading={status === 'loading'} onReload={reload} />}
       folders={
-        folders ? (
-          <ChatFolders
-            label="Клубы"
-            testId="staff-clubs"
-            folders={rail.map((it, i) => ({ id: it.key, label: it.title, unread: it.unread, count: it.total, icon: ICON[it.key] ?? Building2, sep: i === sepAt }))}
-            active={searching ? '' : current.key}
-            onChange={pickView}
-          />
-        ) : null
+        <>
+          <ClubStoryRail clubId={storyUuid(view) ? view : readLastAdminClub(user?.id)} />
+          {folders ? (
+            <ChatFolders
+              label="Клубы"
+              testId="staff-clubs"
+              folders={rail.map((it, i) => ({ id: it.key, label: it.title, unread: it.unread, count: it.total, icon: ICON[it.key] ?? Building2, sep: i === sepAt }))}
+              active={searching ? '' : current.key}
+              onChange={pickView}
+            />
+          ) : null}
+        </>
       }
       list={
         <>
-          <ClubStoryRail clubId={storyUuid(view) ? view : readLastAdminClub(user?.id)} />
           <label className="chat-contacts__search">
             <Search size={18} aria-hidden />
             <input

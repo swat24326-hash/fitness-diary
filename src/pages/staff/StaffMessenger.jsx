@@ -76,18 +76,16 @@ export function StaffMessenger({ chats, inbox }) {
         />
       }
       folders={
-        <ChatFolders
-          folders={folders.map((f) => ({ ...f, icon: ICON[f.id] }))}
-          active={folderId}
-          onChange={(id) => setParams(staffMessengerParams(params, { folder: id }), { replace: true })}
-        />
-      }
-      list={
         <>
           <ClubStoryRail />
-          <StaffMessengerList key={folderId} folder={folder} chats={chats} inbox={inbox} open={open} href={href} />
+          <ChatFolders
+            folders={folders.map((f) => ({ ...f, icon: ICON[f.id] }))}
+            active={folderId}
+            onChange={(id) => setParams(staffMessengerParams(params, { folder: id }), { replace: true })}
+          />
         </>
       }
+      list={<StaffMessengerList key={folderId} folder={folder} chats={chats} inbox={inbox} open={open} href={href} />}
       thread={
         open?.type === 'dm' ? (
           <StaffDmPane key={open.userId} userId={open.userId} onSent={reloadChats} backTo={closeHref} back={back} />

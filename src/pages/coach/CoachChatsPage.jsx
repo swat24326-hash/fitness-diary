@@ -43,10 +43,13 @@ export function CoachChatsPage() {
         compact
         open={false}
         listLabel="Диалоги"
-        folders={<ChatFolders folders={folders} active={active.id} onChange={pick} />}
-        list={
+        folders={
           <>
-          <ClubStoryRail channel="coach" />
+            <ClubStoryRail channel="coach" />
+            <ChatFolders folders={folders} active={active.id} onChange={pick} />
+          </>
+        }
+        list={
           <ChatContactList
             key={active.id}
             contacts={active.contacts}
@@ -55,7 +58,6 @@ export function CoachChatsPage() {
             onInvite={clients ? setInviting : undefined}
             pinned={active.group ? <StaffGroupRow group={active.group} to="/coach/group" /> : null}
           />
-          </>
         }
       />
     )
