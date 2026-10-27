@@ -1,7 +1,8 @@
 /**
- * Карточка клиента на плитке ежедневника: номер карты, тип абона и N/M.
+ * Карточка клиента на плитке ежедневника: номер карты, тип абона, N/M и «до даты».
  * Имена (полное / короткое) — в trainerScheduleCore.js.
  */
+import { formatDateRu } from '../dateRu.js'
 import {
   membershipCoversDate,
   membershipHasTypeId,
@@ -12,6 +13,13 @@ import {
   normalizeScheduleClientIds,
   shortScheduleClientName,
 } from './trainerScheduleCore.js'
+
+/** @param {unknown} endDateIso @returns {string} «до ДД.ММ.ГГГГ» или '' */
+export function scheduleMembershipEndsOnLabel(endDateIso) {
+  const day = String(endDateIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return ''
+  return `до ${formatDateRu(day)}`
+}
 
 /**
  * Абон для подписи на плитке: usable → кроющий дату → последний по сроку (чтобы «закончился» был виден).
@@ -41,19 +49,21 @@ export function scheduleMembershipVisitsLabel(membership) {
 }
 
 /**
- * @param {{ cardNumber?: string, membershipLabel?: string, visitsLabel?: string, membershipEnded?: boolean }} info
- * @returns {string} «№123 · Vip 2 · 5/13» или «№123 · R3+ · 5/13 · закончился»
+ * @param {{ cardNumber?: string, membershipLabel?: string, visitsLabel?: string, endsOnLabel?: string, membershipEnded?: boolean }} info
+ * @returns {string} «№123 · Vip 2 · 5/13 · до 31.12.2026» или «… · закончился»
  */
 export function formatScheduleClientCardMeta(info = {}) {
   const card = String(info.cardNumber ?? '').trim()
   const type = String(info.membershipLabel ?? '').trim()
   const visits = String(info.visitsLabel ?? '').trim()
+  const endsOn = String(info.endsOnLabel ?? '').trim()
   const ended = Boolean(info.membershipEnded)
   const parts = []
   if (card) parts.push(`№${card}`)
   if (type) parts.push(type)
   if (visits) parts.push(visits)
-  if (ended && (type || visits)) parts.push('закончился')
+  if (endsOn) parts.push(endsOn)
+  if (ended && (type || visits || endsOn)) parts.push('закончился')
   return parts.join(' · ')
 }
 
@@ -77,11 +87,11 @@ function membershipTypeLabel(typesOrMap, typeId) {
  * @param {Record<string, object[]>|Map<string, object[]>|null|undefined} membershipsByClientId
  * @param {Array<{ id?: string, code?: string, name?: string }>|Map<string, object>|null|undefined} membershipTypes
  * @param {string} asOfIso — дата, на которую смотрим абон
- * @returns {Record<string, { name: string, cardNumber: string, membershipLabel: string, visitsLabel: string, membershipEnded: boolean }>}
+ * @returns {Record<string, { name: string, cardNumber: string, membershipLabel: string, visitsLabel: string, endsOnLabel: string, membershipEnded: boolean }>}
  */
 export function buildScheduleClientInfoById(clients, membershipsByClientId, membershipTypes, asOfIso) {
   const day = String(asOfIso ?? '').slice(0, 10)
-  /** @type {Record<string, { name: string, cardNumber: string, membershipLabel: string, visitsLabel: string, membershipEnded: boolean }>} */
+  /** @type {Record<string, { name: string, cardNumber: string, membershipLabel: string, visitsLabel: string, endsOnLabel: string, membershipEnded: boolean }>} */
   const out = {}
   for (const c of clients ?? []) {
     const id = String(c?.id ?? '').trim()
@@ -97,6 +107,7 @@ export function buildScheduleClientInfoById(clients, membershipsByClientId, memb
       cardNumber: String(c?.card_number ?? '').trim(),
       membershipLabel: active ? membershipTypeLabel(membershipTypes, active.membership_type_id) : '',
       visitsLabel: active ? scheduleMembershipVisitsLabel(active) : '',
+      endsOnLabel: active ? scheduleMembershipEndsOnLabel(active.end_date) : '',
       membershipEnded: Boolean(active && day && !covers),
     }
   }
@@ -107,7 +118,7 @@ export function buildScheduleClientInfoById(clients, membershipsByClientId, memb
  * Строки плитки: имя (+ опционально мета карты). Заметка без клиентов — одна строка без меты.
  * @param {object} entry
  * @param {Record<string, string>} [clientNameById]
- * @param {Record<string, { name?: string, cardNumber?: string, membershipLabel?: string, visitsLabel?: string, membershipEnded?: boolean }>} [clientInfoById]
+ * @param {Record<string, { name?: string, cardNumber?: string, membershipLabel?: string, visitsLabel?: string, endsOnLabel?: string, membershipEnded?: boolean }>} [clientInfoById]
  * @param {{ short?: boolean, withMeta?: boolean }} [opts]
  * @returns {Array<{ name: string, meta: string }>}
  */
@@ -130,6 +141,7 @@ export function buildScheduleEntryClientRows(
           cardNumber: info?.cardNumber,
           membershipLabel: info?.membershipLabel,
           visitsLabel: info?.visitsLabel,
+          endsOnLabel: info?.endsOnLabel,
           membershipEnded: info?.membershipEnded,
         })
       : ''

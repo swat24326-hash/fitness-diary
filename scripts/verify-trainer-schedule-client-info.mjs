@@ -3,6 +3,7 @@ import {
   buildScheduleEntryClientRows,
   formatScheduleClientCardMeta,
   pickMembershipForScheduleCardLabel,
+  scheduleMembershipEndsOnLabel,
   scheduleMembershipVisitsLabel,
 } from '../src/lib/trainer/trainerScheduleClientInfoCore.js'
 
@@ -31,13 +32,27 @@ ok(
     cardNumber: '5597',
     membershipLabel: 'R3+',
     visitsLabel: '5/13',
+    endsOnLabel: 'до 05.09.2026',
     membershipEnded: true,
-  }) === '№5597 · R3+ · 5/13 · закончился',
-  'meta ended abon',
+  }) === '№5597 · R3+ · 5/13 · до 05.09.2026 · закончился',
+  'meta ended abon with ends-on',
 )
+ok(
+  formatScheduleClientCardMeta({
+    cardNumber: '8728',
+    membershipLabel: '2ДП',
+    visitsLabel: '3/4',
+    endsOnLabel: 'до 15.12.2026',
+  }) === '№8728 · 2ДП · 3/4 · до 15.12.2026',
+  'meta with ends-on',
+)
+ok(formatScheduleClientCardMeta({ endsOnLabel: 'до 01.01.2027' }) === 'до 01.01.2027', 'meta ends-on only')
 
 ok(scheduleMembershipVisitsLabel({ total_trainings: 13, used_trainings: 5 }) === '5/13', 'visits 5/13')
 ok(scheduleMembershipVisitsLabel({ total_trainings: 0, used_trainings: 0 }) === '', 'visits unlimited empty')
+ok(scheduleMembershipEndsOnLabel('2026-12-31') === 'до 31.12.2026', 'ends-on label')
+ok(scheduleMembershipEndsOnLabel('') === '', 'ends-on empty')
+ok(scheduleMembershipEndsOnLabel('bad') === '', 'ends-on bad')
 
 const types = [
   { id: 't1', code: 'ТЗ' },
@@ -76,11 +91,13 @@ const mems = {
 const info = buildScheduleClientInfoById(clients, mems, types, '2026-10-17')
 ok(info.c1?.cardNumber === '4521' && info.c1?.membershipLabel === 'ТЗ', 'info: card + type')
 ok(info.c1?.visitsLabel === '1/10' && info.c1?.membershipEnded === false, 'info: visits active')
-ok(info.c2?.membershipLabel === '', 'info: no membership')
+ok(info.c1?.endsOnLabel === 'до 31.12.2026', 'info: active ends-on')
+ok(info.c2?.membershipLabel === '' && info.c2?.endsOnLabel === '', 'info: no membership')
 ok(info.c3?.membershipLabel === 'R3+' && info.c3?.visitsLabel === '5/13', 'info: last ended type+visits')
 ok(info.c3?.membershipEnded === true, 'info: ended flag')
+ok(info.c3?.endsOnLabel === 'до 05.09.2026', 'info: ended ends-on')
 ok(
-  formatScheduleClientCardMeta(info.c3) === '№5597 · R3+ · 5/13 · закончился',
+  formatScheduleClientCardMeta(info.c3) === '№5597 · R3+ · 5/13 · до 05.09.2026 · закончился',
   'abaeva-style meta',
 )
 
@@ -91,7 +108,7 @@ const entry = { client_ids: ['c1'], title: '' }
 const names = { c1: 'Листратенко Валентин Юрьевич' }
 const wide = buildScheduleEntryClientRows(entry, names, info, { short: false, withMeta: true })
 ok(wide.length === 1 && wide[0].name === 'Листратенко Валентин Юрьевич', 'rows: full name on wide')
-ok(wide[0].meta === '№4521 · ТЗ · 1/10', 'rows: meta with visits on wide')
+ok(wide[0].meta === '№4521 · ТЗ · 1/10 · до 31.12.2026', 'rows: meta with visits and ends-on on wide')
 const narrow = buildScheduleEntryClientRows(entry, names, info, { short: true, withMeta: false })
 ok(narrow[0].name === 'Листратенко В. Ю.' && narrow[0].meta === '', 'rows: short without meta in narrow')
 ok(
