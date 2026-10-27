@@ -34,11 +34,13 @@ function canvasToJpeg(canvas, quality) {
  * @param {HTMLCanvasElement} canvas
  * @param {CanvasImageSource & { naturalWidth?: number, naturalHeight?: number, width: number, height: number }} img
  * @param {{ zoom?: number, ox?: number, oy?: number, brightness?: number, contrast?: number, saturation?: number }} edit
+ * @param {HTMLElement | null} [stageEl] — сцена; размер с неё, чтобы CSS не растягивал старый bitmap
  */
-export function paintStoryEditPreview(canvas, img, edit = {}) {
+export function paintStoryEditPreview(canvas, img, edit = {}, stageEl = null) {
   if (!canvas || !img) return
-  const cssW = Math.max(1, canvas.clientWidth || canvas.width || 1)
-  const cssH = Math.max(1, canvas.clientHeight || canvas.height || 1)
+  const box = stageEl?.getBoundingClientRect?.()
+  const cssW = Math.max(1, Math.round(box?.width || canvas.clientWidth || canvas.width || 1))
+  const cssH = Math.max(1, Math.round(box?.height || canvas.clientHeight || canvas.height || 1))
   const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
   const tw = Math.max(1, Math.round(cssW * dpr))
   const th = Math.max(1, Math.round(cssH * dpr))

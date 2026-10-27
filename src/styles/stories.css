@@ -531,18 +531,26 @@
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-/* Сцена 9:16 — иначе canvas растягивал лицо в широкий flex-блок */
-.stories-compose-edit__stage {
+/* Обёртка держит место кадра; сама сцена всегда 9:16 по высоте обёртки */
+.stories-compose-edit__stage-wrap {
   position: relative;
   z-index: 1;
   flex: 1 1 auto;
   min-height: 0;
-  margin: 0 auto;
-  width: min(100%, calc((100dvh - 11rem) * 9 / 16));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.stories-compose-edit__stage {
+  position: relative;
+  flex: 0 1 auto;
+  height: 100%;
+  width: auto;
   max-width: 100%;
-  aspect-ratio: 9 / 16;
-  height: auto;
   max-height: 100%;
+  aspect-ratio: 9 / 16;
   overflow: hidden;
   background: #000;
   touch-action: none;
@@ -619,6 +627,11 @@
   box-shadow: 0 2px 10px color-mix(in srgb, #000 35%, transparent);
 }
 
+.stories-compose-edit__zoom.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .stories-compose-edit__zoom-btn:disabled {
   opacity: 0.35;
 }
@@ -630,7 +643,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: min(38dvh, 280px);
   padding:
     10px
     16px
@@ -645,11 +657,23 @@
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border-top: 1px solid var(--border-soft);
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: auto;
+}
+
+/* Одна высота под все инструменты — Кадр/Цвет не дёргают масштаб превью */
+.stories-compose-edit__panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  height: 168px;
+  min-height: 168px;
+  max-height: 168px;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  user-select: auto;
 }
 
 .stories-compose-edit__tool-hint {
