@@ -1,5 +1,6 @@
 /**
  * Применить кадрирование и цветокоррекцию к фото сторис → JPEG Blob.
+ * Превью рисуем на canvas тем же кадром — без CSS transform/filter (чёрный экран в WebView).
  */
 import { STORY_PHOTO_MAX_BYTES } from './storyClubCore.js'
 import { storyEditFilterCss, storyEditSourceRect } from './storyEditCore.js'
@@ -25,6 +26,43 @@ function canvasToJpeg(canvas, quality) {
       else resolve(blob)
     }, 'image/jpeg', quality)
   })
+}
+
+/**
+ * Живое превью редактора = тот же кадр, что уйдёт в ленту.
+ * @param {HTMLCanvasElement} canvas
+ * @param {CanvasImageSource & { naturalWidth?: number, naturalHeight?: number, width: number, height: number }} img
+ * @param {{ zoom?: number, ox?: number, oy?: number, brightness?: number, contrast?: number, saturation?: number }} edit
+ */
+export function paintStoryEditPreview(canvas, img, edit = {}) {
+  if (!canvas || !img) return
+  const cssW = Math.max(1, canvas.clientWidth || canvas.width || 1)
+  const cssH = Math.max(1, canvas.clientHeight || canvas.height || 1)
+  const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1
+  const tw = Math.max(1, Math.round(cssW * dpr))
+  const th = Math.max(1, Math.round(cssH * dpr))
+  if (canvas.width !== tw || canvas.height !== th) {
+    canvas.width = tw
+    canvas.height = th
+  }
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const iw = img.naturalWidth || img.width || 1
+  const ih = img.naturalHeight || img.height || 1
+  const { sx, sy, sw, sh } = storyEditSourceRect(iw, ih, edit)
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.clearRect(0, 0, tw, th)
+  ctx.fillStyle = '#000'
+  ctx.fillRect(0, 0, tw, th)
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  try {
+    ctx.filter = storyEditFilterCss(edit)
+  } catch {
+    ctx.filter = 'none'
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, tw, th)
+  ctx.filter = 'none'
 }
 
 /**

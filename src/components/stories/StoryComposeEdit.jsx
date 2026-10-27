@@ -3,84 +3,160 @@ import { Check, Minus, Plus, X } from 'lucide-react'
 import {
   STORY_EDIT_PRESETS,
   STORY_EDIT_ZOOM,
-  clampStoryEdit,
   storyEditApplyPreset,
   storyEditDefaults,
-  storyEditFilterCss,
+  storyEditPanByDelta,
+  storyEditSetZoom,
 } from '../../lib/stories/storyEditCore.js'
-import { renderStoryPhotoEdit } from '../../lib/stories/storyPhotoEdit.js'
+import { paintStoryEditPreview, renderStoryPhotoEdit } from '../../lib/stories/storyPhotoEdit.js'
 
 /**
- * Лёгкий редактор фото: кадр 9:16, зум/сдвиг, пресеты цвета.
- * filter и transform на разных узлах — иначе на телефоне бывает чёрный экран.
- * Эргономика: зум у правого края кадра, «Готово» внизу под большой палец.
+ * Редактор фото сторис как в Telegram: тяни кадр, щипок/± зум, пресеты цвета.
+ * Превью на canvas (тот же кадр, что в ленту) — без CSS filter/transform, иначе WebView даёт чёрный экран.
  */
 export function StoryComposeEdit({ file, onDone, onCancel }) {
   const stageRef = useRef(null)
+  const canvasRef = useRef(null)
+  const imgRef = useRef(null)
+  const live = useRef(storyEditDefaults())
   const drag = useRef(null)
+  const pinch = useRef(null)
+  const pointers = useRef(new Map())
+  const raf = useRef(0)
   const [url, setUrl] = useState('')
   const [edit, setEdit] = useState(() => storyEditDefaults())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [ready, setReady] = useState(false)
+
+  const paint = () => {
+    const canvas = canvasRef.current
+    const img = imgRef.current
+    if (!canvas || !img || !img.complete) return
+    paintStoryEditPreview(canvas, img, live.current)
+  }
+
+  const schedulePaint = () => {
+    if (raf.current) return
+    raf.current = requestAnimationFrame(() => {
+      raf.current = 0
+      paint()
+    })
+  }
+
+  const commitUi = (next) => {
+    live.current = next
+    setEdit(next)
+    schedulePaint()
+  }
 
   useEffect(() => {
     const u = URL.createObjectURL(file)
     setUrl(u)
-    setEdit(storyEditDefaults())
+    const defaults = storyEditDefaults()
+    live.current = defaults
+    setEdit(defaults)
     setError('')
-    return () => URL.revokeObjectURL(u)
+    setReady(false)
+    setBusy(false)
+
+    const img = new Image()
+    imgRef.current = img
+    img.onload = () => {
+      setReady(true)
+      schedulePaint()
+    }
+    img.onerror = () => setError('Фото не открылось — попробуйте другое')
+    img.src = u
+
+    return () => {
+      URL.revokeObjectURL(u)
+      img.onload = null
+      img.onerror = null
+      imgRef.current = null
+      if (raf.current) cancelAnimationFrame(raf.current)
+      raf.current = 0
+    }
   }, [file])
 
-  const setTone = (patch) => setEdit((prev) => ({ ...prev, ...patch, preset: 'custom' }))
+  useEffect(() => {
+    if (!ready) return
+    const onResize = () => schedulePaint()
+    window.addEventListener('resize', onResize)
+    schedulePaint()
+    return () => window.removeEventListener('resize', onResize)
+  }, [ready])
 
   const bumpZoom = (delta) => {
-    setEdit((prev) => {
-      const zoom = clampStoryEdit(+(prev.zoom + delta).toFixed(2), STORY_EDIT_ZOOM.min, STORY_EDIT_ZOOM.max)
-      return { ...prev, zoom }
-    })
+    commitUi(storyEditSetZoom(live.current, +(live.current.zoom + delta).toFixed(2)))
   }
 
   const onPointerDown = (e) => {
-    if (busy) return
+    if (busy || !ready) return
     e.currentTarget.setPointerCapture?.(e.pointerId)
-    drag.current = { x: e.clientX, y: e.clientY, ox: edit.ox, oy: edit.oy }
-  }
-
-  const onPointerMove = (e) => {
-    if (!drag.current || busy) return
-    const box = stageRef.current?.getBoundingClientRect()
-    if (!box?.width || !box?.height) return
-    const dx = (e.clientX - drag.current.x) / box.width
-    const dy = (e.clientY - drag.current.y) / box.height
-    const span = Math.max(0.05, 1 / edit.zoom)
-    setEdit((prev) => ({
-      ...prev,
-      ox: clampStoryEdit(drag.current.ox - dx / span, -1, 1),
-      oy: clampStoryEdit(drag.current.oy - dy / span, -1, 1),
-    }))
-  }
-
-  const onPointerUp = () => {
-    drag.current = null
-  }
-
-  const apply = async () => {
-    if (busy || !url) return
-    setBusy(true)
-    setError('')
-    try {
-      const photo = await renderStoryPhotoEdit(url, edit)
-      onDone({ ...photo, caption: '' })
-    } catch (e) {
-      setError(e?.message || 'Не получилось сохранить кадр')
-      setBusy(false)
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.current.size === 1) {
+      drag.current = { x: e.clientX, y: e.clientY, ox: live.current.ox, oy: live.current.oy }
+      pinch.current = null
+    } else if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()]
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1
+      pinch.current = { dist, zoom: live.current.zoom }
+      drag.current = null
     }
   }
 
-  const filter = storyEditFilterCss(edit)
-  /* Сдвиг в % от кадра; зум только scale — без object-position (он ломал превью на телефоне). */
-  const shiftX = -edit.ox * 12 * edit.zoom
-  const shiftY = -edit.oy * 12 * edit.zoom
+  const onPointerMove = (e) => {
+    if (busy || !ready) return
+    if (!pointers.current.has(e.pointerId)) return
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    if (pinch.current && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()]
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1
+      const nextZoom = pinch.current.zoom * (dist / pinch.current.dist)
+      live.current = storyEditSetZoom(live.current, nextZoom)
+      schedulePaint()
+      return
+    }
+
+    if (!drag.current) return
+    const box = stageRef.current?.getBoundingClientRect()
+    if (!box?.width || !box?.height) return
+    const dxNorm = (e.clientX - drag.current.x) / box.width
+    const dyNorm = (e.clientY - drag.current.y) / box.height
+    live.current = storyEditPanByDelta(
+      { ...live.current, ox: drag.current.ox, oy: drag.current.oy },
+      dxNorm,
+      dyNorm,
+    )
+    schedulePaint()
+  }
+
+  const onPointerUp = (e) => {
+    pointers.current.delete(e.pointerId)
+    if (pointers.current.size < 2) pinch.current = null
+    if (pointers.current.size === 1) {
+      const only = [...pointers.current.values()][0]
+      drag.current = { x: only.x, y: only.y, ox: live.current.ox, oy: live.current.oy }
+    } else {
+      drag.current = null
+    }
+    setEdit({ ...live.current })
+  }
+
+  const apply = async () => {
+    if (busy || !url || !ready) return
+    setBusy(true)
+    setError('')
+    try {
+      const photo = await renderStoryPhotoEdit(url, live.current)
+      onDone({ ...photo, caption: '' })
+    } catch (err) {
+      setError(err?.message || 'Не получилось сохранить кадр')
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="stories-compose-edit" role="dialog" aria-modal="true" aria-label="Правка фото">
@@ -96,10 +172,19 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
           <X size={22} aria-hidden />
         </button>
         <p className="stories-compose-edit__heading">
-          <strong>Правка кадра</strong>
-          <span>Тяните фото · зум справа</span>
+          <strong>Кадр</strong>
+          <span>Тяните · щипок увеличивает</span>
         </p>
-        <span className="stories-compose-edit__top-spacer" aria-hidden />
+        <button
+          type="button"
+          className="stories-compose-edit__icon stories-compose-edit__ok btn-touch"
+          onClick={() => void apply()}
+          disabled={busy || !ready}
+          aria-label="Готово"
+          title="Готово"
+        >
+          <Check size={22} aria-hidden />
+        </button>
       </header>
 
       <div
@@ -110,14 +195,7 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {url ? (
-          <div
-            className="stories-compose-edit__pan"
-            style={{ transform: `translate3d(${shiftX}%, ${shiftY}%, 0) scale(${edit.zoom})` }}
-          >
-            <img className="stories-compose-edit__img" src={url} alt="" draggable={false} style={{ filter }} />
-          </div>
-        ) : null}
+        <canvas ref={canvasRef} className="stories-compose-edit__canvas" aria-hidden />
         <div className="stories-compose-edit__veil" aria-hidden />
         <div className="stories-compose-edit__frame" aria-hidden />
 
@@ -155,7 +233,7 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
                 type="button"
                 className={`stories-compose-edit__preset btn-touch${edit.preset === p.id ? ' is-on' : ''}`}
                 disabled={busy}
-                onClick={() => setEdit((prev) => ({ ...prev, ...storyEditApplyPreset(p.id) }))}
+                onClick={() => commitUi({ ...live.current, ...storyEditApplyPreset(p.id) })}
               >
                 {p.label}
               </button>
@@ -172,7 +250,9 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
               max={40}
               value={edit.brightness}
               disabled={busy}
-              onChange={(e) => setTone({ brightness: Number(e.target.value) })}
+              onChange={(e) =>
+                commitUi({ ...live.current, brightness: Number(e.target.value), preset: 'custom' })
+              }
             />
           </label>
           <label className="stories-compose-edit__slider">
@@ -183,7 +263,9 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
               max={40}
               value={edit.contrast}
               disabled={busy}
-              onChange={(e) => setTone({ contrast: Number(e.target.value) })}
+              onChange={(e) =>
+                commitUi({ ...live.current, contrast: Number(e.target.value), preset: 'custom' })
+              }
             />
           </label>
           <label className="stories-compose-edit__slider">
@@ -194,7 +276,9 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
               max={40}
               value={edit.saturation}
               disabled={busy}
-              onChange={(e) => setTone({ saturation: Number(e.target.value) })}
+              onChange={(e) =>
+                commitUi({ ...live.current, saturation: Number(e.target.value), preset: 'custom' })
+              }
             />
           </label>
         </div>
@@ -205,7 +289,7 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
           type="button"
           className="stories-compose-edit__done btn-touch"
           onClick={() => void apply()}
-          disabled={busy || !url}
+          disabled={busy || !ready}
         >
           <Check size={20} aria-hidden />
           {busy ? 'Сохраняем…' : 'Готово'}

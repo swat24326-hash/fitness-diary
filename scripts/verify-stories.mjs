@@ -58,10 +58,13 @@ import { storyVideoPublishBody } from '../api/_lib/stories/storyVideoBody.js'
 import {
   STORY_EDIT_ASPECT,
   STORY_EDIT_PRESETS,
+  STORY_EDIT_ZOOM,
   clampStoryEdit,
   storyEditApplyPreset,
   storyEditDefaults,
   storyEditFilterCss,
+  storyEditPanByDelta,
+  storyEditSetZoom,
   storyEditSourceRect,
 } from '../src/lib/stories/storyEditCore.js'
 
@@ -207,6 +210,9 @@ ok(storyEditFilterCss(storyEditApplyPreset('bright')).includes('brightness(118%)
   ok(Math.abs(tall.sw / tall.sh - STORY_EDIT_ASPECT) < 0.02 && tall.sw === 1080, 'cover высокого — ширина целиком')
   const zoomed = storyEditSourceRect(1080, 1920, { zoom: 2, ox: 0, oy: 0 })
   ok(zoomed.sw < tall.sw && zoomed.sh < tall.sh, 'зум уменьшает окно кадра')
+  const panned = storyEditPanByDelta(storyEditDefaults(), 0.5, 0)
+  ok(panned.ox < 0 && panned.oy === 0, 'жест вправо сдвигает кадр влево по ox')
+  ok(storyEditSetZoom(storyEditDefaults(), 9).zoom === STORY_EDIT_ZOOM.max, 'зум клампится')
 }
 
 console.log('файл')

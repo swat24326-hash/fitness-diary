@@ -525,6 +525,13 @@
   place-items: center;
 }
 
+.stories-compose-edit__ok.btn-touch {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent-bright);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Кадр 9:16 как в Telegram — превью на canvas, без CSS transform/filter */
 .stories-compose-edit__stage {
   position: relative;
   z-index: 1;
@@ -537,27 +544,21 @@
   background: #000;
   touch-action: none;
   cursor: grab;
+  border-radius: var(--radius-sm);
 }
 
 .stories-compose-edit__stage:active {
   cursor: grabbing;
 }
 
-/* transform на обёртке, filter на img — иначе WebView даёт чёрный экран при зуме */
-.stories-compose-edit__pan {
+.stories-compose-edit__canvas {
   position: absolute;
   inset: 0;
-  transform-origin: center center;
-  will-change: transform;
-  pointer-events: none;
-}
-
-.stories-compose-edit__img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center;
+  display: block;
   pointer-events: none;
+  touch-action: none;
 }
 
 .stories-compose-edit__veil {

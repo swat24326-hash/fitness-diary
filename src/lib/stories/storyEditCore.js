@@ -93,3 +93,25 @@ export function storyEditApplyPreset(id) {
     preset: p.id,
   }
 }
+
+/**
+ * Сдвиг кадра жестом (как в Telegram): dxNorm/dyNorm — доля ширины/высоты сцены.
+ * Пальцем вправо — картинка едет вправо (видим левый край).
+ */
+export function storyEditPanByDelta(edit, dxNorm, dyNorm) {
+  const z = clampStoryEdit(edit?.zoom, STORY_EDIT_ZOOM.min, STORY_EDIT_ZOOM.max)
+  const span = Math.max(0.05, 1 / z)
+  return {
+    ...edit,
+    ox: clampStoryEdit((edit?.ox ?? 0) - Number(dxNorm || 0) / span, -1, 1),
+    oy: clampStoryEdit((edit?.oy ?? 0) - Number(dyNorm || 0) / span, -1, 1),
+  }
+}
+
+/** Щипок / кнопки ± — новый zoom, центр кадра тот же. */
+export function storyEditSetZoom(edit, zoom) {
+  return {
+    ...edit,
+    zoom: clampStoryEdit(zoom, STORY_EDIT_ZOOM.min, STORY_EDIT_ZOOM.max),
+  }
+}
