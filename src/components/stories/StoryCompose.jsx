@@ -10,6 +10,7 @@ import {
 import { prepareStoryVideo } from '../../lib/stories/storyVideoPrepare.js'
 import { isStoryVideoSupported } from '../../lib/stories/storyVideoRecord.js'
 import { StoryComposeEdit } from './StoryComposeEdit.jsx'
+import { StoryComposeEmpty } from './StoryComposeEmpty.jsx'
 import { StoryComposeRecord } from './StoryComposeRecord.jsx'
 
 function isVideoFile(file) {
@@ -171,7 +172,7 @@ export function StoryCompose({ busy, error, onClose, onSubmit, showOfferControls
               <img className="stories-compose__preview" src={previewSrc(current)} alt="" />
             )
           ) : (
-            <p className="stories-compose__hint">Одно фото или видео · фото можно подрезать</p>
+            <StoryComposeEmpty />
           )}
         </div>
 
@@ -273,16 +274,13 @@ export function StoryCompose({ busy, error, onClose, onSubmit, showOfferControls
 
           {localError || error ? <p className="stories-compose__error">{localError || error}</p> : null}
 
-          <footer className="stories-compose__bar">
-            <button type="button" className="btn btn-ghost btn-touch" onClick={onClose} disabled={busy}>
-              Отмена
-            </button>
-            {frames.length ? (
+          {frames.length ? (
+            <footer className="stories-compose__bar">
               <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
                 {busy ? 'Выкладываем…' : 'Опубликовать'}
               </button>
-            ) : null}
-          </footer>
+            </footer>
+          ) : null}
         </div>
 
         <input

@@ -309,16 +309,261 @@
   background: #000;
 }
 
-.stories-compose__hint {
-  margin: 0;
-  padding: 0 24px;
-  color: color-mix(in srgb, #fff 55%, transparent);
-  font-size: 0.9375rem;
-  text-align: center;
+.stories-compose__empty {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
   pointer-events: none;
+  overflow: hidden;
+  animation: stories-compose-empty-in 0.7s ease-out both;
 }
 
-/* Две крупные иконки в нижней панели — не под текстом и не под «Отмена» */
+.stories-compose__empty-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  filter: blur(0.5px);
+}
+
+.stories-compose__empty-blob {
+  position: absolute;
+  filter: blur(28px);
+  will-change: transform, opacity, border-radius;
+}
+
+.stories-compose__empty-blob--a {
+  width: 78%;
+  height: 62%;
+  left: -12%;
+  top: 6%;
+  border-radius: 58% 42% 64% 36% / 46% 54% 46% 54%;
+  background: radial-gradient(
+    circle at 40% 40%,
+    color-mix(in srgb, var(--accent-bright) 70%, #fff) 0%,
+    color-mix(in srgb, var(--accent) 55%, transparent) 48%,
+    transparent 72%
+  );
+  animation: stories-compose-blob-a 22s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.stories-compose__empty-blob--b {
+  width: 86%;
+  height: 70%;
+  right: -18%;
+  bottom: -8%;
+  border-radius: 40% 60% 48% 52% / 62% 38% 62% 38%;
+  background: radial-gradient(
+    circle at 55% 45%,
+    color-mix(in srgb, var(--accent) 65%, #7dd3fc) 0%,
+    color-mix(in srgb, var(--accent-dim) 50%, transparent) 52%,
+    transparent 74%
+  );
+  animation: stories-compose-blob-b 28s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.stories-compose__empty-blob--c {
+  width: 64%;
+  height: 48%;
+  left: 18%;
+  top: 28%;
+  border-radius: 48% 52% 36% 64% / 42% 58% 42% 58%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, #fff 55%, var(--accent-bright)) 0%,
+    color-mix(in srgb, var(--accent-bright) 35%, transparent) 42%,
+    transparent 70%
+  );
+  opacity: 0.85;
+  animation: stories-compose-blob-c 18s ease-in-out infinite alternate;
+}
+
+.stories-compose__empty-veil {
+  position: absolute;
+  inset: -20%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--accent-bright) 22%, transparent) 70deg,
+    transparent 140deg,
+    color-mix(in srgb, #fff 14%, transparent) 200deg,
+    transparent 260deg,
+    color-mix(in srgb, var(--accent) 18%, transparent) 310deg,
+    transparent 360deg
+  );
+  mix-blend-mode: soft-light;
+  animation: stories-compose-veil 32s linear infinite;
+}
+
+.stories-compose__slogan {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: clamp(1.75rem, 6.5vw, 2.35rem);
+  font-weight: 300;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1;
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, #fff 88%, transparent) 0%,
+    #fff 28%,
+    var(--accent-bright) 48%,
+    #fff 68%,
+    color-mix(in srgb, var(--accent) 70%, #fff) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: stories-compose-slogan-shine 10s ease-in-out infinite;
+}
+
+@keyframes stories-compose-empty-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stories-compose-blob-a {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    border-radius: 58% 42% 64% 36% / 46% 54% 46% 54%;
+  }
+  15% {
+    transform: translate(10%, -12%) scale(1.1) rotate(6deg);
+    border-radius: 45% 55% 40% 60% / 58% 42% 62% 38%;
+  }
+  32% {
+    transform: translate(18%, 4%) scale(1.16) rotate(12deg);
+    border-radius: 42% 58% 38% 62% / 60% 40% 68% 32%;
+  }
+  48% {
+    transform: translate(4%, 18%) scale(0.92) rotate(-4deg);
+    border-radius: 66% 34% 52% 48% / 34% 66% 40% 60%;
+  }
+  65% {
+    transform: translate(-12%, 10%) scale(1.06) rotate(-10deg);
+    border-radius: 38% 62% 58% 42% / 52% 48% 36% 64%;
+  }
+  82% {
+    transform: translate(-6%, -6%) scale(1.12) rotate(3deg);
+    border-radius: 48% 52% 70% 30% / 55% 45% 50% 50%;
+  }
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    border-radius: 58% 42% 64% 36% / 46% 54% 46% 54%;
+  }
+}
+
+@keyframes stories-compose-blob-b {
+  0% {
+    transform: translate(0, 0) scale(1.05) rotate(0deg);
+    border-radius: 40% 60% 48% 52% / 62% 38% 62% 38%;
+  }
+  18% {
+    transform: translate(-8%, -14%) scale(0.94) rotate(-8deg);
+    border-radius: 55% 45% 60% 40% / 45% 55% 42% 58%;
+  }
+  36% {
+    transform: translate(-18%, -4%) scale(0.86) rotate(-14deg);
+    border-radius: 62% 38% 55% 45% / 40% 60% 35% 65%;
+  }
+  54% {
+    transform: translate(-10%, 14%) scale(1.12) rotate(6deg);
+    border-radius: 35% 65% 42% 58% / 70% 30% 58% 42%;
+  }
+  72% {
+    transform: translate(8%, 8%) scale(1.2) rotate(12deg);
+    border-radius: 48% 52% 36% 64% / 32% 68% 50% 50%;
+  }
+  88% {
+    transform: translate(4%, -8%) scale(1.08) rotate(4deg);
+    border-radius: 58% 42% 50% 50% / 48% 52% 60% 40%;
+  }
+  100% {
+    transform: translate(0, 0) scale(1.05) rotate(0deg);
+    border-radius: 40% 60% 48% 52% / 62% 38% 62% 38%;
+  }
+}
+
+@keyframes stories-compose-blob-c {
+  0% {
+    transform: translate(0, 0) scale(0.88) rotate(-4deg);
+    opacity: 0.65;
+    border-radius: 48% 52% 36% 64% / 42% 58% 42% 58%;
+  }
+  20% {
+    transform: translate(8%, 10%) scale(1.05) rotate(8deg);
+    opacity: 0.88;
+    border-radius: 60% 40% 50% 50% / 45% 55% 38% 62%;
+  }
+  40% {
+    transform: translate(14%, 16%) scale(1.24) rotate(16deg);
+    opacity: 1;
+    border-radius: 70% 30% 58% 42% / 48% 52% 30% 70%;
+  }
+  60% {
+    transform: translate(-4%, 6%) scale(1.1) rotate(-2deg);
+    opacity: 0.9;
+    border-radius: 40% 60% 45% 55% / 55% 45% 60% 40%;
+  }
+  80% {
+    transform: translate(-16%, -8%) scale(1.02) rotate(-12deg);
+    opacity: 0.8;
+    border-radius: 32% 68% 45% 55% / 62% 38% 66% 34%;
+  }
+  100% {
+    transform: translate(8%, -14%) scale(1.18) rotate(6deg);
+    opacity: 0.95;
+    border-radius: 55% 45% 62% 38% / 35% 65% 48% 52%;
+  }
+}
+
+@keyframes stories-compose-veil {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes stories-compose-slogan-shine {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stories-compose__empty,
+  .stories-compose__empty-blob,
+  .stories-compose__empty-veil,
+  .stories-compose__slogan {
+    animation: none;
+  }
+
+  .stories-compose__slogan {
+    color: #fff;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
+}
+
+/* Две крупные иконки в нижней панели — не под текстом */
 .stories-compose__actions {
   display: flex;
   justify-content: center;
