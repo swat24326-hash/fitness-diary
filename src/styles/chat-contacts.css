@@ -1,4 +1,4 @@
-/* Папки «Сообщений»: одна полоска с разделителями, поиск, яркие/тусклые строки. */
+/* Папки «Сообщений»: одна полоска; скругление только у оболочки (overflow), без «капсулы в капсуле». */
 .chat-folders {
   display: flex;
   align-items: stretch;
@@ -9,7 +9,7 @@
   scrollbar-width: none;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 
 .chat-folders::-webkit-scrollbar {
@@ -20,9 +20,10 @@
   display: inline-flex;
   flex: none;
   align-items: center;
+  align-self: stretch;
   gap: 5px;
-  min-height: 36px;
-  padding: 0 11px;
+  min-height: 40px;
+  padding: 0 14px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -44,18 +45,12 @@
 .chat-folders__tab--on {
   background: var(--accent);
   color: color-mix(in srgb, var(--accent-dim) 25%, black);
+  box-shadow: none;
 }
 
-.chat-folders__tab:first-child {
-  border-radius: 999px 0 0 999px;
-}
-
-.chat-folders__tab:last-child {
-  border-radius: 0 999px 999px 0;
-}
-
-.chat-folders__tab:only-child {
-  border-radius: 999px;
+.chat-folders__tab--on + .chat-folders__tab,
+.chat-folders__tab + .chat-folders__tab--on {
+  box-shadow: none;
 }
 
 /* Иконка папки — только в столбике на мониторе (messenger-layout.css). */

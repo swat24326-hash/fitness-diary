@@ -6,8 +6,8 @@
 /** Как экран сторис в Telegram. */
 export const STORY_EDIT_ASPECT = 9 / 16
 
-export const STORY_EDIT_TONE_RANGE = Object.freeze({ min: -40, max: 40, step: 1, def: 0 })
-export const STORY_EDIT_FADE_RANGE = Object.freeze({ min: 0, max: 40, step: 1, def: 0 })
+export const STORY_EDIT_TONE_RANGE = Object.freeze({ min: -70, max: 70, step: 1, def: 0 })
+export const STORY_EDIT_FADE_RANGE = Object.freeze({ min: 0, max: 70, step: 1, def: 0 })
 export const STORY_EDIT_ENHANCE_RANGE = Object.freeze({ min: 0, max: 100, step: 1, def: 0 })
 /** zoom=1 — вся картинка в кадре 9:16 (поля чёрные); дальше приближение до cover и сильнее. */
 export const STORY_EDIT_ZOOM = Object.freeze({ min: 1, max: 4, step: 0.05, def: 1 })
@@ -68,25 +68,25 @@ export function storyEditBipolarFill(pct) {
  */
 export function storyEditFilterCss(t = {}) {
   const enhance = toneVal(t, 'enhance', STORY_EDIT_ENHANCE_RANGE)
-  const exposure = toneVal(t, 'exposure', STORY_EDIT_TONE_RANGE) + enhance * 0.12
-  const contrast = toneVal(t, 'contrast', STORY_EDIT_TONE_RANGE) + enhance * 0.1
-  const saturation = toneVal(t, 'saturation', STORY_EDIT_TONE_RANGE) + enhance * 0.08
-  const warmth = toneVal(t, 'warmth', STORY_EDIT_TONE_RANGE) + enhance * 0.04
+  const exposure = toneVal(t, 'exposure', STORY_EDIT_TONE_RANGE) + enhance * 0.22
+  const contrast = toneVal(t, 'contrast', STORY_EDIT_TONE_RANGE) + enhance * 0.18
+  const saturation = toneVal(t, 'saturation', STORY_EDIT_TONE_RANGE) + enhance * 0.16
+  const warmth = toneVal(t, 'warmth', STORY_EDIT_TONE_RANGE) + enhance * 0.08
   const fade = toneVal(t, 'fade', STORY_EDIT_FADE_RANGE)
-  const shadows = toneVal(t, 'shadows', STORY_EDIT_TONE_RANGE) + enhance * 0.06
+  const shadows = toneVal(t, 'shadows', STORY_EDIT_TONE_RANGE) + enhance * 0.12
   /* совместимость: старое поле brightness */
   const legacyBright = t.brightness == null ? 0 : toneVal(t, 'brightness', STORY_EDIT_TONE_RANGE)
 
-  const b = 100 + exposure + legacyBright - fade * 0.35 + shadows * 0.2
-  const c = 100 + contrast - fade * 0.25 - Math.max(0, shadows) * 0.1
-  const s = 100 + saturation
+  const b = 100 + exposure * 1.45 + legacyBright - fade * 0.55 + shadows * 0.35
+  const c = 100 + contrast * 1.45 - fade * 0.4 - Math.max(0, shadows) * 0.2
+  const s = 100 + saturation * 1.6
   const parts = [`brightness(${b}%)`, `contrast(${c}%)`, `saturate(${s}%)`]
   if (warmth > 0) {
-    parts.push(`sepia(${warmth * 0.35}%)`)
-    parts.push(`hue-rotate(${(-warmth * 0.3).toFixed(1)}deg)`)
+    parts.push(`sepia(${Math.min(70, warmth * 0.7)}%)`)
+    parts.push(`hue-rotate(${(-warmth * 0.45).toFixed(1)}deg)`)
   } else if (warmth < 0) {
-    parts.push(`hue-rotate(${(-warmth * 0.55).toFixed(1)}deg)`)
-    parts.push(`saturate(${100 - warmth * 0.4}%)`)
+    parts.push(`hue-rotate(${(-warmth * 0.85).toFixed(1)}deg)`)
+    parts.push(`saturate(${100 - warmth * 0.7}%)`)
   }
   return parts.join(' ')
 }

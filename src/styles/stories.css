@@ -323,60 +323,66 @@
   animation: stories-compose-empty-in 0.7s ease-out both;
 }
 
+/*
+ * Без filter:blur и mix-blend — на Android (Samsung) blur даёт «дыры» и лесенку по краю.
+ * Мягкость — только длинным radial-gradient; двигаем transform/opacity, не border-radius.
+ */
 .stories-compose__empty-field {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  filter: blur(0.5px);
+  background: #000;
+  transform: translateZ(0);
 }
 
 .stories-compose__empty-blob {
   position: absolute;
-  filter: blur(28px);
-  will-change: transform, opacity, border-radius;
+  border-radius: 50%;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .stories-compose__empty-blob--a {
-  width: 78%;
-  height: 62%;
-  left: -12%;
-  top: 6%;
-  border-radius: 58% 42% 64% 36% / 46% 54% 46% 54%;
+  width: 92%;
+  height: 78%;
+  left: -18%;
+  top: -4%;
   background: radial-gradient(
-    circle at 40% 40%,
-    color-mix(in srgb, var(--accent-bright) 70%, #fff) 0%,
-    color-mix(in srgb, var(--accent) 55%, transparent) 48%,
-    transparent 72%
+    circle at 42% 42%,
+    color-mix(in srgb, var(--accent-bright) 55%, #fff) 0%,
+    color-mix(in srgb, var(--accent-bright) 42%, transparent) 28%,
+    color-mix(in srgb, var(--accent) 28%, transparent) 52%,
+    transparent 78%
   );
   animation: stories-compose-blob-a 22s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
 }
 
 .stories-compose__empty-blob--b {
-  width: 86%;
-  height: 70%;
-  right: -18%;
-  bottom: -8%;
-  border-radius: 40% 60% 48% 52% / 62% 38% 62% 38%;
+  width: 98%;
+  height: 82%;
+  right: -22%;
+  bottom: -14%;
   background: radial-gradient(
-    circle at 55% 45%,
-    color-mix(in srgb, var(--accent) 65%, #7dd3fc) 0%,
-    color-mix(in srgb, var(--accent-dim) 50%, transparent) 52%,
-    transparent 74%
+    circle at 55% 48%,
+    color-mix(in srgb, var(--accent) 48%, #7dd3fc) 0%,
+    color-mix(in srgb, var(--accent) 32%, transparent) 34%,
+    color-mix(in srgb, var(--accent-dim) 22%, transparent) 58%,
+    transparent 80%
   );
   animation: stories-compose-blob-b 28s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .stories-compose__empty-blob--c {
-  width: 64%;
-  height: 48%;
-  left: 18%;
-  top: 28%;
-  border-radius: 48% 52% 36% 64% / 42% 58% 42% 58%;
+  width: 72%;
+  height: 58%;
+  left: 14%;
+  top: 24%;
   background: radial-gradient(
     circle at 50% 50%,
-    color-mix(in srgb, #fff 55%, var(--accent-bright)) 0%,
-    color-mix(in srgb, var(--accent-bright) 35%, transparent) 42%,
-    transparent 70%
+    color-mix(in srgb, #fff 42%, var(--accent-bright)) 0%,
+    color-mix(in srgb, var(--accent-bright) 28%, transparent) 36%,
+    transparent 72%
   );
   opacity: 0.85;
   animation: stories-compose-blob-c 18s ease-in-out infinite alternate;
@@ -384,19 +390,14 @@
 
 .stories-compose__empty-veil {
   position: absolute;
-  inset: -20%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    color-mix(in srgb, var(--accent-bright) 22%, transparent) 70deg,
-    transparent 140deg,
-    color-mix(in srgb, #fff 14%, transparent) 200deg,
-    transparent 260deg,
-    color-mix(in srgb, var(--accent) 18%, transparent) 310deg,
-    transparent 360deg
+  inset: -10%;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    color-mix(in srgb, #fff 12%, transparent) 0%,
+    color-mix(in srgb, var(--accent-bright) 10%, transparent) 38%,
+    transparent 70%
   );
-  mix-blend-mode: soft-light;
-  animation: stories-compose-veil 32s linear infinite;
+  animation: stories-compose-veil 20s ease-in-out infinite;
 }
 
 .stories-compose__slogan {
@@ -438,102 +439,88 @@
 
 @keyframes stories-compose-blob-a {
   0% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    border-radius: 58% 42% 64% 36% / 46% 54% 46% 54%;
+    transform: translate3d(0, 0, 0) scale(1);
   }
   15% {
-    transform: translate(10%, -12%) scale(1.1) rotate(6deg);
-    border-radius: 45% 55% 40% 60% / 58% 42% 62% 38%;
+    transform: translate3d(10%, -12%, 0) scale(1.1);
   }
   32% {
-    transform: translate(18%, 4%) scale(1.16) rotate(12deg);
-    border-radius: 42% 58% 38% 62% / 60% 40% 68% 32%;
+    transform: translate3d(18%, 4%, 0) scale(1.16);
   }
   48% {
-    transform: translate(4%, 18%) scale(0.92) rotate(-4deg);
-    border-radius: 66% 34% 52% 48% / 34% 66% 40% 60%;
+    transform: translate3d(4%, 18%, 0) scale(0.92);
   }
   65% {
-    transform: translate(-12%, 10%) scale(1.06) rotate(-10deg);
-    border-radius: 38% 62% 58% 42% / 52% 48% 36% 64%;
+    transform: translate3d(-12%, 10%, 0) scale(1.06);
   }
   82% {
-    transform: translate(-6%, -6%) scale(1.12) rotate(3deg);
-    border-radius: 48% 52% 70% 30% / 55% 45% 50% 50%;
+    transform: translate3d(-6%, -6%, 0) scale(1.12);
   }
   100% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    border-radius: 58% 42% 64% 36% / 46% 54% 46% 54%;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes stories-compose-blob-b {
   0% {
-    transform: translate(0, 0) scale(1.05) rotate(0deg);
-    border-radius: 40% 60% 48% 52% / 62% 38% 62% 38%;
+    transform: translate3d(0, 0, 0) scale(1.05);
   }
   18% {
-    transform: translate(-8%, -14%) scale(0.94) rotate(-8deg);
-    border-radius: 55% 45% 60% 40% / 45% 55% 42% 58%;
+    transform: translate3d(-8%, -14%, 0) scale(0.94);
   }
   36% {
-    transform: translate(-18%, -4%) scale(0.86) rotate(-14deg);
-    border-radius: 62% 38% 55% 45% / 40% 60% 35% 65%;
+    transform: translate3d(-18%, -4%, 0) scale(0.86);
   }
   54% {
-    transform: translate(-10%, 14%) scale(1.12) rotate(6deg);
-    border-radius: 35% 65% 42% 58% / 70% 30% 58% 42%;
+    transform: translate3d(-10%, 14%, 0) scale(1.12);
   }
   72% {
-    transform: translate(8%, 8%) scale(1.2) rotate(12deg);
-    border-radius: 48% 52% 36% 64% / 32% 68% 50% 50%;
+    transform: translate3d(8%, 8%, 0) scale(1.2);
   }
   88% {
-    transform: translate(4%, -8%) scale(1.08) rotate(4deg);
-    border-radius: 58% 42% 50% 50% / 48% 52% 60% 40%;
+    transform: translate3d(4%, -8%, 0) scale(1.08);
   }
   100% {
-    transform: translate(0, 0) scale(1.05) rotate(0deg);
-    border-radius: 40% 60% 48% 52% / 62% 38% 62% 38%;
+    transform: translate3d(0, 0, 0) scale(1.05);
   }
 }
 
 @keyframes stories-compose-blob-c {
   0% {
-    transform: translate(0, 0) scale(0.88) rotate(-4deg);
+    transform: translate3d(0, 0, 0) scale(0.88);
     opacity: 0.65;
-    border-radius: 48% 52% 36% 64% / 42% 58% 42% 58%;
   }
   20% {
-    transform: translate(8%, 10%) scale(1.05) rotate(8deg);
+    transform: translate3d(8%, 10%, 0) scale(1.05);
     opacity: 0.88;
-    border-radius: 60% 40% 50% 50% / 45% 55% 38% 62%;
   }
   40% {
-    transform: translate(14%, 16%) scale(1.24) rotate(16deg);
+    transform: translate3d(14%, 16%, 0) scale(1.24);
     opacity: 1;
-    border-radius: 70% 30% 58% 42% / 48% 52% 30% 70%;
   }
   60% {
-    transform: translate(-4%, 6%) scale(1.1) rotate(-2deg);
+    transform: translate3d(-4%, 6%, 0) scale(1.1);
     opacity: 0.9;
-    border-radius: 40% 60% 45% 55% / 55% 45% 60% 40%;
   }
   80% {
-    transform: translate(-16%, -8%) scale(1.02) rotate(-12deg);
+    transform: translate3d(-16%, -8%, 0) scale(1.02);
     opacity: 0.8;
-    border-radius: 32% 68% 45% 55% / 62% 38% 66% 34%;
   }
   100% {
-    transform: translate(8%, -14%) scale(1.18) rotate(6deg);
+    transform: translate3d(8%, -14%, 0) scale(1.18);
     opacity: 0.95;
-    border-radius: 55% 45% 62% 38% / 35% 65% 48% 52%;
   }
 }
 
 @keyframes stories-compose-veil {
-  to {
-    transform: rotate(360deg);
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translate3d(0, -4%, 0) scale(1.08);
   }
 }
 
@@ -923,7 +910,7 @@
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border-top: 1px solid var(--border-soft);
   overflow: visible;
-  touch-action: pan-y;
+  touch-action: manipulation;
   user-select: auto;
 }
 
@@ -1060,7 +1047,7 @@
 
 .stories-compose-edit__tools {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-top: 4px;
 }
@@ -1091,33 +1078,6 @@
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent-bright);
-}
-
-.stories-compose-edit__tool--done.btn-touch {
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
-  color: var(--accent-bright);
-}
-
-.stories-compose-edit__tool--done > span {
-  display: block;
-  font-size: 0.68rem;
-  font-weight: 600;
-}
-
-/* Комп (мышь): «Готово» только в шапке — без второй такой же снизу. */
-@media (hover: hover) and (pointer: fine) {
-  .stories-compose-edit__tool--done {
-    display: none;
-  }
-}
-
-/* Телефон/планшет: «Готово» снизу под палец; верхнюю прячем, место в сетке оставляем. */
-@media (hover: none), (pointer: coarse) {
-  .stories-compose-edit__ok {
-    visibility: hidden;
-    pointer-events: none;
-  }
 }
 
 .stories-compose-edit__tool:disabled {
@@ -1205,14 +1165,24 @@
   height: 44px;
   min-width: 0;
   padding: 0 2px;
+  /* Иначе pan-y у списка на iPhone съедает горизонтальный жест ползунка */
+  touch-action: none;
 }
 
 .stories-compose-edit__bipolar {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 4px;
+  height: 44px;
   margin: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.stories-compose-edit__bipolar::-webkit-slider-runnable-track {
+  height: 4px;
   border-radius: 999px;
   background: linear-gradient(
     to right,
@@ -1223,14 +1193,14 @@
     color-mix(in srgb, var(--text) 18%, transparent) var(--fill-end, 50%),
     color-mix(in srgb, var(--text) 18%, transparent) 100%
   );
-  cursor: pointer;
 }
 
 .stories-compose-edit__bipolar::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
+  margin-top: -12px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid color-mix(in srgb, var(--accent) 70%, #fff);
@@ -1238,8 +1208,8 @@
 }
 
 .stories-compose-edit__bipolar::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid color-mix(in srgb, var(--accent) 70%, #fff);
@@ -1249,7 +1219,16 @@
 .stories-compose-edit__bipolar::-moz-range-track {
   height: 4px;
   border: 0;
-  background: transparent;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--text) 18%, transparent) 0%,
+    color-mix(in srgb, var(--text) 18%, transparent) var(--fill-start, 50%),
+    var(--accent) var(--fill-start, 50%),
+    var(--accent) var(--fill-end, 50%),
+    color-mix(in srgb, var(--text) 18%, transparent) var(--fill-end, 50%),
+    color-mix(in srgb, var(--text) 18%, transparent) 100%
+  );
 }
 
 .stories-compose-edit__bipolar-mid {

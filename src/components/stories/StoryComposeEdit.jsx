@@ -397,10 +397,16 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
                             '--fill-start': `${bipolar ? fill.start : 0}%`,
                             '--fill-end': `${bipolar ? fill.end : pct}%`,
                           }}
+                          onInput={(e) =>
+                            commitUi({
+                              ...live.current,
+                              [tone.id]: Number(e.currentTarget.value),
+                            })
+                          }
                           onChange={(e) =>
                             commitUi({
                               ...live.current,
-                              [tone.id]: Number(e.target.value),
+                              [tone.id]: Number(e.currentTarget.value),
                             })
                           }
                         />
@@ -452,17 +458,6 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
           >
             <Palette size={22} aria-hidden />
             <span>Цвет</span>
-          </button>
-          <button
-            type="button"
-            className="stories-compose-edit__tool stories-compose-edit__tool--done btn-touch"
-            disabled={busy || !ready}
-            onClick={() => void apply()}
-            aria-label="Готово"
-            title="Готово"
-          >
-            <Check size={22} aria-hidden />
-            <span>{busy ? '…' : 'Готово'}</span>
           </button>
         </nav>
       </div>
