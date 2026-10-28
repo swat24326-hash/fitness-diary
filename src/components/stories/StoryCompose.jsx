@@ -4,6 +4,7 @@ import { Camera, ImagePlus, X } from 'lucide-react'
 import {
   STORY_CAPTION_MAX,
   STORY_DEFAULT_CTA,
+  STORY_DEFAULT_LABEL,
   STORY_MAX_FRAMES,
 } from '../../lib/stories/storyClubCore.js'
 import { prepareStoryVideo } from '../../lib/stories/storyVideoPrepare.js'
@@ -21,12 +22,13 @@ function previewSrc(frame) {
 }
 
 /**
- * Выкладка сторис клуба: один кадр (правка фото) → вид / кнопка у клиента → опубликовать.
+ * Выкладка сторис клуба: один кадр (правка фото) → при праве — вид / кнопка у клиента → опубликовать.
+ * Вид и CTA — только если showOfferControls (админ / управляющий / менеджер продаж).
  */
-export function StoryCompose({ busy, error, onClose, onSubmit }) {
+export function StoryCompose({ busy, error, onClose, onSubmit, showOfferControls = false }) {
   const [frames, setFrames] = useState([])
   const [active, setActive] = useState(0)
-  const [label, setLabel] = useState('promo')
+  const [label, setLabel] = useState(showOfferControls ? 'promo' : STORY_DEFAULT_LABEL)
   const [cta, setCta] = useState(STORY_DEFAULT_CTA)
   const [localError, setLocalError] = useState('')
   const [record, setRecord] = useState(false)
@@ -133,8 +135,8 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
             return
           }
           onSubmit({
-            label,
-            cta,
+            label: showOfferControls ? label : STORY_DEFAULT_LABEL,
+            cta: showOfferControls ? cta : STORY_DEFAULT_CTA,
             frames: frames.map((frame) =>
               frame.kind === 'video'
                 ? { kind: 'video', blob: frame.blob, mime: frame.mime, sec: frame.sec, caption: frame.caption }
@@ -235,23 +237,25 @@ export function StoryCompose({ busy, error, onClose, onSubmit }) {
 
           {current ? (
             <>
-              <div className="stories-compose__meta">
-                <label>
-                  Вид
-                  <select value={label} disabled={busy} onChange={(e) => setLabel(e.target.value)}>
-                    <option value="promo">Акция</option>
-                    <option value="news">Новость</option>
-                  </select>
-                </label>
-                <label>
-                  Кнопка у клиента
-                  <select value={cta} disabled={busy} onChange={(e) => setCta(e.target.value)}>
-                    <option value="none">Без кнопки</option>
-                    <option value="chat">Написать менеджеру</option>
-                    <option value="membership">Мой абонемент</option>
-                  </select>
-                </label>
-              </div>
+              {showOfferControls ? (
+                <div className="stories-compose__meta">
+                  <label>
+                    Вид
+                    <select value={label} disabled={busy} onChange={(e) => setLabel(e.target.value)}>
+                      <option value="promo">Акция</option>
+                      <option value="news">Новость</option>
+                    </select>
+                  </label>
+                  <label>
+                    Кнопка у клиента
+                    <select value={cta} disabled={busy} onChange={(e) => setCta(e.target.value)}>
+                      <option value="none">Без кнопки</option>
+                      <option value="chat">Написать менеджеру</option>
+                      <option value="membership">Мой абонемент</option>
+                    </select>
+                  </label>
+                </div>
+              ) : null}
               <label className="stories-compose__caption">
                 <span className="u-visually-hidden">Подпись</span>
                 <input

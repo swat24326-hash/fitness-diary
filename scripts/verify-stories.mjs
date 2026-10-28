@@ -25,6 +25,7 @@ import {
   canPublishClubStoryNow,
   canRemoveClubStory,
   canSeeClubStoryViewers,
+  canSetStoryClientOffer,
   groupClubStoryAuthors,
   isStoryStorageKey,
   publishClubId,
@@ -39,6 +40,7 @@ import {
   storyMimeIsVideo,
   storyPhotoBytesOk,
   storyPostedShortRu,
+  storyPublishMeta,
   storyReactionNext,
   storyReactionOk,
   storyRingSegments,
@@ -101,6 +103,25 @@ ok(storyStaffKind('trainer') === 'staff' && storyStaffKind('sales_manager') === 
 ok(canPublishClubStory('admin') && canPublishClubStory('supervisor') && canPublishClubStory('staff'), 'выкладывают сотрудники клуба')
 ok(canPublishClubStoryNow('staff', false) && !canPublishClubStoryNow('staff', true), 'бан блокирует выкладку')
 ok(canModerateClubStoryPublish('admin') && canModerateClubStoryPublish('supervisor') && !canModerateClubStoryPublish('staff'), 'банят админ и управляющий')
+ok(
+  canSetStoryClientOffer('admin') &&
+    canSetStoryClientOffer('supervisor') &&
+    canSetStoryClientOffer('управляющий') &&
+    canSetStoryClientOffer('sales_manager') &&
+    canSetStoryClientOffer('менеджер по продажам'),
+  'акция/кнопка — админ, управляющий, менеджер продаж',
+)
+ok(!canSetStoryClientOffer('trainer') && !canSetStoryClientOffer('client') && !canSetStoryClientOffer(''), 'тренер и клиент без акции/кнопки')
+ok(
+  storyPublishMeta('trainer', { label: 'promo', cta: 'chat' }).label === STORY_DEFAULT_LABEL &&
+    storyPublishMeta('trainer', { label: 'promo', cta: 'chat' }).cta === STORY_DEFAULT_CTA,
+  'тренер: body акции/кнопки игнорируем',
+)
+ok(
+  storyPublishMeta('sales_manager', { label: 'promo', cta: 'chat' }).label === 'promo' &&
+    storyPublishMeta('admin', { label: 'news', cta: 'membership' }).cta === 'membership',
+  'менеджер продаж и админ задают meta',
+)
 
 console.log('клуб')
 ok(publishClubId({ kind: 'staff', ownClubId: CLUB }).clubId === CLUB, 'сотрудник выкладывает в свой клуб')

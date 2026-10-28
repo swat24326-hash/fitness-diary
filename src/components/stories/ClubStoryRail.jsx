@@ -253,6 +253,7 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
         <StoryCompose
           busy={busy}
           error={error}
+          showOfferControls={Boolean(pack?.can_set_offer)}
           onClose={() => setCompose(false)}
           onSubmit={(body) => {
             setBusy(true)

@@ -14,8 +14,6 @@ import {
   STORY_BAD_RU,
   STORY_BANNED_RU,
   STORY_BAN_TARGET_RU,
-  STORY_DEFAULT_CTA,
-  STORY_DEFAULT_LABEL,
   STORY_FORBIDDEN_RU,
   STORY_GONE_RU,
   STORY_LIFETIME_DAYS,
@@ -29,16 +27,16 @@ import {
   canPublishClubStoryNow,
   canRemoveClubStory,
   canSeeClubStoryViewers,
+  canSetStoryClientOffer,
   isStoryStorageKey,
   publishClubId,
   storyCaptionOk,
-  storyCtaOk,
   storyExpiresAt,
   storyFramesOk,
   storyIsLive,
-  storyLabelOk,
   storyLabelRu,
   storyPhotoBytesOk,
+  storyPublishMeta,
   storyReactionNext,
   storyStaffKind,
   storyStorageKey,
@@ -301,7 +299,13 @@ export async function handleStaffStoriesGet(ctx, query, res) {
       kind,
       userId: ctx.user.id,
     })
-    const payload = { club_id: club.clubId, can_publish: canPublish, me: ctx.user.id, stories: items }
+    const payload = {
+      club_id: club.clubId,
+      can_publish: canPublish,
+      can_set_offer: canSetStoryClientOffer(ctx.roleNorm),
+      me: ctx.user.id,
+      stories: items,
+    }
     if (moderate) payload.banned_publishers = await listBannedPublishers(ctx.supabaseAdmin, club.clubId)
     sendJson(res, 200, payload)
   } catch (e) {
@@ -375,18 +379,11 @@ async function staffStoryMedia(ctx, op, body, res) {
   return sendFrame(ctx.supabaseAdmin, body, res, story.club_id)
 }
 
-function publishMeta(body) {
-  return {
-    label: storyLabelOk(body?.label) || STORY_DEFAULT_LABEL,
-    cta: storyCtaOk(body?.cta) || STORY_DEFAULT_CTA,
-  }
-}
-
 async function finishPublish(ctx, clubId, prepared, put, res, meta = {}) {
   const kind = storyStaffKind(ctx.roleNorm)
   const id = randomUUID()
   const db = ctx.supabaseAdmin
-  const { label, cta } = publishMeta(meta)
+  const { label, cta } = storyPublishMeta(ctx.roleNorm, meta)
   const { error } = await db.from('club_stories').insert({
     id,
     club_id: clubId,
@@ -426,7 +423,13 @@ async function finishPublish(ctx, clubId, prepared, put, res, meta = {}) {
     kind,
     userId: ctx.user.id,
   })
-  sendJson(res, 200, { club_id: clubId, can_publish: true, me: ctx.user.id, stories })
+  sendJson(res, 200, {
+    club_id: clubId,
+    can_publish: true,
+    can_set_offer: canSetStoryClientOffer(ctx.roleNorm),
+    me: ctx.user.id,
+    stories,
+  })
 }
 
 async function publishStory(ctx, body, res, put) {

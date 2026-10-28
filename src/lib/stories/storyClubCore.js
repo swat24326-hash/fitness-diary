@@ -3,9 +3,16 @@
  * Свои сторис людей здесь нет. Без React и базы.
  */
 
+import {
+  USERS_ADMIN_ROLES,
+  USERS_SALES_MANAGER_ROLES,
+  USERS_SUPERVISOR_ROLES,
+} from '../userRoleConstants.js'
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const ADMIN = new Set(['admin', 'администратор'])
-const SUPERVISOR = new Set(['supervisor', 'управляющий'])
+const ADMIN = new Set(USERS_ADMIN_ROLES)
+const SUPERVISOR = new Set(USERS_SUPERVISOR_ROLES)
+const SALES = new Set(USERS_SALES_MANAGER_ROLES)
 
 export const STORY_LABELS = Object.freeze(['news', 'promo'])
 export const STORY_CTA = Object.freeze(['none', 'chat', 'membership'])
@@ -159,6 +166,29 @@ export function storyLabelOk(label) {
 
 export function storyCtaOk(cta) {
   return STORY_CTA.includes(cta) ? cta : null
+}
+
+/**
+ * Вид «Акция» и кнопка у клиента («Написать менеджеру» / абонемент).
+ * Только админ, управляющий, менеджер продаж. Тренер и клиент — нет.
+ */
+export function canSetStoryClientOffer(role) {
+  const r = String(role ?? '').trim().toLowerCase()
+  return ADMIN.has(r) || SUPERVISOR.has(r) || SALES.has(r)
+}
+
+/**
+ * Meta при выкладке. Без права — всегда новость без кнопки (body игнорируем).
+ * @returns {{ label: string, cta: string }}
+ */
+export function storyPublishMeta(role, body) {
+  if (!canSetStoryClientOffer(role)) {
+    return { label: STORY_DEFAULT_LABEL, cta: STORY_DEFAULT_CTA }
+  }
+  return {
+    label: storyLabelOk(body?.label) || STORY_DEFAULT_LABEL,
+    cta: storyCtaOk(body?.cta) || STORY_DEFAULT_CTA,
+  }
 }
 
 export function storyFramesOk(count) {
