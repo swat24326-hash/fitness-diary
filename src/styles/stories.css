@@ -3,15 +3,33 @@
   flex-direction: column;
   gap: 8px;
   padding: var(--space) var(--space) 0;
+  /* Иначе ряд раздувается на всех авторов и родитель overflow-x:hidden просто обрезает */
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .stories-rail__row {
   display: flex;
+  flex-wrap: nowrap;
   align-items: flex-start;
   gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
   padding-bottom: 4px;
+}
+
+.stories-rail__row::-webkit-scrollbar {
+  display: none;
 }
 
 .stories-rail__person {
@@ -28,6 +46,8 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  /* Жест вбок начинается на кружке — не отдавать родителю-странице */
+  touch-action: pan-x;
 }
 
 .stories-rail__add.btn-touch {
@@ -45,6 +65,7 @@
   color: var(--text);
   display: grid;
   place-items: center;
+  touch-action: pan-x;
 }
 
 .stories-view__close.btn-touch {

@@ -40,6 +40,14 @@
   align-content: start;
   gap: 10px;
   min-width: 0;
+  max-width: 100%;
+}
+
+/* Ряд кружков сторис — горизонтальный свайп на телефоне */
+.msgr__rail .stories-rail,
+.msgr__side .stories-rail {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .msgr__head {
