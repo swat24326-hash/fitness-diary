@@ -116,6 +116,7 @@ import {
   shouldEnsureClientMembershipsOnOpen,
 } from '../../lib/trainer/trainingMembershipEnsureCore.js'
 import { ensureTrainingDataMembershipId } from '../../lib/trainingMembershipLinkCore.js'
+import { stampTrainingCompletedAt } from '../../lib/membership/trainingChronologyCore.js'
 import {
   applyMembershipFirstCompletionDebit,
   resolveMembershipForFirstCompletionDebit,
@@ -1444,6 +1445,7 @@ export function TrainingPage() {
       }
       membershipToDebit = debitPlan.membership
       dataPayload.membership_id = debitPlan.membershipId
+      Object.assign(dataPayload, stampTrainingCompletedAt(dataPayload, now))
     }
     if (nextStatus === 'completed' && !String(dataPayload.membership_id ?? '').trim()) {
       try {

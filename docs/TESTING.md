@@ -174,6 +174,7 @@
 | Archive-pull не стирает активных | `verify-trainer-archive-pull-prune.mjs` |
 | Паритет agg клиент ↔ сервер | `verify-stats-agg-parity.mjs` |
 | Debit абонемента при first complete | `verify-training-membership-debit.mjs` (в т.ч. перекрытие: сначала старый) |
+| Номер «N/M» в один день (списания vs «Закончить») | `verify-training-chronology.mjs` |
 | Плитка «Трен. n/m» при редактировании завершённой | `verify-training-membership-tile.mjs` |
 | Абон не доехал на планшет: догрузка вместо прочерков и отказа закрыть | `verify-training-membership-ensure.mjs` |
 | Копирование / существующий draft без usable: early-activate как у новой | `verify-training-membership-draft-gate.mjs` |

@@ -1,4 +1,11 @@
 import { formatDateRu, todayLocalIso, addDaysToIso } from './dateRu.js'
+import {
+  compareTrainingsChronological,
+  stampTrainingCompletedAt,
+  trainingChronologyInstant,
+} from './membership/trainingChronologyCore.js'
+
+export { compareTrainingsChronological, stampTrainingCompletedAt, trainingChronologyInstant }
 
 export function membershipCoversDate(m, dateIso) {
   if (!m || !dateIso) return false
@@ -597,14 +604,6 @@ export function explainInactiveMembership(memberships, dateIso) {
   }
 
   return 'Нет действующего абонемента (по датам и остатку тренировок).'
-}
-
-/** По дате, затем по created_at — для номера тренировки по абонементу */
-export function compareTrainingsChronological(a, b) {
-  const da = String(a?.date ?? '').slice(0, 10)
-  const db = String(b?.date ?? '').slice(0, 10)
-  if (da !== db) return da.localeCompare(db)
-  return String(a?.created_at ?? '').localeCompare(String(b?.created_at ?? ''))
 }
 
 /**

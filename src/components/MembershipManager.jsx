@@ -568,6 +568,7 @@ export function MembershipManager({
           membership_id: membership.id,
           is_writeoff: true,
           training_focus: 'Списание (неявка)',
+          completed_at: now,
         },
         created_at: now,
         synced: false,

@@ -46,8 +46,9 @@
 | Абон не доехал на планшет (прочерки) | `src/lib/trainer/trainingMembershipEnsureCore.js`, `src/lib/trainer/trainingClientPrefetch.js` |
 | Связь тренировка ↔ абон | `src/lib/trainingMembershipLinkCore.js` |
 | Пересчёт used | `src/lib/membership/membershipUsedReconcileCore.js` |
+| Номер «N/M» в дневнике | `src/lib/membership/trainingChronologyCore.js` (`completed_at` / loyalty, не `created_at` черновика) → `membershipRules.compareTrainingsChronological` |
 | Статус persist | `src/lib/trainingPersistStatusCore.js` (если «Сохраняем…») |
-| Verify | `scripts/verify-training-membership-debit.mjs`, `scripts/verify-training-membership-ensure.mjs`, `scripts/verify-training-persist-status.mjs`, `scripts/verify-membership-used-reconcile.mjs` |
+| Verify | `scripts/verify-training-membership-debit.mjs`, `scripts/verify-training-membership-ensure.mjs`, `scripts/verify-training-persist-status.mjs`, `scripts/verify-membership-used-reconcile.mjs`, `scripts/verify-training-chronology.mjs` |
 | Docs | INCIDENTS **B**, [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
 
 ### C — Sync, очередь, «только на устройстве»
