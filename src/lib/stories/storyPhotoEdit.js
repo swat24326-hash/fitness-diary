@@ -6,7 +6,9 @@
 import { STORY_PHOTO_MAX_BYTES } from './storyClubCore.js'
 import {
   STORY_EDIT_ASPECT,
+  storyEditApplyFilterRgba,
   storyEditFilterCss,
+  storyEditFilterIsNeutral,
   storyEditImageDest,
   storyEditPreviewDest,
 } from './storyEditCore.js'
@@ -16,6 +18,57 @@ import { blobToStoryPhotoFrame } from './storyPhotoPrepare.js'
 const OUT_MAX = 1600
 const START_Q = 0.86
 const MIN_Q = 0.52
+
+/** Кэш: iPhone/WebKit часто имеет ctx.filter, но картинка визуально не меняется. */
+let canvasFilterOk = null
+
+function isAppleTouchUa() {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/iP(hone|od|ad)/i.test(ua)) return true
+  /* iPad «как Mac» */
+  return navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1
+}
+
+/**
+ * Реально ли ctx.filter меняет пиксели (не только «есть свойство»).
+ * На iPhone всегда false — тон через storyEditApplyFilterRgba.
+ */
+export function storyEditCanvasFilterWorks() {
+  if (canvasFilterOk != null) return canvasFilterOk
+  if (typeof document === 'undefined' || isAppleTouchUa()) {
+    canvasFilterOk = false
+    return false
+  }
+  try {
+    const src = document.createElement('canvas')
+    src.width = 1
+    src.height = 1
+    const sctx = src.getContext('2d')
+    if (!sctx) {
+      canvasFilterOk = false
+      return false
+    }
+    sctx.fillStyle = '#ffffff'
+    sctx.fillRect(0, 0, 1, 1)
+    const dst = document.createElement('canvas')
+    dst.width = 1
+    dst.height = 1
+    const x = dst.getContext('2d')
+    if (!x || typeof x.filter !== 'string') {
+      canvasFilterOk = false
+      return false
+    }
+    x.filter = 'brightness(0%)'
+    x.drawImage(src, 0, 0)
+    x.filter = 'none'
+    const [r] = x.getImageData(0, 0, 1, 1).data
+    canvasFilterOk = r < 8
+  } catch {
+    canvasFilterOk = false
+  }
+  return canvasFilterOk
+}
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -39,17 +92,40 @@ function paintIntoFrame(ctx, img, edit, dx, dy, dw, dh) {
   const iw = img.naturalWidth || img.width || 1
   const ih = img.naturalHeight || img.height || 1
   const layout = storyEditImageDest(iw, ih, dw, dh, edit)
+  const x0 = Math.max(0, Math.floor(dx))
+  const y0 = Math.max(0, Math.floor(dy))
+  const rw = Math.max(1, Math.ceil(dw))
+  const rh = Math.max(1, Math.ceil(dh))
   ctx.save()
   ctx.beginPath()
   ctx.rect(dx, dy, dw, dh)
   ctx.clip()
-  try {
-    ctx.filter = storyEditFilterCss(edit)
-  } catch {
+  const filterOk = storyEditCanvasFilterWorks()
+  if (filterOk) {
+    try {
+      ctx.filter = storyEditFilterCss(edit)
+    } catch {
+      ctx.filter = 'none'
+    }
+  } else {
     ctx.filter = 'none'
   }
   ctx.drawImage(img, 0, 0, iw, ih, dx + layout.dx, dy + layout.dy, layout.dw, layout.dh)
   ctx.filter = 'none'
+  /* iPhone: ползунки ездят, а ctx.filter молчит — дожимаем тон по пикселям */
+  if (!filterOk && !storyEditFilterIsNeutral(edit)) {
+    try {
+      const maxW = ctx.canvas?.width || rw
+      const maxH = ctx.canvas?.height || rh
+      const w = Math.min(rw, Math.max(1, maxW - x0))
+      const h = Math.min(rh, Math.max(1, maxH - y0))
+      const imageData = ctx.getImageData(x0, y0, w, h)
+      storyEditApplyFilterRgba(imageData.data, edit)
+      ctx.putImageData(imageData, x0, y0)
+    } catch {
+      /* tainted / нет getImageData — оставляем без тона */
+    }
+  }
   paintStoryDrawStrokes(ctx, edit.strokes, dx, dy, dw, dh)
   ctx.restore()
 }

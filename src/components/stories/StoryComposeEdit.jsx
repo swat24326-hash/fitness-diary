@@ -3,11 +3,9 @@ import { Check, Crop, Eraser, Minus, Palette, Pencil, Plus, Undo2, X } from 'luc
 import {
   STORY_EDIT_TONES,
   STORY_EDIT_ZOOM,
-  storyEditBipolarFill,
   storyEditDefaults,
   storyEditPanByDelta,
   storyEditSetZoom,
-  storyEditTonePct,
 } from '../../lib/stories/storyEditCore.js'
 import {
   STORY_DRAW_COLORS,
@@ -19,6 +17,7 @@ import {
   storyDrawUndo,
 } from '../../lib/stories/storyEditDraw.js'
 import { paintStoryEditPreview, renderStoryPhotoEdit } from '../../lib/stories/storyPhotoEdit.js'
+import { StoryComposeEditToneSlider } from './StoryComposeEditToneSlider.jsx'
 
 const TOOL_TITLE = {
   crop: { title: 'Кадр', hint: 'Сначала вся картинка · плюс приближает' },
@@ -375,47 +374,21 @@ export function StoryComposeEdit({ file, onDone, onCancel }) {
 
           {tool === 'color' ? (
             <ul className="stories-compose-edit__sliders" aria-label="Цвет">
-              {STORY_EDIT_TONES.map((tone) => {
-                const value = edit[tone.id] ?? tone.def
-                const pct = storyEditTonePct(value, tone.min, tone.max)
-                const fill = storyEditBipolarFill(pct)
-                const bipolar = tone.bipolar !== false && tone.min < 0
-                return (
-                  <li key={tone.id}>
-                    <label className="stories-compose-edit__slider-row">
-                      <span className="stories-compose-edit__slider-label">{tone.label}</span>
-                      <span className="stories-compose-edit__bipolar-wrap">
-                        <input
-                          type="range"
-                          className="stories-compose-edit__bipolar"
-                          min={tone.min}
-                          max={tone.max}
-                          step={tone.step}
-                          value={value}
-                          disabled={busy}
-                          style={{
-                            '--fill-start': `${bipolar ? fill.start : 0}%`,
-                            '--fill-end': `${bipolar ? fill.end : pct}%`,
-                          }}
-                          onInput={(e) =>
-                            commitUi({
-                              ...live.current,
-                              [tone.id]: Number(e.currentTarget.value),
-                            })
-                          }
-                          onChange={(e) =>
-                            commitUi({
-                              ...live.current,
-                              [tone.id]: Number(e.currentTarget.value),
-                            })
-                          }
-                        />
-                        {bipolar ? <span className="stories-compose-edit__bipolar-mid" aria-hidden /> : null}
-                      </span>
-                    </label>
-                  </li>
-                )
-              })}
+              {STORY_EDIT_TONES.map((tone) => (
+                <li key={tone.id}>
+                  <StoryComposeEditToneSlider
+                    tone={tone}
+                    value={edit[tone.id] ?? tone.def}
+                    disabled={busy}
+                    onChange={(next) =>
+                      commitUi({
+                        ...live.current,
+                        [tone.id]: next,
+                      })
+                    }
+                  />
+                </li>
+              ))}
             </ul>
           ) : null}
         </div>

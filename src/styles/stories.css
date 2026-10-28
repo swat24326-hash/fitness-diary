@@ -1105,8 +1105,17 @@
   height: 44px;
   min-width: 0;
   padding: 0 2px;
-  /* Иначе pan-y у списка на iPhone съедает горизонтальный жест ползунка */
+  /* Жест ловим сами (pointer) — иначе iPhone scroll съедает range */
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.stories-compose-edit__bipolar-wrap:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .stories-compose-edit__bipolar {

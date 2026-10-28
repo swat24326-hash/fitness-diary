@@ -52,6 +52,23 @@ export function storyEditTonePct(value, min, max) {
 }
 
 /**
+ * Значение тона по горизонтали жеста (iPhone: нативный range внутри scroll не тянется).
+ * @param {number} clientX
+ * @param {{ left: number, width: number } | null | undefined} rect
+ * @param {{ min: number, max: number, step?: number }} range
+ */
+export function storyEditToneFromClientX(clientX, rect, range) {
+  const lo = Number(range?.min)
+  const hi = Number(range?.max)
+  const step = Number(range?.step) > 0 ? Number(range.step) : 1
+  if (!(hi > lo) || !rect || !(rect.width > 0)) return lo
+  const t = clampStoryEdit((Number(clientX) - rect.left) / rect.width, 0, 1)
+  const raw = lo + t * (hi - lo)
+  const snapped = Math.round(raw / step) * step
+  return clampStoryEdit(snapped, lo, hi)
+}
+
+/**
  * Заливка «от нуля» (центр) для bipolar.
  * @returns {{ start: number, end: number }}
  */
@@ -63,10 +80,11 @@ export function storyEditBipolarFill(pct) {
 }
 
 /**
- * CSS filter для превью и canvas.
+ * Параметры тона для CSS filter и запасного пути по пикселям (iOS часто игнорит ctx.filter).
  * @param {Record<string, number|undefined>} t
+ * @returns {{ b: number, c: number, s: number, warmth: number }}
  */
-export function storyEditFilterCss(t = {}) {
+export function storyEditFilterParams(t = {}) {
   const enhance = toneVal(t, 'enhance', STORY_EDIT_ENHANCE_RANGE)
   const exposure = toneVal(t, 'exposure', STORY_EDIT_TONE_RANGE) + enhance * 0.22
   const contrast = toneVal(t, 'contrast', STORY_EDIT_TONE_RANGE) + enhance * 0.18
@@ -74,12 +92,33 @@ export function storyEditFilterCss(t = {}) {
   const warmth = toneVal(t, 'warmth', STORY_EDIT_TONE_RANGE) + enhance * 0.08
   const fade = toneVal(t, 'fade', STORY_EDIT_FADE_RANGE)
   const shadows = toneVal(t, 'shadows', STORY_EDIT_TONE_RANGE) + enhance * 0.12
-  /* совместимость: старое поле brightness */
   const legacyBright = t.brightness == null ? 0 : toneVal(t, 'brightness', STORY_EDIT_TONE_RANGE)
 
-  const b = 100 + exposure * 1.45 + legacyBright - fade * 0.55 + shadows * 0.35
-  const c = 100 + contrast * 1.45 - fade * 0.4 - Math.max(0, shadows) * 0.2
-  const s = 100 + saturation * 1.6
+  return {
+    b: 100 + exposure * 1.45 + legacyBright - fade * 0.55 + shadows * 0.35,
+    c: 100 + contrast * 1.45 - fade * 0.4 - Math.max(0, shadows) * 0.2,
+    s: 100 + saturation * 1.6,
+    warmth,
+  }
+}
+
+/** Нет правок цвета — можно не гонять пиксели. */
+export function storyEditFilterIsNeutral(t = {}) {
+  const p = storyEditFilterParams(t)
+  return (
+    Math.abs(p.b - 100) < 0.05 &&
+    Math.abs(p.c - 100) < 0.05 &&
+    Math.abs(p.s - 100) < 0.05 &&
+    Math.abs(p.warmth) < 0.05
+  )
+}
+
+/**
+ * CSS filter для canvas (Chrome/Android). На части iPhone — no-op, см. storyEditApplyFilterRgba.
+ * @param {Record<string, number|undefined>} t
+ */
+export function storyEditFilterCss(t = {}) {
+  const { b, c, s, warmth } = storyEditFilterParams(t)
   const parts = [`brightness(${b}%)`, `contrast(${c}%)`, `saturate(${s}%)`]
   if (warmth > 0) {
     parts.push(`sepia(${Math.min(70, warmth * 0.7)}%)`)
@@ -89,6 +128,54 @@ export function storyEditFilterCss(t = {}) {
     parts.push(`saturate(${100 - warmth * 0.7}%)`)
   }
   return parts.join(' ')
+}
+
+function clampByte(n) {
+  return n < 0 ? 0 : n > 255 ? 255 : n
+}
+
+/**
+ * Тот же тон, что CSS filter, но по RGBA (когда ctx.filter на устройстве молчит).
+ * @param {Uint8ClampedArray | number[]} data
+ * @param {Record<string, number|undefined>} edit
+ */
+export function storyEditApplyFilterRgba(data, edit = {}) {
+  if (!data?.length || storyEditFilterIsNeutral(edit)) return data
+  const { b, c, s, warmth } = storyEditFilterParams(edit)
+  const br = b / 100
+  const ct = c / 100
+  const sat = s / 100
+  const warmAmt = warmth / 100
+  /* стандартная матрица saturate как в CSS */
+  const sr = 0.213
+  const sg = 0.715
+  const sb = 0.072
+  const r0 = sr + (1 - sr) * sat
+  const r1 = sg * (1 - sat)
+  const r2 = sb * (1 - sat)
+  const g0 = sr * (1 - sat)
+  const g1 = sg + (1 - sg) * sat
+  const g2 = sb * (1 - sat)
+  const b0 = sr * (1 - sat)
+  const b1 = sg * (1 - sat)
+  const b2 = sb + (1 - sb) * sat
+
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i] * br
+    let g = data[i + 1] * br
+    let bl = data[i + 2] * br
+    r = (r - 128) * ct + 128
+    g = (g - 128) * ct + 128
+    bl = (bl - 128) * ct + 128
+    const nr = r * r0 + g * r1 + bl * r2
+    const ng = r * g0 + g * g1 + bl * g2
+    const nb = r * b0 + g * b1 + bl * b2
+    /* теплота: тёплый — больше R, холодный — больше B */
+    data[i] = clampByte(nr + warmAmt * 48)
+    data[i + 1] = clampByte(ng + warmAmt * 12)
+    data[i + 2] = clampByte(nb - warmAmt * 40)
+  }
+  return data
 }
 
 /**

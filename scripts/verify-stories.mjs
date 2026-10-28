@@ -66,11 +66,14 @@ import {
   storyEditBipolarFill,
   storyEditCoverZoom,
   storyEditDefaults,
+  storyEditApplyFilterRgba,
   storyEditFilterCss,
+  storyEditFilterIsNeutral,
   storyEditImageDest,
   storyEditPanByDelta,
   storyEditPreviewDest,
   storyEditSetZoom,
+  storyEditToneFromClientX,
   storyEditTonePct,
 } from '../src/lib/stories/storyEditCore.js'
 import {
@@ -235,9 +238,17 @@ ok(storySwipeIntent({ dx: 5, dy: 5 }) === 'none', 'дрожь пальца не 
 console.log('редактор')
 ok(Math.abs(STORY_EDIT_ASPECT - 9 / 16) < 1e-9, 'кадр 9:16')
 ok(clampStoryEdit(100, -40, 40) === 40 && clampStoryEdit(-99, -40, 40) === -40, 'clamp тона')
-ok(storyEditFilterCss({}) === 'brightness(100%) contrast(100%) saturate(100%)', 'фильтр как есть')
-ok(storyEditFilterCss({ enhance: 50 }).includes('brightness(1'), 'улучшение поднимает яркость')
-ok(storyEditFilterCss({ warmth: 20 }).includes('sepia'), 'теплота — sepia')
+  ok(storyEditFilterCss({}) === 'brightness(100%) contrast(100%) saturate(100%)', 'фильтр как есть')
+  ok(storyEditFilterCss({ enhance: 50 }).includes('brightness(1'), 'улучшение поднимает яркость')
+  ok(storyEditFilterCss({ warmth: 20 }).includes('sepia'), 'теплота — sepia')
+  ok(storyEditFilterIsNeutral({}), 'без тонов — нейтрально')
+  ok(!storyEditFilterIsNeutral({ exposure: 40 }), 'экспозиция — не нейтрально')
+  const px = new Uint8ClampedArray([128, 128, 128, 255])
+  storyEditApplyFilterRgba(px, { exposure: 50 })
+  ok(px[0] > 128 && px[1] > 128 && px[2] > 128, 'пиксельный тон светлеет от экспозиции')
+  const px2 = new Uint8ClampedArray([128, 128, 128, 255])
+  storyEditApplyFilterRgba(px2, { exposure: -50 })
+  ok(px2[0] < 128, 'пиксельный тон темнеет от минуса')
 {
   const frameW = 900
   const frameH = 1600
@@ -275,6 +286,11 @@ ok(storyEditFilterCss({ warmth: 20 }).includes('sepia'), 'теплота — sep
   ok(fillPos.start === 50 && fillPos.end === 75, 'заливка в плюс — от центра вправо')
   const fillNeg = storyEditBipolarFill(25)
   ok(fillNeg.start === 25 && fillNeg.end === 50, 'заливка в минус — от центра влево')
+  const track = { left: 100, width: 200 }
+  ok(storyEditToneFromClientX(100, track, { min: -70, max: 70, step: 1 }) === -70, 'жест у левого края — min')
+  ok(storyEditToneFromClientX(200, track, { min: -70, max: 70, step: 1 }) === 0, 'жест в центре — ноль')
+  ok(storyEditToneFromClientX(300, track, { min: -70, max: 70, step: 1 }) === 70, 'жест у правого края — max')
+  ok(storyEditToneFromClientX(50, track, { min: 0, max: 100, step: 1 }) === 0, 'жест левее трека — clamp min')
 }
 
 console.log('файл')
