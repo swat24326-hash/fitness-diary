@@ -1,0 +1,98 @@
+/* Окно выбора упражнения из справочника (форма тренировки, планшет). */
+
+.modal-overlay.modal-overlay--exercise-catalog {
+  --ec-safe-y: calc(env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+  align-items: stretch;
+  justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+}
+
+.modal-panel.modal-panel--exercise-catalog {
+  width: min(880px, 100%);
+  height: min(92dvh, calc(100dvh - 32px - var(--ec-safe-y)));
+  max-height: min(92dvh, calc(100dvh - 32px - var(--ec-safe-y)));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--space-4, 16px) var(--space-5, 20px);
+}
+
+.exercise-catalog-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.exercise-catalog-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.exercise-catalog-picker__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.exercise-catalog-picker__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  flex-shrink: 0;
+}
+
+.exercise-catalog-picker__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.exercise-catalog-picker__search {
+  margin-bottom: 0;
+  flex: 1 1 200px;
+}
+
+.exercise-catalog-picker__group {
+  margin-bottom: 0;
+  min-width: 180px;
+  flex: 0 1 220px;
+}
+
+.modal-panel--exercise-catalog .training-exercise-catalog-scroll,
+.exercise-catalog-picker__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+@media (max-width: 900px) {
+  .modal-overlay.modal-overlay--exercise-catalog {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .modal-panel.modal-panel--exercise-catalog {
+    width: 100%;
+    height: min(94dvh, calc(100dvh - 20px - var(--ec-safe-y)));
+    max-height: min(94dvh, calc(100dvh - 20px - var(--ec-safe-y)));
+    padding: 14px 14px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 900px) {
+  .modal-panel.modal-panel--exercise-catalog {
+    width: min(960px, 100%);
+    height: min(94dvh, calc(100dvh - 20px - var(--ec-safe-y)));
+    max-height: min(94dvh, calc(100dvh - 20px - var(--ec-safe-y)));
+  }
+
+  .exercise-catalog-picker__hint {
+    display: none;
+  }
+}

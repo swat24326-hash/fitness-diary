@@ -788,7 +788,7 @@ export function TrainingForm({
 
       {pickExerciseIdx != null && exercises[pickExerciseIdx] && (
         <div
-          className="modal-overlay"
+          className="modal-overlay modal-overlay--exercise-catalog"
           role="dialog"
           aria-modal="true"
           aria-labelledby="exercise-catalog-title"
@@ -797,10 +797,10 @@ export function TrainingForm({
             setSuggestOpenId(null)
           }}
         >
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="grid" style={{ gap: 12 }}>
-              <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
-                <h3 id="exercise-catalog-title" style={{ margin: 0 }}>
+          <div className="modal-panel modal-panel--exercise-catalog" onClick={(e) => e.stopPropagation()}>
+            <div className="exercise-catalog-picker">
+              <div className="exercise-catalog-picker__head">
+                <h3 id="exercise-catalog-title" className="exercise-catalog-picker__title">
                   Справочник упражнений
                 </h3>
                 <CloseButton
@@ -810,11 +810,12 @@ export function TrainingForm({
                   }}
                 />
               </div>
-              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                Список задаёт администратор. Можно выбрать здесь или подобрать по буквам в поле на форме — сохраняется только упражнение из справочника.
+              <p className="muted exercise-catalog-picker__hint">
+                Список задаёт администратор. Можно выбрать здесь или подобрать по буквам в поле на форме —
+                сохраняется только упражнение из справочника.
               </p>
-              <div className="row" style={{ flexWrap: 'wrap', gap: 10 }}>
-                <div className="field" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+              <div className="exercise-catalog-picker__filters">
+                <div className="field exercise-catalog-picker__search">
                   <label className="label" htmlFor="exercise-catalog-search">
                     Поиск
                   </label>
@@ -828,7 +829,7 @@ export function TrainingForm({
                     autoComplete="off"
                   />
                 </div>
-                <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
+                <div className="field exercise-catalog-picker__group">
                   <label className="label" htmlFor="exercise-catalog-group">
                     Направленность
                   </label>
@@ -847,7 +848,7 @@ export function TrainingForm({
                   </select>
                 </div>
               </div>
-              <div className="training-exercise-catalog-scroll">
+              <div className="training-exercise-catalog-scroll exercise-catalog-picker__scroll">
                 {catalogList.length === 0 ? (
                   <p className="muted" style={{ margin: '12px 8px', fontSize: 14 }}>
                     В справочнике пока нет упражнений — их добавляет администратор (Структура → Упражнения).
