@@ -2082,7 +2082,8 @@ tr:last-child td {
 }
 
 .training-exercise-block--superset {
-  padding-left: 34px;
+  /* Жёлоб под rail + метку A: иначе скрепка/буква наезжают на «Упражнение» */
+  padding-left: 44px;
 }
 
 .training-superset-rail {
@@ -2091,22 +2092,34 @@ tr:last-child td {
   top: 14px;
   /* Не накрывать кнопку «+» подход: absolute рисуется поверх in-flow и съедает тапы */
   bottom: 56px;
-  width: 28px;
+  width: 36px;
   border-left: 2px solid rgba(34, 197, 94, 0.55);
   font-size: 0.65rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1;
   color: var(--accent-bright);
-  padding: 2px 0 0 4px;
+  padding: 0;
   letter-spacing: 0.02em;
   pointer-events: none;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
 }
 
 .training-superset-rail__label {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
+  width: 100%;
+  max-width: 100%;
+  padding-top: 2px;
+}
+
+.training-superset-rail__label svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .training-exercise-block--superset-mid .training-superset-rail,
