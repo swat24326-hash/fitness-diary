@@ -2081,10 +2081,7 @@ tr:last-child td {
   position: relative;
 }
 
-.training-exercise-block--superset {
-  /* Жёлоб под rail + метку A: иначе скрепка/буква наезжают на «Упражнение» */
-  padding-left: 44px;
-}
+/* padding-left суперсета — в os-polish.css (там же shorthand padding блока; иначе затирается) */
 
 .training-superset-rail {
   position: absolute;

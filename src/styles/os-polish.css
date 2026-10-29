@@ -153,6 +153,11 @@
   border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
+/* Иначе shorthand выше затирает padding-left из index.css — скрепка/A на «Упражнение» */
+.training-exercise-block.training-exercise-block--superset {
+  padding-left: 44px;
+}
+
 .training-exercise-block:last-child {
   border-bottom: none;
   padding-bottom: 0;
