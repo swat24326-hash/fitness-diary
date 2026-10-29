@@ -116,6 +116,7 @@
 | Слой | Путь |
 |------|------|
 | Форма | `src/components/TrainingForm.jsx`, `src/lib/trainingFormStepMemory.js` |
+| Суперсет (rail / «+» подход) | `src/lib/trainingSuperset.js`; стили `.training-superset-rail` / `.training-add-set-btn` в `src/index.css` — INC **G** 09-07 |
 | Пульс / HR | [TRAINING_HR.md](./TRAINING_HR.md), agg в trainer/admin stats |
 | Секундомер шапки | `src/components/HeaderStopwatch.jsx`, `src/lib/headerStopwatchCore.js` — INC **G** 09-29 |
 | Verify | `scripts/verify-training-set-laterality.mjs`, `scripts/verify-exercise-format.mjs`, `scripts/verify-hr-after-from-live.mjs`, `scripts/verify-header-stopwatch.mjs` |
