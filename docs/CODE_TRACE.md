@@ -170,7 +170,8 @@
 | Список | `src/lib/admin/adminClientsListService.js`, `src/lib/admin/deskHallClientsCore.js`, `src/lib/admin/adminClientsListLifecycleCore.js`, `src/components/admin/AdminClientsListRow.jsx` |
 | Hydrate | `src/lib/admin/adminClientHydrate.js` |
 | Импорт | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md), [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) |
-| Verify | см. `scripts/verify-admin-clients-*.mjs` в [TESTING.md](./TESTING.md) |
+| Создание у тренера (анти-дубль) | `src/pages/trainer/TrainerClients.jsx` + `src/lib/trainer/trainerClientCreateGuardCore.js` — INC **K** 10-29 |
+| Verify | см. `scripts/verify-admin-clients-*.mjs` в [TESTING.md](./TESTING.md); `scripts/verify-trainer-client-create-guard.mjs` |
 | Docs | INCIDENTS **K** |
 
 ### L — клубы, роли, управляющий

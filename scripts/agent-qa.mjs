@@ -171,6 +171,7 @@ run('schedule swipe (телефон)', 'node', ['scripts/verify-schedule-swipe.m
 run('trainer schedule admin', 'node', ['scripts/verify-trainer-schedule-admin-core.mjs'])
 run('trainer schedule push auth', 'node', ['scripts/verify-trainer-schedule-push-auth.mjs'])
 run('trainer client push auth', 'node', ['scripts/verify-trainer-client-push-auth.mjs'])
+run('trainer client create guard', 'node', ['scripts/verify-trainer-client-create-guard.mjs'])
 run('trainer hall lifecycle push auth', 'node', ['scripts/verify-trainer-client-hall-lifecycle-push-auth.mjs'])
 run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])
 run('client birthdays', 'node', ['scripts/verify-client-birthdays.mjs'])

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search, SkipForward, UserPlus, UserRound } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { TrainerClientListItem } from '../../components/trainer/TrainerClientListItem'
@@ -72,6 +72,11 @@ import {
 import { withPnkFieldsForInsert } from '../../lib/pnk/pnkLocalService'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
+import {
+  findClientsWithSameFormattedName,
+  sameNameCreateConfirmMessageRu,
+  shouldSkipDuplicateClientCreateClick,
+} from '../../lib/trainer/trainerClientCreateGuardCore.js'
 import '../../styles/trainer-clients.css'
 
 export function TrainerClients() {
@@ -115,6 +120,7 @@ export function TrainerClients() {
   const [archiveReasonModal, setArchiveReasonModal] = useState(null)
   const [toast, setToast] = useState(null)
   const [highlightClientId, setHighlightClientId] = useState(null)
+  const createInFlightRef = useRef(false)
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!user?.id) return
@@ -398,29 +404,36 @@ export function TrainerClients() {
 
   const createClient = async (e) => {
     e.preventDefault()
+    if (shouldSkipDuplicateClientCreateClick(createInFlightRef.current)) return
     if (!user?.id || !trainerClubId) {
       alert('Клуб не назначен — попросите администратора назначить клуб в профиле.')
       return
     }
+    createInFlightRef.current = true
+    setBusy(true)
     const cardRaw = String(newClientForm.card_number ?? '').trim() || null
-    if (cardRaw) {
-      let pool = [...clients, ...archivedClients]
+    try {
+      let clubPool = [...clients, ...archivedClients]
       try {
         const clubWide = await listClientsByClubId(trainerClubId)
-        if (clubWide?.length) pool = clubWide
+        if (clubWide?.length) clubPool = clubWide
       } catch {
         /* офлайн — проверяем хотя бы своих */
       }
-      const cardCheck = assertClubCardAvailableForCreate(pool, trainerClubId, cardRaw)
-      if (!cardCheck.ok) {
-        alert(
-          `${cardCheck.error}\n\nКлиент уже в базе клуба. Обратитесь к администратору или менеджеру — они добавят абонемент ПЗ к существующей карточке.`,
-        )
-        return
+      if (cardRaw) {
+        const cardCheck = assertClubCardAvailableForCreate(clubPool, trainerClubId, cardRaw)
+        if (!cardCheck.ok) {
+          alert(
+            `${cardCheck.error}\n\nКлиент уже в базе клуба. Обратитесь к администратору или менеджеру — они добавят абонемент ПЗ к существующей карточке.`,
+          )
+          return
+        }
       }
-    }
-    setBusy(true)
-    try {
+      const sameName = findClientsWithSameFormattedName(clubPool, newClientForm.name)
+      if (sameName.length > 0) {
+        const okSame = window.confirm(sameNameCreateConfirmMessageRu(newClientForm.name, sameName.length))
+        if (!okSame) return
+      }
       const id = crypto.randomUUID()
       const now = new Date().toISOString()
       const rowBase = {
@@ -444,9 +457,6 @@ export function TrainerClients() {
         operation: 'insert',
         remote_id: id,
       })
-      const flush = await flushCriticalWritesToCloud()
-      const warn = criticalWriteCloudWarning(flush, 'Новый клиент')
-      if (warn) alert(warn)
       setShowNewClient(false)
       setNewClientForm({
         name: '',
@@ -458,10 +468,14 @@ export function TrainerClients() {
         as_pnk: false,
         pnk_trial_sessions: 1,
       })
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Новый клиент')
+      if (warn) alert(warn)
       await reload()
     } catch (err) {
       alert(err?.message ?? 'Не удалось создать клиента')
     } finally {
+      createInFlightRef.current = false
       setBusy(false)
     }
   }
@@ -851,11 +865,16 @@ export function TrainerClients() {
                 </div>
               ) : null}
               <div className="row td-modal-actions">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowNewClient(false)}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => !busy && setShowNewClient(false)}
+                >
                   Отмена
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Создать
+                <button type="submit" className="btn btn-primary" disabled={busy}>
+                  {busy ? 'Создаём…' : 'Создать'}
                 </button>
               </div>
             </form>
