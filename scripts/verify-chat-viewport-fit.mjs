@@ -1,6 +1,6 @@
 /**
  * Переписка ровно в видимую часть экрана: высота ленты от верха диалога до низа видимой части (клавиатура iPhone),
- * лишний сдвиг страницы вверх — вернуть.
+ * лишний сдвиг страницы вверх — вернуть. Android/Honor: не верить укороченному visualViewport при полном layout.
  * node scripts/verify-chat-viewport-fit.mjs
  */
 import {
@@ -8,8 +8,10 @@ import {
   CHAT_FIT_TOUCH_MAX_MS,
   chatFitDeferDuringTouch,
   chatFitHeightPx,
+  chatFitIsIosLike,
   chatFitShiftPx,
   chatFitShouldUnpan,
+  chatFitViewHeightPx,
 } from '../src/lib/chat/chatViewportFit.js'
 
 function ok(cond, msg) {
@@ -49,5 +51,22 @@ const defer = (touchStartedAt, now) => chatFitDeferDuringTouch({ touchStartedAt,
 ok(defer(1000, 1300), 'палец тянет экран — подгонку отложить, не спорить с пружиной iPhone (INC-2026-10-14-04)')
 ok(!defer(null, 1300), 'палец отпущен — подгонка сразу')
 ok(!defer(1000, 1000 + CHAT_FIT_TOUCH_MAX_MS), 'iPhone не прислал «отпустил» — через 2 с подгонка всё равно оживает, поле не застрянет')
+
+ok(chatFitIsIosLike({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' }), 'iPhone — iosLike')
+ok(chatFitIsIosLike({ ua: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)' }), 'iPad — iosLike')
+ok(chatFitIsIosLike({ ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', maxTouchPoints: 5 }), 'iPadOS desktop UA — iosLike')
+ok(!chatFitIsIosLike({ ua: 'Mozilla/5.0 (Linux; Android 13; ANY-LX1) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36' }), 'Honor/Android — не iosLike')
+ok(!chatFitIsIosLike({ ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }), 'компьютер — не iosLike')
+
+const view = (visualHeight, layoutHeight, offsetTop = 0, iosLike = false) =>
+  chatFitViewHeightPx({ visualHeight, layoutHeight, offsetTop, iosLike })
+
+ok(view(400, 1200, 0, false) === 1200, 'Honor: vv врёт короткий, layout полный — берём layout, поле не уезжает вверх (INC-2026-10-29-04)')
+ok(view(800, 800, 0, false) === 800, 'Android: layout сжат клавиатурой (resizes-content) — высота layout')
+ok(view(500, 844, 0, true) === 500, 'iPhone: layout полный, vv короче — берём vv')
+ok(view(508, 844, 336, true) === 508, 'iPhone со сдвигом offsetTop — высота видимой части')
+ok(view(508, 844, 336, false) === 508, 'сдвиг offsetTop на любом UA — высота видимой части')
+ok(view(null, 900, 0, false) === 900, 'нет vv — layout')
+ok(view('x', 0, 0, false) === 0 && view(null, null, 0, true) === 0, 'битые размеры — 0')
 
 console.log('verify-chat-viewport-fit: all passed')

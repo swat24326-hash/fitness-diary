@@ -214,13 +214,14 @@
 
 ## Связь и инфра (O–Q)
 
-### O — SMS, звонки, Max
+### O — SMS, звонки, Max / мессенджер (клавиатура)
 
 | Слой | Путь |
 |------|------|
 | API | `api/_lib/moiZvonkiHandler.js`, `api/_lib/moiZvonkiCallHandler.js`, `api/_lib/moiZvonkiWebhookHandler.js`; `api/admin-data.js` |
 | UI | `src/components/admin/AdminClubMoizvonkiSection.jsx`, `src/lib/admin/salesCallTodayCore.js` (главная менеджера) |
-| Verify | `scripts/verify-sales-call-today.mjs` |
+| Чат · экран | `src/lib/chat/chatViewportFit.js` (`chatFitViewHeightPx`, Honor vs iOS), `ChatThreadView.jsx`, `chat.css` |
+| Verify | `scripts/verify-sales-call-today.mjs`, `scripts/verify-chat-viewport-fit.mjs`; e2e `staffDm` |
 | Docs | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md), INCIDENTS **O** |
 
 ### P — деплой, старая сборка, chunk

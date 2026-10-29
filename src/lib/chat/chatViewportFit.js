@@ -2,12 +2,45 @@
  * Переписка ровно в видимую часть экрана, как Telegram: листается только лента, страница стоит —
  * шапка и поле ввода не ездят. iPhone не сжимает страницу под клавиатуру (меньше становится только visualViewport),
  * поэтому высоту ленты считаем сами: от верха диалога до низа видимой части, минус отступы оболочки снизу.
+ *
+ * Android (в т.ч. планшет): в index.html стоит interactive-widget=resizes-content — клавиатура сжимает
+ * layout (innerHeight). Высоту берём из layout. Honor иногда отдаёт visualViewport.height сильно меньше
+ * при полном layout и offsetTop=0 — тогда поле ввода уезжает вверх, ниже пустота (INC-2026-10-29-04).
  */
 
 export const CHAT_FIT_VAR = '--chat-fit-h'
 export const CHAT_FIT_MIN_PX = 240
 /** На <html>, пока открыт диалог: страницу за видимой частью двигает диалог, шапку отдельно не прибивать. */
 export const CHAT_FIT_ROOT_ATTR = 'data-chat-fit'
+
+/**
+ * iPhone / iPad (в т.ч. iPadOS с «десктопным» UA): layout под клавиатуру не сжимается.
+ * @param {{ ua?: string, maxTouchPoints?: number }} p
+ */
+export function chatFitIsIosLike({ ua = '', maxTouchPoints = 0 } = {}) {
+  if (/iP(hone|ad|od)/i.test(ua)) return true
+  return /Macintosh/i.test(ua) && Number(maxTouchPoints) > 1
+}
+
+/**
+ * Какую высоту видимой части брать для подгонки диалога.
+ * @param {{ visualHeight: unknown, layoutHeight: unknown, offsetTop?: unknown, iosLike?: boolean }} p
+ * @returns {number} px (0 — битые размеры)
+ */
+export function chatFitViewHeightPx({ visualHeight, layoutHeight, offsetTop = 0, iosLike = false }) {
+  const vv = Number(visualHeight)
+  const layout = Number(layoutHeight)
+  const pan = Number(offsetTop) || 0
+  if (pan > 0) {
+    if (Number.isFinite(vv) && vv > 0) return vv
+    return Number.isFinite(layout) && layout > 0 ? layout : 0
+  }
+  if (!iosLike) {
+    if (Number.isFinite(layout) && layout > 0) return layout
+  }
+  if (Number.isFinite(vv) && vv > 0) return vv
+  return Number.isFinite(layout) && layout > 0 ? layout : 0
+}
 
 /**
  * @param {{ viewHeight: unknown, top: unknown, gap: unknown, min?: number }} p
@@ -89,6 +122,10 @@ export function attachChatViewportFit(el) {
   const vv = window.visualViewport
   const root = document.documentElement
   const shell = shellOf(el)
+  const iosLike = chatFitIsIosLike({
+    ua: typeof navigator !== 'undefined' ? navigator.userAgent || '' : '',
+    maxTouchPoints: typeof navigator !== 'undefined' ? navigator.maxTouchPoints || 0 : 0,
+  })
   let shift = 0
   let raf = 0
   let touchStartedAt = null
@@ -96,12 +133,19 @@ export function attachChatViewportFit(el) {
 
   const sync = () => {
     raf = 0
-    const viewHeight = vv ? vv.height : window.innerHeight
     if (vv && vv.scale > 1.01) return
+    const layoutHeight = Math.max(window.innerHeight || 0, root.clientHeight || 0)
+    const viewHeight = chatFitViewHeightPx({
+      visualHeight: vv ? vv.height : layoutHeight,
+      layoutHeight,
+      offsetTop: vv?.offsetTop,
+      iosLike,
+    })
     const top = el.getBoundingClientRect().top + window.scrollY - shift
     const next = `${chatFitHeightPx({ viewHeight, top, gap: bottomGapPx(el) })}px`
     if (el.style.getPropertyValue(CHAT_FIT_VAR) !== next) el.style.setProperty(CHAT_FIT_VAR, next)
-    const nextShift = chatFitShiftPx({ offsetTop: vv?.offsetTop, scale: vv?.scale })
+    /* Сдвиг страницы за offsetTop — только iPhone; на Android (Honor) ложный offsetTop иначе увозит ленту. */
+    const nextShift = iosLike ? chatFitShiftPx({ offsetTop: vv?.offsetTop, scale: vv?.scale }) : 0
     if (nextShift !== shift) {
       shift = nextShift
       shell.style.transform = shift ? `translateY(${shift}px)` : ''

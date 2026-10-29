@@ -347,6 +347,62 @@ async function iphoneKeyboardAfterSend(c, browser, backend) {
   }
 }
 
+/**
+ * Honor/Android: visualViewport.height врёт короткий при полном layout и offsetTop=0 —
+ * поле ввода уезжает вверх, ниже пустота (INC-2026-10-29-04). Берём layout, не vv.
+ */
+async function honorShortVisualViewport(c, browser, backend) {
+  const FULL = 900
+  const FAKE_VV = 320
+  const context = await newE2eContext(browser, backend, {
+    viewport: { width: 800, height: FULL },
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 13; ANY-LX1 Build/HONOR) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    hasTouch: true,
+    isMobile: true,
+  })
+  await context.addInitScript(
+    ({ full, fake }) => {
+      Object.defineProperty(globalThis, 'innerHeight', { get: () => full, configurable: true })
+      const vv = new EventTarget()
+      Object.assign(vv, { offsetTop: 0, offsetLeft: 0, scale: 1, width: 800, pageTop: 0, pageLeft: 0, height: fake })
+      Object.defineProperty(globalThis, 'visualViewport', { value: vv, configurable: true })
+      globalThis.__fakeVv = vv
+    },
+    { full: FULL, fake: FAKE_VV },
+  )
+  const page = await context.newPage()
+  try {
+    await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.goto(`${ORIGIN}/messages/dm/${SUP_ID}`)
+    await page.getByTestId('chat-input').waitFor()
+    await page.waitForTimeout(400)
+    const m = await page.evaluate(() => {
+      const compose = globalThis.document.querySelector('.chat-compose')?.getBoundingClientRect()
+      const thread = globalThis.document.querySelector('.chat-thread')?.getBoundingClientRect()
+      return {
+        composeBottom: compose?.bottom ?? 0,
+        composeTop: compose?.top ?? 0,
+        threadHeight: thread?.height ?? 0,
+        layout: globalThis.innerHeight,
+        vv: globalThis.visualViewport?.height ?? 0,
+      }
+    })
+    c.ok(m.vv === FAKE_VV && m.layout === FULL, `Honor-эмуляция: vv=${Math.round(m.vv)} при layout=${Math.round(m.layout)}`)
+    c.ok(
+      m.composeBottom <= m.layout + 1 && m.composeBottom >= m.layout - 80,
+      `Honor: поле ввода у низа layout, не уехало вверх по короткому vv (низ ${Math.round(m.composeBottom)}, layout ${m.layout}, vv ${m.vv})`,
+    )
+    c.ok(m.threadHeight > FAKE_VV + 40, `диалог выше лживого vv (${Math.round(m.threadHeight)} > ${FAKE_VV})`)
+    await screenshot(page, 'staff-dm-honor-viewport')
+  } catch (e) {
+    await screenshot(page, 'staff-dm-honor-viewport-FAIL').catch(() => null)
+    c.ok(false, `Honor visualViewport: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
+}
+
 const sectionNames = (page, club) =>
   page.getByTestId('staff-people').getByRole('region', { name: club }).locator('.chat-row__title').allInnerTexts()
 const peopleNames = (page) => page.getByTestId('staff-people').locator('.chat-row__title').allInnerTexts()
@@ -529,6 +585,7 @@ export async function run(browser) {
     }
     await trainerNarrowPhoneThread(c, browser, backend, chat)
     await iphoneKeyboardAfterSend(c, browser, backend)
+    await honorShortVisualViewport(c, browser, backend)
     /* Приложение уже открыто, нажали на push — открывается сам диалог (INC-2026-10-12-04). */
     await page.goto(`${ORIGIN}/coach`)
     await page.waitForLoadState('networkidle')
