@@ -150,11 +150,11 @@ async function supervisorAnswers(c, browser, backend, chat) {
       await trainers.evaluate((el) => el.getAttribute('aria-pressed') === 'true').catch(() => false),
       'ждёт ответа тренер — мессенджер сразу открыт на «Тренерах»',
     )
-    const cut = await folders.evaluate((nav) => {
-      const box = nav.getBoundingClientRect()
-      return [...nav.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().right > box.right + 1).map((b) => b.textContent)
-    })
-    c.ok(cut.length === 0, `все папки управляющего видны целиком, без прокрутки вбок${cut.length ? ` (обрезаны: ${cut.join(', ')})` : ''}`)
+    /* Полоска папок на планшете — nowrap + свайп (messenger-layout): «Рассылки» может быть за краем. */
+    const inboxFolder = folders.getByRole('button', { name: /^Рассылки/ })
+    c.ok((await inboxFolder.count()) === 1, 'есть папка «Рассылки»')
+    await inboxFolder.evaluate((el) => el.scrollIntoView({ inline: 'nearest', block: 'nearest' }))
+    c.ok(await reaches(inboxFolder), '«Рассылки» доступна (свайп полоски, если не влезла)')
     c.ok(await reaches(trainers.getByLabel('Ждут ответа: 1')), '«Тренеры»: 1 ждёт ответа')
     c.ok(await reaches(folders.getByRole('button', { name: /^Клиенты/ })), 'и «Клиенты» — прежний список диалогов')
     await trainers.click()

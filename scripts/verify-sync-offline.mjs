@@ -42,6 +42,10 @@ assert(
   isUnrecoverablePushError(400, 'Укажите дату начала абонемента'),
   '400 membership missing start_date -> drop',
 )
+assert(
+  isUnrecoverablePushError(400, 'В этом клубе клиент с картой №9165 уже есть: Яковенко. Новую карточку не создаём.'),
+  '400 card unique conflict -> drop orphan insert',
+)
 assert(!isUnrecoverablePushError(400, 'какой-то другой 400'), '400 generic -> retry')
 assert(
   !isUnrecoverablePushError(403, 'Связанная тренировка пока не в облаке — повторите Sync'),

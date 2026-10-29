@@ -61,7 +61,10 @@ export function isUnrecoverablePushError(status, message) {
       msg.includes('укажите дату окончания') ||
       msg.includes('конец раньше начала') ||
       msg.includes('не может быть раньше начала') ||
-      msg.includes('некорректный абонемент')
+      msg.includes('некорректный абонемент') ||
+      msg.includes('клиент с картой') ||
+      msg.includes('новую карточку не создаём') ||
+      msg.includes('выберите другой номер')
     )
   }
   if (code !== 403 && code !== 404) return false

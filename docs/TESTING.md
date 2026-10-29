@@ -321,7 +321,7 @@
 | Прайс АЗ: импорт Excel Результат/групповые/доплаты | `verify-az-price-list.mjs` |
 | Прайс АЗ: печать HTML / имена PNG | `verify-az-price-list-print.mjs` |
 | Импорт отчёта по оплатам (1С → дневной) — **мост** | `verify-sales-payments-import.mjs` |
-| Уникальность карты в клубе (не сети) при создании | `verify-client-card-unique.mjs` |
+| Уникальность карты в клубе (не сети) при создании; онлайн card-check + push-gate | `verify-client-card-unique.mjs` |
 | Связка оплат → lite/клип/desk (ПЗ без карточки) | `verify-sales-payments-link.mjs` |
 | Импорт часов ПЗ (`otchet_pz` → матрица тренер×тип) | `verify-pz-trainings-report-import.mjs` |
 | Продажи: ФИО в матрице/статистике (не UUID) | тот же `verify-pz-trainings-report-import.mjs` (+ `salesTrainerLabelsCore`) |

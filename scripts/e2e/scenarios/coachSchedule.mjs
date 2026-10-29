@@ -300,15 +300,55 @@ export async function run(browser) {
     c.ok(await page.getByText(/Тренировка по записи завершена/).isVisible(), 'завершённая тренировка — плашка, перенос не начат')
     c.ok(at(18 * 60).length === 1, 'сервер: завершённый слот остался на 18:00')
 
+    /* Кожемякина: запись с 1 клиентом → Изменить → добавить второго — примечание не наезжает на список. */
+    await scrollBoardTo(page, 10 * 60)
+    await entryAt(page, '10:00').click()
+    const editOne = page.getByRole('dialog')
+    await editOne.getByRole('button', { name: 'Изменить' }).click()
+    await editOne.getByTestId('schedule-clients-count').waitFor({ state: 'visible', timeout: 10_000 })
+    const noOverlap = await editOne.evaluate(() => {
+      const note = globalThis.document.querySelector('.trainer-schedule-modal__field--note-aside')
+      const list = globalThis.document.querySelector('.trainer-schedule-modal__clients')
+      if (!note || !list) return false
+      const a = note.getBoundingClientRect()
+      const b = list.getBoundingClientRect()
+      return a.top >= b.bottom - 1
+    })
+    c.ok(noOverlap, 'правка записи: примечание под списком клиентов, без наезда')
+    const second = GROUP[0]
+    const secondRow = editOne.locator('label.trainer-schedule-modal__client-item').filter({ hasText: second })
+    await secondRow.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))
+    await secondRow.click()
+    c.ok((await editOne.getByTestId('schedule-clients-count').innerText()).includes('Выбрано 2 из 15'), 'правка: добавили второго клиента')
+    await editOne.getByRole('button', { name: 'Сохранить' }).click()
+    await editOne.waitFor({ state: 'hidden', timeout: 10_000 })
+    c.ok(
+      await waitFor(() => (at(600)[0]?.client_ids?.length ?? 0) === 2, 10_000),
+      'сервер: в записи 10:00 теперь 2 клиента',
+    )
+
     /* Ночная группа: 15 клиентов на один час сохраняются все, 16-го отметить нельзя (раньше молча оставались 10). */
     await scrollBoardTo(page, 22 * 60)
     await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 23:00"]').click()
     const group = page.getByRole('dialog')
     await group.waitFor({ state: 'visible', timeout: 10_000 })
-    await group.getByLabel(GROUP[0]).waitFor({ state: 'visible', timeout: 10_000 })
-    for (const name of GROUP) await group.getByLabel(name).check()
+    await group.getByRole('radio', { name: 'Групповое' }).click()
+    await group.getByRole('tab', { name: 'Клиенты' }).click()
+    await group.getByLabel(GROUP[0], { exact: true }).waitFor({ state: 'attached', timeout: 10_000 })
+    /* Список — свой скролл; клик по строке (не check), чтобы не упираться в controlled input. */
+    for (const name of GROUP) {
+      const row = group.locator('label.trainer-schedule-modal__client-item').filter({ hasText: name })
+      await row.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))
+      const box = row.locator('input[type="checkbox"]')
+      if (!(await box.isChecked())) await row.click()
+    }
     c.ok((await group.getByTestId('schedule-clients-count').innerText()).includes('Выбрано 15 из 15'), 'группа: «Выбрано 15 из 15»')
-    c.ok(await group.getByLabel(CLIENT_NAME).isDisabled(), 'группа: 16-го клиента отметить нельзя')
+    const sixteenth = group
+      .locator('label.trainer-schedule-modal__client-item')
+      .filter({ hasText: CLIENT_NAME })
+      .locator('input[type="checkbox"]')
+    await sixteenth.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))
+    c.ok(await sixteenth.isDisabled(), 'группа: 16-го клиента отметить нельзя')
     await screenshot(page, 'coach-calendar-group-15')
     await group.getByRole('button', { name: 'Сохранить' }).click()
     await group.waitFor({ state: 'hidden', timeout: 10_000 })

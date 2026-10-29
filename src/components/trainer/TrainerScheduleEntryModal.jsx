@@ -285,30 +285,37 @@ export function TrainerScheduleEntryModal({
                 onToggle={form.toggleClient}
                 clientInfoById={clientInfoById}
               />
-            ) : null}
-            {/* Примечание не сбрасываем при смене категории / вкладки «Клиенты» — текст остаётся в поле. */}
-            <label
-              className={[
-                'trainer-schedule-modal__field',
-                'trainer-schedule-modal__field--wide',
-                mode === 'clients' ? 'trainer-schedule-modal__field--note-aside' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              <span>{mode === 'clients' ? 'Примечание, необязательно' : 'Текст'}</span>
-              <textarea
-                className="textarea"
-                value={form.title}
-                onChange={(ev) => form.setTitle(ev.target.value)}
-                rows={mode === 'clients' ? 2 : 4}
-                placeholder={mode === 'clients' ? 'Фокус, зал, пожелание' : 'Например: обед, созвон, подготовка зала'}
-                maxLength={240}
-              />
-            </label>
+            ) : (
+              /* Только вкладка «Заметка»: иначе textarea с field--wide наезжала на список (e2e группа 15). */
+              <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
+                <span>Текст</span>
+                <textarea
+                  className="textarea"
+                  value={form.title}
+                  onChange={(ev) => form.setTitle(ev.target.value)}
+                  rows={4}
+                  placeholder="Например: обед, созвон, подготовка зала"
+                  maxLength={240}
+                />
+              </label>
+            )}
           </div>
 
           <div className="trainer-schedule-modal__form-foot">
+            {/* Текст не сбрасываем при вкладке «Клиенты» — компактное поле под списком, не в form-body. */}
+            {mode === 'clients' ? (
+              <label className="trainer-schedule-modal__field trainer-schedule-modal__field--note-aside">
+                <span>Примечание, необязательно</span>
+                <textarea
+                  className="textarea"
+                  value={form.title}
+                  onChange={(ev) => form.setTitle(ev.target.value)}
+                  rows={2}
+                  placeholder="Фокус, зал, пожелание"
+                  maxLength={240}
+                />
+              </label>
+            ) : null}
             <TrainerScheduleRepeatFields
               enabled={repeat.on}
               onToggle={repeat.setOn}

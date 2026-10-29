@@ -2,12 +2,21 @@
  * Уникальность карты в рамках клуба (не сети).
  * node scripts/verify-client-card-unique.mjs
  */
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   assertClubCardAvailableForCreate,
   cardConflictCreateError,
   findClubClientByCard,
   normalizeSalesCardNumber,
 } from '../src/lib/admin/salesClientMatchCore.js'
+import { publicCardConflictClient } from '../api/_lib/clientCardUniquePushCore.js'
+import {
+  resolveTrainerClubCardCheckResponse,
+  trainerCardConflictAlertRu,
+} from '../src/lib/trainer/trainerClubCardCheckCore.js'
+import { isUnrecoverablePushError } from '../src/lib/syncFlushResult.js'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -16,6 +25,12 @@ function ok(cond, msg) {
   }
   console.log('ok:', msg)
 }
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const pushCore = readFileSync(join(root, 'api/_lib/pushRecordCore.js'), 'utf8')
+const trainerPull = readFileSync(join(root, 'api/trainer-pull.js'), 'utf8')
+const trainerClients = readFileSync(join(root, 'src/pages/trainer/TrainerClients.jsx'), 'utf8')
+const flush = readFileSync(join(root, 'src/lib/syncFlushResult.js'), 'utf8')
 
 ok(normalizeSalesCardNumber(' №Р247 ') === 'р247', 'normalize card')
 
@@ -56,6 +71,30 @@ ok(findClubClientByCard(clients, 'club-1', '99')?.id === 'c', 'архив тож
 ok(
   /этом клубе/i.test(cardConflictCreateError(clients[0], 'р247')),
   'текст предупреждения про клуб',
+)
+
+{
+  const free = resolveTrainerClubCardCheckResponse({ ok: true, conflict: false })
+  ok(free.blocked === false, 'online check free')
+  const hit = resolveTrainerClubCardCheckResponse({
+    ok: false,
+    conflict: true,
+    error: cardConflictCreateError(clients[0], 'р247'),
+    client: { id: 'a', name: 'Иванов', card_number: 'р247' },
+  })
+  ok(hit.blocked === true && /Иванов/.test(hit.error), 'online check blocks')
+  ok(/администратору/i.test(trainerCardConflictAlertRu(hit.error)), 'alert asks admin')
+  ok(publicCardConflictClient(clients[0])?.id === 'a', 'public conflict snapshot')
+  ok(publicCardConflictClient(null) == null, 'public conflict null')
+}
+
+ok(pushCore.includes('assertClientCardUniqueForPush'), 'push clients: проверка карты до insert')
+ok(trainerPull.includes('card-check'), 'trainer-pull mode=card-check')
+ok(trainerClients.includes('checkTrainerClubCardConflictOnline'), 'trainer create calls online card check')
+ok(flush.includes('клиент с картой'), 'flush drops unrecoverable card conflict')
+ok(
+  isUnrecoverablePushError(400, 'В этом клубе клиент с картой №9165 уже есть: Яковенко. Новую карточку не создаём.'),
+  'unrecoverable matches card conflict text',
 )
 
 console.log('verify-client-card-unique: all passed')

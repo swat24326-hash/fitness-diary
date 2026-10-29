@@ -21,6 +21,10 @@ import {
 import { isTransientDbError, logDbError, pgErrorPublic } from './_lib/dbErrorPublicCore.js'
 import { loadHomeworkLibraryRows } from './_lib/homeworkLibrary/homeworkLibraryRows.js'
 import { markDevicePullOk } from './_lib/deviceHealth/deviceHealthPullMark.js'
+import {
+  assertClientCardUniqueForPush,
+  publicCardConflictClient,
+} from './_lib/clientCardUniquePushCore.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -167,6 +171,37 @@ async function handler(req, res) {
   const { supabaseAdmin } = ctx
   const profileRes = await supabaseAdmin.from('users').select('club_id').eq('id', trainerId).maybeSingle()
   const trainerClubId = String(profileRes.data?.club_id ?? '').trim()
+
+  if (String(req.query?.mode ?? '').trim() === 'card-check') {
+    if (profileRes.error) {
+      sendDbFail(res, profileRes.error)
+      return
+    }
+    if (!trainerClubId) {
+      sendJson(res, 400, { error: 'У тренера не указан клуб' })
+      return
+    }
+    const card = String(req.query?.card ?? req.query?.card_number ?? '').trim()
+    const gate = await assertClientCardUniqueForPush(supabaseAdmin, {
+      clubId: trainerClubId,
+      cardNumber: card,
+    })
+    if (!gate.ok && gate.status === 503) {
+      sendJson(res, 503, { error: gate.error })
+      return
+    }
+    if (!gate.ok) {
+      sendJson(res, 200, {
+        ok: false,
+        conflict: true,
+        error: gate.error,
+        client: publicCardConflictClient(gate.client),
+      })
+      return
+    }
+    sendJson(res, 200, { ok: true, conflict: false })
+    return
+  }
   const includeArchived = String(req.query?.include_archived ?? req.query?.includeArchived ?? '').trim() === '1'
   const archivedOnly = String(req.query?.archived ?? '').trim() === '1'
   const skipTrainings = String(req.query?.skip_trainings ?? '').trim() === '1'

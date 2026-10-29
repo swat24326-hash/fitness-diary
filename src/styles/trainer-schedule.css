@@ -888,15 +888,21 @@
 }
 
 .trainer-schedule-modal__form-foot {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
   gap: 10px;
-  padding-top: 4px;
-  background: color-mix(in srgb, var(--surface, var(--bg)) 92%, transparent);
+  padding-top: 8px;
+  /* Непрозрачный низ: список клиентов не «просвечивает» сквозь примечание (INC Кожемякина). */
+  background: var(--surface, var(--bg-card, var(--bg)));
+  box-shadow: 0 -8px 16px color-mix(in srgb, var(--bg) 55%, transparent);
 }
 
 .trainer-schedule-modal__form-body {
+  position: relative;
+  z-index: 0;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -908,18 +914,20 @@
 .trainer-schedule-modal__form-body > .trainer-schedule-modal__field--wide {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
-/* Примечание рядом со списком клиентов — не отбирает половину высоты. */
-.trainer-schedule-modal__form-body > .trainer-schedule-modal__field--note-aside {
+/* Примечание под списком клиентов (в form-foot) — не делит высоту с picker и не перекрывает галочки. */
+.trainer-schedule-modal__form-foot > .trainer-schedule-modal__field--note-aside {
   flex: 0 0 auto;
   min-height: auto;
 }
 
-.trainer-schedule-modal__form-body > .trainer-schedule-modal__field--note-aside textarea {
+.trainer-schedule-modal__form-foot > .trainer-schedule-modal__field--note-aside textarea {
   flex: 0 0 auto;
-  min-height: 72px;
-  max-height: 96px;
+  min-height: 56px;
+  max-height: 80px;
+  resize: none;
 }
 
 /* Симметрия: две равные колонки; на iPhone узкие fixed-width ломали type=time. */

@@ -77,6 +77,8 @@ import {
   sameNameCreateConfirmMessageRu,
   shouldSkipDuplicateClientCreateClick,
 } from '../../lib/trainer/trainerClientCreateGuardCore.js'
+import { trainerCardConflictAlertRu } from '../../lib/trainer/trainerClubCardCheckCore.js'
+import { checkTrainerClubCardConflictOnline } from '../../lib/trainer/trainerClubCardCheckService.js'
 import '../../styles/trainer-clients.css'
 
 export function TrainerClients() {
@@ -423,9 +425,13 @@ export function TrainerClients() {
       if (cardRaw) {
         const cardCheck = assertClubCardAvailableForCreate(clubPool, trainerClubId, cardRaw)
         if (!cardCheck.ok) {
-          alert(
-            `${cardCheck.error}\n\nКлиент уже в базе клуба. Обратитесь к администратору или менеджеру — они добавят абонемент ПЗ к существующей карточке.`,
-          )
+          alert(trainerCardConflictAlertRu(cardCheck.error))
+          return
+        }
+        // Свои в IDB мало: чужой тренер / desk не на планшете. Онлайн — правда клуба.
+        const remoteCard = await checkTrainerClubCardConflictOnline(cardRaw)
+        if (remoteCard.blocked) {
+          alert(trainerCardConflictAlertRu(remoteCard.error))
           return
         }
       }

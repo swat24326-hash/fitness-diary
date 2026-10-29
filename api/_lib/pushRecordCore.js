@@ -39,6 +39,7 @@ import { scheduleMembershipRatingAsk } from './clientRatings/clientRatingJob.js'
 import { normalizeHomeworkAutoRow } from '../../src/lib/homework/auto/homeworkAutoScheduleCore.js'
 import { normalizeHealthScreeningRow } from '../../src/lib/health/healthScreeningCore.js'
 import { normalizeHomeworkLibraryRow } from '../../src/lib/homework/library/homeworkLibraryOverridesCore.js'
+import { assertClientCardUniqueForPush } from './clientCardUniquePushCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -371,6 +372,13 @@ export async function executePushRecord(ctx, item) {
       let payload = data
       if (table_name === 'clients') {
         payload = stripUnknownClientFields(payload)
+        const cardGate = await assertClientCardUniqueForPush(supabaseAdmin, {
+          clubId: payload?.club_id,
+          cardNumber: payload?.card_number,
+        })
+        if (!cardGate.ok) {
+          return { ok: false, status: cardGate.status, error: cardGate.error }
+        }
       }
       if (table_name === 'challenges') {
         const prep = await prepareChallengePayload(supabaseAdmin, data)
@@ -483,6 +491,22 @@ export async function executePushRecord(ctx, item) {
               return { ok: true, duplicate: true, record: existingById }
             }
           }
+          // clients: 23505 по карте клуба ≠ «та же строка» — не помечаем ok/duplicate
+          if (table_name === 'clients') {
+            const cardGate = await assertClientCardUniqueForPush(supabaseAdmin, {
+              clubId: payload?.club_id,
+              cardNumber: payload?.card_number,
+              excludeClientId: payload?.id,
+            })
+            if (!cardGate.ok && cardGate.status === 400) {
+              return { ok: false, status: 400, error: cardGate.error }
+            }
+            return {
+              ok: false,
+              status: 400,
+              error: 'Клиент с таким номером карты уже есть в клубе. Новую карточку не создаём.',
+            }
+          }
           return { ok: true, duplicate: true }
         }
         const errMsg =
@@ -535,6 +559,23 @@ export async function executePushRecord(ctx, item) {
       }
       if (table_name === 'clients') {
         payload = stripUnknownClientFields(payload)
+        let clubId = payload?.club_id
+        if (!clubId && remote_id) {
+          const { data: existingClub } = await supabaseAdmin
+            .from('clients')
+            .select('club_id')
+            .eq('id', remote_id)
+            .maybeSingle()
+          clubId = existingClub?.club_id
+        }
+        const cardGate = await assertClientCardUniqueForPush(supabaseAdmin, {
+          clubId,
+          cardNumber: payload?.card_number,
+          excludeClientId: remote_id,
+        })
+        if (!cardGate.ok) {
+          return { ok: false, status: cardGate.status, error: cardGate.error }
+        }
       }
       if (table_name === 'challenges') {
         const prep = await prepareChallengePayload(supabaseAdmin, data)
