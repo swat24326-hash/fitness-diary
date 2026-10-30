@@ -1,7 +1,12 @@
 /* Приложение клиента /me (телефон) и QR-приглашение в карточке клиента. */
 
 .client-me {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-x: clip;
   background:
     radial-gradient(120% 60% at 50% -10%, var(--premium-bg-radial), transparent 60%),
     var(--bg);
@@ -14,11 +19,22 @@
   padding-bottom: calc(84px + env(safe-area-inset-bottom));
 }
 
+/* Табы той же ширины, что шапка/контент (560) — иначе при узком масштабе «плывут» относительно шапки. */
+.client-me .coach-tabs {
+  box-sizing: border-box;
+  left: 50%;
+  right: auto;
+  width: min(560px, 100%);
+  transform: translateX(-50%);
+}
+
 .client-me__top {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
   max-width: 560px;
   margin: 0 auto;
   padding: 12px 16px;
@@ -35,17 +51,20 @@
 }
 
 .client-me__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   color: var(--accent-bright);
 }
 
 .client-me__actions {
   display: flex;
+  flex: none;
   gap: 8px;
 }
 
@@ -58,9 +77,12 @@
 }
 
 .client-me__main {
+  box-sizing: border-box;
   display: grid;
   gap: 14px;
+  width: 100%;
   max-width: 560px;
+  min-width: 0;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -85,8 +107,11 @@
 }
 
 .client-me-card {
+  box-sizing: border-box;
   display: grid;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
   padding: 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -541,19 +566,13 @@
   justify-content: flex-end;
 }
 
-/* Свой вес/обмеры: подсказка под графиком; добавить — в меню ⋮. */
-.client-progress-self-hint {
-  margin: 6px 0 0;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-}
-
 .client-progress-self {
   position: fixed;
   inset: 0;
   z-index: 80;
   display: grid;
   align-items: end;
+  overscroll-behavior: contain;
 }
 
 .client-progress-self__backdrop {
@@ -562,8 +581,9 @@
   margin: 0;
   padding: 0;
   border: 0;
-  background: color-mix(in srgb, #000 45%, transparent);
+  background: color-mix(in srgb, #000 40%, transparent);
   cursor: pointer;
+  animation: client-progress-self-veil 0.18s ease both;
 }
 
 .client-progress-self__panel {
@@ -571,10 +591,24 @@
   z-index: 1;
   max-height: min(92vh, 720px);
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   border-radius: 16px 16px 0 0;
   background: var(--bg-card);
   box-shadow: 0 -8px 28px color-mix(in srgb, #000 18%, transparent);
+  animation: client-progress-self-up 0.22s var(--ease-out, ease) both;
+}
+
+@keyframes client-progress-self-veil {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes client-progress-self-up {
+  from {
+    transform: translateY(12px);
+  }
 }
 
 .client-progress-self__head {
@@ -606,14 +640,21 @@
 
 .client-progress-self__legend {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35em 0.45em;
   margin: 0 0 12px;
   color: var(--text-muted);
   font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .client-progress-self__legend-club {
   color: var(--accent);
+}
+
+.client-progress-self__legend-sep {
+  opacity: 0.7;
 }
 
 .client-progress-self__form {

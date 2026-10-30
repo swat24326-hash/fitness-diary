@@ -80,8 +80,8 @@ export async function run(browser) {
     const selfDots = page.locator('.client-me-spark__dot--self')
     c.ok((await selfDots.count()) >= 1, 'превью: есть ○ на графике')
     await openAddFromMenu(page, 'Добавить вес')
-    c.ok(await visible(page, '● клуб'), 'шторка: легенда клуб')
-    c.ok(await visible(page, '○ я'), 'шторка: легенда я')
+    c.ok(await visible(page, '● от клуба'), 'шторка: легенда клуб')
+    c.ok(await visible(page, '○ вы внесли'), 'шторка: легенда я')
     await page.getByRole('button', { name: 'Закрыть' }).first().click()
     await screenshot(page, 'client-progress-self-preview')
 
@@ -89,7 +89,14 @@ export async function run(browser) {
     await page.goto('about:blank')
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
     c.ok(await visible(page, 'Мой прогресс'), 'после входа — прогресс')
-    c.ok(await visible(page, 'Меню'), 'после входа — меню ⋮')
+    const menuBtn = page.getByRole('button', { name: 'Меню' })
+    c.ok(
+      await menuBtn.waitFor({ state: 'visible', timeout: 10_000 }).then(
+        () => true,
+        () => false,
+      ),
+      'после входа — меню',
+    )
     await openAddFromMenu(page, 'Добавить вес')
     const dialog = page.getByRole('dialog', { name: 'Добавить вес' })
     /* Дата без клубного веса — иначе в тот же день ● перекрывает ○. */
@@ -110,7 +117,10 @@ export async function run(browser) {
         () => false,
       )
     c.ok(selfDotOk, 'на графике появилась ○')
-    c.ok(await visible(page, 'вы внесли'), 'подпись источника ○ на графике или в подсказке')
+    /* Легенда ●/○ — только в шторке (не под графиком). */
+    await openAddFromMenu(page, 'Добавить вес')
+    c.ok(await visible(page, '○ вы внесли'), 'легенда ○ в шторке веса')
+    await page.getByRole('button', { name: 'Закрыть' }).first().click()
 
     await openAddFromMenu(page, 'Добавить обмеры')
     const mDialog = page.getByRole('dialog', { name: 'Добавить обмеры' })

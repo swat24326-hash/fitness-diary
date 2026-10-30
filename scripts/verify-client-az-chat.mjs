@@ -57,6 +57,8 @@ ok(
   'был ПЗ → только АЗ — вкладку скрываем по живым залам',
 )
 ok(clientShowsFromTrainerTab(clientAz, { liveHalls: new Set(['pz', 'az']) }), 'смесь с открытым ПЗ — вкладка есть')
+ok(clientShowsFromTrainerTab(clientPz, { liveHalls: new Set() }), 'пустой Set залов — не прячем, смотрим тренера')
+ok(!clientShowsFromTrainerTab(clientAz, { liveHalls: new Set() }), 'пустой Set + нет тренера — нет вкладки')
 ok(clientShowsFromTrainerTab({ has_trainer: true }), 'has_trainer без uuid')
 ok(!clientShowsFromTrainerTab({ has_trainer: false }), 'has_trainer false — нет вкладки')
 

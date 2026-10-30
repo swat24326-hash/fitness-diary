@@ -37,12 +37,13 @@ export function ClientProgressSelfSheet({ kind, asOf, initial, busy = false, err
   const [localError, setLocalError] = useState('')
 
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
+    /* Не трогаем body.overflow — на телефоне это мигает стеклом карточек. Скролл ловит шторка. */
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !busy) onClose()
     }
-  }, [])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy, onClose])
 
   const title = kind === 'weight' ? (editing ? 'Изменить вес' : 'Добавить вес') : editing ? 'Изменить обмеры' : 'Добавить обмеры'
 
@@ -81,9 +82,12 @@ export function ClientProgressSelfSheet({ kind, asOf, initial, busy = false, err
             <X size={20} aria-hidden />
           </button>
         </header>
-        <p className="client-progress-self__legend" aria-hidden>
-          <span className="client-progress-self__legend-club">● клуб</span>
-          <span className="client-progress-self__legend-me">○ я</span>
+        <p className="client-progress-self__legend">
+          <span className="client-progress-self__legend-club">● от клуба</span>
+          <span className="client-progress-self__legend-sep" aria-hidden>
+            ·
+          </span>
+          <span className="client-progress-self__legend-me">○ вы внесли — свои можно изменить</span>
         </p>
         <form className="client-progress-self__form" onSubmit={submit}>
           <label className="client-progress-self__field">

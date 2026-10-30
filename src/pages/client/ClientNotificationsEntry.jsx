@@ -10,7 +10,9 @@ import { readClientMeCache } from '../../lib/client/clientSession.js'
 /** Колокольчик в шапке /me: ДЗ, рацион, оценки, абонемент и рассылки клуба. */
 export function ClientNotificationsEntry({ plans, ratings, inboxAttention, membershipNotices }) {
   const cached = readClientMeCache()?.data
-  const liveHalls = cached?.memberships ? liveHallsFromMembershipViews(cached.memberships.current) : null
+  const liveHalls = Array.isArray(cached?.memberships?.current)
+    ? liveHallsFromMembershipViews(cached.memberships.current)
+    : null
   const unread = clientNotificationsBellCount({
     plans: plans ?? cached?.plans,
     ratings: ratings ?? cached?.ratings,

@@ -47,7 +47,9 @@ export function ClientTabs({ attention, showFromTrainer: showFromTrainerProp }) 
   const live = useClientChatAttention()
   const cached = readClientMeCache()?.data
   const count = live ?? attention ?? clientAttention(cached)
-  const liveHalls = cached?.memberships ? liveHallsFromMembershipViews(cached.memberships.current) : null
+  const liveHalls = Array.isArray(cached?.memberships?.current)
+    ? liveHallsFromMembershipViews(cached.memberships.current)
+    : null
   const showFromTrainer =
     showFromTrainerProp ?? clientShowsFromTrainerTab(cached?.client, { liveHalls })
   const fresh = showFromTrainer && (clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition'))

@@ -39,7 +39,9 @@ export function ClientNotificationsPage() {
     return <Navigate to={CLIENT_HOME} replace />
   }
 
-  const liveHalls = data?.memberships ? liveHallsFromMembershipViews(data.memberships.current) : null
+  const liveHalls = Array.isArray(data?.memberships?.current)
+    ? liveHallsFromMembershipViews(data.memberships.current)
+    : null
   const items = buildClientNotifications(data?.plans, data?.ratings, {
     inboxItems: inbox.items ?? [],
     membershipNotices: data?.membership_notices,

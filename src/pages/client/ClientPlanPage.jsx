@@ -48,7 +48,10 @@ export function ClientPlanPage({ kind }) {
   const plans = useClientPlans(kind)
   if (plans.status === 'signed_out') return <Navigate to={CLIENT_HOME} replace />
   const cached = readClientMeCache()?.data
-  const liveHalls = cached?.memberships ? liveHallsFromMembershipViews(cached.memberships.current) : null
+  /* current не массив (старый/частичный кэш) — не считаем «нет ПЗ», иначе выкидывает с ДЗ. */
+  const liveHalls = Array.isArray(cached?.memberships?.current)
+    ? liveHallsFromMembershipViews(cached.memberships.current)
+    : null
   /* Solo АЗ/ТЗ: вкладки нет — прямой URL и push не открывают ДЗ/рацион. */
   if (!clientShowsFromTrainerTab(cached?.client, { liveHalls })) {
     return <Navigate to={CLIENT_HOME} replace />

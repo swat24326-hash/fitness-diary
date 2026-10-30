@@ -28,6 +28,8 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false, 
   const gradId = useId()
   const [picked, setPicked] = useState(null)
   const rootRef = useRef(null)
+  /** Тап vs свайп: шторку открываем на click, иначе pointerdown + click по затемнению мигает экраном. */
+  const gestureRef = useRef({ x: 0, y: 0, moved: false })
   const g = weightSparkGeometry(weights, W, H, PAD)
   const motion = useSparkShake(rootRef, g?.dots.length ?? 0, settling)
   const lifts = useSparkWave(motion.shake)
@@ -49,10 +51,26 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false, 
   const pct = (d) => ({ left: `${(d.x / W) * 100}%`, top: `${(d.y / H) * 100}%` })
   const activeDot = g.dots[active]
 
-  const pick = (e) => {
+  const scrub = (e) => {
     const r = e.currentTarget.getBoundingClientRect()
     const idx = nearestDotIndex(g.dots, ((e.clientX - r.left) / r.width) * W)
     setPicked(idx)
+    return idx
+  }
+  const onPointerDown = (e) => {
+    gestureRef.current = { x: e.clientX, y: e.clientY, moved: false }
+    scrub(e)
+  }
+  const onPointerMove = (e) => {
+    if (e.buttons !== 0) {
+      const g0 = gestureRef.current
+      if (Math.hypot(e.clientX - g0.x, e.clientY - g0.y) > 12) g0.moved = true
+    }
+    scrub(e)
+  }
+  const onPlotClick = (e) => {
+    if (gestureRef.current.moved) return
+    const idx = scrub(e)
     const d = g.dots[idx]
     if (d?.source === 'client' && onPickSelf) onPickSelf(d)
   }
@@ -89,8 +107,9 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false, 
         aria-valuemax={lastIndex}
         aria-valuenow={active}
         aria-valuetext={`${cap.date}: ${cap.kg} кг, ${cap.note}`}
-        onPointerDown={pick}
-        onPointerMove={pick}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onClick={onPlotClick}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setPicked(null)}
         onKeyDown={onKey}
       >

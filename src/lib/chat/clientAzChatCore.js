@@ -80,7 +80,8 @@ export function chatDialogKey(t) {
  */
 export function clientShowsFromTrainerTab(client, opts = {}) {
   const halls = opts.liveHalls
-  if (halls instanceof Set) return halls.has('pz')
+  /* Пустой Set — абонов в кэше ещё нет / список пуст: не прячем по залам, смотрим тренера. */
+  if (halls instanceof Set && halls.size > 0) return halls.has('pz')
   // Нет строки клиента (кэш ещё пуст) — не прячем вкладку, чтобы ПЗ не мигал.
   if (client == null) return true
   if (client.has_trainer != null) return Boolean(client.has_trainer)

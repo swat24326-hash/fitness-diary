@@ -260,8 +260,7 @@
 
 @keyframes spark-swap {
   from {
-    opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(3px);
   }
 }
 

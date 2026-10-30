@@ -16,7 +16,6 @@ import {
   upsertClientSelfMeasure,
   upsertClientSelfWeight,
 } from '../../lib/client/clientProgressSelfService.js'
-import { measurementDeltas } from '../../lib/client/clientMeUiCore.js'
 import { ClientMeasuresFold } from './ClientMeasuresFold.jsx'
 import { ClientProgressSelfSheet } from './ClientProgressSelfSheet.jsx'
 import { ClientWeightSpark } from './ClientWeightSpark.jsx'
@@ -57,7 +56,6 @@ export function ClientProgressSection({
 }) {
   const p = progress ?? {}
   const weights = p.weights ?? []
-  const hasMeasures = measurementDeltas(p.measurements).length > 0
   const [sheet, setSheet] = useState(/** @type {null | { kind: 'weight'|'measure', initial?: object }} */ (null))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -142,15 +140,12 @@ export function ClientProgressSection({
             onPickSelf={(dot) => openWeight({ id: dot.id, date: dot.date, kg: dot.kg })}
           />
         ) : (
-          <p className="client-me-muted">Пока нет замеров веса — добавьте в меню ⋮.</p>
+          <p className="client-me-muted">Пока нет замеров веса.</p>
         )}
         <ClientMeasuresFold
           measurements={p.measurements}
           onEditSelf={(m) => openMeasure({ id: m.id, date: m.date, values: m.values })}
         />
-        {!hasMeasures && !weights.length ? null : (
-          <p className="client-progress-self-hint">● от клуба · ○ вы внесли — свои можно изменить; добавить — в меню ⋮</p>
-        )}
       </ProgressCardShell>
       {sheet ? (
         <ClientProgressSelfSheet
