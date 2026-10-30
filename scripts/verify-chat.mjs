@@ -78,11 +78,11 @@ const supervisorNoClub = { isSupervisor: true, user: { id: 'u3' }, profile: {} }
 const empty = { user: { id: 'x1' }, profile: { club_id: CLUB } }
 
 // --- роли и виды
-ok(isChatKind('trainer') && isChatKind('sales') && isChatKind('supervisor') && !isChatKind('admin'), 'виды диалогов')
+ok(isChatKind('trainer') && isChatKind('sales') && isChatKind('supervisor') && isChatKind('az_instructor') && !isChatKind('admin'), 'виды диалогов')
 ok(chatStaffRole({ isAdmin: true, isTrainer: true }) === 'admin', 'админ проверяется первым')
 ok(chatStaffRole(empty) === null, 'пустая роль — null')
-ok(chatKindsForStaff(admin).join() === CHAT_KINDS.join(), 'админ видит все виды')
-ok(chatKindsForStaff(trainer).join() === 'trainer', 'тренер — только свой вид')
+ok(chatKindsForStaff(admin).join() === [...CHAT_KINDS, 'az_instructor'].join(), 'админ видит все виды')
+ok(chatKindsForStaff(trainer).join() === 'trainer,az_instructor', 'тренер — ПЗ и инструктор АЗ')
 ok(chatKindsForStaff(sales).join() === 'sales', 'менеджер — только «Менеджер по продажам»')
 ok(chatKindsForStaff(supervisor).join() === 'sales,supervisor', 'управляющий — менеджеры + свой')
 ok(chatKindsForStaff(empty).length === 0, 'пустая роль — ничего')

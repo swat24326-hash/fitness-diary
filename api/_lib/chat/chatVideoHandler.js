@@ -31,6 +31,7 @@ export function videoSendBody(req, ops) {
     action: op,
     op,
     kind: pick('kind'),
+    peer_user_id: pick('peer_user_id'),
     client_id: pick('client_id'),
     user_id: pick('user_id'),
     club_id: pick('club_id'),

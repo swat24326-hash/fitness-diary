@@ -33,7 +33,12 @@ const loadingOrError = (status, error) =>
  */
 export function StaffMessengerList({ folder, chats, inbox, open, href }) {
   const [inviting, setInviting] = useState(null)
-  const chatKey = open?.type === 'chat' ? `${open.clientId}:${open.kind}` : ''
+  const chatKey =
+    open?.type === 'chat'
+      ? open.peerUserId
+        ? `${open.clientId}:${open.kind}:${open.peerUserId}`
+        : `${open.clientId}:${open.kind}`
+      : ''
 
   if (folder?.id === STAFF_FOLDER_INBOX) {
     if (!inbox.items) return loadingOrError(inbox.status, inbox.error)
@@ -45,21 +50,24 @@ export function StaffMessengerList({ folder, chats, inbox, open, href }) {
   if (folder.threads) {
     const threads = chats.threads ?? []
     if (!threads.length) return <Status icon={MessageCircle} title="Пока пусто" hint="Здесь появятся сообщения клиентов из приложения клуба." />
-    const rows = threads.map((t) => ({
-      key: `${t.client_id}:${t.kind}`,
-      to: href({ chat: `${t.client_id}:${t.kind}` }),
-      selected: chatKey === `${t.client_id}:${t.kind}`,
-      kind: t.kind,
-      title: t.kind === 'trainer' ? t.client_name : `${t.client_name} · ${t.label}`,
-      preview: chatThreadPreviewRu(t, 'staff'),
-      avatar: t.client_name,
-      photo: t.client_photo,
-      status: t.client_status ?? null,
-      unread: t.unread,
-      unreadCount: t.unread_count,
-      at: t.last_message_at,
-      reaction: t.reaction,
-    }))
+    const rows = threads.map((t) => {
+      const key = t.peer_user_id ? `${t.client_id}:${t.kind}:${t.peer_user_id}` : `${t.client_id}:${t.kind}`
+      return {
+        key,
+        to: href({ chat: key }),
+        selected: chatKey === key,
+        kind: t.kind,
+        title: t.kind === 'trainer' ? t.client_name : `${t.client_name} · ${t.label}`,
+        preview: chatThreadPreviewRu(t, 'staff'),
+        avatar: t.client_name,
+        photo: t.client_photo,
+        status: t.client_status ?? null,
+        unread: t.unread,
+        unreadCount: t.unread_count,
+        at: t.last_message_at,
+        reaction: t.reaction,
+      }
+    })
     return <ChatThreadList rows={rows} />
   }
 

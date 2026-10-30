@@ -8,10 +8,10 @@ import { useStaffChatThread } from '../../hooks/useStaffChat.js'
 
 /**
  * Шапка и лента переписки сотрудника с клиентом — панелью справа в «Сообщениях клуба» и страницей у админа (из карточки).
- * @param {{ clientId: string, kind: string, backTo: string, back?: import('react').ReactNode, onSent?: () => void }} props
+ * @param {{ clientId: string, kind: string, peerUserId?: string|null, backTo: string, back?: import('react').ReactNode, onSent?: () => void }} props
  */
-export function StaffChatPane({ clientId, kind, backTo, back = null, onSent }) {
-  const chat = useStaffChatThread(clientId, kind)
+export function StaffChatPane({ clientId, kind, peerUserId = null, backTo, back = null, onSent }) {
+  const chat = useStaffChatThread(clientId, kind, peerUserId)
   const [searchHost, setSearchHost] = useState(null)
   const meta = chat.meta
   const submit = async (...args) => {

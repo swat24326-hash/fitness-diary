@@ -14,7 +14,10 @@ export function ClientChatLinks({ client, disabled = false }) {
   const auth = useAuth()
   const [hasApp, setHasApp] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
-  const kinds = chatKindsForStaff(auth).filter((k) => k !== 'trainer' || client?.trainer_id)
+  // az_instructor — отдельный peer на диалог; из карточки без peer не открываем (список «Сообщения»).
+  const kinds = chatKindsForStaff(auth).filter(
+    (k) => k !== 'az_instructor' && (k !== 'trainer' || client?.trainer_id),
+  )
 
   useEffect(() => {
     if (!client?.id || disabled) {

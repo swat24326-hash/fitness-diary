@@ -10,7 +10,7 @@ import { useClientBranding } from './useClientBranding.js'
  * tabs — нижние вкладки (вход, диалог и сообщение — без них, у них своя «Назад»).
  * bar — вместо шапки клуба своя строка (диалог: ChatHeadBar, как в Telegram).
  */
-export function ClientMeShell({ children, actions = null, club = null, tabs = false, attention, bar = null }) {
+export function ClientMeShell({ children, actions = null, club = null, tabs = false, attention, bar = null, showFromTrainer }) {
   const clubName = club?.name || ''
   const { handoffToken } = useClientApp()
   useClientBranding(clubName, withHandoffManifest(club?.manifest_url || null, handoffToken))
@@ -25,7 +25,7 @@ export function ClientMeShell({ children, actions = null, club = null, tabs = fa
         </header>
       )}
       <main className="client-me__main">{children}</main>
-      {tabs ? <ClientTabs attention={attention} /> : null}
+      {tabs ? <ClientTabs attention={attention} showFromTrainer={showFromTrainer} /> : null}
       <NetStatusBar />
     </div>
   )

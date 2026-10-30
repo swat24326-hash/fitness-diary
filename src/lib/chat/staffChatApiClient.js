@@ -28,8 +28,20 @@ export function fetchStaffChatContacts() {
  * Последняя страница (сервер отмечает прочитанным — шапка перечитает счётчик) или более старая — before.
  * seen=false — человек читает историю выше, новое не на экране: не отмечать.
  */
-export async function fetchStaffChatThread(clientId, kind, before, seen) {
-  const data = await inboxApiCall('chat', 'GET', { view: 'thread', client_id: clientId, kind, ...(before ? { before } : {}), ...chatSeenParam(seen) })
+function peerParam(peerUserId) {
+  const peer = String(peerUserId ?? '').trim()
+  return peer ? { peer_user_id: peer } : {}
+}
+
+export async function fetchStaffChatThread(clientId, kind, before, seen, peerUserId = null) {
+  const data = await inboxApiCall('chat', 'GET', {
+    view: 'thread',
+    client_id: clientId,
+    kind,
+    ...peerParam(peerUserId),
+    ...(before ? { before } : {}),
+    ...chatSeenParam(seen),
+  })
   if (data?.marked_read) window.dispatchEvent(new Event(STAFF_INBOX_CHANGED))
   return data
 }
@@ -42,8 +54,8 @@ export async function fetchStaffDmThread(userId, before, seen) {
 }
 
 /** Поиск по диалогу с клиентом / коллегой. @returns {Promise<{ results: object[] }>} */
-export function searchStaffChat(clientId, kind, q) {
-  return inboxApiCall('chat', 'GET', { view: 'search', client_id: clientId, kind, q })
+export function searchStaffChat(clientId, kind, q, peerUserId = null) {
+  return inboxApiCall('chat', 'GET', { view: 'search', client_id: clientId, kind, q, ...peerParam(peerUserId) })
 }
 
 export function searchStaffDm(userId, q) {
@@ -54,8 +66,10 @@ export function searchStaffDm(userId, q) {
  * Файлы диалога с клиентом: звук голосового ({ audio, mime }), «→ Аа» ({ done, text? }), фото / PDF ({ data, mime, name }),
  * видеокружок ({ blob, mime }) — сутки.
  */
-export function staffChatVoice(clientId, kind) {
-  const call = (op, opts) => (messageId) => inboxApiCall('chat', 'POST', {}, { op, client_id: clientId, kind, message_id: messageId }, opts)
+export function staffChatVoice(clientId, kind, peerUserId = null) {
+  const peer = peerParam(peerUserId)
+  const call = (op, opts) => (messageId) =>
+    inboxApiCall('chat', 'POST', {}, { op, client_id: clientId, kind, ...peer, message_id: messageId }, opts)
   return { audio: call('voice-audio'), text: call('voice-text'), file: call('attach', fileOpts) }
 }
 
@@ -70,13 +84,13 @@ export function sendStaffDmMessage(userId, outgoing) {
 }
 
 /** @param {{ body: string } | { sticker: string } | { video: Blob, sec: number }} outgoing */
-export function sendStaffChatMessage(clientId, kind, outgoing) {
-  return sendChat({ op: 'send', client_id: clientId, kind }, outgoing)
+export function sendStaffChatMessage(clientId, kind, outgoing, peerUserId = null) {
+  return sendChat({ op: 'send', client_id: clientId, kind, ...peerParam(peerUserId) }, outgoing)
 }
 
 /** emoji null — снять свою реакцию. */
-export function reactStaffChatMessage(clientId, kind, messageId, emoji) {
-  return inboxApiCall('chat', 'POST', {}, { op: 'react', client_id: clientId, kind, message_id: messageId, emoji })
+export function reactStaffChatMessage(clientId, kind, messageId, emoji, peerUserId = null) {
+  return inboxApiCall('chat', 'POST', {}, { op: 'react', client_id: clientId, kind, ...peerParam(peerUserId), message_id: messageId, emoji })
 }
 
 export function reactStaffDmMessage(userId, messageId, emoji) {

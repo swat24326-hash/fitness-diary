@@ -92,7 +92,15 @@ export function StaffMessenger({ chats, inbox }) {
         ) : open?.type === 'group' ? (
           <StaffGroupPane key={open.clubId} clubId={open.clubId} onSent={reloadChats} backTo={closeHref} back={back} />
         ) : open?.type === 'chat' ? (
-          <StaffChatPane key={`${open.clientId}:${open.kind}`} clientId={open.clientId} kind={open.kind} onSent={reloadChats} backTo={closeHref} back={back} />
+          <StaffChatPane
+            key={`${open.clientId}:${open.kind}:${open.peerUserId || ''}`}
+            clientId={open.clientId}
+            kind={open.kind}
+            peerUserId={open.peerUserId || null}
+            onSent={reloadChats}
+            backTo={closeHref}
+            back={back}
+          />
         ) : open?.type === 'item' ? (
           <StaffInboxItemPane key={open.id} id={open.id} back={back} />
         ) : (

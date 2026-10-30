@@ -6,15 +6,23 @@
  */
 
 export const CHAT_KINDS = Object.freeze(['trainer', 'sales', 'supervisor'])
+/** Инструктор АЗ — отдельный kind + peer_user_id на thread (см. clientAzChatCore). */
+export const CHAT_KIND_AZ_INSTRUCTOR = 'az_instructor'
 
 export const CHAT_NO_ACCESS_RU = 'Нет доступа к этой переписке'
 export const CHAT_NO_CLUB_RU = 'У вас не задан клуб — обратитесь к администратору'
 
 /** Диалог «supervisor» клиент видит как «Жалобы и предложения» — ящик клуба, читает управляющий. */
-const KIND_LABEL_RU = Object.freeze({ trainer: 'Тренер', sales: 'Менеджер по продажам', supervisor: 'Жалобы и предложения' })
+const KIND_LABEL_RU = Object.freeze({
+  trainer: 'Тренер',
+  sales: 'Менеджер по продажам',
+  supervisor: 'Жалобы и предложения',
+  az_instructor: 'Инструктор АЗ',
+})
 
 export function isChatKind(kind) {
-  return CHAT_KINDS.includes(String(kind ?? ''))
+  const k = String(kind ?? '')
+  return CHAT_KINDS.includes(k) || k === CHAT_KIND_AZ_INSTRUCTOR
 }
 
 export function chatKindLabelRu(kind) {
@@ -43,9 +51,9 @@ function sameClub(ctx, client) {
 export function chatKindsForStaff(ctx) {
   switch (chatStaffRole(ctx)) {
     case 'admin':
-      return [...CHAT_KINDS]
+      return [...CHAT_KINDS, CHAT_KIND_AZ_INSTRUCTOR]
     case 'trainer':
-      return ['trainer']
+      return ['trainer', CHAT_KIND_AZ_INSTRUCTOR]
     case 'sales':
       return ['sales']
     case 'supervisor':
@@ -57,14 +65,21 @@ export function chatKindsForStaff(ctx) {
 
 /**
  * @param {object} ctx  флаги роли + profile.club_id + user.id
- * @param {'trainer'|'sales'|'supervisor'} kind
+ * @param {string} kind
  * @param {{ club_id?: string, trainer_id?: string|null }} client  текущая строка клиента
+ * @param {{ peerUserId?: string|null }} [opts] — для az_instructor: id инструктора
  */
-export function canStaffReadChat(ctx, kind, client) {
+export function canStaffReadChat(ctx, kind, client, opts = {}) {
   if (!isChatKind(kind) || !client) return false
   const role = chatStaffRole(ctx)
   if (role === 'admin') return true
   if (!chatKindsForStaff(ctx).includes(kind)) return false
+  if (kind === CHAT_KIND_AZ_INSTRUCTOR) {
+    if (role !== 'trainer') return false
+    const me = String(ctx?.user?.id ?? '')
+    const peer = String(opts?.peerUserId ?? '').trim()
+    return Boolean(me) && me === peer
+  }
   if (role === 'trainer') {
     const me = String(ctx?.user?.id ?? '')
     return Boolean(me) && me === String(client.trainer_id ?? '')
@@ -73,8 +88,8 @@ export function canStaffReadChat(ctx, kind, client) {
 }
 
 /** Клиенту в архиве не пишем: входа в приложение у него нет, история остаётся читаемой. */
-export function canStaffWriteChat(ctx, kind, client) {
-  if (!canStaffReadChat(ctx, kind, client) || client.archived_at) return false
+export function canStaffWriteChat(ctx, kind, client, opts = {}) {
+  if (!canStaffReadChat(ctx, kind, client, opts) || client.archived_at) return false
   return !(chatStaffRole(ctx) === 'admin' && kind === 'supervisor')
 }
 
@@ -87,11 +102,15 @@ export function clientChatKinds(client) {
  * Кому пуш о новом сообщении.
  * @returns {{ to: 'client' } | { to: 'users', userIds: string[] } | { to: 'roles', roles: string[], clubId: string } | null}
  */
-export function chatPushAudience(kind, authorSide, client) {
+export function chatPushAudience(kind, authorSide, client, opts = {}) {
   if (authorSide === 'staff') return { to: 'client' }
   if (kind === 'trainer') {
     const trainer = String(client?.trainer_id ?? '')
     return trainer ? { to: 'users', userIds: [trainer] } : null
+  }
+  if (kind === CHAT_KIND_AZ_INSTRUCTOR) {
+    const peer = String(opts?.peerUserId ?? '').trim()
+    return peer ? { to: 'users', userIds: [peer] } : null
   }
   const clubId = String(client?.club_id ?? '').trim()
   if (!clubId) return null
@@ -109,10 +128,21 @@ export function chatPeerReadAt(side, thread) {
   return (side === 'client' ? thread?.staff_read_at : thread?.client_read_at) ?? null
 }
 
-/** Конверт клиента = число непрочитанных строк его списка: диалог с тренером без тренера не считаем. */
-export function clientChatAttention(client, threads) {
+/**
+ * Конверт клиента = непрочитанные строки его списка.
+ * Диалог «Тренер» без trainer_id не считаем; az_instructor — только назначенные peer (если переданы).
+ * @param {Iterable<string>|null|undefined} [azPeerIds]
+ */
+export function clientChatAttention(client, threads, azPeerIds = null) {
   const kinds = new Set(clientChatKinds(client))
-  return (threads ?? []).filter((t) => kinds.has(t.kind) && isChatUnreadFor('client', t)).length
+  const peers = azPeerIds == null ? null : new Set([...azPeerIds].map((id) => String(id ?? '').trim()).filter(Boolean))
+  return (threads ?? []).filter((t) => {
+    if (String(t?.kind) === CHAT_KIND_AZ_INSTRUCTOR) {
+      if (peers && !peers.has(String(t.peer_user_id ?? '').trim())) return false
+      return isChatUnreadFor('client', t)
+    }
+    return kinds.has(t.kind) && isChatUnreadFor('client', t)
+  }).length
 }
 
 /** Для сотрудника клиент в архиве не «ждёт ответа»: написать ему уже нельзя. */

@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { ClipboardList, House, ListChecks, MessageCircle } from 'lucide-react'
+import { clientShowsFromTrainerTab } from '../../lib/chat/clientAzChatCore.js'
 import { inboxBadgeText, inboxButtonLabelRu } from '../../lib/client/clientInboxUiCore.js'
 import { CLIENT_PLAN_ROUTES, clientPlanFresh, clientPlanTabTarget } from '../../lib/client/clientPlanUiCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
@@ -40,24 +41,27 @@ function Tab({ to, end, active, icon: Icon, label, ariaLabel, badge = '', dot = 
  * (свежая проверка важнее старого ответа главной). До первой проверки — число экрана или кэш.
  * Точка «Новое» на «От тренера» — с кэша.
  */
-export function ClientTabs({ attention }) {
+export function ClientTabs({ attention, showFromTrainer: showFromTrainerProp }) {
   const { pathname } = useLocation()
   const live = useClientChatAttention()
   const cached = readClientMeCache()?.data
   const count = live ?? attention ?? clientAttention(cached)
-  const fresh = clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition')
+  const showFromTrainer = showFromTrainerProp ?? clientShowsFromTrainerTab(cached?.client)
+  const fresh = showFromTrainer && (clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition'))
   return (
     <nav className="coach-tabs" aria-label="Разделы">
       <Tab to={CLIENT_HOME} end icon={House} label="Главная" />
       <Tab to="/me/trainings" icon={ListChecks} label="Тренировки" />
-      <Tab
-        to={clientPlanTabTarget(cached?.plans)}
-        active={PLAN_PATHS.includes(pathname)}
-        icon={ClipboardList}
-        label="От тренера"
-        ariaLabel={`Задание и питание от тренера${fresh ? ', новое' : ''}`}
-        dot={fresh}
-      />
+      {showFromTrainer ? (
+        <Tab
+          to={clientPlanTabTarget(cached?.plans)}
+          active={PLAN_PATHS.includes(pathname)}
+          icon={ClipboardList}
+          label="От тренера"
+          ariaLabel={`Задание и питание от тренера${fresh ? ', новое' : ''}`}
+          dot={fresh}
+        />
+      ) : null}
       <Tab to="/me/inbox" icon={MessageCircle} label="Сообщения" ariaLabel={inboxButtonLabelRu(count)} badge={inboxBadgeText(count)} />
     </nav>
   )

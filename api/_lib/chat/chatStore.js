@@ -14,7 +14,7 @@ export const CHAT_LIST_LIMIT = 100
 /** Непрочитанные показываем и старше последних 100 — иначе конверт врёт, а диалог не найти. */
 export const CHAT_UNREAD_LIMIT = 500
 export const CHAT_THREAD_FIELDS =
-  'id, club_id, client_id, kind, last_message_at, last_author, last_preview, client_read_at, staff_read_at, client_unread, staff_unread, ' +
+  'id, club_id, client_id, kind, peer_user_id, last_message_at, last_author, last_preview, client_read_at, staff_read_at, client_unread, staff_unread, ' +
   'last_reaction_at, last_reaction_emoji, last_reaction_by, client_reaction_seen_at, staff_reaction_seen_at'
 const THREAD_FIELDS = CHAT_THREAD_FIELDS
 export const CHAT_MESSAGE_FIELDS =
@@ -41,10 +41,26 @@ export async function loadChatClient(db, clientId) {
   return data ?? null
 }
 
-export async function loadChatThread(db, clientId, kind) {
-  const { data, error } = await db.from('chat_threads').select(THREAD_FIELDS).eq('client_id', clientId).eq('kind', kind).maybeSingle()
+/**
+ * @param {string|null|undefined} [peerUserId] — для az_instructor; classic kinds — null
+ */
+export async function loadChatThread(db, clientId, kind, peerUserId = null) {
+  const peer = String(peerUserId ?? '').trim()
+  let q = db.from('chat_threads').select(THREAD_FIELDS).eq('client_id', clientId).eq('kind', kind)
+  q = peer ? q.eq('peer_user_id', peer) : q.is('peer_user_id', null)
+  const { data, error } = await q.maybeSingle()
   if (error) throw error
   return data ?? null
+}
+
+/** Назначения инструкторов АЗ клиента (для списка диалогов и проверки доступа). */
+export function loadClientAzInstructorRows(db, clientId) {
+  return rows(
+    db
+      .from('client_az_instructors')
+      .select('id, client_id, club_id, instructor_id, direction_type_id')
+      .eq('client_id', clientId),
+  )
 }
 
 export function loadClientThreads(db, clientId) {
@@ -63,10 +79,19 @@ export async function loadStaffThreads(db, scope) {
   if (scope.role === 'admin') load = (shape) => rows(shape(db.from('chat_threads').select(THREAD_FIELDS)))
   else if (scope.role === 'trainer') {
     const own = (await rows(db.from('clients').select('id').eq('trainer_id', scope.userId))).map((c) => String(c.id))
-    load = async (shape, limit) =>
-      (await loadInChunks(own, (part) => rows(shape(db.from('chat_threads').select(THREAD_FIELDS).eq('kind', 'trainer').in('client_id', part)))))
-        .sort((a, b) => String(b.last_message_at).localeCompare(String(a.last_message_at)))
+    load = async (shape, limit) => {
+      const classic = own.length
+        ? await loadInChunks(own, (part) =>
+            rows(shape(db.from('chat_threads').select(THREAD_FIELDS).eq('kind', 'trainer').in('client_id', part))),
+          )
+        : []
+      const az = await rows(
+        shape(db.from('chat_threads').select(THREAD_FIELDS).eq('kind', 'az_instructor').eq('peer_user_id', scope.userId)),
+      )
+      return [...classic, ...az]
+        .sort((a, b) => String(b.last_message_at ?? '').localeCompare(String(a.last_message_at ?? '')))
         .slice(0, limit)
+    }
   } else load = (shape) => rows(shape(db.from('chat_threads').select(THREAD_FIELDS).eq('club_id', scope.clubId).in('kind', scope.kinds)))
   const [fresh, waiting] = await Promise.all([load(recent, CHAT_LIST_LIMIT), load(unread, CHAT_UNREAD_LIMIT)])
   return mergeChatThreads(fresh, waiting)
@@ -107,17 +132,22 @@ export async function loadChatMessages(db, threadId, before, since = null) {
   return { messages: chronological(desc), has_more: desc.length === CHAT_PAGE }
 }
 
-/** Диалог создаётся первым сообщением; гонку двух первых сообщений разрешает UNIQUE (client_id, kind). */
-export async function ensureChatThread(db, client, kind) {
-  const found = await loadChatThread(db, client.id, kind)
+/**
+ * Диалог создаётся первым сообщением.
+ * Classic: UNIQUE (client_id, kind) WHERE peer IS NULL; az_instructor: UNIQUE (client_id, kind, peer).
+ * @param {string|null|undefined} [peerUserId]
+ */
+export async function ensureChatThread(db, client, kind, peerUserId = null) {
+  const peer = String(peerUserId ?? '').trim() || null
+  const found = await loadChatThread(db, client.id, kind, peer)
   if (found) return found
   const { data, error } = await db
     .from('chat_threads')
-    .insert({ client_id: client.id, club_id: client.club_id || null, kind })
+    .insert({ client_id: client.id, club_id: client.club_id || null, kind, ...(peer ? { peer_user_id: peer } : {}) })
     .select(THREAD_FIELDS)
     .single()
   if (!error) return data
-  const again = await loadChatThread(db, client.id, kind)
+  const again = await loadChatThread(db, client.id, kind, peer)
   if (again) return again
   throw error
 }

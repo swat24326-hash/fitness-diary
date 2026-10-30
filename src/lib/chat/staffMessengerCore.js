@@ -3,6 +3,7 @@
  * справа открытый диалог или рассылка. Состояние — в адресе: ?folder=…&dm=… | group=клуб | chat=клиент:вид | item=…
  */
 import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_COMPLAINTS, chatFolderLabelRu } from './chatContactsCore.js'
+import { parseStaffClientChatKey } from './clientAzChatCore.js'
 
 /** Рассылки руководства — последней папкой: сначала переписка. */
 export const STAFF_FOLDER_INBOX = 'inbox'
@@ -44,15 +45,17 @@ export function pickStaffFolder({ requested, folders }) {
 /**
  * Что открыто справа.
  * @param {URLSearchParams} params
- * @returns {{ type: 'dm', userId: string } | { type: 'group', clubId: string } | { type: 'chat', clientId: string, kind: string } | { type: 'item', id: string } | null}
+ * @returns {{ type: 'dm', userId: string } | { type: 'group', clubId: string } | { type: 'chat', clientId: string, kind: string, peerUserId?: string|null } | { type: 'item', id: string } | null}
  */
 export function staffOpenFromParams(params) {
   const dm = String(params.get('dm') ?? '').trim()
   if (dm) return { type: 'dm', userId: dm }
   const group = String(params.get('group') ?? '').trim()
   if (group) return { type: 'group', clubId: group }
-  const [clientId = '', kind = ''] = String(params.get('chat') ?? '').split(':')
-  if (clientId.trim() && kind.trim()) return { type: 'chat', clientId: clientId.trim(), kind: kind.trim() }
+  const parsed = parseStaffClientChatKey(params.get('chat'))
+  if (parsed) {
+    return { type: 'chat', clientId: parsed.clientId, kind: parsed.kind, peerUserId: parsed.peerUserId }
+  }
   const item = String(params.get('item') ?? '').trim()
   if (item) return { type: 'item', id: item }
   return null

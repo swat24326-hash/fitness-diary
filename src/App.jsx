@@ -200,6 +200,7 @@ function ClientAppRoutes() {
           <Route path="inbox" element={<ClientInboxPage />} />
           <Route path="inbox-preview" element={<ClientInboxPreviewPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />
+          <Route path="chat/:kind/:peerUserId" element={<ClientChatPage />} />
           <Route path="chat/:kind" element={<ClientChatPage />} />
           <Route path="*" element={<ClientMePage />} />
         </Routes>
@@ -383,6 +384,7 @@ export default function App() {
             <Route element={<RoleOutlet roles={['trainer', 'sales_manager', 'supervisor', 'admin']} />}>
               <Route path="/messages" element={<StaffInboxPage />} />
               <Route path="/messages/dm/:userId" element={<StaffDmThread />} />
+              <Route path="/messages/chat/:clientId/:kind/:peerUserId" element={<StaffChatThread />} />
               <Route path="/messages/chat/:clientId/:kind" element={<StaffChatThread />} />
             </Route>
             <Route element={<RoleOutlet roles={['sales_manager']} />}>

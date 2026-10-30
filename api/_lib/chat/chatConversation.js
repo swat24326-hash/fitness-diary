@@ -43,8 +43,8 @@ function isIsoCursor(v) {
  * markRead=false — смотрит не ответственный (главный админ): непрочитанное остаётся у того, кто отвечает.
  * since — ISO-граница для нового тренера (null — без отсечения).
  */
-export async function openChatThread(db, { client, kind, side, reactor, before, markRead = true, since = null }) {
-  const thread = await loadChatThread(db, client.id, kind)
+export async function openChatThread(db, { client, kind, peerUserId = null, side, reactor, before, markRead = true, since = null }) {
+  const thread = await loadChatThread(db, client.id, kind, peerUserId)
   const voice_ready = chatVoiceStorageMode() != null
   if (!thread) return { messages: [], has_more: false, marked_read: false, peer_read_at: null, voice_ready }
   const page = await loadChatMessages(db, thread.id, isIsoCursor(before) ? before : null, since)
@@ -77,10 +77,10 @@ export async function openChatThread(db, { client, kind, side, reactor, before, 
  * @param {'client'|'staff'} side
  * @returns {Promise<{ status: number, body: object }>}
  */
-export async function searchChatThread(db, { client, kind, side, q, since = null }) {
+export async function searchChatThread(db, { client, kind, peerUserId = null, side, q, since = null }) {
   const checked = normalizeChatSearchQuery(q)
   if (!checked.ok) return { status: 400, body: { error: checked.error } }
-  const thread = await loadChatThread(db, client.id, kind)
+  const thread = await loadChatThread(db, client.id, kind, peerUserId)
   if (!thread) return { status: 200, body: { results: [] } }
   const found = await searchThreadMessages(db, 'chat', thread.id, checked.q, since)
   const names = await loadStaffNames(db, found.map((m) => m.author_user_id))
@@ -89,8 +89,8 @@ export async function searchChatThread(db, { client, kind, side, q, since = null
 }
 
 /** Своя реакция на сообщение диалога; reactor — chatReactorKey того, кто ставит. */
-export async function reactChatMessage(db, { client, kind, reactor, messageId, emoji, since = null }) {
-  const thread = await loadChatThread(db, client.id, kind)
+export async function reactChatMessage(db, { client, kind, peerUserId = null, reactor, messageId, emoji, since = null }) {
+  const thread = await loadChatThread(db, client.id, kind, peerUserId)
   if (!thread) return { status: 404, body: { error: CHAT_REACTION_GONE_RU } }
   if (since) {
     const target = await loadReplyTarget(db, 'chat', thread.id, messageId)
@@ -106,8 +106,8 @@ export async function reactChatMessage(db, { client, kind, reactor, messageId, e
  * @param {'audio'|'text'|'file'} want
  * @param {'client'|'staff'} side кто слушает; mark=false — смотрит не ответственный: «прослушано» не ставим
  */
-export async function chatVoiceOf(db, { client, kind, messageId, want, who, side, mark = true, since = null }) {
-  const thread = await loadChatThread(db, client.id, kind)
+export async function chatVoiceOf(db, { client, kind, peerUserId = null, messageId, want, who, side, mark = true, since = null }) {
+  const thread = await loadChatThread(db, client.id, kind, peerUserId)
   if (since) {
     const target = await loadReplyTarget(db, 'chat', thread?.id ?? null, messageId)
     if (!target || !isChatMessageVisibleAfterSince(target, since)) {
@@ -144,12 +144,12 @@ function peerNameOf(side, client) {
  * attach — { kind, data, name?, w?, h? } фото или PDF (chatAttachCore); body тогда — подпись. silent — push без звука.
  * @returns {Promise<{ status: number, body: object }>}
  */
-export async function sendChatMessage(db, { client, kind, side, userId, body, sticker, voice, attach, clientMsgId, replyTo, silent = false, since = null }) {
+export async function sendChatMessage(db, { client, kind, peerUserId = null, side, userId, body, sticker, voice, attach, clientMsgId, replyTo, silent = false, since = null }) {
   const checked = resolveChatOutgoing({ body, sticker, ...voice, attach })
   if (!checked.ok) return { status: checked.status ?? 400, body: { error: checked.error } }
   const blocked = chatVoiceBlocked(checked)
   if (blocked) return { status: blocked.status, body: { error: blocked.error } }
-  const thread = await ensureChatThread(db, client, kind)
+  const thread = await ensureChatThread(db, client, kind, peerUserId)
   const msgId = normalizeClientMsgId(clientMsgId)
   const earlier = await loadChatMessageByClientMsgId(db, thread.id, msgId)
   let stored = { voice: null, attach: null }
@@ -179,7 +179,16 @@ export async function sendChatMessage(db, { client, kind, side, userId, body, st
   const toView = (m) => buildChatMessageView(m, side, names)
   const view = { ...toView(message), reply: chatReplyQuoteFor(message, quoted, toView, peerNameOf(side, client)), reactions: [] }
   if (duplicate) return { status: 200, body: { message: view } }
-  const push = { kind, authorSide: side, client, authorUserId: userId, authorName: view.author_name, body: checked.body, silent: silent === true }
+  const push = {
+    kind,
+    peerUserId,
+    authorSide: side,
+    client,
+    authorUserId: userId,
+    authorName: view.author_name,
+    body: checked.body,
+    silent: silent === true,
+  }
   sendChatPush(db, push).catch((e) =>
     console.warn('[chat-push]', e?.message || e),
   )

@@ -52,12 +52,20 @@ export function useStaffDmThread(userId) {
   return useChatThread({ key: `dm:${userId}`, side: 'staff', load, send, react, search, voice })
 }
 
-/** Лента диалога с клиентом. */
-export function useStaffChatThread(clientId, kind) {
-  const load = useCallback((before, opts) => fetchStaffChatThread(clientId, kind, before, opts?.seen), [clientId, kind])
-  const send = useCallback((outgoing) => sendStaffChatMessage(clientId, kind, outgoing), [clientId, kind])
-  const react = useCallback((messageId, emoji) => reactStaffChatMessage(clientId, kind, messageId, emoji), [clientId, kind])
-  const search = useCallback((q) => searchStaffChat(clientId, kind, q), [clientId, kind])
-  const voice = useMemo(() => staffChatVoice(clientId, kind), [clientId, kind])
-  return useChatThread({ key: `${clientId}:${kind}`, side: 'staff', load, send, react, search, voice })
+/** Лента диалога с клиентом. peerUserId — для az_instructor. */
+export function useStaffChatThread(clientId, kind, peerUserId = null) {
+  const peer = String(peerUserId ?? '').trim() || null
+  const load = useCallback(
+    (before, opts) => fetchStaffChatThread(clientId, kind, before, opts?.seen, peer),
+    [clientId, kind, peer],
+  )
+  const send = useCallback((outgoing) => sendStaffChatMessage(clientId, kind, outgoing, peer), [clientId, kind, peer])
+  const react = useCallback(
+    (messageId, emoji) => reactStaffChatMessage(clientId, kind, messageId, emoji, peer),
+    [clientId, kind, peer],
+  )
+  const search = useCallback((q) => searchStaffChat(clientId, kind, q, peer), [clientId, kind, peer])
+  const voice = useMemo(() => staffChatVoice(clientId, kind, peer), [clientId, kind, peer])
+  const key = peer ? `${clientId}:${kind}:${peer}` : `${clientId}:${kind}`
+  return useChatThread({ key, side: 'staff', load, send, react, search, voice })
 }

@@ -6,6 +6,7 @@ import { MessengerBack } from '../../components/chat/MessengerLayout.jsx'
 import { ChatOpenErrorAction } from '../../components/chat/ChatOpenErrorAction.jsx'
 import { ChatThreadView } from '../../components/chat/ChatThreadView.jsx'
 import { chatKindLabelRu, isChatKind } from '../../lib/chat/chatAccessCore.js'
+import { isAzInstructorChatKind } from '../../lib/chat/clientAzChatCore.js'
 import { chatClientEmptyRu } from '../../lib/chat/chatUiCore.js'
 import { hasClientSession, readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientPageMenuItems } from './ClientPageNav.jsx'
@@ -14,15 +15,19 @@ import { ClientMeStatus } from './ClientMeStatus.jsx'
 import { useClientChatThread } from './useClientChat.js'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 
-/** /me/chat/:kind — переписка с тренером, менеджером по продажам или управляющим. */
+/** /me/chat/:kind[/:peerUserId] — тренер, менеджер, жалобы или инструктор АЗ. */
 export function ClientChatPage() {
-  const { kind = '' } = useParams()
-  const chat = useClientChatThread(kind)
+  const { kind = '', peerUserId = '' } = useParams()
+  const peer = String(peerUserId ?? '').trim() || null
+  const chat = useClientChatThread(kind, peer)
   const [searchHost, setSearchHost] = useState(null)
   if (!hasClientSession()) return <Navigate to={CLIENT_HOME} replace />
   if (!isChatKind(kind)) return <Navigate to="/me/inbox" replace />
+  if (isAzInstructorChatKind(kind) && !peer) return <Navigate to="/me/inbox" replace />
+  if (!isAzInstructorChatKind(kind) && peer) return <Navigate to={`/me/chat/${kind}`} replace />
   const club = readClientMeCache()?.data?.club ?? null
   const who = String(chat.meta?.name ?? '').trim()
+  const roleLabel = chat.meta?.label || chatKindLabelRu(kind)
 
   return (
     <ClientMeShell
@@ -33,8 +38,8 @@ export function ClientChatPage() {
           icon={MessageCircle}
           photo={chat.meta?.photo}
           status={chat.meta?.status}
-          title={who || chatKindLabelRu(kind)}
-          subtitle={who ? chatKindLabelRu(kind) : ''}
+          title={who || roleLabel}
+          subtitle={who ? roleLabel : ''}
           searchHostRef={setSearchHost}
           menu={<ClientPageMenuItems onRefresh={chat.reload} refreshing={chat.status === 'loading'} />}
         />

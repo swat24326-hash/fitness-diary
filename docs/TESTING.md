@@ -343,6 +343,7 @@
 | АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |
 | АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |
 | АЗ: инструкторы (не `trainer_id`) | `verify-client-az-instructors.mjs` |
+| АЗ: диалоги в «Сообщениях» (`az_instructor` + `peer_user_id`, без «От тренера» у чистого АЗ) | `verify-client-az-chat.mjs` |
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |
 | Клип-карта: match / holding / checklist / paste 1С | `verify-sale-clips.mjs` |

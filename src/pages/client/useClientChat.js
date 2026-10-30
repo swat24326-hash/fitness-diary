@@ -16,11 +16,12 @@ import {
 import { useChatThread } from '../../hooks/useChatThread.js'
 import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { peekScreenCache, readScreenCache, writeScreenCache } from '../../lib/screenCache/screenCacheStore.js'
+import { chatDialogKey } from '../../lib/chat/clientAzChatCore.js'
 
 const LIST_CACHE = screenCacheKey('client', 'chats')
 
 /**
- * Три диалога клиента для экрана «Сообщения». Сначала сохранённый на телефоне список (кэш экранов), затем сервер;
+ * Диалоги клиента для экрана «Сообщения». Сначала сохранённый на телефоне список (кэш экранов), затем сервер;
  * сеть не ответила, а список есть — status 'stale' (список остаётся, плашка «Нет сети» в оболочке).
  */
 export function useClientChats() {
@@ -67,18 +68,20 @@ export function useClientChats() {
 }
 
 /** Лента одного диалога клиента. Открыли непрочитанный — единичка на вкладке гаснет сразу, не дожидаясь другого экрана. */
-export function useClientChatThread(kind) {
+export function useClientChatThread(kind, peerUserId = null) {
+  const peer = String(peerUserId ?? '').trim() || null
+  const cacheKey = screenCacheKey('client', 'chat', chatDialogKey({ kind, peer_user_id: peer }))
   const load = useCallback(
     (before, opts) =>
-      fetchClientChatThread(kind, before, opts?.seen).then((page) => {
+      fetchClientChatThread(kind, before, opts?.seen, peer).then((page) => {
         if (page?.marked_read) noteClientChatRead()
         return page
       }),
-    [kind],
+    [kind, peer],
   )
-  const send = useCallback((outgoing) => sendClientChatMessage(kind, outgoing), [kind])
-  const react = useCallback((messageId, emoji) => reactClientChatMessage(kind, messageId, emoji), [kind])
-  const search = useCallback((q) => searchClientChat(kind, q), [kind])
-  const voice = useMemo(() => clientChatVoice(kind), [kind])
-  return useChatThread({ key: kind, side: 'client', cacheKey: screenCacheKey('client', 'chat', kind), load, send, react, search, voice })
+  const send = useCallback((outgoing) => sendClientChatMessage(kind, outgoing, peer), [kind, peer])
+  const react = useCallback((messageId, emoji) => reactClientChatMessage(kind, messageId, emoji, peer), [kind, peer])
+  const search = useCallback((q) => searchClientChat(kind, q, peer), [kind, peer])
+  const voice = useMemo(() => clientChatVoice(kind, peer), [kind, peer])
+  return useChatThread({ key: cacheKey, side: 'client', cacheKey, load, send, react, search, voice })
 }

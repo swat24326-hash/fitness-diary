@@ -29,6 +29,7 @@ import {
   chatUnreadCount,
   isStaffChatUnread,
 } from '../../../src/lib/chat/chatAccessCore.js'
+import { isAzInstructorChatKind } from '../../../src/lib/chat/clientAzChatCore.js'
 import { staffMarksChatRead } from '../../../src/lib/chat/chatDeliveryCore.js'
 import { chatReactorKey, chatUnseenReaction } from '../../../src/lib/chat/chatReactionCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
@@ -72,7 +73,8 @@ async function listThreads(ctx, scope) {
   const seen = new Set()
   for (const t of threads) {
     const client = clients.get(String(t.client_id))
-    if (seen.has(t.id) || !canStaffReadChat(t.actor ?? ctx, t.kind, client)) continue
+    const peerOpts = { peerUserId: t.peer_user_id }
+    if (seen.has(t.id) || !canStaffReadChat(t.actor ?? ctx, t.kind, client, peerOpts)) continue
     seen.add(t.id)
     const since = staffUsesTrainerChatSince(scope.role, t.kind) ? trainerChatSinceIso(client) : null
     const view = blankStaffTrainerThreadBeforeSince(t, since)
@@ -83,6 +85,7 @@ async function listThreads(ctx, scope) {
       client_photo: avatarPhotoUrl(client.avatar_key, 'client', client.id),
       client_status: profileStatusEmoji(client, 'client'),
       kind: t.kind,
+      peer_user_id: t.peer_user_id ?? null,
       label: chatKindLabelRu(t.kind),
       last_preview: view.last_preview ?? '',
       last_message_at: view.last_message_at,
@@ -102,16 +105,31 @@ async function actorFor(ctx, kind) {
   return (await linkedSupervisorCtx(ctx)) ?? ctx
 }
 
-/** Клиент, вид диалога и от чьего имени; null — ответ уже отправлен. */
-async function resolveClient(ctx, res, clientId, kind, write) {
+/**
+ * Клиент, вид диалога и от чьего имени; null — ответ уже отправлен.
+ * @param {string|null|undefined} peerUserId — для az_instructor (админ передаёт; тренер = свой id)
+ */
+async function resolveClient(ctx, res, clientId, kind, write, peerUserId = null) {
   const actor = await actorFor(ctx, kind)
   const client = isInboxUuid(clientId) ? await loadChatClient(ctx.supabaseAdmin, String(clientId).trim()) : null
-  const allowed = write ? canStaffWriteChat(actor, kind, client) : canStaffReadChat(actor, kind, client)
+  let peer = String(peerUserId ?? '').trim() || null
+  if (isAzInstructorChatKind(kind)) {
+    const role = chatStaffRole(actor)
+    if (role === 'trainer') peer = String(actor.user?.id ?? '')
+    if (!peer) {
+      sendJson(res, 404, { error: 'Диалог не найден' })
+      return null
+    }
+  } else {
+    peer = null
+  }
+  const opts = { peerUserId: peer }
+  const allowed = write ? canStaffWriteChat(actor, kind, client, opts) : canStaffReadChat(actor, kind, client, opts)
   if (!allowed) {
     sendJson(res, client ? 403 : 404, { error: client ? CHAT_NO_ACCESS_RU : 'Клиент не найден' })
     return null
   }
-  return { client, actor }
+  return { client, actor, peerUserId: peer }
 }
 
 export async function handleStaffChatGet(ctx, req, res) {
@@ -130,18 +148,26 @@ export async function handleStaffChatGet(ctx, req, res) {
       return
     }
     const kind = String(req.query?.kind ?? '')
-    const found = await resolveClient(ctx, res, req.query?.client_id, kind, false)
+    const found = await resolveClient(ctx, res, req.query?.client_id, kind, false, req.query?.peer_user_id)
     if (!found) return
-    const { client, actor } = found
+    const { client, actor, peerUserId } = found
     const since = staffUsesTrainerChatSince(scope.role, kind) ? trainerChatSinceIso(client) : null
     if (view === 'search') {
-      const out = await searchChatThread(ctx.supabaseAdmin, { client, kind, side: 'staff', q: req.query?.q, since })
+      const out = await searchChatThread(ctx.supabaseAdmin, {
+        client,
+        kind,
+        peerUserId,
+        side: 'staff',
+        q: req.query?.q,
+        since,
+      })
       sendJson(res, out.status, out.body)
       return
     }
     const page = await openChatThread(ctx.supabaseAdmin, {
       client,
       kind,
+      peerUserId,
       side: 'staff',
       reactor: chatReactorKey('staff', actor.user?.id ?? scope.userId),
       before: req.query?.before,
@@ -158,8 +184,9 @@ export async function handleStaffChatGet(ctx, req, res) {
         archived_at: client.archived_at ?? null,
       },
       kind,
+      peer_user_id: peerUserId,
       label: chatKindLabelRu(kind),
-      can_write: canStaffWriteChat(actor, kind, client),
+      can_write: canStaffWriteChat(actor, kind, client, { peerUserId }),
       ...page,
     })
   } catch (e) {
@@ -187,15 +214,16 @@ export async function handleStaffChatPost(ctx, res, body) {
   }
   const kind = String(body?.kind ?? '')
   try {
-    const found = await resolveClient(ctx, res, body?.client_id, kind, !voiceWant)
+    const found = await resolveClient(ctx, res, body?.client_id, kind, !voiceWant, body?.peer_user_id)
     if (!found) return
-    const { client, actor } = found
+    const { client, actor, peerUserId } = found
     const userId = String(actor.user?.id ?? scope.userId)
     const since = staffUsesTrainerChatSince(scope.role, kind) ? trainerChatSinceIso(client) : null
     if (voiceWant) {
       const out = await chatVoiceOf(ctx.supabaseAdmin, {
         client,
         kind,
+        peerUserId,
         messageId: body?.message_id,
         want: voiceWant,
         who: `u:${scope.userId}`,
@@ -211,6 +239,7 @@ export async function handleStaffChatPost(ctx, res, body) {
       const out = await reactChatMessage(ctx.supabaseAdmin, {
         client,
         kind,
+        peerUserId,
         reactor,
         messageId: body?.message_id,
         emoji: body?.emoji,
@@ -222,6 +251,7 @@ export async function handleStaffChatPost(ctx, res, body) {
     const out = await sendChatMessage(ctx.supabaseAdmin, {
       client,
       kind,
+      peerUserId,
       side: 'staff',
       userId,
       body: body?.body,

@@ -1,9 +1,10 @@
 import { RefreshCw } from 'lucide-react'
 import { ChatThreadList } from '../../components/chat/ChatThreadList.jsx'
+import { clientChatPath, chatDialogKey } from '../../lib/chat/clientAzChatCore.js'
 import { chatThreadPreviewRu, chatThreadTitleRu } from '../../lib/chat/chatUiCore.js'
 import { ClientMeStatus } from './ClientMeStatus.jsx'
 
-/** «Сообщения» → «Диалоги»: переписка с тренером, менеджером и управляющим. */
+/** «Сообщения» → «Диалоги»: переписка с тренером / инструкторами АЗ / клубом. */
 export function ClientChatThreadsSection({ threads, error }) {
   if (!threads) {
     return error ? (
@@ -15,12 +16,12 @@ export function ClientChatThreadsSection({ threads, error }) {
     )
   }
   const rows = threads.map((t) => ({
-    key: t.kind,
-    to: `/me/chat/${t.kind}`,
+    key: chatDialogKey(t),
+    to: clientChatPath(t),
     kind: t.kind,
-    title: chatThreadTitleRu(t.kind, t.name),
+    title: t.title || chatThreadTitleRu(t.kind, t.name),
     preview: chatThreadPreviewRu(t, 'client'),
-    avatar: t.kind === 'trainer' ? t.name : '',
+    avatar: t.kind === 'trainer' || t.peer_user_id ? t.name : '',
     photo: t.photo ?? null,
     status: t.status ?? null,
     unread: t.unread,
