@@ -423,6 +423,16 @@ export function AdminMultiHallClientCardSection({
             Абоны {hallTab === 'tz' ? 'ТЗ' : 'АЗ'} на той же карточке. Не создавайте второго клиента с тем же №
             карты.
           </p>
+          {hallTab === 'az' ? (
+            <div className="admin-desk-client-card__meta" style={{ marginBottom: '0.75rem' }}>
+              <AdminDeskAzInstructorsSection
+                client={client}
+                memberships={memberships}
+                clubId={resolvedClubId}
+                onChanged={onSaved}
+              />
+            </div>
+          ) : null}
           <AdminDeskMembershipLedger
             client={client}
             memberships={memberships}
@@ -430,13 +440,6 @@ export function AdminMultiHallClientCardSection({
             hall={hallTab}
             onChanged={onSaved}
           />
-          {hallTab === 'az' ? (
-            <AdminDeskAzInstructorsSection
-              client={client}
-              clubId={resolvedClubId}
-              onChanged={onSaved}
-            />
-          ) : null}
         </div>
       )}
     </section>

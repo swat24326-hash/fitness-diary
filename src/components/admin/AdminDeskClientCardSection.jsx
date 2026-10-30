@@ -195,7 +195,9 @@ export function AdminDeskClientCardSection({
             {hall === 'tz' ? 'ТЗ' : 'АЗ'}
           </span>
         ) : null}
-        <span className="admin-desk-client-card__nav-note">Без тренера · учёт по сроку</span>
+        <span className="admin-desk-client-card__nav-note">
+          {hall === 'az' ? 'АЗ · учёт по сроку' : 'Без тренера · учёт по сроку'}
+        </span>
       </div>
 
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
@@ -246,6 +248,15 @@ export function AdminDeskClientCardSection({
                 onChange={(iso) => setField('birth_date', iso)}
               />
             </label>
+            {hall === 'az' ? (
+              <AdminDeskAzInstructorsSection
+                client={client}
+                memberships={memberships}
+                clubId={clubId}
+                onChanged={onSaved}
+                disabled={busy}
+              />
+            ) : null}
           </div>
         </div>
         {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
@@ -263,10 +274,6 @@ export function AdminDeskClientCardSection({
         hall={hall || undefined}
         onChanged={onSaved}
       />
-
-      {hall === 'az' ? (
-        <AdminDeskAzInstructorsSection client={client} clubId={clubId} onChanged={onSaved} />
-      ) : null}
     </section>
   )
 }

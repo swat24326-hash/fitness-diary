@@ -57,7 +57,8 @@ export async function refreshClientAzInstructorsClubCache(clubId) {
  * @returns {Promise<object[]>}
  */
 export async function listAzDirectionTypesForClub(clubId) {
-  const list = await ensureMembershipTypesForClub(clubId, { aerobicOnly: true, activeOnly: true })
+  const res = await ensureMembershipTypesForClub(clubId, { aerobicOnly: true, activeOnly: true })
+  const list = Array.isArray(res) ? res : Array.isArray(res?.types) ? res.types : []
   return filterAerobicSalesTypes(list)
 }
 
@@ -121,4 +122,33 @@ export async function removeClientAzInstructor(linkId, row = {}) {
   if (!id) return { ok: false, error: 'Нет id связи' }
   await deleteLocalWithSync(CLIENT_AZ_INSTRUCTORS_TABLE, id, CLIENT_AZ_INSTRUCTORS_TABLE, row)
   return { ok: true }
+}
+
+/**
+ * Один основной инструктор на направление: снять прежних на это направление, назначить нового (или очистить).
+ * @param {{
+ *   client: object,
+ *   instructorId: string,
+ *   directionTypeId: string,
+ * }} input
+ */
+export async function setPrimaryClientAzInstructor(input) {
+  const client = input?.client
+  const clientId = String(client?.id ?? '').trim()
+  const directionTypeId = String(input?.directionTypeId ?? '').trim()
+  const instructorId = String(input?.instructorId ?? '').trim()
+  if (!clientId) return { ok: false, error: 'Нет клиента' }
+  if (!directionTypeId) return { ok: false, error: 'Укажите направление АЗ в абонементе' }
+
+  const existing = await listClientAzInstructorsLocal(clientId)
+  const sameDir = existing.filter((r) => String(r?.direction_type_id ?? '') === directionTypeId)
+  for (const row of sameDir) {
+    if (instructorId && String(row.instructor_id) === instructorId) continue
+    await removeClientAzInstructor(row.id, row)
+  }
+  if (!instructorId) return { ok: true, data: null }
+  if (sameDir.some((r) => String(r.instructor_id) === instructorId)) {
+    return { ok: true, data: sameDir.find((r) => String(r.instructor_id) === instructorId) }
+  }
+  return assignClientAzInstructor({ client, instructorId, directionTypeId })
 }

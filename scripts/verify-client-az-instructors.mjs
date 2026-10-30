@@ -123,6 +123,13 @@ ok(
   'manager can delete',
 )
 
+ok(
+  /Array\.isArray\(res\) \? res : Array\.isArray\(res\?\.types\)/.test(
+    src('src/lib/admin/clientAzInstructorsService.js'),
+  ),
+  'direction types: ensureMembershipTypes object unwrap',
+)
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)
