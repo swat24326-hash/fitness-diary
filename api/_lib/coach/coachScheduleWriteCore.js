@@ -17,7 +17,7 @@ import { rows } from '../inbox/inboxStore.js'
 
 const TABLE = 'trainer_schedule_entries'
 export const COACH_SCHEDULE_ROW_FIELDS =
-  'id, club_id, trainer_id, day_date, start_minutes, duration_minutes, title, client_ids, linked_training_id, kind, created_at, updated_at'
+  'id, club_id, trainer_id, day_date, start_minutes, duration_minutes, title, client_ids, linked_training_id, kind, direction_type_id, created_at, updated_at'
 
 const reply = (status, body) => ({ status, body })
 

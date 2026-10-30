@@ -84,4 +84,15 @@ const merged = buildClientNotifications({ homework: hw }, null, { inboxItems, ti
 ok(merged.length === 3 && merged[0].id === 'inbox:d1', 'единая лента: опрос сверху по дате')
 ok(clientNotificationsBellCount({ plans: { homework: hw }, inboxAttention: 2 }) === 3, 'колокольчик: планы + inbox_attention')
 
+const noTrainer = buildClientNotifications({ homework: hw }, null, {
+  inboxItems,
+  timeZone: TZ,
+  includeFromTrainer: false,
+})
+ok(noTrainer.length === 2 && noTrainer.every((it) => it.id.startsWith('inbox:')), 'solo АЗ — ДЗ не в ленте')
+ok(
+  clientNotificationsBellCount({ plans: { homework: hw }, inboxAttention: 1, includeFromTrainer: false }) === 1,
+  'колокольчик solo АЗ — без ДЗ',
+)
+
 console.log('verify-client-notifications: ok')

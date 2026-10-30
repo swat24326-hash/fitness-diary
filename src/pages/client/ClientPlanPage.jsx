@@ -1,5 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { ChevronRight, Dumbbell, RefreshCw, Salad, WifiOff } from 'lucide-react'
+import { clientShowsFromTrainerTab } from '../../lib/chat/clientAzChatCore.js'
+import { liveHallsFromMembershipViews } from '../../lib/client/clientHomeHallCore.js'
 import { clientHomeworkTitle, planFootRu } from '../../lib/client/clientPlanUiCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
@@ -45,6 +47,12 @@ function History({ items, currentId, openingId, onOpen }) {
 export function ClientPlanPage({ kind }) {
   const plans = useClientPlans(kind)
   if (plans.status === 'signed_out') return <Navigate to={CLIENT_HOME} replace />
+  const cached = readClientMeCache()?.data
+  const liveHalls = cached?.memberships ? liveHallsFromMembershipViews(cached.memberships.current) : null
+  /* Solo АЗ/ТЗ: вкладки нет — прямой URL и push не открывают ДЗ/рацион. */
+  if (!clientShowsFromTrainerTab(cached?.client, { liveHalls })) {
+    return <Navigate to={CLIENT_HOME} replace />
+  }
   const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
   return (

@@ -52,6 +52,13 @@ ok(clientChatKinds(clientAz).join() === 'sales,supervisor', 'чистый АЗ �
 ok(!clientShowsFromTrainerTab(clientAz), 'чистый АЗ — без вкладки «От тренера»')
 ok(clientShowsFromTrainerTab(clientPz), 'ПЗ — вкладка «От тренера»')
 ok(clientShowsFromTrainerTab(null), 'кэш пуст — вкладку не прячем')
+ok(
+  !clientShowsFromTrainerTab(clientPz, { liveHalls: new Set(['az']) }),
+  'был ПЗ → только АЗ — вкладку скрываем по живым залам',
+)
+ok(clientShowsFromTrainerTab(clientAz, { liveHalls: new Set(['pz', 'az']) }), 'смесь с открытым ПЗ — вкладка есть')
+ok(clientShowsFromTrainerTab({ has_trainer: true }), 'has_trainer без uuid')
+ok(!clientShowsFromTrainerTab({ has_trainer: false }), 'has_trainer false — нет вкладки')
 
 const dialogs = buildClientChatDialogs({
   client: clientAz,

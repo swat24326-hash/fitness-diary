@@ -24,22 +24,27 @@ export function mainTrainerName(visits) {
 
 /**
  * Строка: дата в квадрате («07 / окт»), в подписи № списания и вес; тренер — только если вёл не основной.
- * @param {{ id?: string, date: string, focus: string|null, kg: number|null, trainer_name: string|null, no_show: boolean }} t
+ * АЗ у стойки (kind=desk) — без окна подходов.
+ * @param {{ id?: string, date: string, focus: string|null, kg: number|null, trainer_name: string|null, no_show: boolean, kind?: string }} t
  * @returns {{ num: string, month: string, title: string, meta: string, noShow: boolean, canOpen: boolean }}
  */
 export function membershipTrainingRow(t, n, mainTrainer) {
+  const desk = t.kind === 'desk'
   const meta = [`№${n}`]
   if (t.no_show) meta.push('занятие списано с абонемента')
   else {
-    if (t.trainer_name && t.trainer_name !== mainTrainer) meta.push(`вёл ${t.trainer_name}`)
-    if (t.kg != null) meta.push(`${String(t.kg).replace('.', ',')}\u00a0кг`)
+    if (desk) meta.push('у стойки')
+    else {
+      if (t.trainer_name && t.trainer_name !== mainTrainer) meta.push(`вёл ${t.trainer_name}`)
+      if (t.kg != null) meta.push(`${String(t.kg).replace('.', ',')}\u00a0кг`)
+    }
   }
   return {
     num: t.date.slice(8, 10),
     month: MONTHS_SHORT[Number(t.date.slice(5, 7)) - 1] ?? '',
-    title: t.no_show ? 'Неявка' : t.focus || 'Тренировка',
+    title: t.no_show ? 'Неявка' : t.focus || (desk ? 'Занятие АЗ' : 'Тренировка'),
     meta: meta.join(' · '),
     noShow: Boolean(t.no_show),
-    canOpen: Boolean(t.id) && !t.no_show,
+    canOpen: Boolean(t.id) && !t.no_show && !desk,
   }
 }

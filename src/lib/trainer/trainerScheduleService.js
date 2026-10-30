@@ -92,6 +92,7 @@ export async function saveTrainerScheduleEntry(input, opts = {}) {
     client_ids: input.client_ids ?? [],
     linked_training_id: input.linked_training_id ?? null,
     kind: coerceScheduleKindForEntry(input.kind, input.client_ids),
+    direction_type_id: input.direction_type_id ?? null,
     created_at: prevCreated,
     updated_at: now,
     synced: false,
@@ -110,7 +111,7 @@ export async function saveTrainerScheduleEntry(input, opts = {}) {
 
 /**
  * Копии записи на другие дни («повторять каждую неделю»): новые id, без связи с тренировкой.
- * @param {{ club_id: string, trainer_id: string, start_minutes: number, duration_minutes?: number, title?: string, client_ids?: string[], kind?: string | null }} base
+ * @param {{ club_id: string, trainer_id: string, start_minutes: number, duration_minutes?: number, title?: string, client_ids?: string[], kind?: string | null, direction_type_id?: string | null }} base
  * @param {string[]} dayIsos
  */
 export async function saveTrainerScheduleEntryCopies(base, dayIsos) {
@@ -127,6 +128,7 @@ export async function saveTrainerScheduleEntryCopies(base, dayIsos) {
         client_ids: base.client_ids ?? [],
         linked_training_id: null,
         kind: base.kind ?? null,
+        direction_type_id: base.direction_type_id ?? null,
       },
       { silent: true },
     )

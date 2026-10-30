@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { Bell, ChevronRight, ClipboardList, Gift, Megaphone, Salad, Star, Ticket } from 'lucide-react'
+import { clientShowsFromTrainerTab } from '../../lib/chat/clientAzChatCore.js'
 import { CLIENT_NOTIFICATION_KINDS, buildClientNotifications } from '../../lib/client/clientNotificationsCore.js'
+import { liveHallsFromMembershipViews } from '../../lib/client/clientHomeHallCore.js'
 import { inboxPointsLineRu } from '../../lib/client/clientInboxUiCore.js'
 import { hasClientSession, patchClientMeCache, readClientMeCache } from '../../lib/client/clientSession.js'
 import { markMembershipNoticeRead } from '../../lib/client/clientMembershipNoticeService.js'
@@ -37,9 +39,11 @@ export function ClientNotificationsPage() {
     return <Navigate to={CLIENT_HOME} replace />
   }
 
+  const liveHalls = data?.memberships ? liveHallsFromMembershipViews(data.memberships.current) : null
   const items = buildClientNotifications(data?.plans, data?.ratings, {
     inboxItems: inbox.items ?? [],
     membershipNotices: data?.membership_notices,
+    includeFromTrainer: clientShowsFromTrainerTab(data?.client, { liveHalls }),
   })
   const club = data?.club ?? readClientMeCache()?.data?.club ?? null
   const pointsLine = inboxPointsLineRu(inbox.points)

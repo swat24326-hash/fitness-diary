@@ -9,7 +9,8 @@ import {
   normalizeTrainerScheduleEntry,
 } from '../../../src/lib/trainer/trainerScheduleCore.js'
 
-export const COACH_SCHEDULE_FIELDS = 'id, club_id, trainer_id, day_date, start_minutes, duration_minutes, title, client_ids, linked_training_id'
+export const COACH_SCHEDULE_FIELDS =
+  'id, club_id, trainer_id, day_date, start_minutes, duration_minutes, title, client_ids, linked_training_id, kind, direction_type_id'
 
 /** Сегодня и завтра по времени клуба. */
 export function coachScheduleDays(todayIso) {

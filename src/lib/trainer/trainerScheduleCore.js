@@ -2,6 +2,7 @@
  * Расписание тренера: нормализация, сетка месяца, отображение слотов.
  */
 import { addDaysToIso } from '../dateRu.js'
+import { coerceScheduleDirectionTypeId } from './trainerScheduleDirectionCore.js'
 
 /** Сетка дня: полные сутки (часы 00…23). END exclusive. */
 export const SCHEDULE_DAY_START_HOUR = 0
@@ -81,6 +82,7 @@ export function normalizeTrainerScheduleEntry(raw) {
   const linkedTrainingId = String(r.linked_training_id ?? '').trim() || null
   /* Строгая проверка категории — trainerScheduleKindCore (push payload, показ). */
   const kind = String(r.kind ?? '').trim().slice(0, 20) || null
+  const direction_type_id = coerceScheduleDirectionTypeId(kind, r.direction_type_id)
 
   if (!title && !clientIds.length) return null
 
@@ -95,6 +97,7 @@ export function normalizeTrainerScheduleEntry(raw) {
     client_ids: clientIds,
     linked_training_id: linkedTrainingId,
     kind,
+    direction_type_id,
     created_at: String(r.created_at ?? new Date().toISOString()),
     updated_at: String(r.updated_at ?? new Date().toISOString()),
     synced: r.synced !== false,

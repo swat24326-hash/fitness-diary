@@ -11,6 +11,7 @@ import { TrainerScheduleViewMenu } from '../../components/trainer/TrainerSchedul
 import { TrainerScheduleEntryModal } from '../../components/trainer/TrainerScheduleEntryModal.jsx'
 import { TrainerScheduleNotice } from '../../components/trainer/TrainerScheduleNotice.jsx'
 import { useTrainerScheduleMove } from '../../hooks/useTrainerScheduleMove.js'
+import { useScheduleAzDirections } from '../../hooks/useScheduleAzDirections.js'
 import { waitScheduleEntryDelivery } from '../../lib/trainer/trainerScheduleDeliveryService.js'
 import '../../styles/trainer-schedule.css'
 import '../../styles/trainer-schedule-interactions.css'
@@ -25,6 +26,7 @@ export function TrainerCalendarPage() {
 
   const { entries, clients, clientNameById, clientInfoById, trainingById, loading, reload } =
     useTrainerScheduleData(user?.id, user?.club_id)
+  const azDirections = useScheduleAzDirections(user?.club_id)
 
   const move = useTrainerScheduleMove({
     onSaved: () => void reload({ silent: true }),
@@ -110,6 +112,7 @@ export function TrainerCalendarPage() {
         clientInfoById={clientInfoById}
         trainingById={trainingById}
         entries={entries}
+        azDirections={azDirections}
         onClose={nav.closeModal}
         onSaved={(result) => {
           void reload({ silent: true })

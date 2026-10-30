@@ -297,6 +297,7 @@ CREATE TABLE body_measurements (
   thigh_l NUMERIC(6, 1),
   calf_r NUMERIC(6, 1),
   calf_l NUMERIC(6, 1),
+  source TEXT NOT NULL DEFAULT 'club' CHECK (source IN ('club', 'client')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -307,7 +308,7 @@ CREATE TABLE client_weight_entries (
   client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
   date DATE NOT NULL,
   weight_kg NUMERIC(6, 2) NOT NULL CHECK (weight_kg > 0),
-  source TEXT NOT NULL CHECK (source IN ('manual', 'training', 'baseline', 'initial_adjust')),
+  source TEXT NOT NULL CHECK (source IN ('manual', 'training', 'baseline', 'initial_adjust', 'client')),
   training_id UUID REFERENCES trainings (id) ON DELETE SET NULL,
   note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

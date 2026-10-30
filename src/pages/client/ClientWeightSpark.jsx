@@ -16,7 +16,15 @@ const H = 96
 const PAD = 10
 const kgRu = (kg) => String(kg).replace('.', ',')
 
-export function ClientWeightSpark({ weights, settling = false, rebuilt = false }) {
+/**
+ * @param {{
+ *   weights: { date: string, kg: number, source?: string, id?: string }[]
+ *   settling?: boolean
+ *   rebuilt?: boolean
+ *   onPickSelf?: (point: { date: string, kg: number, id?: string, source?: string }) => void
+ * }} props
+ */
+export function ClientWeightSpark({ weights, settling = false, rebuilt = false, onPickSelf }) {
   const gradId = useId()
   const [picked, setPicked] = useState(null)
   const rootRef = useRef(null)
@@ -28,6 +36,7 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
     return last ? (
       <p className="client-me-line">
         Вес: <strong>{kgRu(last.kg)} кг</strong>
+        {last.source === 'client' ? <span className="client-me-muted"> · вы внесли</span> : null}
       </p>
     ) : null
   }
@@ -38,15 +47,21 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
   const line = weightSparkPath(dots)
   const area = `${line} L${dots[lastIndex].x},${H} L${dots[0].x},${H} Z`
   const pct = (d) => ({ left: `${(d.x / W) * 100}%`, top: `${(d.y / H) * 100}%` })
+  const activeDot = g.dots[active]
 
   const pick = (e) => {
     const r = e.currentTarget.getBoundingClientRect()
-    setPicked(nearestDotIndex(g.dots, ((e.clientX - r.left) / r.width) * W))
+    const idx = nearestDotIndex(g.dots, ((e.clientX - r.left) / r.width) * W)
+    setPicked(idx)
+    const d = g.dots[idx]
+    if (d?.source === 'client' && onPickSelf) onPickSelf(d)
   }
   const onKey = (e) => {
     if (e.key === 'ArrowLeft') setPicked(Math.max(0, active - 1))
     else if (e.key === 'ArrowRight') setPicked(Math.min(lastIndex, active + 1))
-    else if (e.key === 'Escape') setPicked(null)
+    else if (e.key === 'Enter' || e.key === ' ') {
+      if (activeDot?.source === 'client' && onPickSelf) onPickSelf(activeDot)
+    } else if (e.key === 'Escape') setPicked(null)
     else return
     e.preventDefault()
   }
@@ -69,11 +84,11 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
         className="client-me-spark__plot"
         role="slider"
         tabIndex={0}
-        aria-label="График веса: стрелками — по замерам"
+        aria-label="График веса: стрелками — по замерам, Enter — изменить свой"
         aria-valuemin={0}
         aria-valuemax={lastIndex}
         aria-valuenow={active}
-        aria-valuetext={`${cap.date}: ${cap.kg} кг`}
+        aria-valuetext={`${cap.date}: ${cap.kg} кг, ${cap.note}`}
         onPointerDown={pick}
         onPointerMove={pick}
         onPointerLeave={(e) => e.pointerType === 'mouse' && setPicked(null)}
@@ -105,7 +120,7 @@ export function ClientWeightSpark({ weights, settling = false, rebuilt = false }
         {g.dots.map((d, i) => (
           <span
             key={`${d.date}-${i}`}
-            className={`client-me-spark__dot${i === active ? ' client-me-spark__dot--active' : ''}`}
+            className={`client-me-spark__dot${d.source === 'client' ? ' client-me-spark__dot--self' : ''}${i === active ? ' client-me-spark__dot--active' : ''}`}
             style={{ ...pct(dots[i]), '--at': `${(d.x / W) * 0.9}s`, '--drop': `${H - d.y}px` }}
             aria-hidden
           />

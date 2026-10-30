@@ -50,12 +50,19 @@ export function formatWeightProgressDelta(health) {
   return { delta, text: `${sign}${delta} кг от исходного` }
 }
 
-export const WEIGHT_ENTRY_SOURCES = /** @type {const} */ (['manual', 'training', 'baseline', 'initial_adjust'])
+export const WEIGHT_ENTRY_SOURCES = /** @type {const} */ ([
+  'manual',
+  'training',
+  'baseline',
+  'initial_adjust',
+  'client',
+])
 
 /** @param {string} source */
 export function weightEntrySourceLabelRu(source) {
   if (source === 'training') return 'С тренировки'
   if (source === 'baseline' || source === 'initial_adjust') return 'Исходный (карта здоровья)'
+  if (source === 'client') return 'Вы в приложении'
   return 'Вручную'
 }
 

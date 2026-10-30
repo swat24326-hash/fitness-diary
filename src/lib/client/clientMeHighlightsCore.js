@@ -1,5 +1,6 @@
 /** Экран /me (без React): какая карточка первая, напоминание о продлении, точки графика веса. */
 import { addDaysToIso, formatDateRu } from '../dateRu.js'
+import { progressPointOriginRu } from './clientProgressSelfCore.js'
 import { daysWord, formatSignedRu, trainingsWord } from './clientMeUiCore.js'
 
 export const RENEW_REMAINING_MAX = 2
@@ -39,8 +40,8 @@ export function clientRenewalHint(memberships) {
 /**
  * График веса: ось X — даты (честные промежутки), ось Y — вес. Меньше 2 точек — null.
  * Точки замеров и подписи мин/макс — чтобы резкий скачок читался как замер, а не как сбой графика.
- * @param {{ date: string, kg: number }[]} weights по возрастанию даты
- * @returns {{ dots: { x: number, y: number, kg: number, date: string }[], minKg: number, maxKg: number } | null}
+ * @param {{ date: string, kg: number, source?: string, id?: string }[]} weights по возрастанию даты
+ * @returns {{ dots: { x: number, y: number, kg: number, date: string, source: string, id?: string }[], minKg: number, maxKg: number } | null}
  */
 export function weightSparkGeometry(weights, width, height, pad = 4) {
   const list = (weights ?? []).filter((w) => Number.isFinite(w?.kg) && Number.isFinite(Date.parse(w?.date)))
@@ -52,7 +53,14 @@ export function weightSparkGeometry(weights, width, height, pad = 4) {
   const sx = (x) => (x1 === x0 ? width / 2 : pad + ((x - x0) / (x1 - x0)) * (width - pad * 2))
   const sy = (y) => (y1 === y0 ? height / 2 : height - pad - ((y - y0) / (y1 - y0)) * (height - pad * 2))
   return {
-    dots: list.map((w, i) => ({ x: round1(sx(xs[i])), y: round1(sy(w.kg)), kg: w.kg, date: w.date })),
+    dots: list.map((w, i) => ({
+      x: round1(sx(xs[i])),
+      y: round1(sy(w.kg)),
+      kg: w.kg,
+      date: w.date,
+      source: w.source === 'client' ? 'client' : 'club',
+      ...(w.id ? { id: w.id } : {}),
+    })),
     minKg: y0,
     maxKg: y1,
   }
@@ -123,11 +131,13 @@ export function weightSparkCaption(dots, index) {
   const diff = Math.round((lastKg - d.kg) * 10) / 10
   const note =
     index === dots.length - 1
-      ? 'последний замер'
+      ? d.source === 'client'
+        ? progressPointOriginRu('client')
+        : 'последний замер'
       : diff === 0
         ? 'с тех пор без изменений'
         : `с тех пор ${formatSignedRu(diff, 'кг')}`
-  return { kg: String(d.kg).replace('.', ','), date: formatDateRu(d.date), note }
+  return { kg: String(d.kg).replace('.', ','), date: formatDateRu(d.date), note, source: d.source }
 }
 
 /** Строка для SVG polyline. */

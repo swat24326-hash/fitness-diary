@@ -12,6 +12,7 @@
  * POST /api/client-me { action: 'rating-get' | 'rating-answer' | 'rating-dismiss' } — оценка после абонемента (../clientRatings/clientRatingHandler.js).
  * POST /api/client-me { action: 'membership-notice-read' } — прочитано оповещение об абонементе.
  * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' | 'story-react' } — реклама своего клуба.
+ * POST /api/client-me { action: 'progress-weight-*' | 'progress-measure-*' } — свой вес/обмеры (○).
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -29,6 +30,7 @@ import {
   handleClientMembershipNoticePost,
   loadClientMembershipNoticesSummary,
 } from './clientMembershipNoticeHandler.js'
+import { handleClientProgressSelfPost, isProgressSelfAction } from './clientProgressSelfHandler.js'
 import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
@@ -89,6 +91,8 @@ export async function clientMeHandler(req, res) {
       await handleClientMembershipNoticePost(createServiceDataClient(), ctx, body, res)
     } else if (String(body?.action ?? '').startsWith('story-')) {
       await handleClientStories(createServiceDataClient(), ctx, body, res)
+    } else if (isProgressSelfAction(body?.action)) {
+      await handleClientProgressSelfPost(createServiceDataClient(), ctx, body, res)
     } else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }

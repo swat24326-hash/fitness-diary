@@ -37,9 +37,10 @@ ok(visits[0].focus === 'Ноги' && visits[0].kg === 64.5 && visits[0].trainer_
 ok(visits[1].no_show === true && visits[1].kg === null && visits[1].focus === null, 'неявка помечена, без веса')
 ok(visits[2].focus === 'Силовая' && visits[3].trainer_name === null, 'без направленности — тип; тренер не найден — без имени')
 ok(
-  visits.every((v) => Object.keys(v).sort().join() === 'date,focus,id,kg,no_show,trainer_name'),
-  'наружу id, дата, направленность, вес, тренер, неявка — без заметок и data',
+  visits.every((v) => Object.keys(v).sort().join() === 'date,focus,id,kg,kind,no_show,trainer_name'),
+  'наружу id, дата, направленность, вес, тренер, неявка, kind — без заметок и data',
 )
+ok(visits.every((v) => v.kind === 'personal'), 'персоналки — kind personal')
 ok(!JSON.stringify(visits).includes('секрет'), 'заметки тренера не попадают в список')
 ok(membershipVisitTrainerIds([m1], trainings).sort().join() === 'tr1,tr2,tr9', 'имена тренеров — только для тренировок абонемента')
 

@@ -115,6 +115,14 @@
   animation: spark-dot-in 0.35s var(--at, 0s) cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
+/* ○ — вес, который внёс сам клиент */
+.client-me-spark__dot--self {
+  background: var(--bg-card);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 3px var(--bg-card);
+}
+
 .client-me-spark__dot--active {
   z-index: 1;
   width: 12px;

@@ -9,7 +9,17 @@ import { createFakeChat } from '../lib/fakeChat.mjs'
 import { createFakeCoach } from '../lib/fakeCoach.mjs'
 import { ORIGIN, fillCoachCredentials, newE2eContext, screenshot } from '../lib/e2eHarness.mjs'
 import { scheduleHeadsLayout } from '../lib/scheduleLayout.mjs'
-import { CLIENT_ID, CLIENT_NAME, CLUB_ID, TRAINER_ID, TRAINER_LOGIN, TRAINER_PASSWORD, isoDay, trainerClubSeed } from '../lib/fixtures.mjs'
+import {
+  CLIENT_ID,
+  CLIENT_NAME,
+  CLUB_ID,
+  TRAINER_ID,
+  TRAINER_LOGIN,
+  TRAINER_PASSWORD,
+  azDirectionTypeSeed,
+  isoDay,
+  trainerClubSeed,
+} from '../lib/fixtures.mjs'
 
 export const name = 'телефон тренера: Ежедневник с правкой'
 
@@ -28,7 +38,10 @@ function setup() {
   const seed = trainerClubSeed()
   const typeId = 'e2e-mem-type-vip2'
   seed.clients[0].card_number = '3334'
-  seed.membership_types = [{ id: typeId, club_id: CLUB_ID, code: 'Vip 2', name: 'Vip 2' }]
+  seed.membership_types = [
+    { id: typeId, club_id: CLUB_ID, code: 'Vip 2', name: 'Vip 2', trainer_assignable: true, is_active: true },
+    azDirectionTypeSeed(),
+  ]
   seed.memberships[0].membership_type_id = typeId
   for (const name of GROUP) {
     seed.clients.push({ ...seed.clients[0], id: `e2e-group-${name.slice(-2)}`, name, phone: null, card_number: null })
@@ -333,6 +346,8 @@ export async function run(browser) {
     const group = page.getByRole('dialog')
     await group.waitFor({ state: 'visible', timeout: 10_000 })
     await group.getByRole('radio', { name: 'Групповое' }).click()
+    await group.getByTestId('schedule-direction').waitFor({ state: 'visible', timeout: 10_000 })
+    await group.getByTestId('schedule-direction').selectOption({ label: 'Бокс' })
     await group.getByRole('tab', { name: 'Клиенты' }).click()
     await group.getByLabel(GROUP[0], { exact: true }).waitFor({ state: 'attached', timeout: 10_000 })
     /* Список — свой скролл; клик по строке (не check), чтобы не упираться в controlled input. */

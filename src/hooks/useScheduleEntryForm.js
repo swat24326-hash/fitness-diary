@@ -19,6 +19,7 @@ import {
   scheduleWeekdayIndex,
 } from '../lib/trainer/trainerScheduleRecurrenceCore.js'
 import {
+  SCHEDULE_KIND_GROUP,
   SCHEDULE_KIND_TRAINING,
   resolveScheduleEntryKind,
   scheduleKindFormMode,
@@ -28,15 +29,23 @@ import { todayInTimeZoneIso } from '../lib/dateRu.js'
 
 /**
  * Поля формы записи Ежедневника (планшет и телефон): заполнение из записи, повтор, проверка перед сохранением.
- * @param {{ open: boolean, draft: object | null, dayIso: string, entries: object[], clientNameById: Record<string, string> }} p
+ * @param {{
+ *   open: boolean,
+ *   draft: object | null,
+ *   dayIso: string,
+ *   entries: object[],
+ *   clientNameById: Record<string, string>,
+ *   azDirections?: Array<{ id: string, name: string }>,
+ * }} p
  */
-export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameById }) {
+export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameById, azDirections = [] }) {
   const [mode, setMode] = useState('clients')
   const [kind, setKind] = useState('personal')
   const [time, setTime] = useState('10:00')
   /** Текст поля: пока тренер набирает, может быть пустым или «4» на пути к «45». */
   const [duration, setDuration] = useState(String(SCHEDULE_DEFAULT_DURATION_MIN))
   const [title, setTitle] = useState('')
+  const [directionTypeId, setDirectionTypeId] = useState('')
   const [selectedIds, setSelectedIds] = useState(/** @type {string[]} */ ([]))
   const [repeatOn, setRepeatOn] = useState(false)
   const [repeatWeekdays, setRepeatWeekdays] = useState(/** @type {number[]} */ ([]))
@@ -53,6 +62,7 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
     setTime(formatScheduleMinutes(Number(entry?.start_minutes ?? 10 * 60)))
     setDuration(String(Number(entry?.duration_minutes) || SCHEDULE_DEFAULT_DURATION_MIN))
     setTitle(String(entry?.title ?? ''))
+    setDirectionTypeId(String(entry?.direction_type_id ?? '').trim())
     setSelectedIds(ids)
     setRepeatOn(false)
     const wd = scheduleWeekdayIndex(dayIso)
@@ -82,6 +92,7 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
     setKind(next)
     const nextMode = scheduleKindFormMode(next)
     if (nextMode !== 'either') setMode(nextMode)
+    if (next !== SCHEDULE_KIND_GROUP) setDirectionTypeId('')
   }
 
   const toggleClient = (id) => {
@@ -106,11 +117,29 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
     const client_ids = mode === 'clients' ? selectedIds : []
     const note = title.trim()
     if (scheduleKindRequiresClients(kind) && !client_ids.length) return { ok: false, error: 'Для тренировки выберите клиента' }
-    if (!client_ids.length && !note) return { ok: false, error: 'Напишите заметку или выберите клиента' }
+    if (kind === SCHEDULE_KIND_GROUP) {
+      if (!azDirections.length) {
+        return { ok: false, error: 'Нет направлений АЗ в клубе — групповое пока недоступно' }
+      }
+      if (!String(directionTypeId ?? '').trim()) {
+        return { ok: false, error: 'Для группового выберите направление (Бокс / Степ…)' }
+      }
+    }
+    const directionName = azDirections.find((d) => d.id === directionTypeId)?.name ?? ''
+    const groupNote = kind === SCHEDULE_KIND_GROUP && !note ? String(directionName).trim() : note
+    if (!client_ids.length && !groupNote) return { ok: false, error: 'Напишите заметку или выберите клиента' }
     if (isScheduleClientLimitExceeded(client_ids)) return { ok: false, error: SCHEDULE_TOO_MANY_CLIENTS_RU }
     return {
       ok: true,
-      fields: { day_date: dayIso, start_minutes: startMinutes, duration_minutes: durationMinutes, title: note, client_ids, kind },
+      fields: {
+        day_date: dayIso,
+        start_minutes: startMinutes,
+        duration_minutes: durationMinutes,
+        title: groupNote,
+        client_ids,
+        kind,
+        direction_type_id: kind === SCHEDULE_KIND_GROUP ? directionTypeId : null,
+      },
     }
   }
 
@@ -127,6 +156,8 @@ export function useScheduleEntryForm({ open, draft, dayIso, entries, clientNameB
     endLabel,
     title,
     setTitle,
+    directionTypeId,
+    setDirectionTypeId,
     selectedIds,
     toggleClient,
     repeat: { on: repeatOn, setOn: setRepeatOn, weekdays: repeatWeekdays, setWeekdays: setRepeatWeekdays, weeks: repeatWeeks, setWeeks: setRepeatWeeks, plan: repeatPlan },

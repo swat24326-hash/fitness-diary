@@ -5,7 +5,7 @@ import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { peekScreenCache, readScreenCache, writeScreenCache } from '../../lib/screenCache/screenCacheStore.js'
 import { useCoachApp } from './CoachAppContext.jsx'
 
-const EMPTY = { entries: [], clientNameById: {}, clientInfoById: {}, trainingById: {}, clients: [] }
+const EMPTY = { entries: [], clientNameById: {}, clientInfoById: {}, trainingById: {}, clients: [], az_directions: [] }
 
 /**
  * Ежедневник телефона за окно from–to. Окно уже открывали — сразу сохранённое на телефоне (кэш экранов),

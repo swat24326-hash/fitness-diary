@@ -79,7 +79,7 @@ export function ClientTrainingsPage() {
                 ))}
               </ol>
             ) : (
-              <p className="client-me-line">По этому абонементу тренировок ещё не было.</p>
+              <p className="client-me-line">{card.emptyHint || 'По этому абонементу тренировок ещё не было.'}</p>
             )}
             {card.gap ? (
               <p className="client-me-renew" role="note">

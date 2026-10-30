@@ -301,6 +301,11 @@ export function createFakeBackend(seed) {
     if (path === '/api/admin-data' && searchParams.get('action') === 'exercises') {
       return { status: 200, json: { exercises: state.exercises, count: state.exercises.length } }
     }
+    if (path === '/api/admin-data' && searchParams.get('action') === 'membership-types') {
+      const clubId = searchParams.get('club_id')
+      const rows = (state.membership_types ?? []).filter((t) => !clubId || t.club_id === clubId)
+      return { status: 200, json: { membership_types: rows } }
+    }
     if (path.startsWith('/api/')) {
       state.requestLog.push(`  (заглушка) ${path}?${searchParams}`)
       return { status: 200, json: {} }

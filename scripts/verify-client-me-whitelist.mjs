@@ -90,7 +90,7 @@ const entries = [
 ]
 const next = pickNextClientSession(entries, TODAY, 12 * 60, names)
 ok(next?.date === TODAY && next.time === '18:00–19:00' && next.trainer_name === 'Пётр', 'сегодняшняя прошедшая пропущена')
-ok(!('title' in next) && !('trainer_id' in next), 'заметка и id тренера не уходят')
+ok(next?.kind === 'personal' && !('title' in next) && !('trainer_id' in next), 'персоналка: заметка и id не уходят')
 ok(pickNextClientSession(entries, TODAY, 9 * 60 + 30, names)?.time === '09:00–10:00', 'идущая сейчас ещё показывается')
 ok(pickNextClientSession(entries, TODAY, 23 * 60, names)?.trainer_name === null, 'неизвестный тренер — без имени')
 ok(pickNextClientSession([], TODAY, 0, names) === null, 'нет слотов')
@@ -108,7 +108,9 @@ ok(progress.first_visit === '2026-09-20' && progress.last_visit === '2026-10-01'
 ok(progress.visits_30d === 4, 'визиты за 30 дней')
 ok(buildClientProgress(trainings, [], [], '2026-10-25').visits_30d === 2, 'старше 30 дней не считаются')
 ok(progress.weights.length === 2 && progress.weights[0].kg === 74 && progress.weights[1].kg === 71.5, 'вес по возрастанию даты, число')
+ok(progress.weights.every((w) => w.source === 'club'), 'вес без source=client — клуб')
 ok(progress.measurements.length === 1, 'пустой замер отброшен')
+ok(progress.measurements[0].source === 'club', 'обмеры без source=client — клуб')
 const withTrainingWeights = buildClientProgress(
   [
     { id: 'w1', date: '2026-09-01', status: 'completed', data: { pre_weight_kg: '73,5' } },
@@ -123,6 +125,7 @@ ok(
   withTrainingWeights.weights.map((w) => `${w.date}:${w.kg}`).join() === '2026-09-01:73.5,2026-09-10:73,2026-09-25:72',
   'вес из тренировок без открытия истории в карточке; день — одно значение, тренировка главнее; будущее не берём',
 )
+ok(withTrainingWeights.weights.every((w) => w.source === 'club'), 'вес с тренировки — source club')
 const mv = progress.measurements[0].values
 ok(mv.neck === 35 && mv.waist_upper === 80 && mv.waist_lower === 80, 'замеры по полям приложения (с legacy fallback)')
 
@@ -143,8 +146,8 @@ ok(recent[1].focus === 'Ноги ягодицы' && recent[1].kg === 74.5 && rec
 ok(recent[2].no_show === true && recent[2].focus === null && recent[2].kg === null, 'неявка — с пометкой, без веса')
 ok(recent[3].focus === 'Кардио' && recent[3].kg === 73 && recent[3].trainer_name === null, 'data строкой; без направленности — тип; тренер не найден — без имени')
 ok(
-  [...keysDeep(recent)].sort().join() === 'date,focus,id,kg,no_show,trainer_name',
-  'список: дата, направленность, вес, тренер, неявка и id тренировки — без заметок и упражнений',
+  [...keysDeep(recent)].sort().join() === 'date,focus,id,kg,kind,no_show,trainer_name',
+  'список: дата, направленность, вес, тренер, неявка, kind и id — без заметок и упражнений',
 )
 ok(recent[1].id === 'r2', 'id — чтобы открыть окно тренировки')
 

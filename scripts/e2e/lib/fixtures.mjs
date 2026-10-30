@@ -86,6 +86,23 @@ export function trainerClubSeed() {
 }
 
 export const DONE_TODAY_ID = 'e2e00000-0000-4000-8000-0000000000e2'
+/** Тип АЗ (направление) для формы «Групповое» в ежедневнике. */
+export const AZ_DIRECTION_TYPE_ID = 'e2e00000-0000-4000-8000-0000000000a2'
+
+/** Направление АЗ в клубе — trainer_assignable: false. */
+export function azDirectionTypeSeed(overrides = {}) {
+  return {
+    id: AZ_DIRECTION_TYPE_ID,
+    club_id: CLUB_ID,
+    code: 'Бокс',
+    name: 'Бокс',
+    is_active: true,
+    trainer_assignable: false,
+    aerobic_pay_amount: 0,
+    sort_order: 10,
+    ...overrides,
+  }
+}
 
 /** Завершённая сегодня тренировка со всеми вкладками — как после реального «Закончить». */
 export function completedTodaySeed() {

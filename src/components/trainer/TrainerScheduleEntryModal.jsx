@@ -13,6 +13,7 @@ import { useScheduleEntryForm } from '../../hooks/useScheduleEntryForm.js'
 import { TrainerScheduleEntryReadonly } from './TrainerScheduleEntryReadonly.jsx'
 import { TrainerScheduleRepeatFields } from './TrainerScheduleRepeatFields.jsx'
 import { TrainerScheduleKindPicker } from './TrainerScheduleKindPicker.jsx'
+import { TrainerScheduleDirectionField } from './TrainerScheduleDirectionField.jsx'
 import { TrainerScheduleClientPicker } from './TrainerScheduleClientPicker.jsx'
 import { TrainerScheduleDeleteChoice } from './TrainerScheduleDeleteChoice.jsx'
 
@@ -31,6 +32,7 @@ import { TrainerScheduleDeleteChoice } from './TrainerScheduleDeleteChoice.jsx'
  *   readOnly?: boolean,
  *   clientsBase?: string,
  *   entries?: object[],
+ *   azDirections?: Array<{ id: string, name: string }>,
  *   actions?: typeof trainerScheduleLocalActions,
  *   canStartTraining?: boolean,
  *   onClose: () => void,
@@ -52,12 +54,13 @@ export function TrainerScheduleEntryModal({
   readOnly = false,
   clientsBase = '/trainer/clients',
   entries = [],
+  azDirections = [],
   actions = trainerScheduleLocalActions,
   canStartTraining = true,
   onClose,
   onSaved,
 }) {
-  const form = useScheduleEntryForm({ open, draft, dayIso, entries, clientNameById })
+  const form = useScheduleEntryForm({ open, draft, dayIso, entries, clientNameById, azDirections })
   const { mode, selectedIds, repeat } = form
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -252,6 +255,12 @@ export function TrainerScheduleEntryModal({
             </div>
 
             <TrainerScheduleKindPicker value={form.kind} onChange={form.pickKind} />
+            <TrainerScheduleDirectionField
+              kind={form.kind}
+              value={form.directionTypeId}
+              onChange={form.setDirectionTypeId}
+              options={azDirections}
+            />
 
             {form.formMode === 'either' ? (
               <div className="trainer-schedule-modal__modes" role="tablist" aria-label="Тип записи">

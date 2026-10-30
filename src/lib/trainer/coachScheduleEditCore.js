@@ -4,6 +4,7 @@
  */
 import { inclusiveCalendarDaysBetween } from '../dateRu.js'
 import { normalizeTrainerScheduleEntry } from './trainerScheduleCore.js'
+import { coerceScheduleDirectionTypeId } from './trainerScheduleDirectionCore.js'
 import { coerceScheduleKindForEntry } from './trainerScheduleKindCore.js'
 import { SCHEDULE_DRAG_FREE, SCHEDULE_DRAG_LOCKED, resolveScheduleDragPolicy } from './trainerScheduleDragCore.js'
 
@@ -11,7 +12,15 @@ export const COACH_SCHEDULE_RANGE_MAX_DAYS = 62
 export const COACH_SCHEDULE_COPIES_MAX = 120
 
 /** Телефон меняет только содержимое слота; связь с тренировкой, владелец и даты создания — за сервером. */
-export const COACH_SCHEDULE_EDIT_FIELDS = ['day_date', 'start_minutes', 'duration_minutes', 'title', 'client_ids', 'kind']
+export const COACH_SCHEDULE_EDIT_FIELDS = [
+  'day_date',
+  'start_minutes',
+  'duration_minutes',
+  'title',
+  'client_ids',
+  'kind',
+  'direction_type_id',
+]
 
 export const COACH_SCHEDULE_CONFLICT_RU = 'Запись изменилась на планшете — обновите Ежедневник'
 export const COACH_SCHEDULE_GONE_RU = 'Запись уже удалили — обновите Ежедневник'
@@ -105,6 +114,7 @@ export function buildCoachScheduleRow({ input, existing = null, trainerId, clubI
   if (!row) return { ok: false, error: COACH_SCHEDULE_EMPTY_RU }
   const { synced: _s, ...payload } = row
   payload.kind = coerceScheduleKindForEntry(payload.kind, payload.client_ids)
+  payload.direction_type_id = coerceScheduleDirectionTypeId(payload.kind, payload.direction_type_id)
   return { ok: true, row: payload }
 }
 

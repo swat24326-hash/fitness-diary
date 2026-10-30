@@ -5,7 +5,16 @@
  */
 import { createChecks, waitFor } from '../lib/e2eChecks.mjs'
 import { ORIGIN, screenshot } from '../lib/e2eHarness.mjs'
-import { CLIENT_ID, CLIENT_NAME, CLUB_ID, DONE_TODAY_ID, TRAINER_ID, completedTodaySeed, isoDay } from '../lib/fixtures.mjs'
+import {
+  CLIENT_ID,
+  CLIENT_NAME,
+  CLUB_ID,
+  DONE_TODAY_ID,
+  TRAINER_ID,
+  azDirectionTypeSeed,
+  completedTodaySeed,
+  isoDay,
+} from '../lib/fixtures.mjs'
 import { openTrainerSession } from '../lib/trainerSteps.mjs'
 import { scheduleHeadsLayout } from '../lib/scheduleLayout.mjs'
 
@@ -16,6 +25,7 @@ const PX_PER_MIN = 1.4
 
 function seed() {
   const s = completedTodaySeed()
+  s.membership_types = [azDirectionTypeSeed()]
   const now = new Date().toISOString()
   s.trainer_schedule_entries = [
     {
@@ -299,6 +309,7 @@ export async function run(browser) {
     await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 15:00"]').click()
     const groupDialog = page.getByRole('dialog')
     await groupDialog.getByRole('radio', { name: 'Групповое' }).click()
+    await groupDialog.getByTestId('schedule-direction').selectOption({ label: 'Бокс' })
     await groupDialog.getByRole('tab', { name: 'Заметка' }).click()
     await groupDialog.getByRole('textbox', { name: 'Текст' }).fill('Функционалка')
     await screenshot(page, 'schedule-kind-form')
@@ -306,6 +317,10 @@ export async function run(browser) {
     await groupDialog.waitFor({ state: 'hidden', timeout: 10_000 })
     const groupOk = await waitFor(() => rowsAt(900).some((r) => r.kind === 'group'), 10_000)
     c.ok(groupOk, `сервер: запись 15:00 с kind=group (${rowsAt(900).map((r) => r.kind).join(',') || 'нет'})`)
+    c.ok(
+      rowsAt(900).some((r) => r.kind === 'group' && r.direction_type_id),
+      'сервер: у группового есть direction_type_id',
+    )
     c.ok(
       (await entryAt(page, '15:00').getAttribute('class'))?.includes('trainer-schedule-kind--group'),
       'сетка: запись 15:00 окрашена как «Групповое»',

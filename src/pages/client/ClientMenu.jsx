@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Menu, RefreshCw, Smartphone } from 'lucide-react'
+import { LogOut, MoreVertical, RefreshCw, Ruler, Scale, Smartphone } from 'lucide-react'
 import { ProfileMenuUser } from '../../components/profile/ProfileMenuUser.jsx'
 import { SignOutWarnDialog } from '../../components/screenCache/SignOutWarnDialog.jsx'
 import { usePopoverDismiss } from '../../hooks/usePopoverDismiss.js'
@@ -13,13 +13,27 @@ import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 const clientAvatarApi = avatarApiOver(postClientMe)
 
 /**
- * Бургер /me — выпадающее меню как у тренера (app-header__dropdown / __menu-item из index.css),
+ * Меню ⋮ /me — выпадающее как у тренера (app-header__dropdown / __menu-item из index.css),
  * все строки одного вида: «Мой профиль» (фото и настройки) → действия → «Выйти».
  * onRefresh — «Обновить» данные открытого экрана (как у тренера — в меню, не в шапке).
  * Диалог «Выйти» на этом уровне (не внутри dropdown): иначе close() снимал меню вместе с окном.
- * @param {{ clientName?: string, onLogout: () => void | Promise<void>, onRefresh?: (() => void) | null, refreshing?: boolean }} props
+ * @param {{
+ *   clientName?: string
+ *   onLogout: () => void | Promise<void>
+ *   onRefresh?: (() => void) | null
+ *   refreshing?: boolean
+ *   onAddWeight?: (() => void) | null
+ *   onAddMeasure?: (() => void) | null
+ * }} props
  */
-export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refreshing = false }) {
+export function ClientMenu({
+  clientName = '',
+  onLogout,
+  onRefresh = null,
+  refreshing = false,
+  onAddWeight = null,
+  onAddMeasure = null,
+}) {
   const [open, setOpen] = useState(false)
   const [warnOpen, setWarnOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -50,7 +64,7 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
         title="Меню"
         aria-label="Меню"
       >
-        <Menu size={22} aria-hidden />
+        <MoreVertical size={22} aria-hidden />
       </button>
       {open ? (
         <div id="client-menu-dropdown" className="app-header__dropdown" role="region" aria-label="Меню">
@@ -58,6 +72,8 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
             clientName={clientName}
             onRefresh={onRefresh}
             refreshing={refreshing}
+            onAddWeight={onAddWeight}
+            onAddMeasure={onAddMeasure}
             close={close}
             onLogoutRequest={() => {
               setOpen(false)
@@ -81,7 +97,16 @@ export function ClientMenu({ clientName = '', onLogout, onRefresh = null, refres
  * Строки меню клиента — в ☰ экранов и в «⋮» шапки диалога.
  * close — закрыть то меню, где они стоят.
  * onLogoutRequest — открыть предупреждение снаружи (бургер); иначе свой SignOutWarnDialog (⋮ в чате).
- * @param {{ clientName?: string, onLogout?: () => void | Promise<void>, onLogoutRequest?: () => void, onRefresh?: (() => void) | null, refreshing?: boolean, close?: () => void }} props
+ * @param {{
+ *   clientName?: string
+ *   onLogout?: () => void | Promise<void>
+ *   onLogoutRequest?: () => void
+ *   onRefresh?: (() => void) | null
+ *   refreshing?: boolean
+ *   onAddWeight?: (() => void) | null
+ *   onAddMeasure?: (() => void) | null
+ *   close?: () => void
+ * }} props
  */
 export function ClientMenuItems({
   clientName = '',
@@ -89,6 +114,8 @@ export function ClientMenuItems({
   onLogoutRequest = null,
   onRefresh = null,
   refreshing = false,
+  onAddWeight = null,
+  onAddMeasure = null,
   close = () => {},
 }) {
   const navigate = useNavigate()
@@ -116,6 +143,20 @@ export function ClientMenuItems({
     }
   }
 
+  /** С главной — колбэк; с других вкладок — на главную с state (шторка откроется там). */
+  const openProgressSelf = (kind) => {
+    close()
+    if (kind === 'weight' && onAddWeight) {
+      onAddWeight()
+      return
+    }
+    if (kind === 'measure' && onAddMeasure) {
+      onAddMeasure()
+      return
+    }
+    navigate(CLIENT_HOME, { state: { clientProgressSelf: kind } })
+  }
+
   return (
     <>
       {clientName ? (
@@ -136,6 +177,14 @@ export function ClientMenuItems({
           Установить на телефон
         </button>
       ) : null}
+      <button type="button" className="app-header__menu-item" onClick={() => openProgressSelf('weight')}>
+        <Scale size={18} aria-hidden />
+        Добавить вес
+      </button>
+      <button type="button" className="app-header__menu-item" onClick={() => openProgressSelf('measure')}>
+        <Ruler size={18} aria-hidden />
+        Добавить обмеры
+      </button>
       {onRefresh ? (
         <button
           type="button"

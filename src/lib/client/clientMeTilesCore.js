@@ -5,18 +5,16 @@
  * Подсказка о продлении — заметкой под плитками, чтобы не ломать квадрат.
  */
 import { formatDateRu } from '../dateRu.js'
+import { clientNextSessionFootRu } from './clientAzNextSessionCore.js'
+import {
+  clientHomeOtherHallsNote,
+  pickHomeMembership,
+  withMembershipHallCaption,
+} from './clientHomeHallCore.js'
 import { daysWord, formatSessionDayRu, sessionStartTime, trainingsWord } from './clientMeUiCore.js'
 import { clientRenewalHint, membershipBarPercent } from './clientMeHighlightsCore.js'
 
-/**
- * Плитка «Мой абонемент»: действующий с остатком, не старый исчерпанный с ещё живой датой.
- * Вкладка «Тренировки» показывает все начавшиеся — там оба видны; на главной нужен тот, по которому ходят.
- */
-export function pickHomeMembership(current) {
-  const list = current ?? []
-  const started = list.filter((x) => x.status !== 'upcoming')
-  return started.find((x) => x.status === 'active') ?? started[0] ?? list[0] ?? null
-}
+export { pickHomeMembership, clientHomeOtherHallsNote }
 
 /**
  * @returns {{ hero: string, unit: string, caption: string, foot: string, bar: number|null, tone: 'ok'|'warn'|'muted' }}
@@ -42,7 +40,7 @@ export function membershipTile(memberships, todayIso) {
     return {
       hero: limited ? String(m.total) : String(used),
       unit: limited ? `из ${m.total}` : '',
-      caption: 'все тренировки использованы',
+      caption: withMembershipHallCaption('все тренировки использованы', m),
       foot: 'Продлить можно в клубе',
       bar: limited ? 100 : null,
       tone: 'warn',
@@ -53,7 +51,7 @@ export function membershipTile(memberships, todayIso) {
     return {
       hero: days == null ? '∞' : String(days),
       unit: days == null ? '' : daysWord(days),
-      caption: days == null ? 'безлимит' : 'до конца безлимита',
+      caption: withMembershipHallCaption(days == null ? 'безлимит' : 'до конца безлимита', m),
       foot,
       bar: null,
       tone: m.status === 'upcoming' ? 'muted' : 'ok',
@@ -62,7 +60,7 @@ export function membershipTile(memberships, todayIso) {
   return {
     hero: String(used),
     unit: `из ${m.total}`,
-    caption: `${trainingsWord(used)} списано`,
+    caption: withMembershipHallCaption(`${trainingsWord(used)} списано`, m),
     foot,
     bar: membershipBarPercent(m),
     tone: m.status === 'upcoming' ? 'muted' : 'ok',
@@ -81,14 +79,15 @@ export function membershipNote(memberships) {
 /** @returns {{ hero: string, unit: string, caption: string, foot: string, bar: null, tone: 'ok'|'muted' }} */
 export function sessionTile(session, todayIso) {
   if (!session) {
-    return { hero: '—', unit: '', caption: 'не запланирована', foot: 'Договоритесь с тренером', bar: null, tone: 'muted' }
+    return { hero: '—', unit: '', caption: 'не запланирована', foot: clientNextSessionFootRu(null), bar: null, tone: 'muted' }
   }
   return {
     hero: sessionStartTime(session.time) || '—',
     unit: '',
     caption: formatSessionDayRu(session.date, todayIso).toLowerCase(),
-    foot: session.trainer_name ? `Тренер: ${session.trainer_name}` : 'Тренер уточнится',
+    foot: clientNextSessionFootRu(session),
     bar: null,
     tone: 'ok',
   }
 }
+

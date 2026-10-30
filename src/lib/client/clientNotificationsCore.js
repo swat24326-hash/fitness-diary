@@ -134,12 +134,21 @@ export function buildClientNotificationsFromMembershipNotices(notices) {
   return out
 }
 
+/** ДЗ / рацион и их оценки — только при открытом ПЗ (вкладки «От тренера»). */
+const FROM_TRAINER_NOTIF_KINDS = new Set([
+  CLIENT_NOTIFICATION_KINDS.homework_sent,
+  CLIENT_NOTIFICATION_KINDS.nutrition_sent,
+  CLIENT_NOTIFICATION_KINDS.rate_homework,
+  CLIENT_NOTIFICATION_KINDS.rate_nutrition,
+])
+
 /**
  * Планы + оценки + рассылки клуба + оповещения об абонементе, новые сверху.
  * @param {object} [opts]
  * @param {object[]} [opts.inboxItems]
  * @param {object[]} [opts.membershipNotices]
  * @param {string} [opts.timeZone]
+ * @param {boolean} [opts.includeFromTrainer=true] false — solo АЗ/ТЗ без ПЗ
  */
 export function buildClientNotifications(plans, ratings, opts = {}) {
   const items = [
@@ -148,8 +157,10 @@ export function buildClientNotifications(plans, ratings, opts = {}) {
     ...buildClientNotificationsFromInbox(opts?.inboxItems),
     ...buildClientNotificationsFromMembershipNotices(opts?.membershipNotices),
   ]
-  items.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
-  return items
+  const filtered =
+    opts.includeFromTrainer === false ? items.filter((it) => !FROM_TRAINER_NOTIF_KINDS.has(it.kind)) : items
+  filtered.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+  return filtered
 }
 
 export function clientNotificationsUnreadCount(items) {
@@ -160,9 +171,15 @@ export function clientNotificationsUnreadCount(items) {
  * Число на колокольчике: непрочитанные планы/оценки + inbox_attention с /api/client-me
  * (список рассылок может ещё не быть загружен).
  */
-export function clientNotificationsBellCount({ plans, ratings, inboxAttention, membershipNotices } = {}) {
+export function clientNotificationsBellCount({
+  plans,
+  ratings,
+  inboxAttention,
+  membershipNotices,
+  includeFromTrainer,
+} = {}) {
   const personal = clientNotificationsUnreadCount(
-    buildClientNotifications(plans, ratings, { membershipNotices }),
+    buildClientNotifications(plans, ratings, { membershipNotices, includeFromTrainer }),
   )
   return personal + Math.max(0, Number(inboxAttention) || 0)
 }

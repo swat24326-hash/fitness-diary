@@ -4,13 +4,23 @@
  */
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../../src/lib/bodyMeasures.js'
 import { listTrainingPreWeights } from '../../../src/lib/clientWeightCore.js'
-import { isLoyaltyNoShowTraining } from '../../../src/lib/loyalty/loyaltyTrainingEligibleCore.js'
 import {
   countedUsedTrainingsOnMembership,
   isCalendarUnlimitedMembership,
   isoCalendarDaysDiff,
 } from '../../../src/lib/membershipRules.js'
-import { formatScheduleTimeRange } from '../../../src/lib/trainer/trainerScheduleCore.js'
+import { pickClientNextSession } from '../../../src/lib/client/clientAzNextSessionCore.js'
+import { membershipHallMarkRu } from '../../../src/lib/client/clientHomeHallCore.js'
+import {
+  CLUB_WEIGHT_ENTRY_SOURCES,
+  PROGRESS_CLUB_SOURCE,
+  PROGRESS_SELF_SOURCE,
+  measureRowProgressSource,
+  weightEntryProgressSource,
+} from '../../../src/lib/client/clientProgressSelfCore.js'
+import { collectClientVisitDates } from '../../../src/lib/client/clientVisitDatesCore.js'
+import { normalizeSessionVisits } from '../../../src/lib/admin/deskAzSessionDeductCore.js'
+import { normalizeMembershipHall } from '../../../src/lib/membershipHallCore.js'
 import { buildMembershipVisits } from './clientMembershipVisitsCore.js'
 import { weeksStreak } from './clientWeeksStreakCore.js'
 
@@ -47,14 +57,25 @@ export function visibleClientMemberships(memberships, today) {
  * @param {Map<string, string>} [trainerNameById]
  */
 export function buildClientMemberships(memberships, types, trainings, today, trainerNameById) {
-  const codeById = new Map((types ?? []).map((t) => [String(t.id), String(t.code ?? '').trim()]))
+  const typeById = new Map((types ?? []).map((t) => [String(t.id), t]))
   const view = (m) => {
     const unlimited = isCalendarUnlimitedMembership(m)
     const stored = Number(m.used_trainings ?? 0)
-    const used = Math.max(countedUsedTrainingsOnMembership(m, trainings), Number.isFinite(stored) ? stored : 0)
+    const hall = normalizeMembershipHall(m.hall) ?? 'pz'
+    const deskUsed = hall === 'az' ? normalizeSessionVisits(m.session_visits).length : 0
+    /* АЗ: правда = session_visits / used_trainings, не дневник ПЗ без membership_id. */
+    const diaryUsed = hall === 'az' ? 0 : countedUsedTrainingsOnMembership(m, trainings)
+    const used = Math.max(diaryUsed, Number.isFinite(stored) ? stored : 0, deskUsed)
     const total = unlimited ? null : Number(m.total_trainings)
+    const type = typeById.get(String(m.membership_type_id ?? ''))
+    const code = String(type?.code ?? '').trim()
+    const typeName = String(type?.name ?? '').trim()
+    const label = code || typeName || 'Абонемент'
+    const directionLabel = hall === 'az' ? typeName || code : ''
     return {
-      label: codeById.get(String(m.membership_type_id ?? '')) || 'Абонемент',
+      label,
+      hall,
+      hall_mark: membershipHallMarkRu(hall, hall === 'az' ? typeName || code : label),
       start_date: day(m.start_date),
       end_date: day(m.end_date),
       total,
@@ -62,7 +83,7 @@ export function buildClientMemberships(memberships, types, trainings, today, tra
       remaining: total == null ? null : Math.max(0, total - used),
       days_left: Math.max(0, isoCalendarDaysDiff(day(m.end_date), today) ?? 0),
       status: membershipStatus(m, used, today),
-      visits: buildMembershipVisits(m, trainings, trainerNameById),
+      visits: buildMembershipVisits(m, trainings, trainerNameById, { hall, directionLabel }),
     }
   }
   const { current, last_ended } = visibleClientMemberships(memberships, today)
@@ -70,25 +91,21 @@ export function buildClientMemberships(memberships, types, trainings, today, tra
 }
 
 /**
- * Ближайший слот ежедневника, где есть клиент. Сегодняшние уже закончившиеся пропускаем.
- * @param {object[]} entries строки trainer_schedule_entries
+ * Ближайший слот: персоналка (клиент в client_ids) и/или группы АЗ — см. pickClientNextSession.
+ * @param {object[]} entries строки trainer_schedule_entries (обычно персоналки)
  * @param {Map<string, string>} trainerNameById
+ * @param {{ groupEntries?: object[], azLinks?: object[], directionNameById?: Map<string, string> }} [opts]
  */
-export function pickNextClientSession(entries, today, nowMinutes, trainerNameById) {
-  const next = (entries ?? [])
-    .filter((e) => {
-      const d = day(e.day_date)
-      if (!ISO.test(d) || d < today) return false
-      if (d > today) return true
-      return Number(e.start_minutes) + Number(e.duration_minutes ?? 60) > nowMinutes
-    })
-    .sort((a, b) => day(a.day_date).localeCompare(day(b.day_date)) || Number(a.start_minutes) - Number(b.start_minutes))[0]
-  if (!next) return null
-  return {
-    date: day(next.day_date),
-    time: formatScheduleTimeRange(next),
-    trainer_name: trainerNameById?.get(String(next.trainer_id)) || null,
-  }
+export function pickNextClientSession(entries, today, nowMinutes, trainerNameById, opts = {}) {
+  return pickClientNextSession({
+    personalEntries: entries,
+    groupEntries: opts.groupEntries,
+    azLinks: opts.azLinks,
+    today,
+    nowMinutes,
+    trainerNameById,
+    directionNameById: opts.directionNameById,
+  })
 }
 
 function measurementView(row) {
@@ -97,36 +114,67 @@ function measurementView(row) {
     const n = Number(getMeasureValue(row, f.id))
     if (Number.isFinite(n) && n > 0) values[f.id] = n
   }
-  return Object.keys(values).length ? { date: day(row.date), values } : null
+  if (!Object.keys(values).length) return null
+  const source = measureRowProgressSource(row)
+  const id = source === PROGRESS_SELF_SOURCE && row?.id != null ? String(row.id) : undefined
+  return {
+    date: day(row.date),
+    values,
+    source,
+    ...(id ? { id } : {}),
+    editable: source === PROGRESS_SELF_SOURCE && Boolean(id),
+  }
 }
 
 /**
- * Вес — из завершённых тренировок и ручных записей: в client_weight_entries вес тренировки
- * попадает только после открытия истории веса в карточке. Один день — одно значение, тренировка главнее.
+ * Вес — из завершённых тренировок и записей client_weight_entries.
+ * Один день — одно значение: клуб (тренировка / manual / baseline) главнее клиентской ○.
+ * Факт «всего / 30 дней / серия» — уникальные даты персоналок + session_visits АЗ.
  * @param {object[]} trainings завершённые тренировки клиента
  * @param {object[]} weights client_weight_entries
  * @param {object[]} measurements body_measurements
+ * @param {string} today
+ * @param {object[]} [memberships] сырые абоны (для дат АЗ)
  */
-export function buildClientProgress(trainings, weights, measurements, today) {
-  const visits = (trainings ?? []).filter((t) => t?.status === 'completed' && !isLoyaltyNoShowTraining(t))
-  const dates = visits.map((t) => day(t.date)).filter((d) => ISO.test(d) && d <= today).sort()
+export function buildClientProgress(trainings, weights, measurements, today, memberships) {
+  const dates = collectClientVisitDates(trainings, memberships, today)
   const monthAgo = dates.filter((d) => (isoCalendarDaysDiff(today, d) ?? 99) < 30)
+  /** @type {Map<string, { date: string, kg: number, source: string, id?: string }>} */
   const weightByDay = new Map()
   for (const w of weights ?? []) {
+    if (weightEntryProgressSource(w) !== PROGRESS_SELF_SOURCE) continue
     const kg = Number(w.weight_kg)
-    if (ISO.test(day(w.date)) && Number.isFinite(kg) && kg > 0) weightByDay.set(day(w.date), kg)
+    const d = day(w.date)
+    if (!ISO.test(d) || !Number.isFinite(kg) || kg <= 0) continue
+    const id = w.id != null ? String(w.id) : undefined
+    weightByDay.set(d, { date: d, kg, source: PROGRESS_SELF_SOURCE, ...(id ? { id } : {}) })
+  }
+  for (const w of weights ?? []) {
+    const src = String(w?.source ?? '')
+    if (src === PROGRESS_SELF_SOURCE) continue
+    if (src && !CLUB_WEIGHT_ENTRY_SOURCES.has(src)) continue
+    const kg = Number(w.weight_kg)
+    const d = day(w.date)
+    if (!ISO.test(d) || !Number.isFinite(kg) || kg <= 0) continue
+    weightByDay.set(d, { date: d, kg, source: PROGRESS_CLUB_SOURCE })
   }
   for (const t of listTrainingPreWeights(trainings)) {
-    if (t.date <= today) weightByDay.set(t.date, t.weightKg)
+    if (t.date > today) continue
+    weightByDay.set(t.date, { date: t.date, kg: t.weightKg, source: PROGRESS_CLUB_SOURCE })
   }
-  const weightRows = [...weightByDay]
-    .map(([date, kg]) => ({ date, kg }))
-    .sort((a, b) => a.date.localeCompare(b.date))
-  const measureRows = (measurements ?? [])
+  const weightRows = [...weightByDay.values()].sort((a, b) => a.date.localeCompare(b.date))
+  /** @type {Map<string, object>} */
+  const measureByDay = new Map()
+  const measureSorted = [...(measurements ?? [])]
     .filter((m) => ISO.test(day(m.date)))
     .sort((a, b) => day(a.date).localeCompare(day(b.date)))
-    .map(measurementView)
-    .filter(Boolean)
+  for (const m of measureSorted) {
+    const view = measurementView(m)
+    if (!view) continue
+    const prev = measureByDay.get(view.date)
+    if (!prev || view.source === PROGRESS_CLUB_SOURCE) measureByDay.set(view.date, view)
+  }
+  const measureRows = [...measureByDay.values()]
   return {
     visits_total: dates.length,
     visits_30d: monthAgo.length,

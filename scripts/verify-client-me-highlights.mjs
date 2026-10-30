@@ -112,6 +112,12 @@ ok(membershipTrainingRow({ date: '2026-10-01', focus: '', kg: null, trainer_name
 ok(membershipTrainingRow({ id: 't1', date: '2026-10-07', no_show: false }, 1).canOpen, 'тренировку с id можно открыть')
 ok(!membershipTrainingRow({ id: 't2', date: '2026-10-07', no_show: true }, 1).canOpen, 'неявку не открываем — смотреть нечего')
 ok(!membershipTrainingRow({ date: '2026-10-07', no_show: false }, 1).canOpen, 'старый кэш без id — строка не кнопка')
+const deskRow = membershipTrainingRow(
+  { id: 'az1', date: '2026-10-07', focus: 'Бокс', kg: null, trainer_name: null, no_show: false, kind: 'desk' },
+  3,
+  null,
+)
+ok(!deskRow.canOpen && /у стойки/.test(deskRow.meta) && deskRow.title === 'Бокс', 'АЗ у стойки — без окна подходов')
 const tn = (trainer_name, no_show = false) => ({ trainer_name, no_show })
 ok(mainTrainerName([tn('Анна'), tn('Олег'), tn('Анна')]) === 'Анна', 'основной — кто провёл больше')
 ok(mainTrainerName([tn('Анна'), tn('Олег', true), tn('Олег', true), tn('Олег')]) === 'Олег', 'поровну — кто вёл последним; неявки не в счёт')
@@ -137,8 +143,13 @@ ok(lastVisitWidget(null).value === '—', 'нет даты — прочерк')
 
 // --- Плитки: одна схема «значение → подпись → подвал» ---
 const mt = membershipTile({ current: [mem({ total: 50, used: 6, remaining: 44, end_date: '2027-01-27' })] }, TODAY)
-ok(mt.hero === '6' && mt.unit === 'из 50' && mt.caption === 'тренировок списано' && mt.foot === 'До 27.01.2027' && mt.bar === 12, 'плитка абонемента: 6 из 50 списано, до даты, полоска')
-ok(membershipTile({ current: [mem({ used: 1, remaining: 9 })] }, TODAY).caption === 'тренировка списано', 'склонение в подписи')
+ok(mt.hero === '6' && mt.unit === 'из 50' && mt.caption === 'ПЗ · тренировок списано' && mt.foot === 'До 27.01.2027' && mt.bar === 12, 'плитка абонемента: 6 из 50 списано, до даты, полоска')
+ok(membershipTile({ current: [mem({ used: 1, remaining: 9 })] }, TODAY).caption === 'ПЗ · тренировка списано', 'склонение в подписи')
+ok(
+  membershipTile({ current: [mem({ hall: 'az', hall_mark: 'АЗ · Бокс', used: 5, remaining: 7, total: 12 })] }, TODAY).caption ===
+    'АЗ · Бокс · тренировок списано',
+  'метка АЗ на плитке',
+)
 const dep = membershipTile({ current: [mem({ status: 'depleted', used: 10, remaining: 0, total: 10 })] }, TODAY)
 ok(dep.hero === '10' && dep.unit === 'из 10' && dep.tone === 'warn' && dep.bar === 100 && dep.foot === 'Продлить можно в клубе', 'исчерпан — 10 из 10')
 const unl = membershipTile({ current: [mem({ total: null, remaining: null, days_left: 12, end_date: '2026-10-19' })] }, TODAY)
@@ -164,8 +175,10 @@ ok(
 )
 ok(/продлить можно/.test(membershipNote({ current: [mem({ remaining: 2 })] }) ?? ''), 'продление — заметкой под плитками')
 ok(membershipNote({ current: [mem()] }) === null, 'всё спокойно — заметки нет')
-const st = sessionTile({ date: '2026-10-08', time: '18:00–19:00', trainer_name: 'Анна' }, TODAY)
-ok(st.hero === '18:00' && st.caption === 'завтра, 8 октября' && st.foot === 'Тренер: Анна', 'плитка тренировки: время начала, день с датой, тренер')
+const st = sessionTile({ date: '2026-10-08', time: '18:00–19:00', trainer_name: 'Анна', kind: 'personal' }, TODAY)
+ok(st.hero === '18:00' && st.caption === 'завтра, 8 октября' && st.foot === 'персоналка · Анна', 'плитка тренировки: время начала, день с датой, персоналка')
+const stGroup = sessionTile({ date: '2026-10-08', time: '19:00–20:00', kind: 'group', direction_name: 'Бокс' }, TODAY)
+ok(stGroup.foot === 'Бокс · группа', 'плитка группы АЗ')
 const none = sessionTile(null, TODAY)
 ok(none.hero === '—' && none.tone === 'muted' && none.foot === 'Договоритесь с тренером', 'нет тренировки — прочерк, как у абонемента')
 

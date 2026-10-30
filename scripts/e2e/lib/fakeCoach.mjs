@@ -201,6 +201,13 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
     const trainingById = Object.fromEntries(
       entries.filter((e) => trainings[e.linked_training_id]).map((e) => [e.linked_training_id, { status: trainings[e.linked_training_id] }]),
     )
+    const azDirections = membershipTypes
+      .filter((t) => t?.trainer_assignable === false)
+      .map((t) => ({
+        id: String(t.id ?? '').trim(),
+        name: String(t.name ?? t.code ?? '').trim() || 'АЗ',
+      }))
+      .filter((t) => t.id)
     return {
       status: 200,
       json: {
@@ -209,6 +216,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
         clientInfoById: buildScheduleClientInfoById(allOwn, membershipsByClientId, membershipTypes, today),
         trainingById,
         clients: allOwn.filter((c) => !c.archived_at).map((c) => ({ id: c.id, name: c.name })),
+        az_directions: azDirections,
       },
     }
   }

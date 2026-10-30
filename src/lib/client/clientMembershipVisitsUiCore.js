@@ -1,6 +1,7 @@
 /**
  * /me/trainings: тренировки по абонементу (без React). Новые сверху, № — порядок списания.
  * Нет действующего абонемента — тренировки последнего закончившегося.
+ * АЗ — списания у стойки без окна; ТЗ — только срок.
  */
 import { formatDateRu } from '../dateRu.js'
 import { pluralRu } from './clientMeUiCore.js'
@@ -16,29 +17,49 @@ export function trainingsMemberships(memberships) {
 }
 
 /**
- * @returns {{ key: string, title: string, period: string, summary: string, gap: string|null,
+ * @returns {{ key: string, title: string, period: string, summary: string, gap: string|null, emptyHint: string|null,
  *   rows: { training: object, n: number, num: string, month: string, title: string, meta: string, noShow: boolean, canOpen: boolean }[] }[]}
  */
 export function membershipTrainingsCards(memberships) {
   return trainingsMemberships(memberships).map((m) => {
+    const hall = String(m.hall ?? 'pz')
+    const title = String(m.label || m.hall_mark || 'Абонемент')
+    const period = `${formatDateRu(m.start_date)} – ${formatDateRu(m.end_date)}`
+    const periodLabel = m.status === 'ended' ? `${period}, закончился` : period
+    const key = `${m.start_date}-${m.label}-${hall}`
+
+    if (hall === 'tz') {
+      return {
+        key,
+        title,
+        period: periodLabel,
+        summary: `Действует до ${formatDateRu(m.end_date)} · без списания занятий`,
+        gap: null,
+        emptyHint: 'В тренажёрном зале пока нет журнала визитов в приложении — только срок абонемента.',
+        rows: [],
+      }
+    }
+
     const visits = m.visits ?? []
     const used = Number(m.used) || 0
     const missed = visits.filter((v) => v.no_show).length
+    const deskOnly = visits.length > 0 && visits.every((v) => v.kind === 'desk')
     const head = m.total != null ? `Списано ${used} из ${m.total}` : `${used} ${sessionsWord(used)}`
     const unlisted = Math.max(0, used - visits.length)
-    const period = `${formatDateRu(m.start_date)} – ${formatDateRu(m.end_date)}`
-    const main = mainTrainerName(visits)
+    const main = deskOnly ? null : mainTrainerName(visits)
     const summary = [head]
     if (missed) summary.push(`${missed} ${pluralRu(missed, 'неявка', 'неявки', 'неявок')}`)
     if (main) summary.push(`тренер ${main}`)
+    if (deskOnly) summary.push('у стойки')
     return {
-      key: `${m.start_date}-${m.label}`,
-      title: m.label,
-      period: m.status === 'ended' ? `${period}, закончился` : period,
+      key,
+      title,
+      period: periodLabel,
       summary: summary.join(' · '),
       gap: unlisted
         ? `Ещё ${unlisted} ${sessionsWord(unlisted)} ${pluralRu(unlisted, 'списано', 'списаны', 'списано')} в клубе без записи тренировки — подробности у администратора`
         : null,
+      emptyHint: null,
       rows: visits.map((v, i) => ({ ...membershipTrainingRow(v, i + 1, main), training: v, n: i + 1 })).reverse(),
     }
   })

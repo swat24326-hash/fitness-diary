@@ -6,6 +6,7 @@
 import { todayInTimeZoneIso } from '../../../src/lib/dateRu.js'
 import { resolveCoachScheduleRange, COACH_SCHEDULE_RANGE_RU } from '../../../src/lib/trainer/coachScheduleEditCore.js'
 import { filterTrainerSchedulePickerClients } from '../../../src/lib/trainer/trainerClientsPzListCore.js'
+import { filterAerobicSalesTypes } from '../../../src/lib/membershipTypesCore.js'
 import { buildScheduleClientInfoById } from '../../../src/lib/trainer/trainerScheduleClientInfoCore.js'
 import { normalizeTrainerScheduleEntry } from '../../../src/lib/trainer/trainerScheduleCore.js'
 import { sendJson } from '../adminSupabase.js'
@@ -79,7 +80,9 @@ export async function sendCoachScheduleRange(ctx, req, res) {
     }
     /* У типов абона есть code, колонки name нет — select name ронял весь schedule-range 500 (INC-2026-10-17-04). */
     try {
-      membershipTypes = await rows(db.from('membership_types').select('id, code').eq('club_id', clubId))
+      membershipTypes = await rows(
+        db.from('membership_types').select('id, code, trainer_assignable').eq('club_id', clubId),
+      )
     } catch (e) {
       console.warn('[coach] membership_types for schedule meta', e?.message || e)
       membershipTypes = []
@@ -92,12 +95,19 @@ export async function sendCoachScheduleRange(ctx, req, res) {
   const trainings = await loadInChunks(trainingIds, (part) =>
     rows(db.from('trainings').select('id, status').eq('trainer_id', uid).in('id', part)),
   )
+  const azDirections = filterAerobicSalesTypes(membershipTypes)
+    .map((t) => ({
+      id: String(t.id ?? '').trim(),
+      name: String(t.code ?? '').trim() || 'АЗ',
+    }))
+    .filter((t) => t.id)
   sendJson(res, 200, {
     entries,
     clientNameById: names,
     clientInfoById: buildScheduleClientInfoById(clientsList, membershipsByClientId, membershipTypes, todayInTimeZoneIso()),
     trainingById: Object.fromEntries(trainings.map((t) => [String(t.id), { status: String(t.status ?? '') }])),
     clients: pickerClients.map((c) => ({ id: String(c.id), name: String(c.name ?? '') })),
+    az_directions: azDirections,
   })
 }
 

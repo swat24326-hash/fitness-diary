@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { ClipboardList, House, ListChecks, MessageCircle } from 'lucide-react'
 import { clientShowsFromTrainerTab } from '../../lib/chat/clientAzChatCore.js'
+import { liveHallsFromMembershipViews } from '../../lib/client/clientHomeHallCore.js'
 import { inboxBadgeText, inboxButtonLabelRu } from '../../lib/client/clientInboxUiCore.js'
 import { CLIENT_PLAN_ROUTES, clientPlanFresh, clientPlanTabTarget } from '../../lib/client/clientPlanUiCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
@@ -46,7 +47,9 @@ export function ClientTabs({ attention, showFromTrainer: showFromTrainerProp }) 
   const live = useClientChatAttention()
   const cached = readClientMeCache()?.data
   const count = live ?? attention ?? clientAttention(cached)
-  const showFromTrainer = showFromTrainerProp ?? clientShowsFromTrainerTab(cached?.client)
+  const liveHalls = cached?.memberships ? liveHallsFromMembershipViews(cached.memberships.current) : null
+  const showFromTrainer =
+    showFromTrainerProp ?? clientShowsFromTrainerTab(cached?.client, { liveHalls })
   const fresh = showFromTrainer && (clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition'))
   return (
     <nav className="coach-tabs" aria-label="Разделы">

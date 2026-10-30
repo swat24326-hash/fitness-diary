@@ -44,7 +44,7 @@ export function CoachCalendarPage() {
     view === SCHEDULE_VIEW_MONTH ? [] : [...nav.agendaPrevDays, ...agendaDays, ...nav.agendaNextDays],
   )
   const data = useCoachScheduleData(range.from, range.to)
-  const { entries, clients, clientNameById, clientInfoById, trainingById, reload } = data
+  const { entries, clients, clientNameById, clientInfoById, trainingById, az_directions: azDirections = [], reload } = data
 
   const actions = useMemo(
     () => createCoachScheduleActions({ onStale: () => void reload(), onSessionGone }),
@@ -128,6 +128,7 @@ export function CoachCalendarPage() {
             clientInfoById={clientInfoById}
             trainingById={trainingById}
             entries={entries}
+            azDirections={azDirections}
             actions={actions}
             canStartTraining={false}
             onClose={nav.closeModal}

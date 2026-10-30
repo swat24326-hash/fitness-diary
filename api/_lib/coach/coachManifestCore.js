@@ -31,9 +31,10 @@ export function buildCoachManifest(clubName) {
   }
 }
 
-/** Клуб тренера для телефона: название для значка и адрес manifest. */
+/** Клуб тренера для телефона: id (направления АЗ в ежедневнике), название для значка и адрес manifest. */
 export function buildCoachClub(clubId, clubName) {
-  const manifestUrl = coachManifestUrl(clubId)
+  const id = String(clubId ?? '').trim()
+  const manifestUrl = coachManifestUrl(id)
   const name = cleanClubName(clubName)
-  return manifestUrl && name ? { name, manifest_url: manifestUrl } : null
+  return manifestUrl && name ? { id, name, manifest_url: manifestUrl } : null
 }

@@ -221,6 +221,14 @@
   line-height: 1.4;
 }
 
+.client-me-hall-note {
+  margin: 0;
+  padding: 4px 4px 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
 .client-me-card--center {
   display: grid;
   margin-top: 12vh;
@@ -396,6 +404,19 @@
   transform: rotate(180deg);
 }
 
+.client-me-measures__self {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.client-me-measures__self .btn-touch {
+  width: 100%;
+  min-height: 44px;
+}
+
 /* Подпись | было | — | стало | дельта см. Фикс. колонки + слот под «,5» — целые без «,0». */
 .client-me-deltas {
   display: grid;
@@ -518,4 +539,128 @@
   flex-wrap: wrap;
   margin-top: 16px;
   justify-content: flex-end;
+}
+
+/* Свой вес/обмеры: подсказка под графиком; добавить — в меню ⋮. */
+.client-progress-self-hint {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.client-progress-self {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  align-items: end;
+}
+
+.client-progress-self__backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, #000 45%, transparent);
+  cursor: pointer;
+}
+
+.client-progress-self__panel {
+  position: relative;
+  z-index: 1;
+  max-height: min(92vh, 720px);
+  overflow: auto;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-radius: 16px 16px 0 0;
+  background: var(--bg-card);
+  box-shadow: 0 -8px 28px color-mix(in srgb, #000 18%, transparent);
+}
+
+.client-progress-self__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.client-progress-self__head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.client-progress-self__close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.client-progress-self__legend {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.client-progress-self__legend-club {
+  color: var(--accent);
+}
+
+.client-progress-self__form {
+  display: grid;
+  gap: 12px;
+}
+
+.client-progress-self__field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+
+.client-progress-self__field span {
+  color: var(--text-muted);
+}
+
+.client-progress-self__field input {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.client-progress-self__measures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 8px;
+}
+
+.client-progress-self__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.client-progress-self__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.client-progress-self__actions .btn-touch {
+  min-height: 44px;
+  flex: 1 1 auto;
 }

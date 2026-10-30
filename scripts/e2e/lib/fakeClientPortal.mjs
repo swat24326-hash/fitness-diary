@@ -2,6 +2,7 @@
  * Подменные /api/client-auth и /api/client-me. Ответ собирают те же чистые функции, что и сервер,
  * поэтому форма данных /me в тесте не расходится с продом.
  */
+import { randomUUID } from 'node:crypto'
 import { CLIENT_INVITE_BAD_RU } from '../../../api/_lib/clientPortal/clientAuthCore.js'
 import {
   buildClientMemberships,
@@ -10,6 +11,13 @@ import {
 } from '../../../api/_lib/clientPortal/clientMeCore.js'
 import { cleanClubName, clientManifestUrl } from '../../../api/_lib/clientPortal/clientManifestCore.js'
 import { buildClientTrainingView } from '../../../api/_lib/clientPortal/clientTrainingViewCore.js'
+import {
+  PROGRESS_SELF_SOURCE,
+  measureValuesToRow,
+  parseSelfMeasureValues,
+  parseSelfProgressDate,
+  parseSelfWeightKg,
+} from '../../../src/lib/client/clientProgressSelfCore.js'
 import { sanitizeClientPlanPayload, summarizeClientPlan } from '../../../src/lib/clientPlans/clientPlanCore.js'
 import { fakeJwt } from './fakeBackend.mjs'
 
@@ -65,6 +73,87 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
       row.client_seen_at ??= new Date().toISOString()
       return { status: 200, json: { item: { ...brief(row), payload: sanitizeClientPlanPayload(row.kind, row.payload) } } }
     }
+
+    const weights = () => (state.client_weight_entries ?? []).filter((w) => w.client_id === clientId)
+    const measures = () => (state.body_measurements ?? []).filter((m) => m.client_id === clientId)
+    const memberships = () => state.memberships.filter((m) => m.client_id === clientId)
+    const progressSlice = () => ({
+      as_of: today,
+      progress: buildClientProgress(trainings, weights(), measures(), today, memberships()),
+    })
+
+    if (method !== 'GET' && String(body?.action ?? '').startsWith('progress-')) {
+      const action = String(body.action)
+      if (action === 'progress-weight-upsert') {
+        const d = parseSelfProgressDate(body.date, today)
+        if (!d.ok) return { status: 400, json: { error: d.error } }
+        const k = parseSelfWeightKg(body.kg)
+        if (!k.ok) return { status: 400, json: { error: k.error } }
+        state.client_weight_entries ??= []
+        const id = String(body.id ?? '').trim()
+        if (id) {
+          const row = state.client_weight_entries.find((w) => w.id === id && w.client_id === clientId)
+          if (!row) return { status: 404, json: { error: 'Запись не найдена' } }
+          if (row.source !== PROGRESS_SELF_SOURCE) return { status: 403, json: { error: 'Эту точку внёс клуб — менять нельзя' } }
+          row.date = d.date
+          row.weight_kg = k.kg
+          return { status: 200, json: { ok: true, id, ...progressSlice() } }
+        }
+        const same = state.client_weight_entries.find(
+          (w) => w.client_id === clientId && w.source === PROGRESS_SELF_SOURCE && w.date === d.date,
+        )
+        if (same) {
+          same.weight_kg = k.kg
+          return { status: 200, json: { ok: true, id: same.id, ...progressSlice() } }
+        }
+        const newId = randomUUID()
+        state.client_weight_entries.push({
+          id: newId,
+          client_id: clientId,
+          date: d.date,
+          weight_kg: k.kg,
+          source: PROGRESS_SELF_SOURCE,
+        })
+        return { status: 200, json: { ok: true, id: newId, ...progressSlice() } }
+      }
+      if (action === 'progress-weight-delete') {
+        const id = String(body.id ?? '').trim()
+        const row = (state.client_weight_entries ?? []).find((w) => w.id === id && w.client_id === clientId)
+        if (!row) return { status: 404, json: { error: 'Запись не найдена' } }
+        if (row.source !== PROGRESS_SELF_SOURCE) return { status: 403, json: { error: 'Эту точку внёс клуб — удалять нельзя' } }
+        state.client_weight_entries = state.client_weight_entries.filter((w) => w.id !== id)
+        return { status: 200, json: { ok: true, ...progressSlice() } }
+      }
+      if (action === 'progress-measure-upsert') {
+        const d = parseSelfProgressDate(body.date, today)
+        if (!d.ok) return { status: 400, json: { error: d.error } }
+        const v = parseSelfMeasureValues(body.values)
+        if (!v.ok) return { status: 400, json: { error: v.error } }
+        state.body_measurements ??= []
+        const cols = measureValuesToRow(v.values)
+        const id = String(body.id ?? '').trim()
+        if (id) {
+          const row = state.body_measurements.find((m) => m.id === id && m.client_id === clientId)
+          if (!row) return { status: 404, json: { error: 'Замер не найден' } }
+          if (row.source !== PROGRESS_SELF_SOURCE) return { status: 403, json: { error: 'Этот замер внёс клуб — менять нельзя' } }
+          Object.assign(row, cols, { date: d.date, source: PROGRESS_SELF_SOURCE })
+          return { status: 200, json: { ok: true, id, ...progressSlice() } }
+        }
+        const newId = randomUUID()
+        state.body_measurements.push({ id: newId, client_id: clientId, date: d.date, source: PROGRESS_SELF_SOURCE, ...cols })
+        return { status: 200, json: { ok: true, id: newId, ...progressSlice() } }
+      }
+      if (action === 'progress-measure-delete') {
+        const id = String(body.id ?? '').trim()
+        const row = (state.body_measurements ?? []).find((m) => m.id === id && m.client_id === clientId)
+        if (!row) return { status: 404, json: { error: 'Замер не найден' } }
+        if (row.source !== PROGRESS_SELF_SOURCE) return { status: 403, json: { error: 'Этот замер внёс клуб — удалять нельзя' } }
+        state.body_measurements = state.body_measurements.filter((m) => m.id !== id)
+        return { status: 200, json: { ok: true, ...progressSlice() } }
+      }
+      return { status: 400, json: { error: 'Неизвестное действие' } }
+    }
+
     if (method !== 'GET') return { status: 200, json: { ok: true } }
 
     const client = state.clients.find((c) => c.id === clientId)
@@ -76,14 +165,14 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
         client: { name: client.name },
         club: { name: cleanClubName(club?.name), manifest_url: clientManifestUrl(client.club_id) },
         memberships: buildClientMemberships(
-          state.memberships.filter((m) => m.client_id === clientId),
+          memberships(),
           state.membership_types,
           trainings,
           today,
           names,
         ),
         next_session: pickNextClientSession(schedule, today, 0, names),
-        progress: buildClientProgress(trainings, [], [], today),
+        progress: progressSlice().progress,
         loyalty: null,
         plans: {
           homework: plans.find((p) => p.kind === 'homework') ? brief(plans.find((p) => p.kind === 'homework')) : null,

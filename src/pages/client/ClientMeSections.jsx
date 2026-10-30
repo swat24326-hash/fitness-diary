@@ -1,15 +1,18 @@
-import { BarChart3, CalendarClock, Flame, Gift, IdCard, TrendingUp } from 'lucide-react'
+import { BarChart3, CalendarClock, Flame, Gift, IdCard } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import {
   lastVisitWidget,
-  measurementDeltas,
   pointsWord,
   weeksStreakLabel,
   weightDeltaWidget,
 } from '../../lib/client/clientMeUiCore.js'
-import { membershipNote, membershipTile, sessionTile } from '../../lib/client/clientMeTilesCore.js'
-import { ClientMeasuresFold } from './ClientMeasuresFold.jsx'
-import { ClientWeightSpark } from './ClientWeightSpark.jsx'
+import { clientShowsLoyaltyBlock } from '../../lib/client/clientHomeHallCore.js'
+import {
+  clientHomeOtherHallsNote,
+  membershipNote,
+  membershipTile,
+  sessionTile,
+} from '../../lib/client/clientMeTilesCore.js'
 
 function Card({ icon: Icon, title, lead = false, children }) {
   return (
@@ -58,27 +61,24 @@ export function ClientNextSessionCard({ session, today, lead }) {
   return <Tile icon={CalendarClock} title="Следующая тренировка" lead={lead} tile={sessionTile(session, today)} />
 }
 
-/** Под плитками: продлить или следующий абонемент уже куплен. */
+/** Под плитками: продлить / следующий абон / при смеси залов — остальные во «Тренировках». */
 export function ClientMembershipNote({ memberships }) {
-  const note = membershipNote(memberships)
-  return note ? (
-    <p className="client-me-renew" role="note">
-      {note}
-    </p>
-  ) : null
-}
-
-/** «Мой прогресс» — график веса и обмеры (обмеры свёрнуты в кнопку). Ни веса, ни замеров — карточки нет. */
-export function ClientProgressCard({ progress, sparkBuild = 0, sparkSettling = false }) {
-  const p = progress ?? {}
-  const weights = p.weights ?? []
-  const hasMeasures = measurementDeltas(p.measurements).length > 0
-  if (!weights.length && !hasMeasures) return null
+  const renew = membershipNote(memberships)
+  const otherHalls = clientHomeOtherHallsNote(memberships)
+  if (!renew && !otherHalls) return null
   return (
-    <Card icon={TrendingUp} title="Мой прогресс">
-      <ClientWeightSpark key={sparkBuild} weights={weights} settling={sparkSettling} rebuilt={sparkBuild > 0} />
-      <ClientMeasuresFold measurements={p.measurements} />
-    </Card>
+    <>
+      {renew ? (
+        <p className="client-me-renew" role="note">
+          {renew}
+        </p>
+      ) : null}
+      {otherHalls ? (
+        <p className="client-me-hall-note" role="note">
+          {otherHalls}
+        </p>
+      ) : null}
+    </>
   )
 }
 
@@ -124,8 +124,9 @@ export function ClientStatsCard({ progress }) {
   )
 }
 
-export function ClientLoyaltyCard({ loyalty }) {
-  if (!loyalty) return null
+/** Бонусы ПЗ; solo АЗ/ТЗ — скрыты (см. clientShowsLoyaltyBlock). */
+export function ClientLoyaltyCard({ loyalty, memberships }) {
+  if (!clientShowsLoyaltyBlock({ loyalty, memberships })) return null
   return (
     <Card icon={Gift} title="Бонусы">
       <p className="client-me-line">

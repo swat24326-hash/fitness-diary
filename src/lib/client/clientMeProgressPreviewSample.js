@@ -9,7 +9,7 @@ export function clientMeHomePreviewSample() {
   const asOf = '2026-10-18'
   return {
     as_of: asOf,
-    client: { name: 'Мария Иванова' },
+    client: { name: 'Мария Иванова', has_trainer: true },
     club: { name: 'Fit City' },
     next_session: {
       date: '2026-10-20',
@@ -19,6 +19,8 @@ export function clientMeHomePreviewSample() {
     memberships: {
       current: [
         {
+          hall: 'pz',
+          hall_mark: 'ПЗ',
           label: 'ПЗ 17',
           status: 'active',
           total: 17,
@@ -71,15 +73,16 @@ export function clientMeHomePreviewSample() {
       last_visit: '2026-10-16',
       weeks_streak: 3,
       weights: [
-        { date: '2026-08-01', kg: 62.4 },
-        { date: '2026-08-20', kg: 61.8 },
-        { date: '2026-09-03', kg: 61.2 },
-        { date: '2026-09-25', kg: 60.5 },
-        { date: '2026-10-18', kg: 59.9 },
+        { date: '2026-08-01', kg: 62.4, source: 'club' },
+        { date: '2026-08-20', kg: 61.8, source: 'club' },
+        { date: '2026-09-03', kg: 61.2, source: 'client', id: 'pw-self-1' },
+        { date: '2026-09-25', kg: 60.5, source: 'club' },
+        { date: '2026-10-18', kg: 59.9, source: 'client', id: 'pw-self-2' },
       ],
       measurements: [
         {
           date: '2026-08-01',
+          source: 'club',
           values: {
             chest: 81,
             arm_r: 24.5,
@@ -91,6 +94,9 @@ export function clientMeHomePreviewSample() {
         },
         {
           date: '2026-10-18',
+          source: 'client',
+          id: 'pm-self-1',
+          editable: true,
           values: {
             chest: 85.5,
             arm_r: 24,
@@ -114,6 +120,97 @@ export function clientMeHomePreviewSample() {
 /** Только прогресс (вес + обмеры) — для узкого превью. */
 export function clientMeProgressPreviewSample() {
   return clientMeHomePreviewSample().progress
+}
+
+/** DEV: чистый АЗ — группа в «Следующей», без бонусов ПЗ. /me/home-preview?az=1 */
+export function clientMeHomeAzPreviewSample() {
+  const base = clientMeHomePreviewSample()
+  return {
+    ...base,
+    client: { name: 'Андреенко', has_trainer: false },
+    next_session: {
+      date: '2026-10-31',
+      time: '19:00–20:00',
+      trainer_name: 'Олег',
+      kind: 'group',
+      direction_name: 'Бокс',
+    },
+    progress: {
+      ...base.progress,
+      visits_total: 5,
+      visits_30d: 3,
+      first_visit: '2026-09-10',
+      last_visit: '2026-10-27',
+      weeks_streak: 2,
+      weights: [],
+      measurements: [],
+    },
+    memberships: {
+      current: [
+        {
+          hall: 'az',
+          hall_mark: 'АЗ · Бокс',
+          label: 'АЗ · Бокс',
+          status: 'active',
+          total: 12,
+          used: 5,
+          remaining: 7,
+          days_left: 40,
+          start_date: '2026-09-01',
+          end_date: '2026-12-10',
+          visits: [
+            { id: 'azv1', date: '2026-09-10', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+            { id: 'azv2', date: '2026-09-24', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+            { id: 'azv3', date: '2026-10-08', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+            { id: 'azv4', date: '2026-10-20', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+            { id: 'azv5', date: '2026-10-27', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+          ],
+        },
+      ],
+      last_ended: null,
+    },
+    loyalty: null,
+  }
+}
+
+/**
+ * DEV: смесь ПЗ+АЗ на главной — главный абон по срочности, метки зала, бонусы ПЗ.
+ * /me/home-preview?mixed=1
+ */
+export function clientMeHomeMixedPreviewSample() {
+  const base = clientMeHomePreviewSample()
+  const az = clientMeTrainingsMixedPreviewSample().memberships.current.find((m) => m.hall === 'az' && m.label.includes('Бокс'))
+  return {
+    ...base,
+    client: { name: 'Мария Иванова', has_trainer: true },
+    memberships: {
+      current: [
+        {
+          ...base.memberships.current[0],
+          hall: 'pz',
+          hall_mark: 'ПЗ',
+          days_left: 54,
+          remaining: 13,
+        },
+        {
+          ...(az ?? {}),
+          hall: 'az',
+          hall_mark: 'АЗ · Бокс',
+          label: 'АЗ · Бокс',
+          status: 'active',
+          total: 12,
+          used: 5,
+          remaining: 7,
+          days_left: 12,
+          start_date: '2026-08-01',
+          end_date: '2026-11-01',
+          visits: az?.visits ?? [],
+        },
+      ],
+      last_ended: null,
+    },
+    loyalty: base.loyalty,
+  }
 }
 
 /**
@@ -141,6 +238,7 @@ export function clientMeTrainingsMixedPreviewSample() {
         },
         {
           hall: 'az',
+          hall_mark: 'АЗ · Бокс',
           label: 'АЗ · Бокс',
           status: 'active',
           total: 12,
@@ -157,6 +255,7 @@ export function clientMeTrainingsMixedPreviewSample() {
         },
         {
           hall: 'az',
+          hall_mark: 'АЗ · Степ',
           label: 'АЗ · Степ',
           status: 'active',
           total: 8,
@@ -172,6 +271,7 @@ export function clientMeTrainingsMixedPreviewSample() {
         },
         {
           hall: 'tz',
+          hall_mark: 'ТЗ',
           label: 'ТЗ',
           status: 'active',
           total: null,

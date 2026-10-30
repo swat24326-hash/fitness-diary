@@ -73,13 +73,17 @@ export function chatDialogKey(t) {
 }
 
 /**
- * Показывать вкладку «От тренера» (ДЗ / рацион) — только при живом персональном контуре.
- * MVP: есть trainer_id (чистый АЗ без ПЗ — нет).
- * @param {{ trainer_id?: unknown } | null | undefined} client
+ * Показывать вкладку «От тренера» (ДЗ / рацион) — только при открытом ПЗ.
+ * Живые залы из абонов важнее leftover trainer_id (был ПЗ → только АЗ — скрыть).
+ * @param {{ trainer_id?: unknown, has_trainer?: unknown } | null | undefined} client
+ * @param {{ liveHalls?: Set<string>|null }} [opts]
  */
-export function clientShowsFromTrainerTab(client) {
+export function clientShowsFromTrainerTab(client, opts = {}) {
+  const halls = opts.liveHalls
+  if (halls instanceof Set) return halls.has('pz')
   // Нет строки клиента (кэш ещё пуст) — не прячем вкладку, чтобы ПЗ не мигал.
   if (client == null) return true
+  if (client.has_trainer != null) return Boolean(client.has_trainer)
   return Boolean(String(client?.trainer_id ?? '').trim())
 }
 

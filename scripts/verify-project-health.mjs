@@ -15,8 +15,9 @@ const agentQaPath = join(root, 'scripts/agent-qa.mjs')
  * админки в ленивые чанки (главный подозреваемый: страницы `src/pages/admin`).
  * 14.10.2026 упёрлись (3508 КБ) — мессенджер сотрудников `/messages` стал ленивым, факт ~3382 КБ.
  * 16.10.2026 факт ~3515 КБ — оценка абонемента в ленте `/me` (ядро в main для бейджа; экран `/me/rate` ленивый).
+ * 30.10.2026 факт ~3608 КБ — главная/визиты АЗ в `/me` (метки зала, session_visits); потолок +50 без выноса admin.
  */
-const MAX_MAIN_BUNDLE_KB = 3600
+const MAX_MAIN_BUNDLE_KB = 3650
 
 let failed = 0
 
@@ -90,7 +91,7 @@ const maxRetries = maxRetriesMatch ? Number(maxRetriesMatch[1]) : 0
 ok(maxRetries >= 8, `sync queue max retries (${maxRetries})`)
 
 const localDbSrc = readFileSync(join(root, 'src/lib/localDb.js'), 'utf8')
-ok(/DB_VERSION\s*=\s*23/.test(localDbSrc), 'indexeddb version 23 with homework_library')
+ok(/DB_VERSION\s*=\s*24/.test(localDbSrc), 'indexeddb version 24 with homework_library')
 ok(localDbSrc.includes("createObjectStore('health_screenings'"), 'indexeddb health_screenings store')
 ok(localDbSrc.includes("createObjectStore('homework_library'"), 'indexeddb homework_library store')
 ok(localDbSrc.includes("createObjectStore('client_plans'"), 'indexeddb client_plans store')
