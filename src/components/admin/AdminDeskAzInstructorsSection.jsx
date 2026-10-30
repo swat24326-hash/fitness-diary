@@ -143,8 +143,8 @@ export function AdminDeskAzInstructorsSection({
       </select>
       <span className="muted" style={{ fontSize: 12, lineHeight: 1.35 }}>
         {directionLabel
-          ? `Направление: ${directionLabel}. Не поле «Тренер ПЗ» — для сообщений и групп.`
-          : 'Направление берётся из абонемента АЗ. Не поле «Тренер ПЗ».'}
+          ? `Направление: ${directionLabel}. Для сообщений и групповых занятий.`
+          : 'Направление берётся из абонемента АЗ. Для сообщений и групповых занятий.'}
       </span>
       {loadError ? (
         <span className="muted" style={{ fontSize: 12 }}>

@@ -363,16 +363,6 @@ export function AdminMultiHallClientCardSection({
                 onChange={(iso) => setField('birth_date', iso)}
               />
             </label>
-            <AdminMultiHallTrainerField
-              clubId={resolvedClubId}
-              value={form.trainer_id}
-              onChange={(id) => setField('trainer_id', id)}
-              disabled={busy}
-              listScope={trainerListScope}
-              onCatalogChange={(list) => {
-                trainersCatalogRef.current = list
-              }}
-            />
           </div>
         </div>
         {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
@@ -401,10 +391,22 @@ export function AdminMultiHallClientCardSection({
       {hallTab === 'pz' ? (
         omitPzPane ? null : (
           <div className="admin-multi-hall-pane" role="tabpanel">
+            <div className="admin-desk-client-card__meta" style={{ marginBottom: '0.75rem' }}>
+              <AdminMultiHallTrainerField
+                clubId={resolvedClubId}
+                value={form.trainer_id}
+                onChange={(id) => setField('trainer_id', id)}
+                disabled={busy}
+                listScope={trainerListScope}
+                onCatalogChange={(list) => {
+                  trainersCatalogRef.current = list
+                }}
+              />
+            </div>
             {!form.trainer_id ? (
               <p className="muted admin-multi-hall-pane__hint">
-                Назначьте тренера ПЗ выше и сохраните карточку — тогда клиент появится на планшете после Sync.
-                Ниже — абоны персонального зала на этой же карточке.
+                Назначьте тренера ПЗ и сохраните карточку — клиент появится на планшете после Sync. Ниже —
+                абоны персонального зала.
               </p>
             ) : null}
             <MembershipManager
