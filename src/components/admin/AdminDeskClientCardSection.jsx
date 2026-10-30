@@ -12,6 +12,7 @@ import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskAzInstructorsSection } from './AdminDeskAzInstructorsSection.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
+import { ClientAppInviteButton } from '../client/ClientAppInviteButton.jsx'
 import { birthDateYearBounds, parseFlexibleDateToIso } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
 
@@ -264,6 +265,7 @@ export function AdminDeskClientCardSection({
           <button type="submit" className="btn btn-primary" disabled={busy}>
             <Save size={18} aria-hidden /> {busy ? 'Сохраняю…' : 'Сохранить'}
           </button>
+          <ClientAppInviteButton client={client} disabled={Boolean(client?.archived_at)} />
         </div>
       </form>
 

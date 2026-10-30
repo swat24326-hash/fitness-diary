@@ -159,6 +159,11 @@
   padding-inline: 1.1rem;
 }
 
+.admin-desk-client-card__actions .btn-icon-square {
+  width: 2.75rem;
+  padding-inline: 0;
+}
+
 /* —— Абонементы: карточки, не Excel-таблица —— */
 
 .admin-desk-membership-ledger {

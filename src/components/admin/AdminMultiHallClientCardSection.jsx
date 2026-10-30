@@ -24,6 +24,7 @@ import { AdminMultiHallTrainerField } from './AdminMultiHallTrainerField.jsx'
 import { AdminDeskAzInstructorsSection } from './AdminDeskAzInstructorsSection.jsx'
 import { MembershipManager } from '../MembershipManager.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
+import { ClientAppInviteButton } from '../client/ClientAppInviteButton.jsx'
 import { birthDateYearBounds, parseFlexibleDateToIso, todayLocalIso } from '../../lib/dateRu.js'
 import { getDb } from '../../lib/localDb.js'
 import '../../styles/admin-desk.css'
@@ -391,6 +392,7 @@ export function AdminMultiHallClientCardSection({
           <button type="submit" className="btn btn-primary" disabled={busy}>
             <Save size={18} aria-hidden /> {busy ? 'Сохраняю…' : 'Сохранить'}
           </button>
+          <ClientAppInviteButton client={client} disabled={Boolean(client?.archived_at)} />
         </div>
       </form>
 
