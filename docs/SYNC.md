@@ -72,7 +72,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Allowlist push (`PUSH_ALLOWED_TABLES`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**, **`client_plans`**, **`homework_auto`**, **`health_screenings`**, **`homework_library`**.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`client_az_instructors`**, **`trainer_schedule_entries`**, **`client_plans`**, **`homework_auto`**, **`health_screenings`**, **`homework_library`**.
 
 **`homework_library`** (правки библиотеки ДЗ, с 14.10.2026): одна на сеть, `id` = id упражнения. Upsert через `normalizeHomeworkLibraryRow` (упражнение проверяется правилами библиотеки), `delete` нельзя — убирают `is_active = false`. `authorizePush` — только админ, `updated_by` = сам автор (`assertHomeworkLibraryPush`). Pull тренеру — все строки; админке — `admin-data?action=homework-library`. Verify: `verify-homework-library-overrides.mjs`.
 
@@ -100,7 +100,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`trainer_schedule_entries`**, **`client_plans`**, **`homework_auto`**, **`health_screenings`**, **`homework_library`**.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, **`client_az_instructors`**, **`trainer_schedule_entries`**, **`client_plans`**, **`homework_auto`**, **`health_screenings`**, **`homework_library`**.
 
 `health_cards` в IDB ключуется по **`client_id`**, не по `id` записи — учитывать в ключах очереди.
 
@@ -124,7 +124,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 2. **Fallback по дате** — `resolveMembershipForDiaryTraining`, если `membership_id` нет (legacy).
 3. **Источник абонементов для UI статистики:**
    - **Тренер онлайн:** `trainer-pull` (`skip_trainings=1`) через `loadClubMembershipsWithApiFallback(clubId, { trainerId })`; **не** `/api/list-memberships` (403).
-   - **Админ / sales:** `/api/list-memberships` → абоны **и** `client_hall_lifecycle` в IndexedDB (close/reopen ПЗ/ТЗ/АЗ на втором устройстве). Helper без `trainerId`.
+   - **Админ / sales:** `/api/list-memberships` → абоны, `client_hall_lifecycle` и **`client_az_instructors`** в IndexedDB (close/reopen ПЗ/ТЗ/АЗ и инструкторы АЗ на втором устройстве). Helper без `trainerId`.
    - **Офлайн / сбой API:** `listMembershipsByClubId` (IndexedDB); тип считается локально, если абоны клиента в кэше.
 4. **Repair:** журнал тренера (online) — `repairTrainingsMembershipLinks` → `cacheCloudTrainingsLocally`.
 5. **Prefetch карточки:** `refreshMembershipsForStats({ trainerId })` → merge в IDB; cooldown 60 с.

@@ -25,6 +25,7 @@ import { assertHomeworkAutoPush } from '../../src/lib/homework/auto/homeworkAuto
 import { assertHealthScreeningPush } from '../../src/lib/health/healthScreeningCore.js'
 import { assertHomeworkLibraryPush } from '../../src/lib/homework/library/homeworkLibraryOverridesCore.js'
 import { isTransientDbError, logDbError } from './dbErrorPublicCore.js'
+import { authorizeClientAzInstructorsPush } from './clientAzInstructorsPushAuth.js'
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -484,9 +485,19 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
   'homework_auto',
   'health_screenings',
   'homework_library',
+  'client_az_instructors',
 ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
+  }
+
+  if (table_name === 'client_az_instructors') {
+    try {
+      return await authorizeClientAzInstructorsPush(ctx, op, payload, remote_id, canAccessClient)
+    } catch (e) {
+      logDbError('push-auth-az-instructors', e)
+      return { ok: false, error: 'Ошибка проверки доступа', transient: isTransientDbError(e) }
+    }
   }
 
   if (table_name === 'homework_library') {

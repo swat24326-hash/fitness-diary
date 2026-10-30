@@ -24,6 +24,9 @@ export const LIST_MEMBERSHIPS_MAX = 100_000
 /** Макс. строк client_hall_lifecycle в том же ответе list-memberships. */
 export const LIST_CLIENT_HALL_LIFECYCLE_MAX = 50_000
 
+/** Макс. строк client_az_instructors в том же ответе list-memberships. */
+export const LIST_CLIENT_AZ_INSTRUCTORS_MAX = 50_000
+
 /** Макс. строк client_hall_lifecycle для client-retention agg. */
 export const CLUB_STATS_MAX_CLIENT_HALL_LIFECYCLE = 50_000
 

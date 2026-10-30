@@ -11,6 +11,7 @@ export const SALES_MANAGER_CLIENT_PUSH_TABLES = Object.freeze([
   'clients',
   'memberships',
   'client_hall_lifecycle',
+  'client_az_instructors',
 ])
 
 /**

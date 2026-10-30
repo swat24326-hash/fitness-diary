@@ -21,6 +21,7 @@ import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
 import { AdminClientHallLifecycleActions } from './AdminClientHallLifecycleActions.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminMultiHallTrainerField } from './AdminMultiHallTrainerField.jsx'
+import { AdminDeskAzInstructorsSection } from './AdminDeskAzInstructorsSection.jsx'
 import { MembershipManager } from '../MembershipManager.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { birthDateYearBounds, parseFlexibleDateToIso, todayLocalIso } from '../../lib/dateRu.js'
@@ -429,6 +430,13 @@ export function AdminMultiHallClientCardSection({
             hall={hallTab}
             onChanged={onSaved}
           />
+          {hallTab === 'az' ? (
+            <AdminDeskAzInstructorsSection
+              client={client}
+              clubId={resolvedClubId}
+              onChanged={onSaved}
+            />
+          ) : null}
         </div>
       )}
     </section>

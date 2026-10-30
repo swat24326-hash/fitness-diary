@@ -248,6 +248,7 @@ run('PZ trainings Excel import', 'node', ['scripts/verify-pz-trainings-report-im
 run('desk closing import', 'node', ['scripts/verify-desk-closing-import.mjs'])
 run('desk membership ledger', 'node', ['scripts/verify-desk-membership-ledger.mjs'])
 run('desk az session deduct', 'node', ['scripts/verify-desk-az-session-deduct.mjs'])
+run('client az instructors', 'node', ['scripts/verify-client-az-instructors.mjs'])
 run('desk hall clients tabs', 'node', ['scripts/verify-desk-hall-clients.mjs'])
 run('desk manual client create', 'node', ['scripts/verify-desk-manual-client-create.mjs'])
 run('membership hall multi', 'node', ['scripts/verify-membership-hall.mjs'])

@@ -633,3 +633,56 @@
 }
 
 
+
+.admin-desk-az-instructors {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+}
+
+.admin-desk-az-instructors__title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.admin-desk-az-instructors__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.admin-desk-az-instructors__list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-desk-az-instructors__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  border-radius: 8px;
+}
+
+.admin-desk-az-instructors__form {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .admin-desk-az-instructors__form {
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+  }
+}
+
+.admin-desk-az-instructors__form label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}

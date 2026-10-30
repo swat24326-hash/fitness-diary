@@ -12,6 +12,7 @@ export const SYNC_TABLE_PRIORITY = Object.freeze({
   homework_presets: 17,
   memberships: 20,
   client_hall_lifecycle: 22,
+  client_az_instructors: 23,
   /** Тренировки раньше ежедневника: linked_training_id → FK. */
   trainings: 28,
   trainer_schedule_entries: 32,

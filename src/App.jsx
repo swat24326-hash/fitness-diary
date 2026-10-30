@@ -102,6 +102,9 @@ const ClientSettingsPage = lazy(() =>
 const ClientTrainingsPage = lazy(() =>
   import('./pages/client/ClientTrainingsPage.jsx').then((m) => ({ default: m.ClientTrainingsPage })),
 )
+const ClientTrainingsPreviewPage = lazy(() =>
+  import('./pages/client/ClientTrainingsPreviewPage.jsx').then((m) => ({ default: m.ClientTrainingsPreviewPage })),
+)
 const ClientPlanPage = lazy(() => import('./pages/client/ClientPlanPage.jsx').then((m) => ({ default: m.ClientPlanPage })))
 const ClientNutritionPreviewPage = lazy(() =>
   import('./pages/client/ClientNutritionPreviewPage.jsx').then((m) => ({ default: m.ClientNutritionPreviewPage })),
@@ -133,6 +136,9 @@ const ClientRatingPage = lazy(() =>
   import('./pages/client/ClientRatingPage.jsx').then((m) => ({ default: m.ClientRatingPage })),
 )
 const ClientInboxPage = lazy(() => import('./pages/client/ClientInboxPage.jsx').then((m) => ({ default: m.ClientInboxPage })))
+const ClientInboxPreviewPage = lazy(() =>
+  import('./pages/client/ClientInboxPreviewPage.jsx').then((m) => ({ default: m.ClientInboxPreviewPage })),
+)
 const ClientInboxItemPage = lazy(() =>
   import('./pages/client/ClientInboxItemPage.jsx').then((m) => ({ default: m.ClientInboxItemPage })),
 )
@@ -181,6 +187,7 @@ function ClientAppRoutes() {
           <Route path="join" element={<ClientJoinPage />} />
           <Route path="settings" element={<ClientSettingsPage />} />
           <Route path="trainings" element={<ClientTrainingsPage />} />
+          <Route path="trainings-preview" element={<ClientTrainingsPreviewPage />} />
           <Route path="task" element={<ClientPlanPage key="homework" kind="homework" />} />
           <Route path="nutrition" element={<ClientPlanPage key="nutrition" kind="nutrition" />} />
           <Route path="nutrition-preview" element={<ClientNutritionPreviewPage />} />
@@ -191,6 +198,7 @@ function ClientAppRoutes() {
           <Route path="home-preview" element={<ClientHomePreviewPage />} />
           <Route path="rate/:id" element={<ClientRatingPage />} />
           <Route path="inbox" element={<ClientInboxPage />} />
+          <Route path="inbox-preview" element={<ClientInboxPreviewPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />
           <Route path="chat/:kind" element={<ClientChatPage />} />
           <Route path="*" element={<ClientMePage />} />

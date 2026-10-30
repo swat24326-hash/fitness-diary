@@ -5,7 +5,7 @@ import { setLocalDbUpgradeBlocked } from './localDbUpgradeWait.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 23
+const DB_VERSION = 24
 
 /** @type {Promise<import('idb').IDBPDatabase> | null} */
 let dbPromise = null
@@ -210,6 +210,15 @@ function upgradeFitnessDb(db, oldVersion, _newVersion, transaction) {
       db.createObjectStore('homework_library', { keyPath: 'id' })
     }
   }
+
+  if (oldVersion < 24) {
+    if (!db.objectStoreNames.contains('client_az_instructors')) {
+      const azInst = db.createObjectStore('client_az_instructors', { keyPath: 'id' })
+      azInst.createIndex('by_client_id', 'client_id', { unique: false })
+      azInst.createIndex('by_club_id', 'club_id', { unique: false })
+      azInst.createIndex('by_instructor_id', 'instructor_id', { unique: false })
+    }
+  }
 }
 
 function openFitnessDb() {
@@ -362,6 +371,7 @@ export async function buildPendingSyncKeysByTable() {
     homework_auto: new Set(),
     health_screenings: new Set(),
     homework_library: new Set(),
+    client_az_instructors: new Set(),
   }
   for (const item of queue) {
     const op = item.operation

@@ -19,6 +19,7 @@ export function clientMeHomePreviewSample() {
     memberships: {
       current: [
         {
+          label: 'ПЗ 17',
           status: 'active',
           total: 17,
           used: 4,
@@ -26,6 +27,41 @@ export function clientMeHomePreviewSample() {
           days_left: 54,
           start_date: '2026-09-01',
           end_date: '2026-12-11',
+          /** Как в ответе /api/client-me — для DEV /me/trainings-preview */
+          visits: [
+            {
+              id: 't1',
+              date: '2026-09-20',
+              focus: 'Ноги',
+              kg: 61.2,
+              no_show: false,
+              trainer_name: 'Марина Попова',
+            },
+            {
+              id: 't2',
+              date: '2026-09-28',
+              focus: null,
+              kg: null,
+              no_show: true,
+              trainer_name: 'Марина Попова',
+            },
+            {
+              id: 't3',
+              date: '2026-10-05',
+              focus: 'Спина',
+              kg: 60.5,
+              no_show: false,
+              trainer_name: 'Марина Попова',
+            },
+            {
+              id: 't4',
+              date: '2026-10-16',
+              focus: 'Силовая',
+              kg: 59.9,
+              no_show: false,
+              trainer_name: 'Олег',
+            },
+          ],
         },
       ],
     },
@@ -78,4 +114,75 @@ export function clientMeHomePreviewSample() {
 /** Только прогресс (вес + обмеры) — для узкого превью. */
 export function clientMeProgressPreviewSample() {
   return clientMeHomePreviewSample().progress
+}
+
+/**
+ * DEV: смешанная жизнь ПЗ+АЗ+ТЗ для /me/trainings-preview?mixed=1
+ * Карточки как задумано в CLIENT_APP (канон ⏸): все действующие абоны на вкладке.
+ */
+export function clientMeTrainingsMixedPreviewSample() {
+  const base = clientMeHomePreviewSample()
+  return {
+    ...base,
+    client: { name: 'Мария Иванова' },
+    memberships: {
+      current: [
+        {
+          hall: 'pz',
+          label: 'ПЗ 17',
+          status: 'active',
+          total: 17,
+          used: 4,
+          remaining: 13,
+          days_left: 54,
+          start_date: '2026-09-01',
+          end_date: '2026-12-11',
+          visits: base.memberships.current[0].visits,
+        },
+        {
+          hall: 'az',
+          label: 'АЗ · Бокс',
+          status: 'active',
+          total: 12,
+          used: 5,
+          remaining: 7,
+          days_left: 120,
+          start_date: '2026-08-01',
+          end_date: '2027-03-15',
+          visits: [
+            { id: 'az3', date: '2026-10-20', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+            { id: 'az2', date: '2026-10-24', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+            { id: 'az1', date: '2026-10-27', focus: 'Бокс', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+          ],
+        },
+        {
+          hall: 'az',
+          label: 'АЗ · Степ',
+          status: 'active',
+          total: 8,
+          used: 2,
+          remaining: 6,
+          days_left: 45,
+          start_date: '2026-09-15',
+          end_date: '2026-12-15',
+          visits: [
+            { id: 'azs1', date: '2026-10-12', focus: 'Степ', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+            { id: 'azs2', date: '2026-10-26', focus: 'Степ', kg: null, no_show: false, trainer_name: null, kind: 'desk' },
+          ],
+        },
+        {
+          hall: 'tz',
+          label: 'ТЗ',
+          status: 'active',
+          total: null,
+          used: 0,
+          remaining: null,
+          days_left: 200,
+          start_date: '2026-06-01',
+          end_date: '2027-06-01',
+          visits: [],
+        },
+      ],
+    },
+  }
 }

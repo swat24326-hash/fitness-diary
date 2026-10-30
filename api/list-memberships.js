@@ -5,7 +5,11 @@
  */
 import { requireAdminOrSalesManager, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { LIST_MEMBERSHIPS_MAX, LIST_CLIENT_HALL_LIFECYCLE_MAX } from './_lib/apiLimits.js'
+import {
+  LIST_MEMBERSHIPS_MAX,
+  LIST_CLIENT_HALL_LIFECYCLE_MAX,
+  LIST_CLIENT_AZ_INSTRUCTORS_MAX,
+} from './_lib/apiLimits.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -114,6 +118,38 @@ async function handler(req, res) {
     lifecycleError = e?.message ? String(e.message).slice(0, 200) : 'lifecycle_fetch_failed'
   }
 
+  /** Инструкторы АЗ — тот же pull, без новой Vercel-функции. */
+  let client_az_instructors = []
+  let azInstructorsTruncated = false
+  let azInstructorsError = null
+  try {
+    let azFrom = 0
+    for (;;) {
+      if (client_az_instructors.length >= LIST_CLIENT_AZ_INSTRUCTORS_MAX) {
+        azInstructorsTruncated = true
+        break
+      }
+      const room = LIST_CLIENT_AZ_INSTRUCTORS_MAX - client_az_instructors.length
+      const limit = Math.min(PAGE, room)
+      const { data, error } = await supabaseAdmin
+        .from('client_az_instructors')
+        .select('*')
+        .eq('club_id', rawClub)
+        .order('id', { ascending: true })
+        .range(azFrom, azFrom + limit - 1)
+      if (error) {
+        azInstructorsError = error.message
+        break
+      }
+      const chunk = data ?? []
+      client_az_instructors.push(...chunk)
+      if (chunk.length < limit) break
+      azFrom += limit
+    }
+  } catch (e) {
+    azInstructorsError = e?.message ? String(e.message).slice(0, 200) : 'az_instructors_fetch_failed'
+  }
+
   sendJson(res, 200, {
     memberships,
     count: memberships.length,
@@ -124,6 +160,12 @@ async function handler(req, res) {
     client_hall_lifecycle_truncated: lifecycleTruncated,
     ...(lifecycleError
       ? { client_hall_lifecycle_error: String(lifecycleError).slice(0, 200) }
+      : {}),
+    client_az_instructors,
+    client_az_instructors_count: client_az_instructors.length,
+    client_az_instructors_truncated: azInstructorsTruncated,
+    ...(azInstructorsError
+      ? { client_az_instructors_error: String(azInstructorsError).slice(0, 200) }
       : {}),
   })
 }

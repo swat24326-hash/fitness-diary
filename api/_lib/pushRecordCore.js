@@ -39,6 +39,7 @@ import { scheduleMembershipRatingAsk } from './clientRatings/clientRatingJob.js'
 import { normalizeHomeworkAutoRow } from '../../src/lib/homework/auto/homeworkAutoScheduleCore.js'
 import { normalizeHealthScreeningRow } from '../../src/lib/health/healthScreeningCore.js'
 import { normalizeHomeworkLibraryRow } from '../../src/lib/homework/library/homeworkLibraryOverridesCore.js'
+import { normalizeClientAzInstructorRow } from '../../src/lib/admin/clientAzInstructorsCore.js'
 import { assertClientCardUniqueForPush } from './clientCardUniquePushCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
@@ -61,6 +62,7 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'homework_auto',
   'health_screenings',
   'homework_library',
+  'client_az_instructors',
 ])
 
 const CLIENT_ROW_NORMALIZERS = {
@@ -435,6 +437,11 @@ export async function executePushRecord(ctx, item) {
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
         payload = prep.data
       }
+      if (table_name === 'client_az_instructors') {
+        const prep = normalizeClientAzInstructorRow(payload)
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        payload = prep.data
+      }
       if (CLIENT_ROW_NORMALIZERS[table_name]) return upsertClientRow(supabaseAdmin, table_name, payload)
       let lifeBefore = null
       if (table_name === 'client_hall_lifecycle') {
@@ -615,6 +622,11 @@ export async function executePushRecord(ctx, item) {
       }
       if (table_name === 'client_weight_entries') {
         const prep = await prepareWeightEntryPayload(supabaseAdmin, payload)
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        payload = prep.data
+      }
+      if (table_name === 'client_az_instructors') {
+        const prep = normalizeClientAzInstructorRow({ ...payload, id: payload.id || remote_id })
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
         payload = prep.data
       }

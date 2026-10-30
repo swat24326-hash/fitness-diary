@@ -29,6 +29,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `pnk_funnel_events` | `id` | Журнал ПНК |
 | `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру. Удаление клиента: awaiting снимается, `client_id` не пишется обратно |
 | `client_hall_lifecycle` | `id` | Закрытие ПЗ/ТЗ/АЗ (`hall`, `closed_at`, `close_reason`); индексы `client_id`, `club_id` |
+| `client_az_instructors` | `id` | Инструкторы АЗ клиента: `instructor_id` + `direction_type_id` (тип АЗ); UNIQUE `(client_id, instructor_id, direction_type_id)`; **не** `clients.trainer_id`. Миграция `20261109120000_client_az_instructors.sql` |
 | `trainer_schedule_entries` | `id` | Ежедневник тренера: день, время, заметка и/или `client_ids[]`, категория `kind` (цвет); индексы `trainer_id`, `[trainer_id, day_date]` — см. [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |
 | `loyalty_glance` | `client_id` | Кэш снимка баллов (GET `loyalty-glance`, не sync_queue) |
 | `club_stories` | — (только сервер) | Реклама клуба в сторис: `club_stories` + кадры `club_story_frames` + просмотры `club_story_views` (ключ `u:`/`c:` + id, `reaction` — смайлик 👍❤️🔥💪😂🙏 или NULL) + бан выкладки `club_story_publish_bans`. RLS без политик. Файл в бакете, папка `story/`. Миграции `20261107120000_club_stories.sql`, `20261109120000_club_story_publish_bans.sql`, `20261110120000_club_story_view_reaction.sql`, [STORIES.md](./STORIES.md) |

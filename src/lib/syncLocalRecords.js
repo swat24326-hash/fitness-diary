@@ -38,6 +38,7 @@ const UNSYNCED_SCAN = [
   { store: 'homework_auto', table: 'homework_auto', table_name: 'homework_auto' },
   { store: 'health_screenings', table: 'health_screenings', table_name: 'health_screenings' },
   { store: 'homework_library', table: 'homework_library', table_name: 'homework_library' },
+  { store: 'client_az_instructors', table: 'client_az_instructors', table_name: 'client_az_instructors' },
 ]
 
 const STORE_BY_TABLE = {
@@ -58,6 +59,7 @@ const STORE_BY_TABLE = {
   homework_auto: 'homework_auto',
   health_screenings: 'health_screenings',
   homework_library: 'homework_library',
+  client_az_instructors: 'client_az_instructors',
 }
 
 /** Для verify: таблицы, которые помечаются synced после push. */

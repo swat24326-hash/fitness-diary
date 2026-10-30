@@ -116,6 +116,10 @@ async function mergeMembershipsAndLifecycleFromApi(viaMem, clubId) {
   if (viaMem.client_hall_lifecycle?.length) {
     await mergeClientHallLifecycleIntoCache(viaMem.client_hall_lifecycle)
   }
+  if (viaMem.client_az_instructors?.length) {
+    const { mergeClientAzInstructorsIntoCache } = await import('./clientAzInstructorsCache.js')
+    await mergeClientAzInstructorsIntoCache(viaMem.client_az_instructors)
+  }
   const cid = String(clubId ?? '').trim()
   if (!cid || viaMem.truncated === true) return
   try {

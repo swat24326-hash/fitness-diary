@@ -64,6 +64,7 @@ const AUTO_PUSH_TABLES = new Set([
   'homework_auto',
   'health_screenings',
   'homework_library',
+  'client_az_instructors',
 ])
 
 export function initConnectivityListeners() {

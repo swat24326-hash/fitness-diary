@@ -68,7 +68,8 @@
 
 | Не так | Почему |
 |--------|--------|
-| Вешать АЗ на тренера «для удобства» | Ломает desk / KPI |
+| Вешать АЗ в поле **«Тренер ПЗ»** (`trainer_id`) | Ломает desk / KPI / персоналку |
+| Инструктор АЗ — только через `client_az_instructors` (не `trainer_id`) | 🔧 CRM-назначение в репо; чат / «следующая» — этапы 2–3 в [CLIENT_APP.md](./CLIENT_APP.md) |
 | Грузить АЗ как lite-ПЗ | ПЗ требует тренера |
 | Ждать «Книгу часов» для АЗ | АЗ уже в Оси через списания |
 | Считать `paid_amount` кассой | См. PAYMENTS_DOMAIN |
@@ -80,4 +81,5 @@
 - Hall / вкладки: `deskHallClientsCore.js`  
 - Сид: `deskClosingImportCore.js`  
 - Списание: `deskAzSessionDeductCore.js`  
-- Verify: `verify-desk-hall-clients.mjs`, `verify-desk-closing-import.mjs`, `verify-desk-az-session-deduct.mjs`  
+- Инструкторы АЗ: `clientAzInstructorsCore.js` + `AdminDeskAzInstructorsSection.jsx`  
+- Verify: `verify-desk-hall-clients.mjs`, `verify-desk-closing-import.mjs`, `verify-desk-az-session-deduct.mjs`, `verify-client-az-instructors.mjs`  

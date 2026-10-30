@@ -156,7 +156,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 Полнее: [DATA_MODEL.md](./DATA_MODEL.md), [SYNC.md](./SYNC.md).
 
-**IDB stores (v19):** `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`, `challenges`, `membership_types`, `nutrition_products`, `homework_presets`, `client_weight_entries`, `outreach_log`, `club_iskra_settings` (кэш шаблонов outreach; **не** полный `moizvonki` с ключом), `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, `loyalty_glance`, **`trainer_schedule_entries`** (ежедневник — [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md)).
+**IDB stores (v24):** `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`, `challenges`, `membership_types`, `nutrition_products`, `homework_presets`, `client_weight_entries`, `outreach_log`, `club_iskra_settings` (кэш шаблонов outreach; **не** полный `moizvonki` с ключом), `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`, `loyalty_glance`, **`trainer_schedule_entries`**, `client_plans`, `homework_auto`, `health_screenings`, `homework_library`, **`client_az_instructors`** (инструкторы АЗ — [CLIENT_APP.md](./CLIENT_APP.md)).
 
 Настройки **качества ведения** и **плана ЗП** — Postgres + `admin-data`, **без** offline-store в IDB. Полнее: [DATA_MODEL.md](./DATA_MODEL.md).
 

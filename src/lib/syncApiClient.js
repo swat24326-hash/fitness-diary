@@ -51,6 +51,7 @@ export const PUSH_TABLES = new Set([
   'homework_auto',
   'health_screenings',
   'homework_library',
+  'client_az_instructors',
 ])
 
 const PUSH_RECORD_TIMEOUT_MS = 28_000

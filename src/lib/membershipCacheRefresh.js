@@ -112,6 +112,10 @@ export async function refreshMembershipsForStats(p = {}) {
       if (viaMem.client_hall_lifecycle?.length) {
         await mergeClientHallLifecycleIntoCache(viaMem.client_hall_lifecycle)
       }
+      if (viaMem.client_az_instructors?.length) {
+        const { mergeClientAzInstructorsIntoCache } = await import('./admin/clientAzInstructorsCache.js')
+        await mergeClientAzInstructorsIntoCache(viaMem.client_az_instructors)
+      }
       if (viaMem.truncated !== true) {
         const clients = await listClientsByClubId(clubId)
         await pruneOrphanMembershipsForClients(

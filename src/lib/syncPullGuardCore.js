@@ -17,6 +17,7 @@ export const PULL_MERGE_GUARD_STORE_LIST = Object.freeze([
   'homework_auto',
   'health_screenings',
   'homework_library',
+  'client_az_instructors',
 ])
 
 export const PULL_MERGE_GUARD_STORES = new Set(PULL_MERGE_GUARD_STORE_LIST)

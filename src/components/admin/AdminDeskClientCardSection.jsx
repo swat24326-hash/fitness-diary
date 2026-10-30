@@ -10,6 +10,7 @@ import { ackSavedDeskField, mergeDeskClientFormField } from '../../lib/admin/des
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
+import { AdminDeskAzInstructorsSection } from './AdminDeskAzInstructorsSection.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { birthDateYearBounds, parseFlexibleDateToIso } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
@@ -262,6 +263,10 @@ export function AdminDeskClientCardSection({
         hall={hall || undefined}
         onChanged={onSaved}
       />
+
+      {hall === 'az' ? (
+        <AdminDeskAzInstructorsSection client={client} clubId={clubId} onChanged={onSaved} />
+      ) : null}
     </section>
   )
 }

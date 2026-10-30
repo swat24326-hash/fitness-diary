@@ -221,8 +221,8 @@ export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
 
 /**
  * GET /api/list-memberships?club_id=… — null если маршрута нет.
- * Вместе с абонами — client_hall_lifecycle клуба (если сервер отдаёт).
- * @returns {Promise<{ memberships: object[], client_hall_lifecycle: object[], count: number, truncated?: boolean } | null>}
+ * Вместе с абонами — client_hall_lifecycle и client_az_instructors клуба (если сервер отдаёт).
+ * @returns {Promise<{ memberships: object[], client_hall_lifecycle: object[], client_az_instructors?: object[], count: number, truncated?: boolean } | null>}
  */
 export async function fetchMembershipsForClubViaAdminApi(clubId) {
   const cid = String(clubId ?? '').trim()
@@ -252,9 +252,11 @@ export async function fetchMembershipsForClubViaAdminApi(clubId) {
     return {
       memberships: Array.isArray(data.memberships) ? data.memberships : [],
       client_hall_lifecycle: Array.isArray(data.client_hall_lifecycle) ? data.client_hall_lifecycle : [],
+      client_az_instructors: Array.isArray(data.client_az_instructors) ? data.client_az_instructors : [],
       count: typeof data.count === 'number' ? data.count : (data.memberships?.length ?? 0),
       truncated: Boolean(data.truncated),
       client_hall_lifecycle_truncated: Boolean(data.client_hall_lifecycle_truncated),
+      client_az_instructors_truncated: Boolean(data.client_az_instructors_truncated),
     }
   }
 

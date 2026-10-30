@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Макет · главная клиента · жизни залов</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #030806;
+      --bg-subtle: #061210;
+      --bg-card: rgba(8, 32, 24, 0.52);
+      --border: rgba(46, 255, 184, 0.14);
+      --text: #f6f4ef;
+      --text-muted: #a8b2ac;
+      --accent: #14d89a;
+      --accent-bright: #2effb8;
+      --warning: #fbbf24;
+      --radius-md: 16px;
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 50% -10%, rgba(46, 255, 184, 0.12), transparent 60%),
+        var(--bg);
+    }
+    .page { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 16px; }
+    .banner {
+      padding: 12px 14px;
+      border: 1px dashed color-mix(in srgb, var(--warning) 55%, var(--border));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--warning) 8%, transparent);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .banner strong { color: var(--warning); }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .controls > span { color: var(--text-muted); font-size: 0.85rem; margin-right: 4px; }
+    .chip {
+      appearance: none; border: 1px solid var(--border); background: var(--bg-card);
+      color: var(--text); border-radius: 999px; padding: 10px 14px; min-height: 44px;
+      font: inherit; cursor: pointer;
+    }
+    .chip[aria-pressed="true"] {
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+      background: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+      color: var(--accent-bright);
+    }
+    .stage { display: grid; justify-items: center; gap: 10px; }
+    .phone {
+      width: min(390px, 100%);
+      min-height: 740px;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 28%), var(--bg-subtle);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      position: relative;
+    }
+    .top {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 14px 14px 8px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .brand { font-weight: 650; color: var(--accent-bright); }
+    .actions { display: flex; gap: 8px; }
+    .icon-btn {
+      width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03); display: grid; place-items: center;
+    }
+    .main {
+      padding: 12px 14px 18px; display: grid; gap: 12px; align-content: start; overflow: auto;
+    }
+    .hello { margin: 0; font-size: 1.35rem; font-weight: 650; }
+    .card {
+      display: grid; gap: 10px; padding: 14px; border-radius: var(--radius-md);
+      border: 1px solid var(--border); background: var(--bg-card);
+    }
+    .card__title {
+      display: flex; align-items: center; gap: 8px; margin: 0;
+      font-size: 1rem; font-weight: 650;
+    }
+    .card__title .ico { color: var(--accent); }
+    .spark-head {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 10px;
+    }
+    .spark-head strong { font-size: 1.45rem; font-weight: 700; }
+    .spark-head span { color: var(--text-muted); font-size: 0.85rem; }
+    .spark {
+      position: relative; height: 120px; margin: 4px 0 2px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(46,255,184,0.06), transparent 70%);
+    }
+    .spark svg { width: 100%; height: 100%; display: block; }
+    .spark-axis {
+      display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.75rem;
+    }
+    .dot-club { fill: var(--accent-bright); stroke: #04140f; stroke-width: 2; }
+    .dot-me { fill: #0a1a14; stroke: #f6f4ef; stroke-width: 2.5; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      appearance: none; min-height: 44px; padding: 10px 14px; border-radius: 12px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+      color: var(--text); font: inherit; cursor: pointer;
+    }
+    .btn-primary {
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent-bright);
+    }
+    .measures {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03); color: var(--text); font-weight: 600;
+    }
+    .stats {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+    }
+    .stats div { display: grid; gap: 2px; min-width: 0; }
+    .stats strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+    .stats span { color: var(--text-muted); font-size: 0.72rem; line-height: 1.2; }
+    .streak {
+      display: flex; align-items: center; gap: 6px; margin: 0;
+      color: var(--text-muted); font-size: 0.88rem;
+    }
+    .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .tile {
+      display: grid; gap: 6px; padding: 12px; min-height: 118px;
+      border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-card);
+    }
+    .tile--lead {
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+      background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%), var(--bg-card);
+    }
+    .tile__title { font-size: 0.78rem; color: var(--text-muted); }
+    .tile__hero {
+      font-size: 1.55rem; font-weight: 700; line-height: 1.15; color: var(--accent-bright);
+      font-variant-numeric: tabular-nums;
+    }
+    .tile__hero small { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+    .tile__caption { font-size: 0.85rem; color: var(--text-muted); }
+    .tile__foot {
+      margin-top: auto; font-size: 0.78rem; color: var(--text-muted);
+      padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+    .list { display: grid; gap: 8px; }
+    .row {
+      display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: center;
+      padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .row__date { text-align: center; font-size: 0.78rem; line-height: 1.2; color: var(--accent-bright); font-weight: 650; }
+    .row__meta { font-size: 0.92rem; }
+    .row__meta small { display: block; color: var(--text-muted); margin-top: 2px; }
+    .muted { color: var(--text-muted); font-size: 0.9rem; line-height: 1.45; }
+    .tabs {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0));
+      border-top: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.35);
+    }
+    .tabs[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
+    .tab {
+      min-height: 52px; border: 0; background: transparent; color: var(--text-muted);
+      font: inherit; font-size: 0.72rem; display: grid; align-content: center; justify-items: center; gap: 4px;
+    }
+    .tab[aria-current="page"] { color: var(--accent-bright); }
+    .tab b { font-size: 1rem; }
+    .note { max-width: 390px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; text-align: center; }
+    [hidden] { display: none !important; }
+
+    /* Редактор веса — легенда внутри */
+    .sheet {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.55);
+      display: grid; align-items: end; z-index: 5;
+    }
+    .sheet__panel {
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0));
+      border-radius: 20px 20px 0 0;
+      border: 1px solid var(--border);
+      background: #07140f;
+      display: grid; gap: 12px;
+    }
+    .sheet__panel h2 { margin: 0; font-size: 1.1rem; }
+    .legend {
+      display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-muted);
+    }
+    .legend i {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+    }
+    .legend .club { background: var(--accent-bright); box-shadow: 0 0 0 2px #04140f; }
+    .legend .me { background: #0a1a14; box-shadow: inset 0 0 0 2px #f6f4ef; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 0.8rem; color: var(--text-muted); }
+    .field input {
+      min-height: 44px; border-radius: 12px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04); color: var(--text); padding: 0 12px; font: inherit;
+    }
+    .sheet__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="banner">
+      <strong>Макет.</strong>
+      Эталон главной ПЗ — только живое <code>/me/home-preview</code> (чип «Только ПЗ»), не рисованный график.
+      Остальные жизни — набросок плиток АЗ/ТЗ. Прогресс ●/○ — в <code>CLIENT_APP.md</code>.
+    </div>
+
+    <div class="controls" role="group" aria-label="Жизнь клиента">
+      <span>Жизнь:</span>
+      <button type="button" class="chip" data-life="pz" aria-pressed="true">Только ПЗ</button>
+      <button type="button" class="chip" data-life="az" aria-pressed="false">Только АЗ</button>
+      <button type="button" class="chip" data-life="tz" aria-pressed="false">Только ТЗ</button>
+      <button type="button" class="chip" data-life="both" aria-pressed="false">ПЗ + АЗ</button>
+      <button type="button" class="chip" data-life="pz-to-az" aria-pressed="false">Был ПЗ → АЗ</button>
+    </div>
+
+    <div class="stage">
+      <div class="phone" id="phone">
+        <header class="top">
+          <div class="brand">Fit City</div>
+          <div class="actions">
+            <div class="icon-btn" title="Уведомления">🔔</div>
+            <div class="icon-btn" title="Меню">☰</div>
+          </div>
+        </header>
+
+        <main class="main" id="main">
+          <!-- заполняется JS -->
+        </main>
+
+        <nav class="tabs" id="tabs" aria-label="Вкладки"></nav>
+
+        <div class="sheet" id="editor" hidden>
+          <div class="sheet__panel" role="dialog" aria-label="Добавить вес">
+            <h2>Добавить вес</h2>
+            <div class="legend" aria-label="Обозначения">
+              <span><i class="club"></i>● клуб — только смотреть</span>
+              <span><i class="me"></i>○ я — можно править</span>
+            </div>
+            <p class="muted" style="margin:0">Новая точка будет белой («я»). Зелёные с тренировки и карты здесь не меняются.</p>
+            <div class="field">
+              <label for="kg">Вес, кг</label>
+              <input id="kg" type="text" inputmode="decimal" placeholder="59,5" value="59,5" />
+            </div>
+            <div class="field">
+              <label for="dt">Дата</label>
+              <input id="dt" type="date" value="2026-10-30" />
+            </div>
+            <div class="sheet__actions">
+              <button type="button" class="btn" id="editor-close">Отмена</button>
+              <button type="button" class="btn btn-primary" id="editor-save">Сохранить</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="note" id="note"></p>
+    </div>
+  </div>
+
+  <script>
+    const notes = {
+      pz: 'Эталон ПЗ: прогресс, цифры, абон, следующая персоналка, бонусы, «От тренера».',
+      az: 'Только АЗ: нет персоналки и «От тренера». Абон + группа + списания. Прогресс — если есть точки (здесь белые).',
+      tz: 'Только ТЗ: одна плитка срока. Без следующей и без списка визитов.',
+      both: 'Оба живы: верх ПЗ, ниже плитки АЗ с другими подписями.',
+      'pz-to-az': 'ПЗ закрыт, АЗ жив: прогресс-история остаётся; живые блоки ПЗ и «От тренера» скрыты.',
+    }
+
+    function sparkSvg(mixed) {
+      // точки: club=green filled, me=white outline
+      const pts = mixed
+        ? [
+            ['8%', '22%', 'club'],
+            ['28%', '38%', 'club'],
+            ['48%', '48%', 'club'],
+            ['68%', '62%', 'me'],
+            ['88%', '72%', 'club'],
+          ]
+        : [
+            ['12%', '30%', 'me'],
+            ['45%', '48%', 'me'],
+            ['78%', '58%', 'me'],
+          ]
+      const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]} ${p[1]}`).join(' ')
+      const dots = pts
+        .map(
+          ([x, y, kind]) =>
+            `<circle class="${kind === 'club' ? 'dot-club' : 'dot-me'}" cx="${x}" cy="${y}" r="5.5" />`,
+        )
+        .join('')
+      return `<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="${line}" fill="none" stroke="#2effb8" stroke-width="2" vector-effect="non-scaling-stroke" />
+        ${dots}
+      </svg>`
+    }
+
+    function progressCard({ kg, when, mixed, cta }) {
+      return `
+        <section class="card">
+          <h2 class="card__title"><span class="ico">↗</span> Мой прогресс</h2>
+          <div class="spark-head">
+            <strong>${kg}</strong>
+            <span>${when}</span>
+          </div>
+          <div class="spark">${sparkSvg(mixed)}</div>
+          <div class="spark-axis"><span>01.08.2026</span><span>18.10.2026</span></div>
+          <div class="measures"><span>📏 Обмеры</span><span>▾</span></div>
+          ${
+            cta
+              ? `<div class="btn-row"><button type="button" class="btn btn-primary" data-open-editor>Добавить вес</button></div>`
+              : ''
+          }
+        </section>`
+    }
+
+    function statsCard() {
+      return `
+        <section class="card">
+          <h2 class="card__title"><span class="ico">▤</span> Мои тренировки</h2>
+          <div class="stats">
+            <div><strong>48</strong><span>всего</span></div>
+            <div><strong>6</strong><span>за 30 дней</span></div>
+            <div><strong>16.10</strong><span>последняя</span></div>
+            <div><strong>−2,5<small>кг</small></strong><span>с 01.08.26</span></div>
+          </div>
+          <p class="streak">🔥 3 недели подряд с тренировками</p>
+        </section>`
+    }
+
+    function tile(opts) {
+      const lead = opts.lead ? ' tile--lead' : ''
+      const bar = opts.bar != null
+        ? `<div class="bar" aria-hidden><i style="width:${opts.bar}%"></i></div>`
+        : ''
+      return `
+        <section class="tile${lead}">
+          <div class="tile__title">${opts.title}</div>
+          <div class="tile__hero">${opts.hero}${opts.unit ? ` <small>${opts.unit}</small>` : ''}</div>
+          <div class="tile__caption">${opts.caption}</div>
+          ${bar}
+          <div class="tile__foot">${opts.foot}</div>
+        </section>`
+    }
+
+    function azVisits() {
+      return `
+        <section class="card">
+          <div class="tile__title">Последние занятия · АЗ</div>
+          <div class="list">
+            <div class="row"><div class="row__date">27<br>окт</div><div class="row__meta">Бокс<small>списано у стойки</small></div></div>
+            <div class="row"><div class="row__date">24<br>окт</div><div class="row__meta">Бокс<small>списано у стойки</small></div></div>
+            <div class="row"><div class="row__date">20<br>окт</div><div class="row__meta">Бокс<small>списано у стойки</small></div></div>
+          </div>
+        </section>`
+    }
+
+    function loyalty() {
+      return `
+        <section class="card">
+          <h2 class="card__title"><span class="ico">🎁</span> Бонусы</h2>
+          <p style="margin:0"><strong style="color:var(--accent-bright);font-size:1.3rem">120</strong> баллов</p>
+          <p class="muted" style="margin:0">Можно забрать на стойке клуба</p>
+        </section>`
+    }
+
+    function render(life) {
+      const main = document.getElementById('main')
+      const tabs = document.getElementById('tabs')
+      let html = `<p class="hello">Мария Иванова</p>`
+      let tabCols = 4
+      let showFromTrainer = true
+
+      if (life === 'pz') {
+        // Эталон ПЗ — только живое /me/home-preview, не рисованный «овалный» график.
+        html = `
+          <p class="hello">Эталон ПЗ</p>
+          <section class="card">
+            <p class="muted" style="margin:0">
+              График, обмеры, плитки и бонусы — как в проде. Этот чип не подменяет UI:
+              смотрите живое превью (Vite).
+            </p>
+            <div class="btn-row" style="margin-top:10px">
+              <a class="btn btn-primary" href="http://127.0.0.1:5173/me/home-preview" target="_blank" rel="noopener">
+                Открыть /me/home-preview
+              </a>
+            </div>
+          </section>
+          <iframe
+            title="Эталон главной ПЗ"
+            src="http://127.0.0.1:5173/me/home-preview"
+            style="width:100%;height:560px;border:1px solid var(--border);border-radius:16px;background:#030806"
+          ></iframe>`
+        showFromTrainer = true
+        tabCols = 4
+        main.innerHTML = html
+        document.getElementById('note').textContent = notes[life]
+        tabs.dataset.cols = '4'
+        tabs.innerHTML = `<div class="tab" aria-current="page"><b>■</b>Главная</div>
+           <div class="tab"><b>□</b>Тренировки</div>
+           <div class="tab"><b>□</b>От тренера</div>
+           <div class="tab"><b>□</b>Сообщения</div>`
+        return
+      }
+
+      if (life === 'az') {
+        html += progressCard({ kg: '61,2 кг', when: 'вы внесли · 28.10.2026', mixed: false, cta: true })
+        html += `<div class="tiles">
+          ${tile({ title: 'Мой абонемент · АЗ', hero: '5', unit: 'из 12', caption: 'занятий списано', bar: 42, foot: 'Бокс · до 15.03.2027', lead: true })}
+          ${tile({ title: 'Следующая · группа', hero: '18:00', caption: 'завтра · Бокс', foot: 'Тренер: Олег' })}
+        </div>`
+        html += azVisits()
+        showFromTrainer = false
+        tabCols = 3
+      }
+
+      if (life === 'tz') {
+        html += `<div class="tiles">
+          ${tile({ title: 'Мой абонемент · ТЗ', hero: 'до 01.06.2027', caption: 'тренажёрный зал', foot: 'Без списания занятий — только срок', lead: true })}
+        </div>
+        <section class="card muted">Нет следующей тренировки и списка визитов — в ТЗ пока нет этих данных в Ядре. Есть сторис и сообщения с клубом.</section>`
+        showFromTrainer = false
+        tabCols = 3
+      }
+
+      if (life === 'both') {
+        html += progressCard({ kg: '59,9 кг', when: '18.10.2026 · последний замер', mixed: true, cta: true })
+        html += statsCard()
+        html += `<div class="tiles">
+          ${tile({ title: 'Абонемент · ПЗ', hero: '4', unit: 'из 17', caption: 'тренировки списано', bar: 24, foot: 'До 11.12.2026', lead: true })}
+          ${tile({ title: 'Следующая · персоналка', hero: '13:00', caption: 'вт, 20 октября', foot: 'Тренер: Марина' })}
+        </div>
+        <div class="tiles">
+          ${tile({ title: 'Абонемент · АЗ', hero: '5', unit: 'из 12', caption: 'Бокс', bar: 42, foot: 'До 15.03.2027' })}
+          ${tile({ title: 'Следующая · группа', hero: '18:00', caption: 'завтра · Бокс', foot: 'По расписанию направления' })}
+        </div>`
+        html += loyalty()
+      }
+
+      if (life === 'pz-to-az') {
+        html += progressCard({ kg: '59,9 кг', when: '18.10.2026 · с персоналок (история)', mixed: true, cta: true })
+        html += `<div class="tiles">
+          ${tile({ title: 'Мой абонемент · АЗ', hero: '5', unit: 'из 12', caption: 'занятий списано', bar: 42, foot: 'Бокс · до 15.03.2027', lead: true })}
+          ${tile({ title: 'Следующая · группа', hero: '18:00', caption: 'завтра · Бокс', foot: 'Тренер: Олег' })}
+        </div>`
+        html += azVisits()
+        html += `<section class="card muted">Персональные блоки и «От тренера» скрыты — ПЗ закрыт. График веса не стёрли.</section>`
+        showFromTrainer = false
+        tabCols = 3
+      }
+
+      main.innerHTML = html
+      document.getElementById('note').textContent = notes[life]
+
+      tabs.dataset.cols = String(tabCols)
+      tabs.innerHTML = showFromTrainer
+        ? `<div class="tab" aria-current="page"><b>■</b>Главная</div>
+           <div class="tab"><b>□</b>Тренировки</div>
+           <div class="tab"><b>□</b>От тренера</div>
+           <div class="tab"><b>□</b>Сообщения</div>`
+        : `<div class="tab" aria-current="page"><b>■</b>Главная</div>
+           <div class="tab"><b>□</b>Тренировки</div>
+           <div class="tab"><b>□</b>Сообщения</div>`
+
+      main.querySelectorAll('[data-open-editor]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.getElementById('editor').hidden = false
+        })
+      })
+    }
+
+    document.querySelectorAll('.chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)))
+        render(btn.dataset.life)
+      })
+    })
+    document.getElementById('editor-close').addEventListener('click', () => {
+      document.getElementById('editor').hidden = true
+    })
+    document.getElementById('editor-save').addEventListener('click', () => {
+      document.getElementById('editor').hidden = true
+    })
+    document.getElementById('editor').addEventListener('click', (e) => {
+      if (e.target.id === 'editor') e.target.hidden = true
+    })
+
+    render('pz')
+  </script>
+</body>
+</html>
