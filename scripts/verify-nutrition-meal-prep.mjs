@@ -83,6 +83,22 @@ const topped = topUpMealItemsToBudget(tiny, 500, catalog, { preferProtein: true 
 const toppedKcal = topped.reduce((s, i) => s + (i.kcal ?? 0), 0)
 ok(toppedKcal > 200, `top-up raises meal kcal (${toppedKcal})`)
 
+// Добор не кладёт второй гарнир (макароны + рис) — INC-2026-10-30-01
+const pastaMaxed = [
+  { productId: 'turkey_breast', label: 'Индейка', grams: 220, kcal: 205, proteinG: 46, fatG: 2, carbsG: 0 },
+  { productId: 'pasta_whole', label: 'Макароны цельнозерновые (варёные)', grams: 250, kcal: 352, proteinG: 14, fatG: 3, carbsG: 68 },
+  { productId: 'butter', label: 'Сливочное масло', grams: 10, kcal: 75, proteinG: 0, fatG: 8, carbsG: 0 },
+]
+const toppedPasta = topUpMealItemsToBudget(pastaMaxed, 900, catalog, {
+  preferProtein: false,
+  allowedIds: ['turkey_breast', 'pasta_whole', 'butter', 'rice', 'olive_oil', 'nuts_walnut'],
+})
+ok(!toppedPasta.some((i) => i.productId === 'rice'), 'top-up does not add rice when pasta already in meal')
+ok(
+  toppedPasta.every((i) => ['turkey_breast', 'pasta_whole', 'butter', 'olive_oil', 'nuts_walnut'].includes(i.productId)),
+  'top-up only oil/nuts (or existing) when carb side capped',
+)
+
 if (failed) {
   console.error(`\n${failed} check(s) failed`)
   process.exit(1)

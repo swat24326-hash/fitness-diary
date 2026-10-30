@@ -174,6 +174,10 @@ export function topUpMealItemsToBudget(items, mealKcalBudget, catalogMap, opts =
  */
 function tryAppendFiller(items, catalogMap, allowed, fillerKeys) {
   const have = new Set(items.map((i) => i.productId))
+  const existingRoles = items.map((i) =>
+    getProductMealRole(i.productId, resolveCatalogProduct(catalogMap, i.productId, { label: i.label })),
+  )
+  const hasCarbSide = existingRoles.some((r) => r === 'starchy' || r === 'grain')
   for (const key of fillerKeys) {
     const id = resolveFillerId(key, catalogMap, allowed)
     if (!id || have.has(id)) continue
@@ -181,9 +185,10 @@ function tryAppendFiller(items, catalogMap, allowed, fillerKeys) {
     if (!p) continue
     if (allowed && !allowed.has(id)) continue
     const role = getProductMealRole(id, p)
+    // Не класть второй гарнир (макароны + рис) — тарелка и название расходятся с реальностью.
+    if (hasCarbSide && (role === 'starchy' || role === 'grain')) continue
     if (role === 'oil_fat' || role === 'spread_dairy_fat') {
-      const roles = items.map((i) => getProductMealRole(i.productId, resolveCatalogProduct(catalogMap, i.productId, { label: i.label })))
-      if (!roles.some((r) => r === 'starchy' || r === 'grain' || r === 'protein' || r === 'salad')) continue
+      if (!existingRoles.some((r) => r === 'starchy' || r === 'grain' || r === 'protein' || r === 'salad')) continue
     }
     const startG = role === 'oil_fat' || role === 'nut_fat' ? 10 : role === 'protein' ? 80 : 80
     const grams = clampProductGrams(id, startG, p)

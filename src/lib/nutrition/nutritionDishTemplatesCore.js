@@ -8,10 +8,11 @@
  * @property {DishPartRole} role
  * @property {number} share доля ккал внутри блюда (сумма частей ≈ 1)
  * @property {boolean} [optional] нет кандидата — часть пропускаем
+ * @property {string[]} [foodCats] только эти food_cat (например potato) — иначе часть не заполняется
  *
  * @typedef {object} DishTemplate
  * @property {string} id
- * @property {string} label
+ * @property {string} label запасное имя; клиенту чаще показывают dishLabelFromItems
  * @property {string[]} slotKinds breakfast|lunch|dinner|snack
  * @property {DishPart[]} parts
  */
@@ -107,7 +108,8 @@ export const NUTRITION_DISH_TEMPLATES = [
     slotKinds: ['lunch', 'dinner'],
     parts: [
       { role: 'protein', share: 0.4 },
-      { role: 'starchy', share: 0.4 },
+      // Только картофель — иначе название и состав расходятся (рис/макароны ≠ «с картофелем»).
+      { role: 'starchy', share: 0.4, foodCats: ['potato'] },
       { role: 'spread_dairy_fat', share: 0.1, optional: true },
       { role: 'salad', share: 0.1, optional: true },
     ],

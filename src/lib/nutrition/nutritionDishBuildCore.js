@@ -2,6 +2,8 @@
  * Сборка приёма пищи из шаблона тарелки + пулов продуктов клиента.
  */
 import { resolveCatalogProduct } from './nutritionCatalogResolve.js'
+import { dishLabelFromItems } from './nutritionDishLabelCore.js'
+import { getProductFoodCategory } from './nutritionFoodCategoriesCore.js'
 import {
   formatProductPortion,
   gramsForKcal,
@@ -34,12 +36,33 @@ function poolGroupForRole(role) {
 }
 
 /**
+ * @param {string} productId
+ * @param {import('./nutritionCatalogResolve.js').ResolvedNutritionProduct | null | undefined} product
+ * @param {string[] | undefined} foodCats
+ */
+function matchesFoodCats(productId, product, foodCats) {
+  if (!foodCats?.length) return true
+  const cat = getProductFoodCategory(product)
+  if (cat && foodCats.includes(cat)) return true
+  const id = String(productId ?? '')
+  const label = String(product?.label ?? '').toLowerCase()
+  if (foodCats.includes('potato') && (id === 'potato' || label.includes('картофел'))) return true
+  if (foodCats.includes('pasta') && (id === 'pasta' || id === 'pasta_whole' || label.includes('макарон'))) return true
+  return false
+}
+
+/**
  * @param {string[]} pool
  * @param {import('./nutritionDishTemplatesCore.js').DishPartRole} role
  * @param {Map<string, import('./nutritionCatalogResolve.js').ResolvedNutritionProduct>} catalogMap
+ * @param {string[]} [foodCats]
  */
-function candidatesForRole(pool, role, catalogMap) {
-  return (pool ?? []).filter((id) => getProductMealRole(id, resolveCatalogProduct(catalogMap, id)) === role)
+function candidatesForRole(pool, role, catalogMap, foodCats) {
+  return (pool ?? []).filter((id) => {
+    const product = resolveCatalogProduct(catalogMap, id)
+    if (getProductMealRole(id, product) !== role) return false
+    return matchesFoodCats(id, product, foodCats)
+  })
 }
 
 /**
@@ -109,9 +132,10 @@ export function fillDishParts({ template, productIdsByGroup, catalogMap, mealInd
       }
     }
 
-    let candidates = candidatesForRole(pool, part.role, catalogMap)
-    if (part.role === 'starchy') {
+    let candidates = candidatesForRole(pool, part.role, catalogMap, part.foodCats)
+    if (part.role === 'starchy' && !part.foodCats?.length) {
       // Без meal_role клубные углеводы часто все «starchy»; если роли узкие — берём любой карб.
+      // Не подменяем, если часть требует конкретную полку (картофель и т.п.).
       for (const fallback of /** @type {const} */ (['grain', 'fruit', 'salad'])) {
         if (candidates.length) break
         candidates = candidatesForRole(pool, fallback, catalogMap)
@@ -259,10 +283,11 @@ export function buildMealFromDish({ slotId, mealIndex, mealKcalBudget, productId
     }
     if (rawItems.length < 2 && mealKcalBudget > 100) continue
 
+    const items = scaleMealItemsToBudget(rawItems, mealKcalBudget, catalogMap)
     return {
       dishId: template.id,
-      dishLabel: template.label,
-      items: scaleMealItemsToBudget(rawItems, mealKcalBudget, catalogMap),
+      dishLabel: dishLabelFromItems(items, catalogMap, template.label),
+      items,
     }
   }
 

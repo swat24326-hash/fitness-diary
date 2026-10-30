@@ -1,6 +1,7 @@
 import { buildNutritionPlan, normalizeNutritionSurvey } from '../src/lib/nutrition/nutritionPlanBuilder.js'
 import { buildMealFromDish, fillDishParts } from '../src/lib/nutrition/nutritionDishBuildCore.js'
-import { pickDishTemplate, templatesForSlot } from '../src/lib/nutrition/nutritionDishTemplatesCore.js'
+import { dishLabelFromItems } from '../src/lib/nutrition/nutritionDishLabelCore.js'
+import { NUTRITION_DISH_TEMPLATES, pickDishTemplate, templatesForSlot } from '../src/lib/nutrition/nutritionDishTemplatesCore.js'
 import { buildNutritionCatalogMap } from '../src/lib/nutrition/nutritionCatalogResolve.js'
 import { getProductMealRole } from '../src/lib/nutrition/nutritionMealPairingCore.js'
 import { resolveCatalogProduct } from '../src/lib/nutrition/nutritionCatalogResolve.js'
@@ -82,6 +83,75 @@ ok(meal?.dishLabel, `dinner dish label: ${meal?.dishLabel}`)
 ok((meal?.items?.length ?? 0) >= 2, 'dinner items ≥2')
 const dinnerKcal = meal.items.reduce((s, i) => s + (i.kcal ?? 0), 0)
 ok(Math.abs(dinnerKcal - 600) <= 600 * 0.12, `dinner kcal near budget (${dinnerKcal})`)
+
+// INC-2026-10-30-01: «Белок с картофелем» без картофеля / с рисом
+const potatoTpl = NUTRITION_DISH_TEMPLATES.find((t) => t.id === 'protein_potato')
+ok(!!potatoTpl, 'protein_potato template exists')
+const noPotatoPools = {
+  protein: ['turkey_breast'],
+  fat: ['butter', 'olive_oil'],
+  carbs: ['rice', 'pasta_whole', 'buckwheat', 'vegetables'],
+}
+const potatoWithoutPotato = fillDishParts({
+  template: potatoTpl,
+  productIdsByGroup: noPotatoPools,
+  catalogMap,
+  mealIndex: 0,
+  slotKind: 'dinner',
+})
+ok(potatoWithoutPotato == null, 'protein_potato without potato → empty (не рис вместо картофеля)')
+
+const withPotatoPools = {
+  protein: ['turkey_breast'],
+  fat: ['butter'],
+  carbs: ['potato', 'rice', 'pasta_whole'],
+}
+const potatoFill = fillDishParts({
+  template: potatoTpl,
+  productIdsByGroup: withPotatoPools,
+  catalogMap,
+  mealIndex: 0,
+  slotKind: 'dinner',
+})
+ok(potatoFill?.some((p) => p.productId === 'potato'), 'protein_potato picks potato')
+ok(!potatoFill?.some((p) => p.productId === 'rice' || p.productId === 'pasta_whole'), 'protein_potato without rice/pasta as side')
+
+const riceDinner = buildMealFromDish({
+  slotId: 'dinner',
+  mealIndex: 2,
+  mealKcalBudget: 700,
+  productIdsByGroup: noPotatoPools,
+  catalogMap,
+})
+ok(Boolean(riceDinner?.items?.length), `dinner without potato still builds (${riceDinner?.dishLabel})`)
+ok(riceDinner?.dishId !== 'protein_potato', `no potato in pool → not protein_potato (got ${riceDinner?.dishId})`)
+ok(!/картофел/i.test(riceDinner?.dishLabel ?? ''), `label without potato when no potato: ${riceDinner?.dishLabel}`)
+ok(
+  /рис|гречк|макарон|овощ/i.test(riceDinner?.dishLabel ?? ''),
+  `label names real side, not «Белок…»: ${riceDinner?.dishLabel}`,
+)
+ok(
+  dishLabelFromItems(
+    [
+      { productId: 'turkey_breast', label: 'Индейка' },
+      { productId: 'rice', label: 'Рис (варёный)' },
+    ],
+    catalogMap,
+    'Белок с картофелем',
+  ) === 'Индейка с рисом',
+  'dish label from items: turkey + rice',
+)
+ok(
+  dishLabelFromItems(
+    [
+      { productId: 'turkey_breast', label: 'Индейка' },
+      { productId: 'potato', label: 'Картофель (варёный)' },
+    ],
+    catalogMap,
+    'fallback',
+  ) === 'Индейка с картофелем',
+  'dish label from items: turkey + potato',
+)
 
 const health = { height_cm: 170, current_weight_kg: 75, weight_kg: 75, sex: 'male' }
 const survey = normalizeNutritionSurvey({
