@@ -174,7 +174,15 @@ export function readCoachClub() {
 }
 
 export function saveCoachClub(club) {
-  writeJson(CLUB_KEY, club?.name ? { name: club.name, manifest_url: club.manifest_url ?? null } : null)
+  if (!club?.name) {
+    writeJson(CLUB_KEY, null)
+    return
+  }
+  writeJson(CLUB_KEY, {
+    id: String(club.id ?? '').trim() || undefined,
+    name: club.name,
+    manifest_url: club.manifest_url ?? null,
+  })
 }
 
 async function validAccessToken() {
