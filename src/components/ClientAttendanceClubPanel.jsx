@@ -74,34 +74,48 @@ export function ClientAttendanceClubPanel({
         filter: 'attendance_slip',
       })
 
-  const trainerRows = Array.isArray(clientAttendance.byTrainer)
-    ? selfTrainerId
-      ? clientAttendance.byTrainer.filter((r) => r.trainerId === selfTrainerId)
-      : clientAttendance.byTrainer
-    : []
+  /* Сравнение по тренерам — контур админки; у тренера своей строки-рейтинга нет (как удержание). */
+  const trainerRows =
+    !selfTrainerId && Array.isArray(clientAttendance.byTrainer) ? clientAttendance.byTrainer : []
   const showTrainers = trainerRows.length > 0
 
   const mixMax = Math.max(
     0,
     ...REGULARITY_ROWS.map((row) => Number(by[row.key]) || 0),
   )
+  const windowDays = clientAttendance.windowDays ?? 30
+  const asOfLabel = clientAttendance.asOf ?? 'сегодня'
 
   return (
     <section className="card admin-club-stats-detail client-retention-panel">
       <header className="client-retention-panel__head">
-        <h3 className="section-title client-retention-panel__title">Посещаемость ПЗ</h3>
-        <div className="client-retention-panel__about" role="note">
+        <h3 className="section-title client-retention-panel__title">
+          {selfTrainerId ? 'Ваша посещаемость ПЗ' : 'Посещаемость ПЗ'}
+        </h3>
+        <details className="client-retention-panel__explain">
+          <summary className="client-retention-panel__explain-summary">
+            {selfTrainerId ? 'Зачем вам эти цифры' : 'Зачем клубу эти цифры'}
+          </summary>
           <p className="client-retention-panel__about-lead">
-            <strong>Зачем клубу:</strong> сколько в среднем ходят клиенты с активным абоном (планшет), и где
-            проседает ритм — до того, как человек уйдёт в архив. Это не «проведено тренировок» за месяц сводки.
+            {selfTrainerId ? (
+              <>
+                <strong>Зачем вам:</strong> сколько в среднем ходят ваши клиенты с активным абоном (планшет), и
+                где проседает ритм — до ухода в архив. Это не «проведено тренировок» за месяц сводки и не рейтинг
+                из админки.
+              </>
+            ) : (
+              <>
+                <strong>Зачем клубу:</strong> сколько в среднем ходят клиенты с активным абоном (планшет), и где
+                проседает ритм — до того, как человек уйдёт в архив. Это не «проведено тренировок» за месяц
+                сводки.
+              </>
+            )}
           </p>
-          <ul className="client-retention-panel__about-list">
+          <ul className="client-retention-panel__explain-list">
             <li>
-              <strong>Средняя посещаемость</strong> — ритм за последние{' '}
-              {clientAttendance.windowDays ?? 30} дней до {clientAttendance.asOf ?? 'сегодня'} (не за выбранный
-              месяц в фильтре). Рядом — сравнение с <em>предыдущими</em>{' '}
-              {clientAttendance.windowDays ?? 30} днями. Формула: (сумма завершённых ÷ пул) × (7 ÷{' '}
-              {clientAttendance.windowDays ?? 30} дн.)
+              <strong>Средняя посещаемость</strong> — ритм за последние {windowDays} дней до {asOfLabel} (не за
+              выбранный месяц в фильтре). Рядом — сравнение с <em>предыдущими</em> {windowDays} днями. Формула:
+              (сумма завершённых ÷ пул) × (7 ÷ {windowDays} дн.)
               {clientAttendance.windowFrom
                 ? ` · окно ${clientAttendance.windowFrom}…${clientAttendance.asOf ?? '…'}`
                 : ''}
@@ -110,9 +124,12 @@ export function ClientAttendanceClubPanel({
             <li>
               <strong>Без выпадения</strong> — доля пула без паузы ≥14 дн. с последнего визита.
             </li>
-            <li>Структура ритма и таблица по тренерам — для сравнения, не список ФИО.</li>
+            <li>
+              Структура ритма
+              {selfTrainerId ? '' : ' и таблица по тренерам'} — для сравнения, не список ФИО.
+            </li>
           </ul>
-        </div>
+        </details>
       </header>
 
       <div className="client-retention-kpi-grid" role="list">
