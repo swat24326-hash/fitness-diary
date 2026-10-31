@@ -71,6 +71,37 @@ export function bodyMeasureLines() {
 }
 
 /**
+ * Строки формы ввода (клиент /me): пара правая|левая (или верх|низ) в одном ряду;
+ * одиночные без пары — своя строка; два одиночных подряд (шея|грудь) — рядом.
+ * @returns {Array<Array<(typeof BODY_MEASURE_FIELDS)[number]>>}
+ */
+export function bodyMeasureFormRows() {
+  const rows = []
+  /** @type {(typeof BODY_MEASURE_FIELDS)[number] | null} */
+  let pending = null
+  for (const group of BODY_MEASURE_GROUPS) {
+    if (group.fields.length >= 2) {
+      if (pending) {
+        rows.push([pending])
+        pending = null
+      }
+      rows.push(group.fields.map((id) => FIELD_BY_ID[id]).filter(Boolean))
+      continue
+    }
+    const field = FIELD_BY_ID[group.fields[0]]
+    if (!field) continue
+    if (pending) {
+      rows.push([pending, field])
+      pending = null
+    } else {
+      pending = field
+    }
+  }
+  if (pending) rows.push([pending])
+  return rows
+}
+
+/**
  * Сантиметры для таблицы: целое без дроби, десятые через запятую.
  * @returns {string | null}
  */

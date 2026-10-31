@@ -1,7 +1,13 @@
 /**
  * Подписи и группировка обмеров (node scripts/verify-body-measures.mjs).
  */
-import { BODY_MEASURE_FIELDS, BODY_MEASURE_GROUPS, bodyMeasureLines, formatMeasureCm } from '../src/lib/bodyMeasures.js'
+import {
+  BODY_MEASURE_FIELDS,
+  BODY_MEASURE_GROUPS,
+  bodyMeasureFormRows,
+  bodyMeasureLines,
+  formatMeasureCm,
+} from '../src/lib/bodyMeasures.js'
 
 let failed = 0
 
@@ -31,6 +37,26 @@ ok(lines.find((line) => line.id === 'waist')?.cells.map((cell) => cell.side).joi
 ok(formatMeasureCm(32) === '32', 'целое без дроби')
 ok(formatMeasureCm('32.5') === '32,5', 'десятые через запятую')
 ok(formatMeasureCm(null) === null && formatMeasureCm('') === null, 'пустое значение не рисуем нулём')
+
+const formRows = bodyMeasureFormRows()
+const formFlat = formRows.flat().map((f) => f.id)
+ok(formFlat.join(',') === ids.join(','), 'форма /me: все поля по порядку')
+ok(
+  formRows.some((row) => row.length === 2 && row[0].id === 'thigh_r' && row[1].id === 'thigh_l'),
+  'форма /me: бёдра правое|левое в одном ряду',
+)
+ok(
+  formRows.some((row) => row.length === 2 && row[0].id === 'arm_r' && row[1].id === 'arm_l'),
+  'форма /me: руки правая|левая в одном ряду',
+)
+ok(
+  formRows.some((row) => row.length === 2 && row[0].id === 'calf_r' && row[1].id === 'calf_l'),
+  'форма /me: голени правая|левая в одном ряду',
+)
+ok(
+  formRows.some((row) => row.length === 1 && row[0].id === 'glutes'),
+  'форма /me: ягодицы отдельно, не сдвигают бёдра',
+)
 
 if (failed) process.exit(1)
 console.log('body measures ok')

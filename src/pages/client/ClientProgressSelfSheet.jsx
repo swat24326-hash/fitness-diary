@@ -3,7 +3,7 @@
  */
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { BODY_MEASURE_FIELDS } from '../../lib/bodyMeasures.js'
+import { BODY_MEASURE_FIELDS, bodyMeasureFormRows } from '../../lib/bodyMeasures.js'
 import {
   parseSelfMeasureValues,
   parseSelfProgressDate,
@@ -76,6 +76,7 @@ export function ClientProgressSelfSheet({ kind, asOf, initial, busy = false, err
     <div className="client-progress-self" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" className="client-progress-self__backdrop" aria-label="Закрыть" onClick={onClose} />
       <div className="client-progress-self__panel">
+        <div className="client-progress-self__handle" aria-hidden />
         <header className="client-progress-self__head">
           <h2>{title}</h2>
           <button type="button" className="client-progress-self__close btn-touch" aria-label="Закрыть" onClick={onClose}>
@@ -84,13 +85,10 @@ export function ClientProgressSelfSheet({ kind, asOf, initial, busy = false, err
         </header>
         <p className="client-progress-self__legend">
           <span className="client-progress-self__legend-club">● от клуба</span>
-          <span className="client-progress-self__legend-sep" aria-hidden>
-            ·
-          </span>
-          <span className="client-progress-self__legend-me">○ вы внесли — свои можно изменить</span>
+          <span className="client-progress-self__legend-me">○ свои — можно изменить</span>
         </p>
         <form className="client-progress-self__form" onSubmit={submit}>
-          <label className="client-progress-self__field">
+          <label className="client-progress-self__field client-progress-self__field--date">
             <span>Дата</span>
             <input type="date" value={date} max={asOf} required disabled={busy} onChange={(e) => setDate(e.target.value)} />
           </label>
@@ -112,20 +110,31 @@ export function ClientProgressSelfSheet({ kind, asOf, initial, busy = false, err
           ) : (
             <div className="client-progress-self__measures" role="group" aria-label="Обмеры в сантиметрах">
               <p className="client-progress-self__unit">Значения в см</p>
-              {BODY_MEASURE_FIELDS.map((f) => (
-                <label key={f.id} className="client-progress-self__field client-progress-self__field--cm">
-                  <span>{f.label}</span>
-                  <input
-                    inputMode="decimal"
-                    autoComplete="off"
-                    enterKeyHint="next"
-                    maxLength={6}
-                    value={values[f.id] ?? ''}
-                    disabled={busy}
-                    aria-label={`${f.label}, см`}
-                    onChange={(e) => setValues((prev) => ({ ...prev, [f.id]: e.target.value }))}
-                  />
-                </label>
+              {bodyMeasureFormRows().map((row) => (
+                <div
+                  key={row.map((f) => f.id).join('-')}
+                  className={
+                    row.length === 1
+                      ? 'client-progress-self__row client-progress-self__row--solo'
+                      : 'client-progress-self__row'
+                  }
+                >
+                  {row.map((f) => (
+                    <label key={f.id} className="client-progress-self__field client-progress-self__field--cm">
+                      <span>{f.label}</span>
+                      <input
+                        inputMode="decimal"
+                        autoComplete="off"
+                        enterKeyHint="next"
+                        maxLength={6}
+                        value={values[f.id] ?? ''}
+                        disabled={busy}
+                        aria-label={`${f.label}, см`}
+                        onChange={(e) => setValues((prev) => ({ ...prev, [f.id]: e.target.value }))}
+                      />
+                    </label>
+                  ))}
+                </div>
               ))}
             </div>
           )}
