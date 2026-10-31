@@ -8,6 +8,12 @@ import {
   validateDeskManualCreateForm,
 } from '../src/lib/admin/deskManualClientCreateCore.js'
 import { assertSalesManagerClientInsert } from '../src/lib/admin/salesManagerClientsAccessCore.js'
+import {
+  CLIENT_PENDING_IN_CLOUD_PUSH_ERROR,
+  isClientPendingInCloudPushError,
+} from '../src/lib/syncClientPendingPushCore.js'
+import { isUnrecoverablePushError } from '../src/lib/syncFlushResult.js'
+import { splitSyncPushWaves } from '../src/lib/syncQueuePriorityCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -154,6 +160,26 @@ const smWrongClub = assertSalesManagerClientInsert('club1', {
   trainer_id: null,
 })
 ok(smWrongClub.ok === false, 'SM wrong club blocked')
+
+ok(isClientPendingInCloudPushError(CLIENT_PENDING_IN_CLOUD_PUSH_ERROR), 'pending-client message matcher')
+ok(
+  !isUnrecoverablePushError(403, CLIENT_PENDING_IN_CLOUD_PUSH_ERROR),
+  'pending client 403 must retry (not drop membership)',
+)
+{
+  const waves = splitSyncPushWaves([
+    { table_name: 'memberships', operation: 'insert', data: { id: 'm1' } },
+    { table_name: 'clients', operation: 'insert', data: { id: 'c1' } },
+    { table_name: 'client_hall_lifecycle', operation: 'insert', data: { id: 'l1' } },
+  ])
+  ok(
+    waves.length === 2 &&
+      waves[0][0].table_name === 'clients' &&
+      waves[1].some((x) => x.table_name === 'memberships') &&
+      waves[1].some((x) => x.table_name === 'client_hall_lifecycle'),
+    'desk create push: client wave before membership/lifecycle',
+  )
+}
 
 if (failed) {
   console.error(`\n${failed} failed`)

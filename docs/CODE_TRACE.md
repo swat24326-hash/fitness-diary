@@ -61,7 +61,8 @@
 | Справочник упражнений | `src/lib/exerciseService.js`, `src/lib/exerciseMutationCore.js` (insert/update не ждут сеть) |
 | Pull merge | `src/lib/trainerPullService.js`, `src/lib/syncHeaderPullTrainer.js`, `src/lib/syncHeaderPullService.js` |
 | Архив / prune | `src/lib/trainerPullClientPruneCore.js`, `src/lib/clientTrainingsPrune.js`, `src/lib/clientMembershipsPrune.js` |
-| API | `api/trainer-pull.js`, `api/push-records.js`, `api/_lib/pushRecordCore.js` (draft не откатывает completed). Тренер отпускает своего клиента: `src/lib/trainer/trainerClientPushAuthCore.js`. Lifecycle push: `src/lib/trainer/trainerClientHallLifecyclePushAuthCore.js` + `api/_lib/mutationAuth.js` |
+| API | `api/trainer-pull.js`, `api/push-records.js`, `api/_lib/pushRecordCore.js` (draft не откатывает completed). Тренер отпускает своего клиента: `src/lib/trainer/trainerClientPushAuthCore.js`. Lifecycle push: `src/lib/trainer/trainerClientHallLifecyclePushAuthCore.js` + `api/_lib/mutationAuth.js` (`assertAccessForDependentClientInsert` — гонка insert клиента) |
+| Волны push | `src/lib/syncQueuePriorityCore.js` (`splitSyncPushWaves`: clients → mid → trainings → schedule/weight); pending-client: `src/lib/syncClientPendingPushCore.js` + `isUnrecoverablePushError` |
 | Сервер занят (503) | `api/_lib/dbErrorPublicCore.js` (`isTransientDbError`), `api/_lib/pgRest/transientStrictClient.js` (push + `authorizePush`), `src/lib/syncFlushResult.js` (`isDeferrablePushFailure`) — `scripts/verify-db-busy.mjs`, INC-2026-10-13-01 |
 | Заявка после удаления клиента | `src/lib/admin/saleClipClientGoneCore.js`, `api/_lib/saleClipClientGone.js` |
 | Verify | `scripts/verify-sync-offline.mjs`, `scripts/verify-sync-unsynced.mjs`, `scripts/verify-sync-pull-merge.mjs`, `scripts/verify-training-persist-status.mjs`, `scripts/verify-exercise-catalog-save.mjs`, `scripts/verify-trainer-client-push-auth.mjs`, `scripts/verify-trainer-client-hall-lifecycle-push-auth.mjs` |

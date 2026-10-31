@@ -55,6 +55,10 @@ assert(
   !isUnrecoverablePushError(403, 'Связанная тренировка не найдена'),
   '403 schedule linked training missing -> retry (race)',
 )
+assert(
+  !isUnrecoverablePushError(403, 'Клиент пока не в облаке — повторите Sync'),
+  '403 membership/lifecycle pending client -> retry (desk create race)',
+)
 
 /* --- duplicate insert --- */
 assert(isDuplicateInsertError({ status: 409 }), '409 duplicate')

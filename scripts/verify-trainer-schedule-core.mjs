@@ -226,7 +226,23 @@ ok(
     { table_name: 'trainer_schedule_entries', operation: 'update', data: { id: 's1' } },
     { table_name: 'trainings', operation: 'insert', data: { id: 't1' } },
   ])
-  ok(waves.length === 2 && waves[0][0].table_name === 'trainings', 'push waves: trainings first')
+  ok(waves.length === 2 && waves[0][0].table_name === 'trainings', 'push waves: trainings before schedule')
+}
+{
+  const waves = splitSyncPushWaves([
+    { table_name: 'memberships', operation: 'insert', data: { id: 'm1' } },
+    { table_name: 'clients', operation: 'insert', data: { id: 'c1' } },
+    { table_name: 'trainings', operation: 'insert', data: { id: 't1' } },
+    { table_name: 'trainer_schedule_entries', operation: 'insert', data: { id: 's1' } },
+  ])
+  ok(
+    waves.length === 4 &&
+      waves[0][0].table_name === 'clients' &&
+      waves[1][0].table_name === 'memberships' &&
+      waves[2][0].table_name === 'trainings' &&
+      waves[3][0].table_name === 'trainer_schedule_entries',
+    'push waves: clients → memberships → trainings → schedule',
+  )
 }
 
 if (failed) {

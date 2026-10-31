@@ -1,5 +1,7 @@
 /** Чистая логика синхронизации (без IndexedDB / Supabase) — для UI и node-тестов. */
 
+import { isClientPendingInCloudPushError } from './syncClientPendingPushCore.js'
+
 /** Pull не затирает локальную строку и не восстанавливает удалённую при pending в очереди. */
 export function shouldPreserveLocalRowOnPull(pendingIdSet, recordId, _hasLocalRow) {
   const id = String(recordId ?? '').trim()
@@ -74,6 +76,8 @@ export function isUnrecoverablePushError(status, message) {
   }
   // Копия ещё не в облаке: update «тренировка не найдена» — повторить как insert, не снимать очередь.
   if (msg.includes('тренировка не найдена')) return false
+  // Абон/lifecycle в том же пакете, что новый клиент — ждать, не drop.
+  if (isClientPendingInCloudPushError(message)) return false
   return (
     msg.includes('нет доступа к клиенту') ||
     msg.includes('абонемент не найден') ||

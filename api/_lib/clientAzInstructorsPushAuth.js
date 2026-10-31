@@ -7,6 +7,7 @@ import { assertClientAzInstructorsPushRole } from '../../src/lib/admin/clientAzI
 import { isAerobicSalesMembershipType } from '../../src/lib/membershipTypesCore.js'
 import { assertSalesManagerSameClub } from '../../src/lib/admin/salesManagerClientsAccessCore.js'
 import { isClientAzInstructorUuid } from '../../src/lib/admin/clientAzInstructorsCore.js'
+import { CLIENT_PENDING_IN_CLOUD_PUSH_ERROR } from '../../src/lib/syncClientPendingPushCore.js'
 
 /**
  * @param {object} ctx — authorizePush ctx
@@ -14,8 +15,16 @@ import { isClientAzInstructorUuid } from '../../src/lib/admin/clientAzInstructor
  * @param {object} payload
  * @param {string|null} remote_id
  * @param {(ctx: object, clientId: string) => Promise<boolean>} canAccessClient
+ * @param {(ctx: object, clientId: string) => Promise<{ ok: true } | { ok: false, error: string }>} [assertDependentInsert]
  */
-export async function authorizeClientAzInstructorsPush(ctx, op, payload, remote_id, canAccessClient) {
+export async function authorizeClientAzInstructorsPush(
+  ctx,
+  op,
+  payload,
+  remote_id,
+  canAccessClient,
+  assertDependentInsert,
+) {
   const roleGate = assertClientAzInstructorsPushRole({
     op,
     isAdmin: ctx.isAdmin,
@@ -50,7 +59,10 @@ export async function authorizeClientAzInstructorsPush(ctx, op, payload, remote_
   }
 
   const data = roleGate.data
-  if (!(await canAccessClient(ctx, data.client_id))) {
+  if (typeof assertDependentInsert === 'function') {
+    const access = await assertDependentInsert(ctx, data.client_id)
+    if (!access.ok) return access
+  } else if (!(await canAccessClient(ctx, data.client_id))) {
     return { ok: false, error: 'Нет доступа к клиенту' }
   }
 
@@ -65,7 +77,7 @@ export async function authorizeClientAzInstructorsPush(ctx, op, payload, remote_
     .eq('id', data.client_id)
     .maybeSingle()
   if (clientErr) throw clientErr
-  if (!client) return { ok: false, error: 'Клиент не найден' }
+  if (!client) return { ok: false, error: CLIENT_PENDING_IN_CLOUD_PUSH_ERROR }
   if (String(client.club_id ?? '') !== data.club_id) {
     return { ok: false, error: 'Клуб клиента не совпадает' }
   }

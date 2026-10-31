@@ -84,7 +84,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 **Локальные поля не в облаке:** `synced` и `__sync` живут только в IndexedDB. Перед `/api/push-record` их снимает `recordForPush` (клиент и `executePushRecord`). Иначе PostgREST отвечает HTTP 400 «column synced does not exist» — журнал ошибок админа, очередь при этом может быть пуста. Админский Sync повторно шлёт в облако только челленджи без `synced: true`, не все строки из кэша.
 
-**Порядок отправки:** `trainings` уходят **раньше** `trainer_schedule_entries` (волны auto-push и flush), иначе связь `linked_training_id` ломается на FK / «тренировка ещё не в облаке». Логика: `src/lib/syncQueuePriorityCore.js`.
+**Порядок отправки (волны auto-push и flush):** `clients` → абонементы/lifecycle и прочее → `trainings` → `trainer_schedule_entries` / вес. Иначе (1) менеджер создаёт desk-клиента с абоном — параллельный `push-records` даёт 403 «нет доступа» и **снимает** абон с очереди; (2) связь `linked_training_id` ломается на FK. Пока клиента нет в облаке сервер отвечает «Клиент пока не в облаке — повторите Sync» (retry, не drop). Логика: `src/lib/syncQueuePriorityCore.js`, `syncClientPendingPushCore.js`.
 
 `club_loyalty_settings` и `loyalty_ledger` **не** в allowlist (только `admin-data?action=loyalty-*`). Архив клуба и смена `club_id` пишут `burn_archive` / `club_move` **на сервере** после успешного push `clients`; закрытие **ПЗ** без архива клуба — `burn_archive` после push `client_hall_lifecycle` (`source: pz_hall_close`). Store `loyalty_glance` — кэш GET, не очередь. После ручного Sync тренера: flush → `trainer-pull` → GET `loyalty-glance` пачками ≤80 (не в теле pull).
 

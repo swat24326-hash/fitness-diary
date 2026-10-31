@@ -47,17 +47,29 @@ export function sortSyncPushBatch(items) {
 }
 
 /**
- * Волны auto-push: сначала trainings, потом остальное (параллельный push-records не ломает FK).
+ * Волны auto-push / push-records (параллель внутри волны ломает FK и auth «клиент есть?»).
+ * Порядок: clients → прочее → trainings → слоты/вес (зависят от тренировки).
  * @param {Array<{ table_name?: string }>} items
  * @returns {Array<typeof items>}
  */
 export function splitSyncPushWaves(items) {
   const list = Array.isArray(items) ? items.filter(Boolean) : []
   if (!list.length) return []
-  const trainings = list.filter((x) => String(x.table_name ?? '') === 'trainings')
-  const rest = list.filter((x) => String(x.table_name ?? '') !== 'trainings')
+  const table = (x) => String(x?.table_name ?? '')
+  const isClients = (x) => table(x) === 'clients'
+  const isTrainings = (x) => table(x) === 'trainings'
+  const isAfterTrainings = (x) => {
+    const t = table(x)
+    return t === 'trainer_schedule_entries' || t === 'client_weight_entries'
+  }
+  const clients = list.filter(isClients)
+  const trainings = list.filter(isTrainings)
+  const afterTrainings = list.filter(isAfterTrainings)
+  const mid = list.filter((x) => !isClients(x) && !isTrainings(x) && !isAfterTrainings(x))
   const waves = []
+  if (clients.length) waves.push(sortSyncPushBatch(clients))
+  if (mid.length) waves.push(sortSyncPushBatch(mid))
   if (trainings.length) waves.push(sortSyncPushBatch(trainings))
-  if (rest.length) waves.push(sortSyncPushBatch(rest))
+  if (afterTrainings.length) waves.push(sortSyncPushBatch(afterTrainings))
   return waves
 }

@@ -26,6 +26,7 @@ import { assertHealthScreeningPush } from '../../src/lib/health/healthScreeningC
 import { assertHomeworkLibraryPush } from '../../src/lib/homework/library/homeworkLibraryOverridesCore.js'
 import { isTransientDbError, logDbError } from './dbErrorPublicCore.js'
 import { authorizeClientAzInstructorsPush } from './clientAzInstructorsPushAuth.js'
+import { CLIENT_PENDING_IN_CLOUD_PUSH_ERROR } from '../../src/lib/syncClientPendingPushCore.js'
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -142,6 +143,30 @@ export async function canAccessClient(ctx, clientId) {
 }
 
 /**
+ * Insert абона / lifecycle / зависимых строк: нет клиента в облаке = гонка с insert клиента (retry),
+ * а не «нет доступа» (иначе очередь снимает абон и локально удаляет).
+ * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
+ */
+export async function assertAccessForDependentClientInsert(ctx, clientId) {
+  if (!isUuid(clientId)) return { ok: false, error: 'Нет доступа к клиенту' }
+  if (ctx.isAdmin) return { ok: true }
+  const c = await getClientRow(ctx.supabaseAdmin, clientId)
+  if (!c) return { ok: false, error: CLIENT_PENDING_IN_CLOUD_PUSH_ERROR }
+  if (ctx.isSupervisor || ctx.isSalesManager) {
+    const club = String(ctx.profile?.club_id ?? ctx.supervisorClubId ?? ctx.salesClubId ?? '').trim()
+    if (!(club && String(c.club_id ?? '') === club)) {
+      return { ok: false, error: 'Нет доступа к клиенту' }
+    }
+    return { ok: true }
+  }
+  if (!ctx.isTrainer) return { ok: false, error: 'Нет доступа к клиенту' }
+  if (String(c.trainer_id) !== String(ctx.user.id)) {
+    return { ok: false, error: 'Нет доступа к клиенту' }
+  }
+  return { ok: true }
+}
+
+/**
  * Менеджер продаж: clients/memberships своего клуба; удаление desk ТЗ/АЗ + каскад.
  * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
  */
@@ -196,9 +221,8 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
         return { ok: true }
       }
       const clientId = payload.client_id
-      if (!(await canAccessClient(ctx, clientId))) {
-        return { ok: false, error: 'Нет доступа к клиенту' }
-      }
+      const access = await assertAccessForDependentClientInsert(ctx, clientId)
+      if (!access.ok) return access
       if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
         const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
         if (!clubCheck.ok) return clubCheck
@@ -238,9 +262,8 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
         return { ok: true }
       }
       const clientId = payload.client_id
-      if (!(await canAccessClient(ctx, clientId))) {
-        return { ok: false, error: 'Нет доступа к клиенту' }
-      }
+      const access = await assertAccessForDependentClientInsert(ctx, clientId)
+      if (!access.ok) return access
       if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
         const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
         if (!clubCheck.ok) return clubCheck
@@ -334,9 +357,8 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
         return { ok: true }
       }
       const clientId = payload.client_id
-      if (!(await canAccessClient(ctx, clientId))) {
-        return { ok: false, error: 'Нет доступа к клиенту' }
-      }
+      const access = await assertAccessForDependentClientInsert(ctx, clientId)
+      if (!access.ok) return access
       if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
         const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
         if (!clubCheck.ok) return clubCheck
@@ -373,9 +395,8 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
         return { ok: true }
       }
       const clientId = payload.client_id
-      if (!(await canAccessClient(ctx, clientId))) {
-        return { ok: false, error: 'Нет доступа к клиенту' }
-      }
+      const access = await assertAccessForDependentClientInsert(ctx, clientId)
+      if (!access.ok) return access
       if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
         const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
         if (!clubCheck.ok) return clubCheck
@@ -493,7 +514,14 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
 
   if (table_name === 'client_az_instructors') {
     try {
-      return await authorizeClientAzInstructorsPush(ctx, op, payload, remote_id, canAccessClient)
+      return await authorizeClientAzInstructorsPush(
+        ctx,
+        op,
+        payload,
+        remote_id,
+        canAccessClient,
+        assertAccessForDependentClientInsert,
+      )
     } catch (e) {
       logDbError('push-auth-az-instructors', e)
       return { ok: false, error: 'Ошибка проверки доступа', transient: isTransientDbError(e) }
@@ -661,7 +689,10 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         }
         return trainerClubCheck(ctx, payload, existingClientId, existingRow?.club_id)
       }
-      if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+      {
+        const access = await assertAccessForDependentClientInsert(ctx, clientId)
+        if (!access.ok) return access
+      }
       const membershipClub = await trainerClubCheck(ctx, payload, clientId, null)
       if (!membershipClub.ok) return membershipClub
       const typeId = payload.membership_type_id
@@ -718,8 +749,9 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         closed_at: payload.closed_at,
       })
       if (!hallGate.ok) return hallGate
-      if (!(await canAccessClient(ctx, payload.client_id))) {
-        return { ok: false, error: 'Нет доступа к клиенту' }
+      {
+        const access = await assertAccessForDependentClientInsert(ctx, payload.client_id)
+        if (!access.ok) return access
       }
       return { ok: true }
     }
@@ -770,8 +802,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         return assertPayloadClientMatchesExisting(payload, existingClientId)
       }
       const clientId = payload.client_id
-      if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
-      return { ok: true }
+      return assertAccessForDependentClientInsert(ctx, clientId)
     }
 
     if (table_name === 'body_measurements') {
@@ -786,8 +817,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         return assertPayloadClientMatchesExisting(payload, existingClientId)
       }
       const clientId = payload.client_id
-      if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
-      return { ok: true }
+      return assertAccessForDependentClientInsert(ctx, clientId)
     }
 
     if (table_name === 'client_weight_entries') {
@@ -806,8 +836,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         return assertPayloadClientMatchesExisting(payload, existingClientId)
       }
       const clientId = payload.client_id
-      if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
-      return { ok: true }
+      return assertAccessForDependentClientInsert(ctx, clientId)
     }
 
     if (table_name === 'challenges') {
