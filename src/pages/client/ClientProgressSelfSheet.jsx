@@ -95,27 +95,34 @@ export function ClientProgressSelfSheet({ kind, asOf, initial, busy = false, err
             <input type="date" value={date} max={asOf} required disabled={busy} onChange={(e) => setDate(e.target.value)} />
           </label>
           {kind === 'weight' ? (
-            <label className="client-progress-self__field">
+            <label className="client-progress-self__field client-progress-self__field--kg">
               <span>Вес, кг</span>
               <input
                 inputMode="decimal"
                 autoComplete="off"
+                enterKeyHint="done"
+                maxLength={6}
                 value={kg}
                 disabled={busy}
-                placeholder="например 62,5"
+                placeholder="62,5"
+                aria-label="Вес, кг"
                 onChange={(e) => setKg(e.target.value)}
               />
             </label>
           ) : (
-            <div className="client-progress-self__measures">
+            <div className="client-progress-self__measures" role="group" aria-label="Обмеры в сантиметрах">
+              <p className="client-progress-self__unit">Значения в см</p>
               {BODY_MEASURE_FIELDS.map((f) => (
-                <label key={f.id} className="client-progress-self__field">
-                  <span>{f.label}, см</span>
+                <label key={f.id} className="client-progress-self__field client-progress-self__field--cm">
+                  <span>{f.label}</span>
                   <input
                     inputMode="decimal"
                     autoComplete="off"
+                    enterKeyHint="next"
+                    maxLength={6}
                     value={values[f.id] ?? ''}
                     disabled={busy}
+                    aria-label={`${f.label}, см`}
                     onChange={(e) => setValues((prev) => ({ ...prev, [f.id]: e.target.value }))}
                   />
                 </label>

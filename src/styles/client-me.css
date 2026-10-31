@@ -666,6 +666,7 @@
   display: grid;
   gap: 4px;
   font-size: 0.88rem;
+  min-width: 0;
 }
 
 .client-progress-self__field span {
@@ -673,6 +674,7 @@
 }
 
 .client-progress-self__field input {
+  box-sizing: border-box;
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--border);
@@ -682,10 +684,75 @@
   font: inherit;
 }
 
+/* Вес: узкое поле под 3–4 цифры + запятая */
+.client-progress-self__field--kg {
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.client-progress-self__field--kg input {
+  width: 5.5rem;
+  max-width: 5.5rem;
+  padding: 8px 6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+}
+
 .client-progress-self__measures {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+.client-progress-self__unit {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+/* Обмер: подпись слева, узкая ячейка справа — удобно на телефоне */
+.client-progress-self__field--cm {
+  grid-template-columns: minmax(0, 1fr) 4.75rem;
+  align-items: center;
+  column-gap: 6px;
+  min-height: 44px;
+}
+
+.client-progress-self__field--cm span {
+  font-size: 0.8rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.client-progress-self__field--cm input {
+  width: 4.75rem;
+  min-width: 4.75rem;
+  max-width: 4.75rem;
+  padding: 8px 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+}
+
+/* Узкий телефон: одна колонка, длинные подписи читаются целиком */
+@media (max-width: 360px) {
+  .client-progress-self__measures {
+    grid-template-columns: 1fr;
+  }
+
+  .client-progress-self__field--cm {
+    grid-template-columns: minmax(0, 1fr) 5rem;
+  }
+
+  .client-progress-self__field--cm input {
+    width: 5rem;
+    min-width: 5rem;
+    max-width: 5rem;
+  }
 }
 
 .client-progress-self__error {
