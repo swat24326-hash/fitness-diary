@@ -6,7 +6,7 @@ import { AdminClientClubCallButton } from './AdminClientClubCallButton.jsx'
 import { AdminClubSmsCampaignRowCheck } from './AdminClubSmsCampaignRowCheck.jsx'
 import { AdminClientMaxButton } from './AdminClientMaxButton.jsx'
 import { LoyaltyGlanceChip } from '../loyalty/LoyaltyGlanceChip.jsx'
-import { AdminDeskAzDeductButton } from './AdminDeskAzDeductButton.jsx'
+import { AdminClientsAzDeductSlot } from './AdminClientsAzDeductSlot.jsx'
 import { ClientRowMoreMenu } from '../ClientRowMoreMenu.jsx'
 import {
   clubSmsMarkChipLabel,
@@ -211,7 +211,12 @@ export function AdminClientsListRow({
               <div className="td-client-card__phone">{c.phone ?? '—'}</div>
             </div>
           </div>
-          <div className="td-client-card__facts" aria-label="Сводка по клиенту">
+          <div
+            className={`td-client-card__facts${
+              clientsTab === 'az' || (!crossHallSearch && hall === 'az') ? ' td-client-card__facts--az' : ''
+            }`}
+            aria-label="Сводка по клиенту"
+          >
             <div className="td-client-fact">
               <span className="td-client-fact__label">Карта</span>
               <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
@@ -265,6 +270,39 @@ export function AdminClientsListRow({
                   </div>
                 ) : null}
               </>
+            ) : clientsTab === 'az' || hall === 'az' ? (
+              <>
+                <AdminClientListAbonFact typeCode={abonTypeCode}>
+                  {active ? <>до {formatDateRu(active.end_date)}</> : sig.factLabel || 'нет абонемента'}
+                </AdminClientListAbonFact>
+                <div className="td-client-fact">
+                  <span className="td-client-fact__label">Пакет</span>
+                  <span className="td-client-fact__value">
+                    {deskPkg && deskPkg !== '—' ? deskPkg : '—'}
+                  </span>
+                </div>
+                <div className="td-client-fact">
+                  <span className="td-client-fact__label">Направление</span>
+                  <span className="td-client-fact__value">
+                    {deskAzDirectionLabel(
+                      deskMemForPkg?.membership_type_id ?? active?.membership_type_id,
+                      azMembershipTypes,
+                    )}
+                  </span>
+                </div>
+                <div className="td-client-fact">
+                  <span className="td-client-fact__label">Занятия</span>
+                  <span className="td-client-fact__value">
+                    {deskMemForPkg || active ? formatDeskAzSessionUsageRu(deskMemForPkg || active) : '—'}
+                  </span>
+                </div>
+                {birthdayLabel ? (
+                  <div className="td-client-fact">
+                    <span className="td-client-fact__label">ДР</span>
+                    <span className="td-client-fact__value">{birthdayLabel}</span>
+                  </div>
+                ) : null}
+              </>
             ) : (
               <>
                 {isDeskClient ? (
@@ -280,25 +318,6 @@ export function AdminClientsListRow({
                     <span className="td-client-fact__value">{trainerLabel(c.trainer_id)}</span>
                   </div>
                 )}
-                {clientsTab === 'az' || hall === 'az' ? (
-                  <div className="td-client-fact">
-                    <span className="td-client-fact__label">Направление</span>
-                    <span className="td-client-fact__value">
-                      {deskAzDirectionLabel(
-                        deskMemForPkg?.membership_type_id ?? active?.membership_type_id,
-                        azMembershipTypes,
-                      )}
-                    </span>
-                  </div>
-                ) : null}
-                {(clientsTab === 'az' || hall === 'az') && (deskMemForPkg || active) ? (
-                  <div className="td-client-fact">
-                    <span className="td-client-fact__label">Занятия</span>
-                    <span className="td-client-fact__value">
-                      {formatDeskAzSessionUsageRu(deskMemForPkg || active)}
-                    </span>
-                  </div>
-                ) : null}
                 <AdminClientListAbonFact typeCode={abonTypeCode}>
                   {isDeskClient ? (
                     active ? (
@@ -343,7 +362,7 @@ export function AdminClientsListRow({
             )}
             {clientsTab === 'archive' ? <ClientArchiveReasonFact client={c} /> : null}
           </div>
-          <div className="row td-client-actions">
+          <div className={`row td-client-actions${clientsTab === 'az' ? ' td-client-actions--az' : ''}`}>
             <AdminClientMaxButton
               client={c}
               mode={rowSmsMode.mode}
@@ -406,11 +425,10 @@ export function AdminClientsListRow({
                 onEdit={(row) => onArchiveReasonModal({ mode: 'edit', client: row })}
               />
             ) : null}
-            {clientsTab === 'az' && azDeductMem ? (
-              <AdminDeskAzDeductButton
+            {clientsTab === 'az' ? (
+              <AdminClientsAzDeductSlot
                 membership={azDeductMem}
                 clientName={formatClientName(c.name) || String(c.name ?? '')}
-                compact
                 onDone={() => void onReloadSilent()}
                 onToast={onToast}
               />

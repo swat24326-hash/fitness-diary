@@ -13,6 +13,7 @@ import {
   formatDeskAzSessionUsageRu,
   mergeAerobicMatrixWithAzSessionCounts,
   normalizeSessionVisits,
+  pickAzMembershipForDeduct,
   resolveDeskAzDeductDate,
 } from '../src/lib/admin/deskAzSessionDeductCore.js'
 import { normalizeMembershipPushPayload } from '../src/lib/membershipPushPayload.js'
@@ -122,6 +123,17 @@ const push = normalizeMembershipPushPayload({
 ok(push.ok && push.data.session_visits[0].membership_type_id === 'box', 'push keeps visit type')
 
 ok(normalizeSessionVisits([{ id: 'bad' }]).length === 0, 'bad visit dropped')
+
+const expiredLeft = {
+  ...base,
+  start_date: '2026-07-01',
+  end_date: '2026-07-31',
+  used_trainings: 2,
+  total_trainings: 10,
+}
+ok(pickAzMembershipForDeduct([expiredLeft], '2026-08-04')?.id === 'm1', 'pick falls back to expired az mem')
+ok(pickAzMembershipForDeduct([], '2026-08-04') == null, 'pick empty → null')
+ok(pickAzMembershipForDeduct([base], '2026-08-04')?.id === 'm1', 'pick active usable')
 
 if (failed) {
   console.error(`\n${failed} failed`)

@@ -4,7 +4,6 @@
  */
 
 import { todayLocalIso } from '../dateRu.js'
-import { membershipCoversDate, membershipHasRemaining } from '../membershipRules.js'
 import { normalizeDeskHall } from './deskHallClientsCore.js'
 import { pickHallActiveMembership } from './deskMembershipLedgerCore.js'
 
@@ -297,16 +296,17 @@ export function countUnaccountedAzSessionSlots(inputMap, fromSessions) {
 }
 
 /**
- * Действующий АЗ-абон клиента для кнопки списания в списке.
+ * Абон АЗ для кнопки списания в списке: сначала живой usable, иначе последний по сроку
+ * (просроченный с остатком — canDeduct объяснит; слот в UI всегда занят).
  * @param {object[]} memberships
  * @param {string} [todayIso]
  */
 export function pickAzMembershipForDeduct(memberships, todayIso = todayLocalIso()) {
   const active = pickHallActiveMembership(memberships, todayIso, 'az')
-  if (active && membershipHasRemaining(active) && membershipCoversDate(active, todayIso)) {
-    return active
-  }
-  return active
+  if (active) return active
+  const list = Array.isArray(memberships) ? memberships : []
+  if (!list.length) return null
+  return [...list].sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
 }
 
 function cryptoRandomId() {

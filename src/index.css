@@ -6788,6 +6788,11 @@ tr:last-child td {
   .td-client-card__facts {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
+  /* АЗ: Карта · Абонемент · Пакет · Направление · Занятия — одна линия */
+  .td-client-card__facts--az {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 /* Узкий экран: факты под именем, без пустой середины */
@@ -6879,6 +6884,20 @@ tr:last-child td {
 
 .td-client-actions {
   gap: 8px;
+}
+
+/* АЗ: фиксированные слоты иконок — «⋯» не прыгает без кнопки списания */
+.td-client-actions.td-client-actions--az {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 44px;
+  align-items: center;
+  justify-content: end;
+  gap: 10px;
+}
+
+.td-client-actions.td-client-actions--az > * {
+  justify-self: center;
 }
 
 .client-row-more {
