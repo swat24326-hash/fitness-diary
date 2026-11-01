@@ -21,6 +21,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { AdminClientsKeepAliveLayout } from './components/admin/AdminClientsKeepAliveLayout.jsx'
 import { SalesClients } from './pages/admin/SalesClients'
 import { AdminExcelLists } from './pages/admin/AdminExcelLists'
+import { AdminClientListsPage } from './pages/admin/AdminClientListsPage.jsx'
 import { AdminStructure } from './pages/admin/AdminStructure'
 import { AdminStatistics } from './pages/admin/AdminStatistics'
 import { AdminSales } from './pages/admin/AdminSales'
@@ -395,6 +396,7 @@ export default function App() {
                 <Route index element={null} />
                 <Route path=":id" element={<ClientCard />} />
               </Route>
+              <Route path="/sales/client-lists" element={<AdminClientListsPage accessMode="sales_manager" />} />
               <Route path="/sales/deletion-log" element={<AdminDeletionLogPage accessMode="sales_manager" />} />
               <Route path="/sales/call-log" element={<AdminClubCallLogPage accessMode="sales_manager" />} />
               <Route path="/sales/loyalty" element={<AdminLoyaltyJournal accessMode="sales_manager" />} />
@@ -410,6 +412,7 @@ export default function App() {
                   <Route index element={null} />
                   <Route path=":id" element={<ClientCard />} />
                 </Route>
+                <Route path="client-lists" element={<AdminClientListsPage accessMode="supervisor" />} />
                 <Route path="call-log" element={<AdminClubCallLogPage accessMode="supervisor" />} />
                 <Route path="trainer-schedule" element={<ClubTrainerSchedulePage accessMode="supervisor" />} />
                 <Route path="challenges" element={<AdminChallenges />} />
@@ -433,6 +436,7 @@ export default function App() {
                   <Route index element={null} />
                   <Route path=":id" element={<ClientCard />} />
                 </Route>
+                <Route path="client-lists" element={<AdminClientListsPage />} />
                 <Route path="deletion-log" element={<AdminDeletionLogPage />} />
                 <Route path="devices" element={<AdminTrainerDevicesPage />} />
                 <Route path="health" element={<AdminDeviceHealthPage />} />

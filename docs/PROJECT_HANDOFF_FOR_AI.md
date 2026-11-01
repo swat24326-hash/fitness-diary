@@ -126,7 +126,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | trainer / sales_manager / supervisor | `/messages`, `/messages/:id` — «Сообщения клуба» (конверт в шапке, [INBOX.md](./INBOX.md)); `/messages?tab=chats` — «Диалоги» с папками «Клиенты · Коллеги · Администрация», `/messages/dm/:userId` — личный диалог с сотрудником клуба ([CHAT.md](./CHAT.md)) |
 | trainer / sales_manager / supervisor / admin | `/messages/chat/:clientId/:kind` — переписка с клиентом (админ — из карточки клиента), [CHAT.md](./CHAT.md) |
 | клиент (токен клиента) | `/me/inbox` — «Сообщения»: диалоги с тренером, менеджером, управляющим + объявления и опросы; `/me/chat/:kind` — диалог ([CHAT.md](./CHAT.md)) |
-| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **excel-lists**, **inbox** — рассылки клиентам и команде ([INBOX.md](./INBOX.md)), statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| admin | `/admin/*` (clients, **client-lists**, **deletion-log**, **call-log**, **excel-lists**, **inbox** — рассылки клиентам и команде ([INBOX.md](./INBOX.md)), statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 - Без Supabase: fallback в `localStorage`, демо-данные.
 - С Supabase: `signInWithPassword` (+ при необходимости `/api/auth-sign-in`), профиль из `users`.
 
@@ -140,7 +140,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | trainer на телефоне | `/coach`, `/coach/chats`, `/coach/chat/:clientId`, `/coach/more` — без `AuthContext`, свой вход с разрешения админа (`src/lib/coach/`), API `/api/coach-auth` и `/api/coach`, только онлайн, без IndexedDB и sync. [COACH_APP.md](./COACH_APP.md) |
 | клиент клуба (не `users`, без `AuthContext`) | `/me`, `/me/join#t=…` — приложение клиента, только просмотр; вход по приглашению из карточки, своя сессия в `localStorage` (`src/lib/client/`), API `/api/client-*`, без IndexedDB и sync. [CLIENT_APP.md](./CLIENT_APP.md) |
 | все (без входа) | `/` — стартовый хаб (`StartHubPage`: сотрудник → glass-логин; «Мобильное приложение» → тренер `/coach` и клиент `/me`); запасной `/login`; `/privacy` — политика (A2). [PD_152FZ.md](./PD_152FZ.md), [PWA.md](./PWA.md) |
-| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **trainer-schedule**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| admin | `/admin/*` (clients, **client-lists**, **deletion-log**, **call-log**, **trainer-schedule**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 **Multi-hall (фаза 1):** один `client` — абоны ПЗ/ТЗ/АЗ (`memberships.hall`); вкладки списков и карточки; статистика `hall=`. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md).
 

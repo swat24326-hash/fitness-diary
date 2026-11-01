@@ -3,6 +3,7 @@
  * node scripts/verify-client-card-return.mjs
  */
 import {
+  buildClientListsReturnHref,
   buildSalesStrategyReturnHref,
   clientCardBackLabel,
   clientCardParentCrumbLabel,
@@ -59,5 +60,20 @@ ok(
   buildClientCardDeepLink('cid', { forSupervisor: true, from: 'pnk' }) === '/club/clients/cid?from=pnk',
   'supervisor deep link',
 )
+
+ok(normalizeClientCardFrom('lists') === 'lists', 'from lists')
+ok(
+  buildClientListsReturnHref({ forAdmin: true, clubId: 'c1', listSearch: 'pool=archive&halls=tz' }) ===
+    '/admin/client-lists?pool=archive&halls=tz&club=c1',
+  'admin lists return keeps filters',
+)
+ok(
+  resolveClientCardBackHref('club=c1&from=lists&pool=archive&halls=az&criterion=birthdays', {
+    isSalesManager: true,
+  }) === '/sales/client-lists?pool=archive&halls=az&criterion=birthdays',
+  'back to lists restores filters',
+)
+ok(clientCardBackLabel('lists') === '← К спискам', 'lists back label')
+ok(clientCardParentCrumbLabel('lists') === 'Списки', 'lists crumb')
 
 process.exit(failed > 0 ? 1 : 0)

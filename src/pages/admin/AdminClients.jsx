@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Phone, RefreshCw, Search, UserCircle, UserPlus } from 'lucide-react'
+import { ArrowLeft, ListFilter, Phone, RefreshCw, Search, UserCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientCallHistorySheet } from '../../components/admin/AdminClientCallHistorySheet.jsx'
@@ -66,6 +66,7 @@ import {
 import { invalidateAdminClientsBrowseGlanceCaches } from '../../lib/admin/adminClientsListReloadCore.js'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
+import { adminClientListsPath } from '../../lib/admin/clientListsPathsCore.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   criticalWriteCloudWarning,
@@ -143,6 +144,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     : isSupervisor
       ? '/club/call-log'
       : `/admin/call-log${club ? `?club=${encodeURIComponent(club)}` : ''}`
+  const clientListsHref = `${adminClientListsPath(accessMode)}${
+    !clubBound && club ? `?club=${encodeURIComponent(club)}` : ''
+  }`
   const filterFromUrl = searchParams.get('filter')
   const listTabFromUrl = searchParams.get('clientsTab') || searchParams.get('list')
 
@@ -1231,6 +1235,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           </div>
           <div className="sales-clients__actions">
             <Link
+              to={clientListsHref}
+              className="btn btn-ghost btn-sm btn-icon-square btn-touch"
+              title="Списки по залу и признаку"
+              aria-label="Списки клиентов"
+            >
+              <ListFilter size={16} aria-hidden />
+            </Link>
+            <Link
               to={callLogHref}
               className="btn btn-ghost btn-sm btn-icon-square btn-touch"
               title="Журнал звонков клуба"
@@ -1329,6 +1341,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 <UserPlus size={20} aria-hidden />
               </button>
             ) : null}
+            <Link
+              to={clientListsHref}
+              className="btn btn-ghost btn-icon-square btn-touch"
+              title="Списки по залу и признаку"
+              aria-label="Списки клиентов"
+            >
+              <ListFilter size={20} aria-hidden />
+            </Link>
             <Link
               to={callLogHref}
               className="btn btn-ghost btn-icon-square btn-touch"

@@ -91,6 +91,7 @@
 | [CAPACITY_PLAN.md](./CAPACITY_PLAN.md) | План ёмкости: 300 тренеров / 10 тыс. клиентов, этапы и сигналы |
 | [RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md) | Надёжность прода до кассы: оповещения, копия базы вне Yandex, стенд; ворота «работает идеально» |
 | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) | Архив клуба: sync и UI |
+| [CLIENT_LISTS.md](./CLIENT_LISTS.md) | ✅ MVP | Конструктор списков (залы / архив / ДР / сроки) без Excel — замена выгрузок 1С |
 | [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) | Закрытие направлений ПЗ/ТЗ/АЗ → автоархив клуба |
 | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS/звонок ✅ + журнал связи ✅ (список/сводка/учёт SMS) |
 | [PRICE_LIST.md](./PRICE_LIST.md) | Прайс клуба ПЗ / ТЗ / АЗ: сетки, Excel-импорт, печать, облако |

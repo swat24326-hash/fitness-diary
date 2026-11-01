@@ -11,6 +11,7 @@ export const CLIENT_CARD_FROM = Object.freeze({
   pnk: 'pnk',
   clips: 'clips',
   callToday: 'call-today',
+  lists: 'lists',
 })
 
 /**
@@ -25,6 +26,7 @@ export function normalizeClientCardFrom(raw) {
   if (v === CLIENT_CARD_FROM.pnk) return CLIENT_CARD_FROM.pnk
   if (v === CLIENT_CARD_FROM.clips) return CLIENT_CARD_FROM.clips
   if (v === CLIENT_CARD_FROM.callToday || v === 'call_today') return CLIENT_CARD_FROM.callToday
+  if (v === CLIENT_CARD_FROM.lists || v === 'client-lists') return CLIENT_CARD_FROM.lists
   return ''
 }
 
@@ -83,6 +85,30 @@ export function buildSalesClipsReturnHref(opts = {}) {
 }
 
 /**
+ * @param {{ forAdmin?: boolean, forSupervisor?: boolean, clubId?: string, listSearch?: string }} [opts]
+ */
+export function buildClientListsReturnHref(opts = {}) {
+  const clubId = String(opts.clubId ?? '').trim()
+  const extra = String(opts.listSearch ?? '').replace(/^\?/, '')
+  const qs = new URLSearchParams(extra)
+  qs.delete('from')
+  if (opts.forSupervisor) {
+    qs.delete('club')
+    const tail = qs.toString()
+    return tail ? `/club/client-lists?${tail}` : '/club/client-lists'
+  }
+  if (opts.forAdmin) {
+    if (clubId) qs.set('club', clubId)
+    else qs.delete('club')
+    const tail = qs.toString()
+    return tail ? `/admin/client-lists?${tail}` : '/admin/client-lists'
+  }
+  qs.delete('club')
+  const tail = qs.toString()
+  return tail ? `/sales/client-lists?${tail}` : '/sales/client-lists'
+}
+
+/**
  * @param {unknown} from
  */
 export function clientCardBackLabel(from) {
@@ -91,6 +117,7 @@ export function clientCardBackLabel(from) {
   if (f === CLIENT_CARD_FROM.pnk) return '← К ПНК'
   if (f === CLIENT_CARD_FROM.clips) return '← К заявкам'
   if (f === CLIENT_CARD_FROM.callToday) return '← На главную'
+  if (f === CLIENT_CARD_FROM.lists) return '← К спискам'
   return '← К списку клиентов'
 }
 
@@ -104,6 +131,7 @@ export function clientCardParentCrumbLabel(from) {
   if (f === CLIENT_CARD_FROM.pnk) return 'ПНК'
   if (f === CLIENT_CARD_FROM.clips) return 'Заявка тренеру'
   if (f === CLIENT_CARD_FROM.callToday) return 'Кому звонить'
+  if (f === CLIENT_CARD_FROM.lists) return 'Списки'
   return 'Клиенты'
 }
 
@@ -134,6 +162,24 @@ export function resolveClientCardBackHref(searchParams, role = {}) {
   }
   if (from === CLIENT_CARD_FROM.callToday) {
     return buildCallTodayReturnHref({ forAdmin, forSupervisor, clubId })
+  }
+  if (from === CLIENT_CARD_FROM.lists) {
+    const withoutFrom = new URLSearchParams(src)
+    withoutFrom.delete('from')
+    withoutFrom.delete('hall')
+    withoutFrom.delete('clientsTab')
+    withoutFrom.delete('list')
+    withoutFrom.delete('archiveHall')
+    withoutFrom.delete('filter')
+    withoutFrom.delete('page')
+    withoutFrom.delete('q')
+    withoutFrom.delete('trainer')
+    return buildClientListsReturnHref({
+      forAdmin,
+      forSupervisor,
+      clubId,
+      listSearch: withoutFrom.toString(),
+    })
   }
 
   if (role.isAdmin) {

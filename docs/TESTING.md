@@ -342,6 +342,7 @@
 | Desk: очистка ДР без отката при hydrate | `verify-desk-client-birth-form.mjs` |
 | Desk: телефон / № карты / ФИО / ack Save / hydrate после flush | `verify-desk-client-form-merge.mjs` |
 | Архив: подвкладки ПЗ / ТЗ / АЗ | `verify-admin-clients-archive-hall.mjs` |
+| Списки клиентов (зал × признак × архив-период) | `verify-client-lists-query.mjs` |
 | АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |
 | АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |
 | АЗ: инструкторы (не `trainer_id`) | `verify-client-az-instructors.mjs` |

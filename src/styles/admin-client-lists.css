@@ -1,0 +1,205 @@
+/**
+ * Конструктор списков клиентов (замена выгрузок 1С) — админ / продажи.
+ */
+
+.admin-client-lists {
+  display: grid;
+  gap: var(--space-4, 16px);
+}
+
+.admin-client-lists__card {
+  display: grid;
+  gap: var(--space-4, 16px);
+}
+
+.admin-client-lists__section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-client-lists__section + .admin-client-lists__section {
+  padding-top: var(--space-3, 12px);
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.admin-client-lists__legend {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-client-lists__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-client-lists__chip {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.admin-client-lists__chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.admin-client-lists__chip[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.admin-client-lists__fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.admin-client-lists__field {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-client-lists__field label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.admin-client-lists__field input,
+.admin-client-lists__field select {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-2, var(--surface)) 90%, transparent);
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-client-lists__field input:focus,
+.admin-client-lists__field select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.admin-client-lists__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-client-lists__count {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.admin-client-lists__count span {
+  color: var(--accent);
+}
+
+.admin-client-lists__results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-client-lists__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.7fr) minmax(0, 0.9fr) auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.admin-client-lists__row:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.admin-client-lists__name {
+  font-weight: 650;
+  min-width: 0;
+}
+
+.admin-client-lists__meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.admin-client-lists__halls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-client-lists__hall-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
+}
+
+.admin-client-lists__refreshing {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.admin-client-lists__empty {
+  margin: 0;
+  padding: 20px 14px;
+  text-align: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-md, 12px);
+  border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.admin-client-lists__note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+  .admin-client-lists__row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}

@@ -417,6 +417,7 @@ run('admin client quick filters', 'node', ['scripts/verify-admin-client-quick-fi
 run('trainer clients browse filters', 'node', ['scripts/verify-trainer-clients-browse-filters.mjs'])
 run('admin clients az direction filter', 'node', ['scripts/verify-admin-clients-az-direction-filter.mjs'])
 run('admin clients archive hall', 'node', ['scripts/verify-admin-clients-archive-hall.mjs'])
+run('client lists query', 'node', ['scripts/verify-client-lists-query.mjs'])
 run('nutrition plan', 'node', ['scripts/verify-nutrition-plan.mjs'])
 run('nutrition dishes', 'node', ['scripts/verify-nutrition-dishes.mjs'])
 run('nutrition recipes', 'node', ['scripts/verify-nutrition-recipes.mjs'])
