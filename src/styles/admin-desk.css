@@ -458,6 +458,48 @@
   line-height: 1.35;
 }
 
+.admin-desk-az-deduct-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.admin-desk-az-deduct-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #e8a838) 32%, transparent);
+  background: color-mix(in srgb, var(--accent-bright, #e8a838) 10%, var(--bg-elevated, #121820));
+  color: var(--text, #eee);
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-desk-az-deduct-pick:hover,
+.admin-desk-az-deduct-pick:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-bright, #e8a838) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-bright, #e8a838) 16%, var(--bg-elevated, #121820));
+  outline: none;
+}
+
+.admin-desk-az-deduct-pick__title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.admin-desk-az-deduct-pick__meta {
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--text, #eee) 68%, transparent);
+}
+
 .btn.is-muted {
   opacity: 0.72;
 }

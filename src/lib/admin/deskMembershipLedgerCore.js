@@ -190,20 +190,20 @@ export function deskMembershipSignal(memberships, todayIso = todayLocalIso()) {
 }
 
 /**
+ * Метка строки учёта: все абоны с живым сроком на сегодня — «действующий»
+ * (без выделения одного «главного»). Списание по-прежнему выбирает один пакет внутри.
  * @param {object} m
  * @param {string} [todayIso]
- * @param {string|null} [activeId]
+ * @param {string|null} [_activeId] — устарел, не используется (совместимость вызовов)
  * @returns {'active'|'expired'|'future'|'other'}
  */
-export function deskMembershipLedgerKind(m, todayIso = todayLocalIso(), activeId = null) {
+export function deskMembershipLedgerKind(m, todayIso = todayLocalIso(), _activeId = null) {
   const day = String(todayIso ?? '').slice(0, 10)
-  const id = String(m?.id ?? '')
-  if (activeId && id && id === String(activeId)) return 'active'
   const start = String(m?.start_date ?? '').slice(0, 10)
   const end = String(m?.end_date ?? '').slice(0, 10)
   if (end && end < day) return 'expired'
   if (start && start > day) return 'future'
-  if (membershipCoversDate(m, day)) return 'other'
+  if (membershipCoversDate(m, day)) return 'active'
   return 'other'
 }
 
@@ -214,7 +214,6 @@ export function deskMembershipLedgerKindLabel(kind) {
   if (kind === 'active') return 'действующий'
   if (kind === 'expired') return 'истёк'
   if (kind === 'future') return 'будущий'
-  if (kind === 'other') return 'в периоде'
   return '—'
 }
 

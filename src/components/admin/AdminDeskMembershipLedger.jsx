@@ -22,7 +22,6 @@ import {
   deskPackageEndByDuration,
   parseDeskPaidAmountInput,
   parseDeskTotalTrainingsInput,
-  pickHallActiveMembership,
   sortDeskMembershipLedger,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import { DESK_PACKAGE_UNIT_MONTHS } from '../../lib/admin/deskPackageDurationCore.js'
@@ -74,11 +73,6 @@ export function AdminDeskMembershipLedger({
     () => (hall ? filterMembershipsByHall(memberships, hall, client) : memberships),
     [memberships, hall, client],
   )
-  const active = useMemo(
-    () => pickHallActiveMembership(hallMemberships, today, deskKind || hall),
-    [hallMemberships, today, deskKind, hall],
-  )
-  const activeId = active?.id ? String(active.id) : null
   const membershipsSig = useMemo(() => deskMembershipsContentSig(hallMemberships), [hallMemberships])
   const membershipsRef = useRef(hallMemberships)
   membershipsRef.current = hallMemberships
@@ -457,7 +451,7 @@ export function AdminDeskMembershipLedger({
           {sorted.map((m) => {
             const id = String(m.id)
             const d = drafts[id] || deskMembershipRowDraft(m)
-            const kind = deskMembershipLedgerKind(m, today, activeId)
+            const kind = deskMembershipLedgerKind(m, today)
             const usage = showAzDirection ? deskAzSessionUsage(m) : null
             return (
               <article

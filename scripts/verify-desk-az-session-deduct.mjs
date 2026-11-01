@@ -13,6 +13,7 @@ import {
   formatDeskAzSessionUsageRu,
   mergeAerobicMatrixWithAzSessionCounts,
   normalizeSessionVisits,
+  listAzMembershipsForDeductChoice,
   pickAzMembershipForDeduct,
   resolveDeskAzDeductDate,
 } from '../src/lib/admin/deskAzSessionDeductCore.js'
@@ -134,6 +135,20 @@ const expiredLeft = {
 ok(pickAzMembershipForDeduct([expiredLeft], '2026-08-04')?.id === 'm1', 'pick falls back to expired az mem')
 ok(pickAzMembershipForDeduct([], '2026-08-04') == null, 'pick empty → null')
 ok(pickAzMembershipForDeduct([base], '2026-08-04')?.id === 'm1', 'pick active usable')
+
+const second = {
+  ...base,
+  id: 'm2',
+  start_date: '2026-08-02',
+  end_date: '2026-09-10',
+  membership_type_id: 'step',
+  total_trainings: 4,
+  used_trainings: 0,
+}
+const choiceTwo = listAzMembershipsForDeductChoice([second, base], '2026-08-04')
+ok(choiceTwo.length === 2 && choiceTwo[0].id === 'm1' && choiceTwo[1].id === 'm2', 'choice: both usable, earlier start first')
+ok(listAzMembershipsForDeductChoice([expiredLeft, base], '2026-08-04').map((m) => m.id).join() === 'm1', 'choice: only covering usable')
+ok(listAzMembershipsForDeductChoice([expiredLeft], '2026-08-04').length === 0, 'choice: expired not listed')
 
 if (failed) {
   console.error(`\n${failed} failed`)

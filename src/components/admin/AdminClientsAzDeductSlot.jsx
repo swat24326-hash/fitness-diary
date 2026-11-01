@@ -7,16 +7,27 @@ import { AdminDeskAzDeductButton } from './AdminDeskAzDeductButton.jsx'
  *
  * @param {{
  *   membership?: object | null,
+ *   membershipOptions?: object[] | null,
+ *   azTypes?: Array<{ id?: string, name?: string, code?: string }>,
  *   clientName?: string,
  *   onDone?: () => void,
  *   onToast?: (msg: string) => void,
  * }} props
  */
-export function AdminClientsAzDeductSlot({ membership = null, clientName = '', onDone, onToast }) {
+export function AdminClientsAzDeductSlot({
+  membership = null,
+  membershipOptions = null,
+  azTypes = [],
+  clientName = '',
+  onDone,
+  onToast,
+}) {
   if (membership?.id) {
     return (
       <AdminDeskAzDeductButton
         membership={membership}
+        membershipOptions={membershipOptions}
+        azTypes={azTypes}
         clientName={clientName}
         compact
         onDone={onDone}

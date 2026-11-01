@@ -45,9 +45,18 @@ const list = [
 
 const active = pickDeskActiveMembership(list, today)
 ok(active?.id === 'cur', 'active by calendar even with 0 trainings')
-ok(deskMembershipLedgerKind(list[0], today, active.id) === 'expired', 'expired')
-ok(deskMembershipLedgerKind(list[2], today, active.id) === 'future', 'future')
+ok(deskMembershipLedgerKind(list[0], today) === 'expired', 'expired')
+ok(deskMembershipLedgerKind(list[2], today) === 'future', 'future')
+ok(deskMembershipLedgerKind(list[1], today) === 'active', 'covering → действующий')
+ok(
+  deskMembershipLedgerKind(
+    { id: 'overlap', start_date: '2026-07-15', end_date: '2026-08-15', total_trainings: 0 },
+    today,
+  ) === 'active',
+  'второй абон в сроке тоже действующий',
+)
 ok(deskMembershipLedgerKindLabel('active') === 'действующий', 'label ru')
+ok(deskMembershipLedgerKindLabel('other') === '—', 'no «в периоде» label')
 
 const sorted = sortDeskMembershipLedger(list)
 ok(sorted[0].id === 'fut', 'sort end desc')

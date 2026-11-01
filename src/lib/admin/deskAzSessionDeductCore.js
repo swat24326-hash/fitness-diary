@@ -4,6 +4,7 @@
  */
 
 import { todayLocalIso } from '../dateRu.js'
+import { membershipCoversDate } from '../membershipRules.js'
 import { normalizeDeskHall } from './deskHallClientsCore.js'
 import { pickHallActiveMembership } from './deskMembershipLedgerCore.js'
 
@@ -296,12 +297,32 @@ export function countUnaccountedAzSessionSlots(inputMap, fromSessions) {
 }
 
 /**
+ * Живые абоны АЗ, с которых реально можно списать сегодня (для выбора в списке).
+ * Сортировка как у pickUsable: раньше старт — выше.
+ * @param {object[]|null|undefined} memberships
+ * @param {string} [todayIso]
+ * @returns {object[]}
+ */
+export function listAzMembershipsForDeductChoice(memberships, todayIso = todayLocalIso()) {
+  const day = String(todayIso ?? '').slice(0, 10)
+  return (Array.isArray(memberships) ? memberships : [])
+    .filter((m) => membershipCoversDate(m, day) && canDeductDeskAzSession(m, day).ok)
+    .sort((a, b) => {
+      const byStart = String(a.start_date ?? '').localeCompare(String(b.start_date ?? ''))
+      if (byStart) return byStart
+      return String(a.id ?? '').localeCompare(String(b.id ?? ''))
+    })
+}
+
+/**
  * Абон АЗ для кнопки списания в списке: сначала живой usable, иначе последний по сроку
  * (просроченный с остатком — canDeduct объяснит; слот в UI всегда занят).
  * @param {object[]} memberships
  * @param {string} [todayIso]
  */
 export function pickAzMembershipForDeduct(memberships, todayIso = todayLocalIso()) {
+  const choices = listAzMembershipsForDeductChoice(memberships, todayIso)
+  if (choices.length) return choices[0]
   const active = pickHallActiveMembership(memberships, todayIso, 'az')
   if (active) return active
   const list = Array.isArray(memberships) ? memberships : []

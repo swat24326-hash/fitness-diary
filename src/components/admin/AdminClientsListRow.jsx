@@ -149,10 +149,8 @@ export function AdminClientsListRow({
   const factExpiredLeft =
     factActive || factHall === 'tz' ? null : pickExpiredMembershipWithRemaining(factMlist, today)
   const azDeductHall = crossHallSearch ? factHall : hall
-  const azDeductMem =
-    azDeductHall === 'az'
-      ? pickAzMembershipForDeduct(filterMembershipsByHall(mlistAll, 'az', c), today) || null
-      : null
+  const azMemList = azDeductHall === 'az' ? filterMembershipsByHall(mlistAll, 'az', c) : []
+  const azDeductMem = azDeductHall === 'az' ? pickAzMembershipForDeduct(azMemList, today) || null : null
   const listSig = crossHallSearch ? factSig : sig
   const cardHrefHall = crossHallSearch
     ? factHall || resolveAdminClientsActionHall(clientsTab) || ''
@@ -428,6 +426,8 @@ export function AdminClientsListRow({
             {clientsTab === 'az' ? (
               <AdminClientsAzDeductSlot
                 membership={azDeductMem}
+                membershipOptions={azMemList}
+                azTypes={azMembershipTypes}
                 clientName={formatClientName(c.name) || String(c.name ?? '')}
                 onDone={() => void onReloadSilent()}
                 onToast={onToast}
