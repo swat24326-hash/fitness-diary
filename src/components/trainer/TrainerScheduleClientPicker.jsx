@@ -10,9 +10,10 @@ import { SCHEDULE_MAX_CLIENTS, buildTrainerScheduleClientPickerList } from '../.
  *   selectedIds: string[],
  *   onToggle: (id: string) => void,
  *   clientInfoById?: Record<string, { cardNumber?: string, membershipLabel?: string }>,
+ *   onSearchFocus?: () => void,
  * }} props
  */
-export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, clientInfoById = {} }) {
+export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, clientInfoById = {}, onSearchFocus }) {
   const [query, setQuery] = useState('')
   const byId = useMemo(() => new Map((clients ?? []).map((c) => [String(c.id), c])), [clients])
   const selectedRows = useMemo(
@@ -27,11 +28,15 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, cl
 
   return (
     <div className="trainer-schedule-modal__clients-wrap">
-      <p className="trainer-schedule-modal__hint muted" data-testid="schedule-clients-count">
-        {selectedIds.length
-          ? `Выбрано ${selectedIds.length} из ${SCHEDULE_MAX_CLIENTS}${full ? ' — больше нельзя' : ''}`
-          : `Можно выбрать до ${SCHEDULE_MAX_CLIENTS} клиентов на один слот.`}
-      </p>
+      {selectedIds.length ? (
+        <p className="trainer-schedule-modal__hint muted" data-testid="schedule-clients-count">
+          {`Выбрано ${selectedIds.length} из ${SCHEDULE_MAX_CLIENTS}${full ? ' — больше нельзя' : ''}`}
+        </p>
+      ) : (
+        <p className="sr-only" data-testid="schedule-clients-count">
+          Клиенты не выбраны
+        </p>
+      )}
       {selectedRows.length ? (
         <ul className="trainer-schedule-modal__selected" aria-label="Уже выбраны">
           {selectedRows.map((c) => (
@@ -61,6 +66,7 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, cl
           data-testid="schedule-clients-search"
           value={query}
           onChange={(ev) => setQuery(ev.target.value)}
+          onFocus={() => onSearchFocus?.()}
         />
       </div>
       <div className="trainer-schedule-modal__clients">

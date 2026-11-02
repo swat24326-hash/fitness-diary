@@ -251,6 +251,18 @@ ok(
   )
 }
 
+{
+  const { scheduleModalOverlayInsetStyle, scheduleModalPanelMaxHeightPx } = await import(
+    '../src/lib/trainer/scheduleModalViewportCore.js'
+  )
+  ok(scheduleModalPanelMaxHeightPx({ viewportHeight: 400 }) === 388, 'modal panel max height under keyboard')
+  ok(scheduleModalPanelMaxHeightPx({ viewportHeight: 100 }) === 220, 'modal panel min height floor')
+  ok(scheduleModalPanelMaxHeightPx({ viewportHeight: 'x' }) === null, 'modal panel bad height')
+  const inset = scheduleModalOverlayInsetStyle({ offsetTop: 12.4, height: 500.6 })
+  ok(inset.top === '12px' && inset.height === '501px' && inset.bottom === 'auto', 'modal overlay inset from visualViewport')
+  ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 0, height: 0 })).length === 0, 'modal overlay empty when height 0')
+}
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

@@ -71,6 +71,80 @@
   background: color-mix(in srgb, var(--kind) 28%, transparent);
 }
 
+/* Компактная категория в форме записи (меню вместо 5 плашек). */
+.trainer-schedule-kinds-compact {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.trainer-schedule-kinds-compact__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--kind) 45%, transparent);
+  background: color-mix(in srgb, var(--kind) 14%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.trainer-schedule-kinds-compact__label {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-schedule-kinds-compact__chevron {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.trainer-schedule-kinds-compact__menu {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: min(100vw - 48px, 220px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--surface, var(--bg-card, var(--bg)));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.trainer-schedule-kinds-compact__option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trainer-schedule-kinds-compact__option--on,
+.trainer-schedule-kinds-compact__option:active {
+  background: color-mix(in srgb, var(--kind) 22%, transparent);
+}
+
 /* --- Легенда под сеткой --- */
 .trainer-schedule-legend {
   display: flex;

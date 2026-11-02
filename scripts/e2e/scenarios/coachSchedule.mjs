@@ -294,7 +294,7 @@ export async function run(browser) {
     c.ok(conflictShown, 'устаревшая правка — «Запись изменилась на планшете — обновите»')
     c.ok(at(900).length === 1 && at(900)[0].duration_minutes === 90, 'сервер: правка планшета не затёрта')
     await screenshot(page, 'coach-calendar-conflict')
-    await edit.getByRole('button', { name: 'Отмена' }).click()
+    await edit.getByRole('button', { name: 'Закрыть' }).click()
 
     /* После обновления — удалить. */
     await page.waitForTimeout(300)
@@ -318,7 +318,9 @@ export async function run(browser) {
     await entryAt(page, '10:00').click()
     const editOne = page.getByRole('dialog')
     await editOne.getByRole('button', { name: 'Изменить' }).click()
-    await editOne.getByTestId('schedule-clients-count').waitFor({ state: 'visible', timeout: 10_000 })
+    await editOne.getByTestId('schedule-clients-search').waitFor({ state: 'visible', timeout: 10_000 })
+    await editOne.getByTestId('schedule-note-toggle').click()
+    await editOne.getByTestId('schedule-note-aside').waitFor({ state: 'visible', timeout: 5_000 })
     const noOverlap = await editOne.evaluate(() => {
       const note = globalThis.document.querySelector('.trainer-schedule-modal__field--note-aside')
       const list = globalThis.document.querySelector('.trainer-schedule-modal__clients')
@@ -328,6 +330,7 @@ export async function run(browser) {
       return a.top >= b.bottom - 1
     })
     c.ok(noOverlap, 'правка записи: примечание под списком клиентов, без наезда')
+    await editOne.getByTestId('schedule-note-toggle').click()
     const second = GROUP[0]
     /* INC-2026-11-03-03: после выбора одного поиск второго не должен «теряться» за закреплённым. */
     await editOne.getByTestId('schedule-clients-search').fill(second.slice(0, 4))
@@ -348,7 +351,8 @@ export async function run(browser) {
     await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 23:00"]').click()
     const group = page.getByRole('dialog')
     await group.waitFor({ state: 'visible', timeout: 10_000 })
-    await group.getByRole('radio', { name: 'Групповое' }).click()
+    await group.getByTestId('schedule-kind-trigger').click()
+    await group.getByRole('option', { name: 'Групповое' }).click()
     await group.getByTestId('schedule-direction').waitFor({ state: 'visible', timeout: 10_000 })
     await group.getByTestId('schedule-direction').selectOption({ label: 'Бокс' })
     await group.getByRole('tab', { name: 'Клиенты' }).click()
@@ -378,6 +382,7 @@ export async function run(browser) {
     await scrollBoardTo(page, 22 * 60)
     const tile = entryAt(page, '23:00')
     await tile.waitFor({ timeout: 10_000 })
+    await tile.locator('.trainer-schedule-day__entry-line').nth(1).waitFor({ state: 'visible', timeout: 5_000 })
     const visibleLines = await tile.evaluate((el) => {
       const box = el.getBoundingClientRect()
       return [...el.querySelectorAll('.trainer-schedule-day__entry-line')]

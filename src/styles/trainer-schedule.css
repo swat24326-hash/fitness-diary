@@ -852,9 +852,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex: 0 0 auto;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
 }
 
 .trainer-schedule-modal__title {
@@ -862,6 +862,28 @@
   font-size: 1.05rem;
   font-weight: 650;
   letter-spacing: -0.01em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-schedule-modal__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.trainer-schedule-modal__save {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+}
+
+.trainer-schedule-modal__error--top {
+  flex: 0 0 auto;
+  margin: 0 0 8px;
 }
 
 .trainer-schedule-modal__form {
@@ -934,6 +956,50 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   align-items: start;
+}
+
+.trainer-schedule-modal__row--compact {
+  gap: 6px;
+}
+
+.trainer-schedule-modal__row--compact .trainer-schedule-modal__field > span {
+  font-size: 0.72rem;
+}
+
+.trainer-schedule-modal__row--compact .trainer-schedule-modal__field input {
+  min-height: 36px;
+  font-size: 0.9rem;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.trainer-schedule-modal__more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.trainer-schedule-modal__more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.trainer-schedule-modal__more-btn--on {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 /* iPhone: native time раздувает ячейку и наезжает на «Длительность» (INC-2026-11-03-03). */

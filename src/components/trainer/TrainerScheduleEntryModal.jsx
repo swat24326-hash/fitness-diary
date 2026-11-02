@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { X } from 'lucide-react'
+import { FileText, Repeat, X } from 'lucide-react'
 import { trainerScheduleLocalActions } from '../../lib/trainer/trainerScheduleLocalActions.js'
 import {
   resolveScheduleTrainingStart,
@@ -10,6 +10,7 @@ import { normalizeScheduleTimeInput } from '../../lib/trainer/trainerScheduleCor
 import { listScheduleFollowingSiblings } from '../../lib/trainer/trainerScheduleRecurrenceCore.js'
 import { TrainerScheduleTrainingStart } from './TrainerScheduleTrainingStart.jsx'
 import { useScheduleEntryForm } from '../../hooks/useScheduleEntryForm.js'
+import { useScheduleModalViewport } from '../../hooks/useScheduleModalViewport.js'
 import { TrainerScheduleEntryReadonly } from './TrainerScheduleEntryReadonly.jsx'
 import { TrainerScheduleRepeatFields } from './TrainerScheduleRepeatFields.jsx'
 import { TrainerScheduleKindPicker } from './TrainerScheduleKindPicker.jsx'
@@ -66,14 +67,19 @@ export function TrainerScheduleEntryModal({
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [deleteAsk, setDeleteAsk] = useState(false)
+  /** @type {'kind' | 'note' | 'repeat' | null} */
+  const [extra, setExtra] = useState(/** @type {'kind' | 'note' | 'repeat' | null} */ (null))
+  const { overlayStyle, panelStyle } = useScheduleModalViewport(open)
   const editing = !draft?.id || editingId === draft.id
   const followingSiblings = useMemo(
     () => (draft?.id ? listScheduleFollowingSiblings(entries, draft) : []),
     [draft, entries],
   )
+  const noteText = String(form.title ?? '').trim()
   useEffect(() => {
     setError('')
     setDeleteAsk(false)
+    setExtra(null)
     if (!open) setEditingId(null)
   }, [open, draft])
 
@@ -97,6 +103,7 @@ export function TrainerScheduleEntryModal({
   if (!open) return null
 
   const singleClientId = canStartTraining && selectedIds.length === 1 ? selectedIds[0] : null
+  const toggleExtra = (id) => setExtra((cur) => (cur === id ? null : id))
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -201,27 +208,57 @@ export function TrainerScheduleEntryModal({
   }
 
   return (
-    <div className="trainer-schedule-modal" role="presentation" onClick={onClose}>
+    <div
+      className="trainer-schedule-modal"
+      role="presentation"
+      style={overlayStyle}
+      onClick={onClose}
+    >
       <div
         className="trainer-schedule-modal__panel card"
         role="dialog"
         aria-modal="true"
         aria-labelledby="trainer-schedule-modal-title"
+        style={panelStyle}
         onClick={(ev) => ev.stopPropagation()}
       >
         <div className="trainer-schedule-modal__head">
           <h2 id="trainer-schedule-modal-title" className="trainer-schedule-modal__title">
             {draft?.id ? 'Запись' : 'Новая запись'}
           </h2>
-          <button type="button" className="btn btn-icon-square btn-secondary" onClick={onClose} aria-label="Закрыть">
-            <X size={18} aria-hidden />
-          </button>
+          <div className="trainer-schedule-modal__head-actions">
+            {deleteAsk ? null : (
+              <button
+                type="submit"
+                form="trainer-schedule-entry-form"
+                className="btn btn-primary trainer-schedule-modal__save"
+                disabled={busy}
+                data-testid="schedule-save"
+              >
+                {busy ? '…' : 'Сохранить'}
+              </button>
+            )}
+            <button type="button" className="btn btn-icon-square btn-secondary" onClick={onClose} aria-label="Закрыть">
+              <X size={18} aria-hidden />
+            </button>
+          </div>
         </div>
 
+        {error ? (
+          <p className="trainer-schedule-modal__error trainer-schedule-modal__error--top" role="alert">
+            {error}
+          </p>
+        ) : null}
+
         {/* noValidate: Safari/iPhone иначе тихо блокирует submit (time/required) — без нашей ошибки на русском. */}
-        <form className="trainer-schedule-modal__form" onSubmit={onSubmit} noValidate>
+        <form
+          id="trainer-schedule-entry-form"
+          className="trainer-schedule-modal__form"
+          onSubmit={onSubmit}
+          noValidate
+        >
           <div className="trainer-schedule-modal__form-top">
-            <div className="trainer-schedule-modal__row">
+            <div className="trainer-schedule-modal__row trainer-schedule-modal__row--compact">
               <label className="trainer-schedule-modal__field">
                 <span>Время</span>
                 <input
@@ -250,11 +287,15 @@ export function TrainerScheduleEntryModal({
                     мин
                   </span>
                 </span>
-                <small className="trainer-schedule-modal__duration-hint">{form.endLabel ? `до ${form.endLabel}` : 'от 15 до 480'}</small>
               </label>
             </div>
 
-            <TrainerScheduleKindPicker value={form.kind} onChange={form.pickKind} />
+            <TrainerScheduleKindPicker
+              value={form.kind}
+              onChange={form.pickKind}
+              menuOpen={extra === 'kind'}
+              onOpenChange={(v) => setExtra(v ? 'kind' : null)}
+            />
             <TrainerScheduleDirectionField
               kind={form.kind}
               value={form.directionTypeId}
@@ -293,9 +334,9 @@ export function TrainerScheduleEntryModal({
                 selectedIds={selectedIds}
                 onToggle={form.toggleClient}
                 clientInfoById={clientInfoById}
+                onSearchFocus={() => setExtra(null)}
               />
             ) : (
-              /* Только вкладка «Заметка»: иначе textarea с field--wide наезжала на список (e2e группа 15). */
               <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
                 <span>Текст</span>
                 <textarea
@@ -311,8 +352,7 @@ export function TrainerScheduleEntryModal({
           </div>
 
           <div className="trainer-schedule-modal__form-foot">
-            {/* Текст не сбрасываем при вкладке «Клиенты» — компактное поле под списком, не в form-body. */}
-            {mode === 'clients' ? (
+            {mode === 'clients' && extra === 'note' ? (
               <label className="trainer-schedule-modal__field trainer-schedule-modal__field--note-aside">
                 <span className="sr-only">Примечание, необязательно</span>
                 <input
@@ -323,21 +363,51 @@ export function TrainerScheduleEntryModal({
                   placeholder="Примечание (необязательно)"
                   maxLength={240}
                   data-testid="schedule-note-aside"
+                  autoFocus
                 />
               </label>
             ) : null}
-            <TrainerScheduleRepeatFields
-              enabled={repeat.on}
-              onToggle={repeat.setOn}
-              weekdays={repeat.weekdays}
-              onWeekdays={repeat.setWeekdays}
-              weeks={repeat.weeks}
-              onWeeks={repeat.setWeeks}
-              plan={repeat.plan}
-            />
+
+            {extra === 'repeat' ? (
+              <TrainerScheduleRepeatFields
+                enabled={repeat.on}
+                onToggle={repeat.setOn}
+                weekdays={repeat.weekdays}
+                onWeekdays={repeat.setWeekdays}
+                weeks={repeat.weeks}
+                onWeeks={repeat.setWeeks}
+                plan={repeat.plan}
+              />
+            ) : null}
+
+            <div className="trainer-schedule-modal__more" role="toolbar" aria-label="Дополнительно">
+              {mode === 'clients' ? (
+                <button
+                  type="button"
+                  className={`trainer-schedule-modal__more-btn${noteText || extra === 'note' ? ' trainer-schedule-modal__more-btn--on' : ''}`}
+                  aria-pressed={extra === 'note'}
+                  data-testid="schedule-note-toggle"
+                  onClick={() => toggleExtra('note')}
+                >
+                  <FileText size={14} aria-hidden />
+                  Примечание{noteText ? ' · есть' : ''}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={`trainer-schedule-modal__more-btn${repeat.on || extra === 'repeat' ? ' trainer-schedule-modal__more-btn--on' : ''}`}
+                aria-pressed={extra === 'repeat'}
+                data-testid="schedule-repeat-toggle"
+                onClick={() => toggleExtra('repeat')}
+              >
+                <Repeat size={14} aria-hidden />
+                Повтор{repeat.on ? ' · вкл' : ''}
+              </button>
+            </div>
 
             <p className="trainer-schedule-modal__preview muted">
               Будет: <strong>{form.previewLabel}</strong>
+              {form.endLabel ? <> · до {form.endLabel}</> : null}
               {trainingChip ? <> · <span className="trainer-schedule-modal__chip">{trainingChip}</span></> : null}
             </p>
 
@@ -353,31 +423,17 @@ export function TrainerScheduleEntryModal({
               </p>
             )}
 
-            {error ? (
-              <p className="trainer-schedule-modal__error" role="alert">
-                {error}
-              </p>
-            ) : null}
-
             {deleteChoice}
 
-            {deleteAsk ? null : (
-              <div className={`trainer-schedule-modal__actions${draft?.id ? '' : ' trainer-schedule-modal__actions--new'}`}>
-                {draft?.id ? (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-danger-outline"
-                    disabled={busy}
-                    onClick={() => setDeleteAsk(true)}
-                  >
-                    Удалить
-                  </button>
-                ) : null}
-                <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
-                  Отмена
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={busy}>
-                  {busy ? 'Сохранение…' : 'Сохранить'}
+            {deleteAsk || !draft?.id ? null : (
+              <div className="trainer-schedule-modal__actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-danger-outline"
+                  disabled={busy}
+                  onClick={() => setDeleteAsk(true)}
+                >
+                  Удалить
                 </button>
               </div>
             )}
