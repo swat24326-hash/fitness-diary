@@ -138,10 +138,25 @@ ok(
     manifest.icons.some((i) => i.purpose === 'maskable'),
   'public manifest dual purpose',
 )
+ok(manifest.icons[0]?.purpose === 'maskable', 'hall manifest: maskable раньше any (домашний экран)')
 ok(manifest.background_color === '#000000', 'manifest splash background black')
 
 const any192 = path.join(root, 'public/icons/icon-192.png')
 const mask192 = path.join(root, 'public/icons/icon-192-maskable.png')
 ok(fs.existsSync(any192) && fs.existsSync(mask192), 'icon-192 any+maskable files exist')
+
+for (const rel of ['public/manifest-client.json', 'public/manifest-coach.json']) {
+  const appM = JSON.parse(fs.readFileSync(path.join(root, rel), 'utf8'))
+  ok(
+    Array.isArray(appM.icons) &&
+      appM.icons.some((i) => i.purpose === 'maskable' && String(i.src).includes('-maskable.png')) &&
+      appM.icons.some((i) => i.purpose === 'any'),
+    `${rel}: any + maskable (не голый знак)`,
+  )
+  ok(
+    appM.icons.every((i) => String(i.src).includes(`v=${PRODUCT_BRAND_ASSETS_VERSION}`)),
+    `${rel}: cache-bust версии ассетов`,
+  )
+}
 
 console.log('verify-product-brand: all passed')

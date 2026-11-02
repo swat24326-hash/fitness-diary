@@ -39,6 +39,19 @@ ok(coachPushUrl('') === '/coach/' && coachPushUrl(null) === '/coach/', 'пуст
 ok(coachPushUrl(`/messages/dm/${CLIENT}`) === `/coach/dm/${CLIENT}`, 'личное сообщение сотрудника → диалог на телефоне')
 ok(coachPushUrl(`/messages/dm/${CLIENT}/../../admin`) === `/coach/dm/${CLIENT}`, 'личное: хвост адреса не протаскивается')
 ok(coachPushUrl('/messages/dm/not-a-uuid') === '/coach/', 'личное: кривой id → /coach')
+const PEER = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb'
+const azPayload = buildChatPushPayload({
+  kind: 'az_instructor',
+  peerUserId: PEER,
+  authorSide: 'client',
+  clientId: CLIENT,
+  clientName: 'Мария',
+  authorName: '',
+  body: '👋',
+})
+ok(azPayload.url === `/messages/chat/${CLIENT}/az_instructor/${PEER}`, 'пуш АЗ: адрес с peer')
+ok(coachPushUrl(azPayload.url) === `/coach/chat/${CLIENT}/az_instructor`, 'пуш АЗ → диалог на телефоне инструктора')
+ok(coachPushUrl(`/messages/chat/${CLIENT}/az_instructor`) === `/coach/chat/${CLIENT}/az_instructor`, 'АЗ без peer в адресе — тот же диалог')
 // --- Ежедневник со слэшем: значок iPhone, поставленный с /coach/clients, видит /coach/ своим (INC-2026-10-15-04) ---
 ok(COACH_HOME === '/coach/', 'Ежедневник — /coach/')
 ok(appHomeCanonicalUrl({ pathname: '/coach', search: '?h=abc', hash: '#x' }) === '/coach/?h=abc#x', '/coach → /coach/ с вход-токеном и #')

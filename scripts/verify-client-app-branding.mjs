@@ -2,6 +2,9 @@
  * Приложение клиента под клуб: manifest с названием клуба, ссылка на него, режим подсказки установки.
  * node scripts/verify-client-app-branding.mjs
  */
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   CLIENT_APP_FALLBACK_NAME,
   buildClientManifest,
@@ -9,6 +12,8 @@ import {
   clientManifestUrl,
   isClientManifestClubId,
 } from '../api/_lib/clientPortal/clientManifestCore.js'
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 import { clientInstallMode, isIosUserAgent } from '../src/lib/client/clientInstallCore.js'
 import {
   armInstallPromptCapture,
@@ -43,6 +48,14 @@ ok(
     m.icons.some((i) => i.purpose === 'maskable'),
   'manifest: standalone + иконки',
 )
+ok(m.icons[0]?.purpose === 'maskable', 'API manifest: maskable первым')
+{
+  const staticM = JSON.parse(fs.readFileSync(path.join(root, 'public/manifest-client.json'), 'utf8'))
+  ok(
+    staticM.icons?.some((i) => i.purpose === 'maskable' && String(i.src).includes('-maskable.png')),
+    'статика manifest-client: есть maskable-подложка (INC-2026-11-03-02)',
+  )
+}
 ok(buildClientManifest('').name === CLIENT_APP_FALLBACK_NAME, 'клуб без названия — «Результат Плюс»')
 ok(buildClientManifest(null).name === CLIENT_APP_FALLBACK_NAME, 'клуб не найден — «Результат Плюс»')
 ok(!/Ядро/.test(JSON.stringify(m)), 'в manifest клиента нет имени продукта')

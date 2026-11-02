@@ -16,11 +16,19 @@ import { CoachLoadState } from './CoachStatus.jsx'
 
 /**
  * /coach/chat/:clientId — диалог «Тренер» с клиентом; сюда же ведёт push о новом сообщении.
+ * /coach/chat/:clientId/az_instructor — клиент АЗ этого инструктора.
  * /coach/chat/:clientId/supervisor — «Жалобы и предложения» (тренер, связанный с управляющим; ответ — от управляющего).
  */
+function coachChatKindParam(raw) {
+  const k = String(raw ?? '').trim()
+  if (k === 'supervisor') return 'supervisor'
+  if (k === 'az_instructor') return 'az_instructor'
+  return 'trainer'
+}
+
 export function CoachChatPage() {
   const { clientId = '', kind: kindParam = '' } = useParams()
-  const kind = kindParam === 'supervisor' ? 'supervisor' : 'trainer'
+  const kind = coachChatKindParam(kindParam)
   const { onSessionGone } = useCoachApp()
   const load = useCallback((before, opts) => fetchCoachChatThread(clientId, before, kind, opts?.seen), [clientId, kind])
   const send = useCallback((outgoing) => sendCoachChatMessage(clientId, outgoing, kind), [clientId, kind])

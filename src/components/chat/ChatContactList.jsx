@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Send } from 'lucide-react'
-import { filterChatContacts } from '../../lib/chat/chatContactsCore.js'
+import { chatContactTitleRu, filterChatContacts } from '../../lib/chat/chatContactsCore.js'
 import { chatThreadPreviewRu } from '../../lib/chat/chatUiCore.js'
 import { ChatRowBody } from './ChatRowBody.jsx'
 
@@ -43,10 +43,12 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite, selectedId 
         {top}
         {shown.map((c, i) => {
           const dim = !c.has_app
+          const rowKey = String(c.rowKey ?? c.id)
+          const selected = Boolean(selectedId) && selectedId === rowKey
           const body = (
             <ChatRowBody
-              kind={c.role || kind}
-              title={c.club_name ? `${c.name || 'Без имени'} · ${c.club_name}` : c.name || 'Без имени'}
+              kind={c.role || c.kind || kind}
+              title={chatContactTitleRu(c)}
               avatar={c.name}
               photo={c.photo}
               status={c.status}
@@ -58,15 +60,15 @@ export function ChatContactList({ contacts, kind, hrefFor, onInvite, selectedId 
               tail={dim && !c.has_thread && onInvite ? <span className="chat-contacts__invite-tag">Пригласить</span> : null}
             />
           )
-          const cls = `chat-row${c.unread ? ' chat-row--new' : ''}${dim ? ' chat-row--dim' : ''}${selectedId && c.id === selectedId ? ' chat-row--selected' : ''}`
+          const cls = `chat-row${c.unread ? ' chat-row--new' : ''}${dim ? ' chat-row--dim' : ''}${selected ? ' chat-row--selected' : ''}`
           return (
-            <li key={c.id} style={{ '--i': Math.min(i, 10) }} className="chat-contacts__item" data-has-app={dim ? '0' : '1'}>
+            <li key={rowKey} style={{ '--i': Math.min(i, 10) }} className="chat-contacts__item" data-has-app={dim ? '0' : '1'}>
               {dim && !c.has_thread && onInvite ? (
                 <button type="button" className={cls} onClick={() => onInvite(c)}>
                   {body}
                 </button>
               ) : (
-                <Link to={hrefFor(c)} className={cls} aria-current={selectedId && c.id === selectedId ? 'true' : undefined}>
+                <Link to={hrefFor(c)} className={cls} aria-current={selected ? 'true' : undefined}>
                   {body}
                 </Link>
               )}

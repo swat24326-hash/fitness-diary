@@ -205,9 +205,15 @@ ok(clientMatchesTrainerScheduleSearch(sampleClients[0], 'лихац'), 'search b
 ok(clientMatchesTrainerScheduleSearch(sampleClients[0], '4567'), 'search by phone')
 ok(clientMatchesTrainerScheduleSearch(sampleClients[1], '2002'), 'search by card')
 ok(!clientMatchesTrainerScheduleSearch(sampleClients[1], 'лихац'), 'search no false positive')
+ok(clientMatchesTrainerScheduleSearch({ id: 'x', name: 'Ёлкина' }, 'елк'), 'поиск: ё = е')
 
 const picked = buildTrainerScheduleClientPickerList(sampleClients, 'семен', ['c1'])
-ok(picked.length === 2 && picked[0].id === 'c1' && picked[1].id === 'c2', 'picker keeps selected + matches')
+ok(picked.length === 1 && picked[0].id === 'c2', 'при поиске только совпадения — выбранный без совпадения не занимает список')
+ok(
+  buildTrainerScheduleClientPickerList(sampleClients, 'лихац', ['c1']).map((c) => c.id).join(',') === 'c1',
+  'выбранный, попавший в запрос — остаётся в списке',
+)
+ok(buildTrainerScheduleClientPickerList(sampleClients, '', ['c1']).length === 2, 'пустой поиск — весь список')
 
 ok(!shouldReloadTrainerScheduleData({ reason: 'sync-queue' }), 'schedule reload: skip sync-queue')
 ok(shouldReloadTrainerScheduleData({ reason: 'sync-complete' }), 'schedule reload: sync-complete')

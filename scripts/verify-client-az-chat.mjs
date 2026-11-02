@@ -2,6 +2,9 @@
  * Диалоги клиента с инструкторами АЗ: список, доступ, вкладка «От тренера», ключи.
  * node scripts/verify-client-az-chat.mjs
  */
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 import {
   CHAT_KIND_AZ_INSTRUCTOR,
   canStaffReadChat,
@@ -23,6 +26,10 @@ import {
   parseStaffClientChatKey,
   staffClientChatKey,
 } from '../src/lib/chat/clientAzChatCore.js'
+import { coachPushUrl } from '../src/lib/push/pushTargetUrlCore.js'
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
+const src = (rel) => readFileSync(path.join(root, rel), 'utf8')
 
 let failed = 0
 function ok(cond, msg) {
@@ -96,6 +103,17 @@ const threads = [
   { kind: 'az_instructor', peer_user_id: 'x', last_message_at: '2026-10-10T10:00:00Z', last_author: 'staff', client_read_at: null },
 ]
 ok(clientChatAttention(clientAz, threads, ['i1', 'i2']) === 2, 'attention: sales + свой az, чужой peer не считаем')
+
+ok(/az_instructor/.test(src('api/_lib/coach/coachHandler.js')), 'телефон /coach API знает kind az_instructor')
+ok(/az_instructor/.test(src('src/pages/coach/CoachChatPage.jsx')), 'экран диалога на телефоне открывает АЗ')
+ok(/loadTrainerClientContacts/.test(src('api/_lib/chat/chatContactsStore.js')), 'контакты тянут АЗ-назначения')
+ok(/azClients/.test(src('api/_lib/chat/chatContactsStore.js')), 'в контактах есть azClients')
+const CID = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'
+const IID = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb'
+ok(
+  coachPushUrl(`/messages/chat/${CID}/az_instructor/${IID}`) === `/coach/chat/${CID}/az_instructor`,
+  'пуш АЗ на телефоне открывает диалог, не главную',
+)
 
 if (failed) {
   console.error(`\nverify-client-az-chat: ${failed} FAIL`)

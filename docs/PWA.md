@@ -1,14 +1,14 @@
 # PWA — установка и обновление на планшете
 
-**Актуально:** 2026-10-20 (стартовый хаб `/` для гостя; splash: прозрачный `purpose: any` + чёрный `background_color`, maskable на домашний экран; boot-зум в `index.html` до React). Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+**Актуально:** 2026-11-03 — статика `manifest-client.json` / `manifest-coach.json` пишется `sync:brand` (any + **maskable**; без maskable Android ставит голый зелёный знак — INC-2026-11-03-02). Splash: прозрачный `purpose: any` + чёрный `background_color`; maskable на домашний экран. Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
 
 ### Стартовый вход и манифесты
 
 | Поверхность | `start_url` / маршрут | Кто |
 |-------------|----------------------|-----|
 | Зал / сотрудник (основной PWA) | `manifest.json` → `/` | `StartHubPage`: Сотрудник (логин на месте). Кнопка «Мобильное приложение» раскрывает Тренер→`/coach` и Клиент→`/me`. Запасной прямой вход — `/login`. |
-| Клиент | `manifest-client.json` → `/me` | Не ставить клиентский ярлык на `/` — свой scope. |
-| Тренер на телефоне | `manifest-coach.json` → `/coach` | То же: свой scope, не смешивать с хабом. |
+| Клиент | `manifest-client.json` → `/me` (+ API клуба); icons any+maskable | Не ставить ярлык на `/`. Без maskable — голый знак на Android. |
+| Тренер на телефоне | `manifest-coach.json` → `/coach`; icons any+maskable | То же: свой scope, не смешивать с хабом. |
 
 Цепочка splash: `#yadro-boot-splash` → хаб или роль → после входа сотрудника `AppWelcomeSplash` (как раньше). Обновление PWA на `/` и `/login` — `immediate` (`appUpdatePolicy.js`).
 

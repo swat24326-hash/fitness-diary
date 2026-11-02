@@ -314,14 +314,15 @@ export function TrainerScheduleEntryModal({
             {/* Текст не сбрасываем при вкладке «Клиенты» — компактное поле под списком, не в form-body. */}
             {mode === 'clients' ? (
               <label className="trainer-schedule-modal__field trainer-schedule-modal__field--note-aside">
-                <span>Примечание, необязательно</span>
-                <textarea
-                  className="textarea"
+                <span className="sr-only">Примечание, необязательно</span>
+                <input
+                  className="input"
+                  type="text"
                   value={form.title}
                   onChange={(ev) => form.setTitle(ev.target.value)}
-                  rows={2}
-                  placeholder="Фокус, зал, пожелание"
+                  placeholder="Примечание (необязательно)"
                   maxLength={240}
+                  data-testid="schedule-note-aside"
                 />
               </label>
             ) : null}

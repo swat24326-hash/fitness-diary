@@ -59,20 +59,20 @@ export function productBrandIconPath(size, kind = 'any') {
   return `/icons/${file}?v=${PRODUCT_BRAND_ASSETS_VERSION}`
 }
 
-/** Записи icons для manifest (any + maskable). */
+/** Записи icons для manifest (maskable + any). Maskable первым: домашний экран; any — splash. */
 export function productBrandManifestIcons(sizes = [72, 96, 128, 144, 152, 192, 384, 512]) {
   return sizes.flatMap((size) => [
-    {
-      src: productBrandIconPath(size, 'any'),
-      sizes: `${size}x${size}`,
-      type: 'image/png',
-      purpose: 'any',
-    },
     {
       src: productBrandIconPath(size, 'maskable'),
       sizes: `${size}x${size}`,
       type: 'image/png',
       purpose: 'maskable',
+    },
+    {
+      src: productBrandIconPath(size, 'any'),
+      sizes: `${size}x${size}`,
+      type: 'image/png',
+      purpose: 'any',
     },
   ])
 }

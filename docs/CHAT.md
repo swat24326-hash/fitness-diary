@@ -72,7 +72,7 @@
 
 Правила — `src/lib/chat/chatContactsCore.js` (`verify-chat-contacts.mjs`), `staffDmAccessCore.js` + `staffDmContactsCore.js` (`verify-staff-dm.mjs`); сервер — `api/_lib/chat/chatContactsHandler.js`, `chatContactsStore.js`, `staffDmHandler.js`, `staffDmStore.js`, `staffDmPushJob.js`; экран — `MessengerLayout` (общая рамка, на телефоне тренера `/coach` — одна панель), `ChatFolders`, `ChatContactList`, `ChatRowBody` (стили `src/styles/chat-contacts.css`), `StaffDmThread.jsx`, `CoachDmPage.jsx`.
 
-**Тренер с телефона:** те же диалоги «Тренер» в приложении `/coach` → «Сообщения»; push о новом сообщении на телефон открывает диалог там же — [COACH_APP.md](./COACH_APP.md).
+**Тренер / инструктор АЗ с телефона:** в `/coach` → «Сообщения» → «Клиенты» — персоналки (`trainer_id`) и клиенты АЗ (`client_az_instructors`); у АЗ в строке направление («Бокс»). Push о сообщении клиента открывает диалог там же (`/coach/chat/:id` или `/coach/chat/:id/az_instructor`) — [COACH_APP.md](./COACH_APP.md). Список «Активные» на планшете для АЗ — отдельно, позже ([CLIENT_APP.md](./CLIENT_APP.md)).
 
 **Главный админ:** конверт «Сообщения сотрудников» — только переписка с сотрудниками (см. выше); переписку клиентов читает из карточки клиента (конвертик рядом с QR входа в `/me`).
 

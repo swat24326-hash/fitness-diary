@@ -10,6 +10,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const brandUrl = pathToFileURL(path.join(root, 'src/lib/productBrand.js')).href
 const brand = await import(brandUrl)
+const { APP_BRAND_COACH_TITLE, APP_BRAND_NAME, appBrandManifestIcons } = await import(
+  pathToFileURL(path.join(root, 'src/lib/appBrand.js')).href
+)
 const { productBrandMarkFileSvg, productBrandMarkInnerSvg } = await import(
   pathToFileURL(path.join(root, 'src/lib/productBrandMark.js')).href
 )
@@ -114,6 +117,49 @@ const manifest = {
   icons: productBrandManifestIcons(iconSizes),
 }
 write('public/manifest.json', `${JSON.stringify(manifest, null, 2)}\n`)
+
+/* Статика /me и /coach до подгрузки клуба — те же иконки, что API (maskable + any), иначе Android ставит «голый» знак. */
+const clientIcons = appBrandManifestIcons()
+write(
+  'public/manifest-client.json',
+  `${JSON.stringify(
+    {
+      name: APP_BRAND_NAME,
+      short_name: APP_BRAND_NAME,
+      description: 'Абонемент, ближайшая тренировка, прогресс и бонусы клуба',
+      id: '/me/',
+      start_url: '/me',
+      scope: '/me',
+      display: 'standalone',
+      theme_color: '#0a0a0a',
+      background_color: '#0a0a0a',
+      orientation: 'portrait',
+      icons: clientIcons,
+    },
+    null,
+    2,
+  )}\n`,
+)
+write(
+  'public/manifest-coach.json',
+  `${JSON.stringify(
+    {
+      name: APP_BRAND_COACH_TITLE,
+      short_name: APP_BRAND_NAME,
+      description: 'Сообщения клиентов и расписание тренера на телефоне',
+      id: '/coach/',
+      start_url: '/coach',
+      scope: '/coach',
+      display: 'standalone',
+      theme_color: '#0a0a0a',
+      background_color: '#0a0a0a',
+      orientation: 'portrait',
+      icons: clientIcons,
+    },
+    null,
+    2,
+  )}\n`,
+)
 
 const lockup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 120" fill="#111111" role="img" aria-label="${PRODUCT_BRAND_NAME}">
   <title>${PRODUCT_BRAND_NAME}</title>

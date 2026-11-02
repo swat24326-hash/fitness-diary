@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import { SCHEDULE_MAX_CLIENTS, buildTrainerScheduleClientPickerList } from '../../lib/trainer/trainerScheduleCore.js'
 
 /**
- * Выбор клиентов слота: поиск + список с галочками.
+ * Выбор клиентов слота: чипы выбранных + поиск + список с галочками.
  * @param {{
  *   clients: object[],
  *   selectedIds: string[],
@@ -14,6 +14,11 @@ import { SCHEDULE_MAX_CLIENTS, buildTrainerScheduleClientPickerList } from '../.
  */
 export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, clientInfoById = {} }) {
   const [query, setQuery] = useState('')
+  const byId = useMemo(() => new Map((clients ?? []).map((c) => [String(c.id), c])), [clients])
+  const selectedRows = useMemo(
+    () => selectedIds.map((id) => byId.get(String(id))).filter(Boolean),
+    [byId, selectedIds],
+  )
   const picker = useMemo(
     () => buildTrainerScheduleClientPickerList(clients, query, selectedIds),
     [clients, query, selectedIds],
@@ -27,6 +32,24 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, cl
           ? `Выбрано ${selectedIds.length} из ${SCHEDULE_MAX_CLIENTS}${full ? ' — больше нельзя' : ''}`
           : `Можно выбрать до ${SCHEDULE_MAX_CLIENTS} клиентов на один слот.`}
       </p>
+      {selectedRows.length ? (
+        <ul className="trainer-schedule-modal__selected" aria-label="Уже выбраны">
+          {selectedRows.map((c) => (
+            <li key={String(c.id)}>
+              <button
+                type="button"
+                className="trainer-schedule-modal__selected-chip btn-touch"
+                onClick={() => onToggle(String(c.id))}
+                aria-label={`Убрать ${c.name || 'клиента'}`}
+                title="Убрать"
+              >
+                <span className="trainer-schedule-modal__selected-name">{c.name || 'Без имени'}</span>
+                <X size={14} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <div className="trainer-schedule-modal__search admin-clients-search-cell" role="search">
         <Search size={18} aria-hidden className="muted u-shrink-0" />
         <input
@@ -35,6 +58,7 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, cl
           autoComplete="off"
           placeholder="Фамилия, телефон или номер карты…"
           aria-label="Поиск клиента"
+          data-testid="schedule-clients-search"
           value={query}
           onChange={(ev) => setQuery(ev.target.value)}
         />

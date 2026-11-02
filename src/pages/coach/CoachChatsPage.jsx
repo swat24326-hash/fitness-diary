@@ -7,6 +7,7 @@ import { StaffGroupRow } from '../../components/chat/StaffGroupRow.jsx'
 import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx'
 import { useSavedChatFolder } from '../../hooks/useSavedChatFolder.js'
 import { createCoachClientInvite, fetchCoachContacts } from '../../lib/coach/coachApiClient.js'
+import { CHAT_KIND_AZ_INSTRUCTOR } from '../../lib/chat/chatAccessCore.js'
 import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
 import { screenCacheKey } from '../../lib/screenCache/screenCacheCore.js'
 import { CoachShell } from './CoachShell.jsx'
@@ -15,7 +16,8 @@ import { useCoachLoad } from './useCoachLoad.js'
 import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
 
 const CONTACTS_CACHE = screenCacheKey('coach', 'contacts')
-const clientHref = (c) => `/coach/chat/${c.id}`
+const clientHref = (c) =>
+  String(c?.kind ?? '') === CHAT_KIND_AZ_INSTRUCTOR ? `/coach/chat/${c.id}/${CHAT_KIND_AZ_INSTRUCTOR}` : `/coach/chat/${c.id}`
 const complaintHref = (c) => `/coach/chat/${c.id}/supervisor`
 const staffHref = (c) => `/coach/dm/${c.id}`
 

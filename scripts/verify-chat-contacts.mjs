@@ -6,7 +6,9 @@ import {
   CHAT_FOLDER_ADMIN,
   CHAT_FOLDER_CLIENTS,
   CHAT_FOLDER_COLLEAGUES,
+  azContactSubtitle,
   buildClientContacts,
+  chatContactTitleRu,
   chatFolderLabelRu,
   chatFolderUnread,
   filterChatContacts,
@@ -81,6 +83,39 @@ ok(chatFolderLabelRu(CHAT_FOLDER_CLIENTS, 'trainer') === 'Клиенты', 'па
 ok(chatFolderLabelRu(CHAT_FOLDER_COLLEAGUES, 'trainer') === 'Коллеги', 'тренеру вторая папка — «Коллеги»')
 ok(chatFolderLabelRu(CHAT_FOLDER_COLLEAGUES, 'supervisor') === 'Тренеры', 'управляющему — «Тренеры»')
 ok(chatFolderLabelRu(CHAT_FOLDER_ADMIN, 'trainer') === 'Администрация', 'папка «Администрация»')
+
+ok(byId.a.kind === 'trainer' && byId.a.rowKey === 'a', 'ПЗ-контакт: kind trainer и rowKey = id')
+ok(azContactSubtitle(['Бокс']) === 'Бокс', 'одно направление — его имя')
+ok(azContactSubtitle(['Бокс', 'Степ']) === 'АЗ' && azContactSubtitle([]) === 'АЗ', 'несколько / пусто — «АЗ»')
+
+const withAz = buildClientContacts({
+  clients: [{ id: 'pz1', name: 'ПЗ Анна' }],
+  liveClientIds: ['pz1'],
+  threads: [],
+  azClients: [
+    { id: 'az1', name: 'АЗ Мария' },
+    { id: 'pz1', name: 'ПЗ Анна' },
+  ],
+  azLiveClientIds: ['az1'],
+  azThreads: [
+    {
+      client_id: 'az1',
+      last_message_at: '2026-10-12T10:00:00Z',
+      last_author: 'client',
+      last_preview: '👋',
+      staff_read_at: null,
+      staff_unread: 1,
+    },
+  ],
+  azSubtitleByClientId: { az1: 'Бокс', pz1: 'Степ' },
+})
+ok(withAz.length === 3, 'ПЗ + два АЗ (в т.ч. дубль с ПЗ) — три строки')
+const azRow = withAz.find((c) => c.rowKey === 'az1:az_instructor')
+const dualAz = withAz.find((c) => c.rowKey === 'pz1:az_instructor')
+ok(azRow?.kind === 'az_instructor' && azRow.unread && azRow.subtitle === 'Бокс', 'АЗ-контакт: kind, unread, subtitle')
+ok(dualAz?.subtitle === 'Степ' && dualAz.name === 'ПЗ Анна', 'дубль ПЗ+АЗ — отдельная строка с направлением')
+ok(chatContactTitleRu(azRow) === 'АЗ Мария · Бокс', 'заголовок строки с направлением')
+ok(filterChatContacts(withAz, 'бокс').map((c) => c.rowKey).join(',') === 'az1:az_instructor', 'поиск по направлению АЗ')
 
 if (failed) {
   console.error(`verify-chat-contacts: ${failed} failed`)

@@ -9,7 +9,8 @@ import { COACH_HOME } from '../pwa/appHomePath.js'
 export const PUSH_APP_STAFF = 'staff'
 export const PUSH_APP_COACH = 'coach'
 
-const STAFF_CLIENT_CHAT = /^\/messages\/chat\/([0-9a-f-]{36})\/(trainer|supervisor)(?:[/?#]|$)/i
+const STAFF_CLIENT_CHAT =
+  /^\/messages\/chat\/([0-9a-f-]{36})\/(trainer|supervisor|az_instructor)(?:\/([0-9a-f-]{36}))?(?:[/?#]|$)/i
 const STAFF_DM = /^\/messages\/dm\/([0-9a-f-]{36})(?:[/?#]|$)/i
 const STAFF_GROUP = /^\/messages\?group=[0-9a-f-]{36}(?:[&#]|$)/i
 
@@ -18,7 +19,10 @@ export function coachPushUrl(url) {
   const chat = STAFF_CLIENT_CHAT.exec(String(url ?? ''))
   if (chat) {
     const id = chat[1].toLowerCase()
-    return chat[2].toLowerCase() === 'supervisor' ? `/coach/chat/${id}/supervisor` : `/coach/chat/${id}`
+    const kind = chat[2].toLowerCase()
+    if (kind === 'supervisor') return `/coach/chat/${id}/supervisor`
+    if (kind === 'az_instructor') return `/coach/chat/${id}/az_instructor`
+    return `/coach/chat/${id}`
   }
   const dm = STAFF_DM.exec(String(url ?? ''))
   return dm ? `/coach/dm/${dm[1].toLowerCase()}` : COACH_HOME

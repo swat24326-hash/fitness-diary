@@ -329,8 +329,11 @@ export async function run(browser) {
     })
     c.ok(noOverlap, 'правка записи: примечание под списком клиентов, без наезда')
     const second = GROUP[0]
+    /* INC-2026-11-03-03: после выбора одного поиск второго не должен «теряться» за закреплённым. */
+    await editOne.getByTestId('schedule-clients-search').fill(second.slice(0, 4))
     const secondRow = editOne.locator('label.trainer-schedule-modal__client-item').filter({ hasText: second })
-    await secondRow.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))
+    await secondRow.waitFor({ state: 'visible', timeout: 5_000 })
+    c.ok((await secondRow.count()) === 1, 'правка: поиск находит второго при уже выбранном')
     await secondRow.click()
     c.ok((await editOne.getByTestId('schedule-clients-count').innerText()).includes('Выбрано 2 из 15'), 'правка: добавили второго клиента')
     await editOne.getByRole('button', { name: 'Сохранить' }).click()
@@ -411,7 +414,25 @@ export async function run(browser) {
 
     await page.getByRole('button', { name: /выбрать месяц$/ }).click()
     const picker = page.getByRole('dialog', { name: 'Выбор месяца' })
-    c.ok((await picker.getByRole('button', { pressed: true }).innerText()) === 'Ноя', 'выбор месяца: открыт на текущем месяце листания')
+    const MONTH_SHORT = {
+      Январь: 'Янв',
+      Февраль: 'Фев',
+      Март: 'Мар',
+      Апрель: 'Апр',
+      Май: 'Май',
+      Июнь: 'Июн',
+      Июль: 'Июл',
+      Август: 'Авг',
+      Сентябрь: 'Сен',
+      Октябрь: 'Окт',
+      Ноябрь: 'Ноя',
+      Декабрь: 'Дек',
+    }
+    const browsedShort = MONTH_SHORT[String(nextMonth).split(/\s/)[0]] || ''
+    c.ok(
+      (await picker.getByRole('button', { pressed: true }).innerText()) === browsedShort,
+      `выбор месяца: открыт на текущем месяце листания (${browsedShort})`,
+    )
     await screenshot(page, 'coach-calendar-month-picker')
     await picker.getByRole('button', { name: 'Дек', exact: true }).click()
     c.ok((await titleText(page, '.trainer-schedule-month__title')) === 'Декабрь 2026', 'выбор месяца: тап «Дек» — Декабрь 2026')

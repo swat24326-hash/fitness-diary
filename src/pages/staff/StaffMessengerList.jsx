@@ -5,6 +5,7 @@ import { ChatThreadList } from '../../components/chat/ChatThreadList.jsx'
 import { StaffGroupRow } from '../../components/chat/StaffGroupRow.jsx'
 import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
+import { CHAT_KIND_AZ_INSTRUCTOR } from '../../lib/chat/chatAccessCore.js'
 import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
 import { chatThreadPreviewRu } from '../../lib/chat/chatUiCore.js'
 import { STAFF_FOLDER_INBOX } from '../../lib/chat/staffMessengerCore.js'
@@ -73,14 +74,27 @@ export function StaffMessengerList({ folder, chats, inbox, open, href }) {
 
   const contacts = folder.contacts ?? []
   if (folder.id === CHAT_FOLDER_CLIENTS) {
+    const clientsSelected =
+      open?.type === 'chat'
+        ? open.kind === CHAT_KIND_AZ_INSTRUCTOR
+          ? `${open.clientId}:${CHAT_KIND_AZ_INSTRUCTOR}`
+          : open.kind === 'trainer'
+            ? open.clientId
+            : ''
+        : ''
     return (
       <>
         <ChatContactList
           contacts={contacts}
           kind="trainer"
-          hrefFor={(c) => href({ chat: `${c.id}:trainer` })}
+          hrefFor={(c) => {
+            const kind = String(c.kind ?? 'trainer')
+            return href({
+              chat: kind === CHAT_KIND_AZ_INSTRUCTOR ? `${c.id}:${CHAT_KIND_AZ_INSTRUCTOR}` : `${c.id}:trainer`,
+            })
+          }}
           onInvite={setInviting}
-          selectedId={chatKey.endsWith(':trainer') ? open.clientId : ''}
+          selectedId={clientsSelected}
         />
         <ClientInviteModal open={Boolean(inviting)} client={inviting ?? { id: '' }} onClose={() => setInviting(null)} />
       </>
@@ -92,7 +106,7 @@ export function StaffMessengerList({ folder, chats, inbox, open, href }) {
         contacts={contacts}
         kind="supervisor"
         hrefFor={(c) => href({ chat: `${c.id}:supervisor` })}
-        selectedId={chatKey.endsWith(':supervisor') ? open.clientId : ''}
+        selectedId={chatKey.endsWith(':supervisor') ? `${open.clientId}:supervisor` : ''}
       />
     )
   }

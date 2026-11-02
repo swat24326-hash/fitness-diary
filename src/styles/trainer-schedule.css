@@ -917,17 +917,15 @@
   overflow: hidden;
 }
 
-/* Примечание под списком клиентов (в form-foot) — не делит высоту с picker и не перекрывает галочки. */
+/* Примечание — одна строка под списком: место отдаём клиентам (INC-2026-11-03-03). */
 .trainer-schedule-modal__form-foot > .trainer-schedule-modal__field--note-aside {
   flex: 0 0 auto;
   min-height: auto;
 }
 
-.trainer-schedule-modal__form-foot > .trainer-schedule-modal__field--note-aside textarea {
-  flex: 0 0 auto;
-  min-height: 56px;
-  max-height: 80px;
-  resize: none;
+.trainer-schedule-modal__form-foot > .trainer-schedule-modal__field--note-aside .input {
+  min-height: 40px;
+  font-size: 0.95rem;
 }
 
 /* Симметрия: две равные колонки; на iPhone узкие fixed-width ломали type=time. */
@@ -936,6 +934,11 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   align-items: start;
+}
+
+/* iPhone: native time раздувает ячейку и наезжает на «Длительность» (INC-2026-11-03-03). */
+.trainer-schedule-modal__row > .trainer-schedule-modal__field {
+  overflow: hidden;
 }
 
 .trainer-schedule-modal__field {
@@ -1016,11 +1019,53 @@
 }
 
 .trainer-schedule-modal__row .trainer-schedule-modal__field input[type='time'] {
+  display: block;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   padding: 8px 6px;
   font-variant-numeric: tabular-nums;
   text-align: center;
+  /* Safari рисует широкий native control — не даём вылезти из колонки. */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.trainer-schedule-modal__row .trainer-schedule-modal__field input[type='time']::-webkit-date-and-time-value {
+  text-align: center;
+}
+
+.trainer-schedule-modal__selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trainer-schedule-modal__selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.trainer-schedule-modal__selected-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
 }
 
 .trainer-schedule-modal__modes {
@@ -1068,7 +1113,8 @@
 
 .trainer-schedule-modal__clients {
   flex: 1 1 auto;
-  min-height: 140px;
+  /* Не форсировать 220px: на телефоне нога формы (примечание+повтор) наезжала на список (e2e / INC-2026-11-03-03). */
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   border-top: 1px solid rgba(255, 255, 255, 0.08);

@@ -446,36 +446,42 @@ export function resolveTrainerSchedulePullWindow(todayIso) {
   }
 }
 
+/** Нормализация поиска: регистр, ё→е, лишние пробелы. */
+export function normalizeTrainerScheduleSearchQuery(query) {
+  return String(query ?? '')
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 /**
  * Поиск клиента в модалке ежедневника — как в списке клиентов тренера.
  * @param {object | null | undefined} client
  * @param {string} query
  */
 export function clientMatchesTrainerScheduleSearch(client, query) {
-  const q = String(query ?? '').trim().toLowerCase()
+  const q = normalizeTrainerScheduleSearchQuery(query)
   if (!q) return true
-  const name = String(client?.name ?? '').toLowerCase()
-  const phone = String(client?.phone ?? '').toLowerCase()
-  const card = String(client?.card_number ?? '').toLowerCase()
+  const name = normalizeTrainerScheduleSearchQuery(client?.name)
+  const phone = normalizeTrainerScheduleSearchQuery(client?.phone)
+  const card = normalizeTrainerScheduleSearchQuery(client?.card_number)
   return name.includes(q) || phone.includes(q) || card.includes(q)
 }
 
 /**
- * Список для выбора: выбранные остаются видимыми даже при фильтре.
+ * Список для выбора при поиске: только совпадения.
+ * Уже выбранных, кто не попал в запрос, держим чипами над поиском — иначе на узком
+ * телефоне они занимают единственную видимую строку и кажется, что «второго не находит».
  * @param {object[]} clients
  * @param {string} query
- * @param {string[]} [selectedIds]
+ * @param {string[]} [_selectedIds] — оставлен для совместимости вызовов; на фильтр не влияет
  */
-export function buildTrainerScheduleClientPickerList(clients, query, selectedIds = []) {
+export function buildTrainerScheduleClientPickerList(clients, query, _selectedIds = []) {
   const list = Array.isArray(clients) ? clients : []
-  const q = String(query ?? '').trim().toLowerCase()
+  const q = normalizeTrainerScheduleSearchQuery(query)
   if (!q) return list
-  const selectedSet = new Set((selectedIds ?? []).map((id) => String(id)))
-  const matched = list.filter((c) => clientMatchesTrainerScheduleSearch(c, q))
-  const pinned = list.filter(
-    (c) => selectedSet.has(String(c.id)) && !matched.some((m) => String(m.id) === String(c.id)),
-  )
-  return [...pinned, ...matched]
+  return list.filter((c) => clientMatchesTrainerScheduleSearch(c, q))
 }
 
 /** Ежедневник — не перезагружать UI из‑за статуса очереди sync и чужих справочников. */

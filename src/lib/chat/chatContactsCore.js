@@ -2,7 +2,7 @@
  * Папки «Сообщений» сотрудника: Клиенты · Коллеги · Администрация.
  * В папке по умолчанию все люди: с приложением — ярко и сверху, без — тускло и ниже. Без React и базы.
  */
-import { chatUnreadCount, isChatUnreadFor } from './chatAccessCore.js'
+import { CHAT_KIND_AZ_INSTRUCTOR, chatUnreadCount, isChatUnreadFor } from './chatAccessCore.js'
 import { chatUnseenReaction } from './chatReactionCore.js'
 import { avatarPhotoUrl } from '../profile/avatarCore.js'
 import { profileStatusEmoji } from '../profile/profileStatusCore.js'
@@ -24,6 +24,15 @@ export function chatFolderLabelRu(folder, viewerRole) {
 }
 
 /**
+ * Подпись АЗ в списке инструктора: одно направление — его имя; несколько или пусто — «АЗ».
+ * @param {Iterable<string>|null|undefined} directionNames
+ */
+export function azContactSubtitle(directionNames) {
+  const names = [...new Set([...(directionNames ?? [])].map((n) => String(n ?? '').trim()).filter(Boolean))]
+  return names.length === 1 ? names[0] : 'АЗ'
+}
+
+/**
  * Сводка диалога для строки контакта (пустая, если переписки ещё нет).
  * @param {object | null | undefined} thread строка chat_threads / staff_dm_threads, приведённая к виду staff
  */
@@ -40,26 +49,81 @@ export function threadSummary(thread) {
 }
 
 /**
- * Клиенты тренера + живые входы в приложение + диалоги «Тренер».
- * Ярко — есть приложение или ждёт ответа (непрочитанное пришло из приложения, даже если вход потом отозвали).
- * @param {{ clients: Array<{ id: string, name?: string }>, liveClientIds: Iterable<string>, threads: object[] }} input
+ * @param {object} c
+ * @param {string} id
+ * @param {ReturnType<typeof threadSummary>} summary
+ * @param {boolean} hasApp
+ * @param {boolean} hasThread
+ * @param {{ kind: string, rowKey: string, subtitle?: string }} meta
  */
-export function buildClientContacts({ clients, liveClientIds, threads }) {
+function contactRow(c, id, summary, hasApp, hasThread, meta) {
+  return {
+    id,
+    name: String(c.name ?? '').trim(),
+    photo: avatarPhotoUrl(c.avatar_key, 'client', id),
+    status: profileStatusEmoji(c, 'client'),
+    has_app: hasApp,
+    has_thread: hasThread,
+    kind: meta.kind,
+    rowKey: meta.rowKey,
+    subtitle: String(meta.subtitle ?? '').trim(),
+    ...summary,
+  }
+}
+
+/**
+ * Клиенты тренера (ПЗ) + клиенты АЗ этого инструктора + живые входы + диалоги.
+ * Ярко — есть приложение или ждёт ответа (непрочитанное пришло из приложения, даже если вход потом отозвали).
+ * Дубль ПЗ+АЗ у одного человека — две строки (разный rowKey), чтобы непрочитанное не потерялось.
+ * @param {{
+ *   clients?: Array<{ id: string, name?: string }>,
+ *   liveClientIds?: Iterable<string>,
+ *   threads?: object[],
+ *   azClients?: Array<{ id: string, name?: string }>,
+ *   azLiveClientIds?: Iterable<string>,
+ *   azThreads?: object[],
+ *   azSubtitleByClientId?: Map<string, string> | Record<string, string>,
+ * }} input
+ */
+export function buildClientContacts({
+  clients,
+  liveClientIds,
+  threads,
+  azClients,
+  azLiveClientIds,
+  azThreads,
+  azSubtitleByClientId,
+} = {}) {
   const live = new Set([...(liveClientIds ?? [])].map(String))
   const byClient = new Map((threads ?? []).map((t) => [String(t.client_id), t]))
-  return (clients ?? []).map((c) => {
+  const pz = (clients ?? []).map((c) => {
     const id = String(c.id)
     const summary = threadSummary(byClient.get(id))
-    return {
-      id,
-      name: String(c.name ?? '').trim(),
-      photo: avatarPhotoUrl(c.avatar_key, 'client', id),
-      status: profileStatusEmoji(c, 'client'),
-      has_app: live.has(id) || summary.unread,
-      has_thread: byClient.has(id),
-      ...summary,
-    }
+    return contactRow(c, id, summary, live.has(id) || summary.unread, byClient.has(id), {
+      kind: 'trainer',
+      rowKey: id,
+    })
   })
+
+  const azLive = new Set([...(azLiveClientIds ?? liveClientIds ?? [])].map(String))
+  const azByClient = new Map((azThreads ?? []).map((t) => [String(t.client_id), t]))
+  const subtitles =
+    azSubtitleByClientId instanceof Map
+      ? azSubtitleByClientId
+      : new Map(Object.entries(azSubtitleByClientId ?? {}).map(([k, v]) => [String(k), String(v ?? '')]))
+
+  const az = (azClients ?? []).map((c) => {
+    const id = String(c.id)
+    const summary = threadSummary(azByClient.get(id))
+    const subtitle = String(subtitles.get(id) ?? '').trim() || 'АЗ'
+    return contactRow(c, id, summary, azLive.has(id) || summary.unread, azByClient.has(id), {
+      kind: CHAT_KIND_AZ_INSTRUCTOR,
+      rowKey: `${id}:${CHAT_KIND_AZ_INSTRUCTOR}`,
+      subtitle,
+    })
+  })
+
+  return [...pz, ...az]
 }
 
 /**
@@ -71,7 +135,21 @@ export function buildThreadContacts(threads, clients) {
   return (threads ?? []).map((t) => {
     const id = String(t.client_id)
     const c = clients.get(id)
-    return { id, name: String(c?.name ?? '').trim(), photo: avatarPhotoUrl(c?.avatar_key, 'client', id), status: profileStatusEmoji(c, 'client'), has_app: true, has_thread: true, ...threadSummary(t) }
+    const kind = String(t.kind ?? 'trainer')
+    const peer = String(t.peer_user_id ?? '').trim()
+    const rowKey = peer ? `${id}:${kind}:${peer}` : kind === 'trainer' ? id : `${id}:${kind}`
+    return {
+      id,
+      name: String(c?.name ?? '').trim(),
+      photo: avatarPhotoUrl(c?.avatar_key, 'client', id),
+      status: profileStatusEmoji(c, 'client'),
+      has_app: true,
+      has_thread: true,
+      kind,
+      rowKey,
+      subtitle: '',
+      ...threadSummary(t),
+    }
   })
 }
 
@@ -113,10 +191,19 @@ export function normalizeQuery(s) {
 export function filterChatContacts(contacts, query) {
   const q = normalizeQuery(query)
   if (!q) return contacts ?? []
-  return (contacts ?? []).filter((c) => normalizeQuery(`${c.name ?? ''} ${c.club_name ?? ''}`).includes(q))
+  return (contacts ?? []).filter((c) =>
+    normalizeQuery(`${c.name ?? ''} ${c.club_name ?? ''} ${c.subtitle ?? ''}`).includes(q),
+  )
 }
 
 /** Число на вкладке папки — сколько диалогов ждут ответа. */
 export function chatFolderUnread(contacts) {
   return (contacts ?? []).filter((c) => c.unread).length
+}
+
+/** Заголовок строки: имя · направление / клуб. */
+export function chatContactTitleRu(c) {
+  const name = String(c?.name ?? '').trim() || 'Без имени'
+  const tail = String(c?.subtitle ?? '').trim() || String(c?.club_name ?? '').trim()
+  return tail ? `${name} · ${tail}` : name
 }

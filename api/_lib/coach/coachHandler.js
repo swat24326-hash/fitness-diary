@@ -45,8 +45,13 @@ import { COACH_SCHEDULE_WRITE_OPS, handleCoachScheduleWrite, sendCoachScheduleRa
 import { buildCoachClub, buildCoachManifest, coachManifestUrl } from './coachManifestCore.js'
 import { coachStore } from './coachStore.js'
 
-/** С телефона — «Тренер» и «Жалобы и предложения» (доступ к последнему есть только у связанного с управляющим). */
-const coachChatKind = (kind) => (String(kind ?? '') === 'supervisor' ? 'supervisor' : 'trainer')
+/** С телефона — «Тренер», АЗ-инструктор и «Жалобы» (жалобы — только у связанного с управляющим). */
+function coachChatKind(kind) {
+  const k = String(kind ?? '').trim()
+  if (k === 'supervisor') return 'supervisor'
+  if (k === 'az_instructor') return 'az_instructor'
+  return 'trainer'
+}
 
 function parseBody(body) {
   if (typeof body !== 'string') return body ?? {}

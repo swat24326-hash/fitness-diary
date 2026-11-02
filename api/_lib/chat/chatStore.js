@@ -28,7 +28,7 @@ export function isMissingChatTable(e) {
 }
 
 /** Клиент в переписке: права (club_id, trainer_id, archived_at), граница истории тренера и фото профиля. */
-const CHAT_CLIENT_FIELDS =
+export const CHAT_CLIENT_FIELDS =
   'id, name, club_id, trainer_id, trainer_chat_since, archived_at, avatar_key, status_emoji, status_until, birth_date'
 
 export async function loadChatClient(db, clientId) {
