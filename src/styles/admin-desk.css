@@ -356,7 +356,8 @@
 .admin-desk-az-modal {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  /* Выше меню «⋯» (1300) и строк списка; окно — portal на body */
+  z-index: 1400;
   display: grid;
   place-items: center;
   padding: 1rem;

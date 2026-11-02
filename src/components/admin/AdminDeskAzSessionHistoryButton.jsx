@@ -7,6 +7,7 @@ import {
 } from '../../lib/admin/deskAzSessionDeductService.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
+import { AdminDeskAzModal } from './AdminDeskAzModal.jsx'
 
 /**
  * Журнал списанных занятий АЗ (даты можно менять / отменять).
@@ -92,52 +93,47 @@ export function AdminDeskAzSessionHistoryButton({ membership, onChanged, onToast
         {usage.undatedUsed > 0 ? `+${usage.undatedUsed}` : ''})
       </button>
 
-      {open ? (
-        <div className="admin-desk-az-modal" role="dialog" aria-modal="true" aria-label="Списанные занятия">
-          <div className="admin-desk-az-modal__backdrop" onClick={() => setOpen(false)} />
-          <div className="admin-desk-az-modal__card admin-desk-az-modal__card--wide">
-            <h3 className="admin-desk-az-modal__title">Списанные занятия</h3>
-            <p className="muted admin-desk-az-modal__lead">
-              Использовано {usage.used}
-              {usage.total > 0 ? ` из ${usage.total}` : ''}. Можно поправить дату или отменить списание.
-              {usage.undatedUsed > 0
-                ? ` Ещё ${usage.undatedUsed} без даты в журнале (старый счётчик) — новые списания будут с датами.`
-                : ''}
-            </p>
-            {error ? <p className="sales-report__error">{error}</p> : null}
-            {!visits.length ? (
-              <p className="muted">Пока нет записей с датами.</p>
-            ) : (
-              <ul className="admin-desk-az-history">
-                {visits.map((v) => (
-                  <li key={v.id} className="admin-desk-az-history__row">
-                    <AdminDeskMemDateField
-                      value={v.date}
-                      onChange={(d) => void changeDate(v.id, d)}
-                      aria-label={`Дата занятия ${formatDateRu(v.date)}`}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-icon-square btn-sm"
-                      disabled={busyId === v.id}
-                      aria-label="Отменить списание"
-                      title="Отменить списание"
-                      onClick={() => void remove(v.id)}
-                    >
-                      <Trash2 size={16} aria-hidden />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="admin-desk-az-modal__actions">
-              <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
-                Закрыть
-              </button>
-            </div>
-          </div>
+      <AdminDeskAzModal open={open} label="Списанные занятия" wide onBackdrop={() => setOpen(false)}>
+        <h3 className="admin-desk-az-modal__title">Списанные занятия</h3>
+        <p className="muted admin-desk-az-modal__lead">
+          Использовано {usage.used}
+          {usage.total > 0 ? ` из ${usage.total}` : ''}. Можно поправить дату или отменить списание.
+          {usage.undatedUsed > 0
+            ? ` Ещё ${usage.undatedUsed} без даты в журнале (старый счётчик) — новые списания будут с датами.`
+            : ''}
+        </p>
+        {error ? <p className="sales-report__error">{error}</p> : null}
+        {!visits.length ? (
+          <p className="muted">Пока нет записей с датами.</p>
+        ) : (
+          <ul className="admin-desk-az-history">
+            {visits.map((v) => (
+              <li key={v.id} className="admin-desk-az-history__row">
+                <AdminDeskMemDateField
+                  value={v.date}
+                  onChange={(d) => void changeDate(v.id, d)}
+                  aria-label={`Дата занятия ${formatDateRu(v.date)}`}
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon-square btn-sm"
+                  disabled={busyId === v.id}
+                  aria-label="Отменить списание"
+                  title="Отменить списание"
+                  onClick={() => void remove(v.id)}
+                >
+                  <Trash2 size={16} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="admin-desk-az-modal__actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+            Закрыть
+          </button>
         </div>
-      ) : null}
+      </AdminDeskAzModal>
     </>
   )
 }

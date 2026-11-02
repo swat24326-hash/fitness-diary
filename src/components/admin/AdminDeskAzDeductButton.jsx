@@ -11,6 +11,7 @@ import { deskAzDirectionLabel } from '../../lib/admin/deskMembershipLedgerCore.j
 import { deductDeskAzSession } from '../../lib/admin/deskAzSessionDeductService.js'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { AdminDeskAzDeductPickBanners } from './AdminDeskAzDeductPickBanners.jsx'
+import { AdminDeskAzModal } from './AdminDeskAzModal.jsx'
 
 /**
  * Подтверждение списания занятия АЗ (дата + OK).
@@ -143,84 +144,74 @@ export function AdminDeskAzDeductButton({
         <p className="muted admin-desk-az-deduct-reason">{blockedCheck.error}</p>
       ) : null}
 
-      {blockedOpen ? (
-        <div className="admin-desk-az-modal" role="dialog" aria-modal="true" aria-label="Списать нельзя">
-          <div className="admin-desk-az-modal__backdrop" onClick={() => setBlockedOpen(false)} />
-          <div className="admin-desk-az-modal__card">
-            <h3 className="admin-desk-az-modal__title">Списать нельзя</h3>
-            <p className="admin-desk-az-modal__lead">{blockedCheck.error}</p>
+      <AdminDeskAzModal open={blockedOpen} label="Списать нельзя" onBackdrop={() => setBlockedOpen(false)}>
+        <h3 className="admin-desk-az-modal__title">Списать нельзя</h3>
+        <p className="admin-desk-az-modal__lead">{blockedCheck.error}</p>
+        <div className="admin-desk-az-modal__actions">
+          <button type="button" className="btn btn-secondary" onClick={() => setBlockedOpen(false)}>
+            Понятно
+          </button>
+        </div>
+      </AdminDeskAzModal>
+
+      <AdminDeskAzModal open={open} label="Списание занятия АЗ" onBackdrop={() => !busy && setOpen(false)}>
+        {step === 'pick' ? (
+          <>
+            <h3 className="admin-desk-az-modal__title">С какого абона?</h3>
+            <p className="muted admin-desk-az-modal__lead">
+              {clientName ? <strong>{clientName}. </strong> : null}
+              Выберите направление — потом дату занятия.
+            </p>
+            <AdminDeskAzDeductPickBanners memberships={choices} azTypes={azTypes} onPick={onPick} />
             <div className="admin-desk-az-modal__actions">
-              <button type="button" className="btn btn-secondary" onClick={() => setBlockedOpen(false)}>
-                Понятно
+              <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setOpen(false)}>
+                Отмена
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {open ? (
-        <div className="admin-desk-az-modal" role="dialog" aria-modal="true" aria-label="Списание занятия АЗ">
-          <div className="admin-desk-az-modal__backdrop" onClick={() => !busy && setOpen(false)} />
-          <div className="admin-desk-az-modal__card">
-            {step === 'pick' ? (
-              <>
-                <h3 className="admin-desk-az-modal__title">С какого абона?</h3>
-                <p className="muted admin-desk-az-modal__lead">
-                  {clientName ? <strong>{clientName}. </strong> : null}
-                  Выберите направление — потом дату занятия.
-                </p>
-                <AdminDeskAzDeductPickBanners memberships={choices} azTypes={azTypes} onPick={onPick} />
-                <div className="admin-desk-az-modal__actions">
-                  <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setOpen(false)}>
-                    Отмена
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 className="admin-desk-az-modal__title">Списать занятие?</h3>
-                <p className="muted admin-desk-az-modal__lead">
-                  {clientName ? <strong>{clientName}. </strong> : null}
-                  {directionLabel && directionLabel !== '—' ? (
-                    <>
-                      Направление <strong>{directionLabel}</strong>.{' '}
-                    </>
-                  ) : null}
-                  Счётчик абонемента увеличится ({usageLabel}
-                  {confirmCheck.usage ? ` → ${(confirmCheck.usage.used || 0) + 1} из ${confirmCheck.usage.total}` : ''}
-                  ). Дата и направление попадут в журнал и подсказку дневного отчёта АЗ.
-                </p>
-                <label className="admin-desk-az-modal__field">
-                  Дата занятия
-                  <AdminDeskMemDateField value={date} onChange={setDate} aria-label="Дата списания" />
-                </label>
-                {error ? <p className="sales-report__error">{error}</p> : null}
-                <div className="admin-desk-az-modal__actions">
-                  <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run()}>
-                    {busy ? 'Списываю…' : 'Подтвердить списание'}
-                  </button>
-                  {needsPick ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      disabled={busy}
-                      onClick={() => {
-                        setStep('pick')
-                        setError('')
-                      }}
-                    >
-                      Другой абон
-                    </button>
-                  ) : null}
-                  <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setOpen(false)}>
-                    Отмена
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      ) : null}
+          </>
+        ) : (
+          <>
+            <h3 className="admin-desk-az-modal__title">Списать занятие?</h3>
+            <p className="muted admin-desk-az-modal__lead">
+              {clientName ? <strong>{clientName}. </strong> : null}
+              {directionLabel && directionLabel !== '—' ? (
+                <>
+                  Направление <strong>{directionLabel}</strong>.{' '}
+                </>
+              ) : null}
+              Счётчик абонемента увеличится ({usageLabel}
+              {confirmCheck.usage ? ` → ${(confirmCheck.usage.used || 0) + 1} из ${confirmCheck.usage.total}` : ''}
+              ). Дата и направление попадут в журнал и подсказку дневного отчёта АЗ.
+            </p>
+            <label className="admin-desk-az-modal__field">
+              Дата занятия
+              <AdminDeskMemDateField value={date} onChange={setDate} aria-label="Дата списания" />
+            </label>
+            {error ? <p className="sales-report__error">{error}</p> : null}
+            <div className="admin-desk-az-modal__actions">
+              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void run()}>
+                {busy ? 'Списываю…' : 'Подтвердить списание'}
+              </button>
+              {needsPick ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setStep('pick')
+                    setError('')
+                  }}
+                >
+                  Другой абон
+                </button>
+              ) : null}
+              <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setOpen(false)}>
+                Отмена
+              </button>
+            </div>
+          </>
+        )}
+      </AdminDeskAzModal>
     </>
   )
 }
