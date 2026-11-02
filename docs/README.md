@@ -144,7 +144,8 @@
 | [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Desk АЗ: сид, направления, списания; связь с доменом оплат |
 | [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md) | ✅ фаза 1 в коде; migrate linked | Один client — абоны ПЗ/ТЗ/АЗ; списки, оплаты attach, ПНК |
 | [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) | ✅ фаза 1–2 (ПЗ/ТЗ/АЗ + автоархив) | Закрытие зала ≠ архив клуба; см. канон |
-| [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ; **⏸ код после РФ (R3+)** | Домен платежа; MVP = ПЗ + АЗ; потом касса на клуб |
+| [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ; **⏸ код** по PATH §4 («берём платежи») | Домен платежа; MVP = ПЗ + АЗ; потом касса на клуб |
+| [PAYMENTS_UX.md](./PAYMENTS_UX.md) | 📋 сценарий UI | Оплата у стойки + карта стыков (тренер, день, статистика, ПНК, лояльность) |
 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | ✅ в проде | Управляющий ≠ тренер ≠ менеджер продаж; `/club` |
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | план | Операции клуба в продукте |
 | [RELAY_OPERATIONS.md](./RELAY_OPERATIONS.md) | stub | Внешний «Релей» отложен |

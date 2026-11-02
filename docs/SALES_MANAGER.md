@@ -38,7 +38,7 @@
 
 ### Когда что загружать
 
-Все Excel из 1С ниже — **переходный мост** к правде в Ядре ([PRODUCT_VISION.md](./PRODUCT_VISION.md)). Конечная цель по деньгам — домен платежей: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md).
+Все Excel из 1С ниже — **переходный мост** к правде в Ядре ([PRODUCT_VISION.md](./PRODUCT_VISION.md)). Конечная цель по деньгам — домен платежей: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md); сценарий у стойки — [PAYMENTS_UX.md](./PAYMENTS_UX.md).
 
 | Что | Файл / источник | Кто | Когда | Зачем сейчас | Цель после моста |
 |-----|-----------------|-----|-------|--------------|------------------|
@@ -425,7 +425,7 @@
 1. **Уже в Postgres:** `club_sales_daily`, `club_sales_plan` (+ `strategy_snapshot`), finance/expense по роли.
 2. **Логика:** `src/lib/admin/sales*` + `scripts/verify-*.mjs`.
 3. **API:** `admin-data?action=sales-*` — finance/plan write не для чистого менеджера без прав.
-4. **Дальше (оплаты):** таблица платежей + `admin-data?action=payments` — см. [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md).
+4. **Дальше (оплаты):** таблица платежей + `admin-data?action=payments` — [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md); UI менеджера — [PAYMENTS_UX.md](./PAYMENTS_UX.md).
 
 ---
 
@@ -445,7 +445,8 @@
 ## Связанные документы
 
 - [PRODUCT_VISION.md](./PRODUCT_VISION.md) — конечная цель, проекция
-- [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ платежа
+- [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ платежа  
+- [PAYMENTS_UX.md](./PAYMENTS_UX.md) — эргономика оплаты (менеджер) + карта стыков
 - [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md)
 - [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md)
 - [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md)
