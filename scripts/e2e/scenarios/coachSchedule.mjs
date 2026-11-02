@@ -246,7 +246,7 @@ export async function run(browser) {
     await dialog.getByRole('button', { name: 'Сохранить' }).click()
     c.ok(await dialog.getByText('Длительность — от 15 до 480 минут').isVisible(), 'длительность 500 мин не сохраняется — понятная ошибка')
     await durationInput.fill('45')
-    c.ok(await dialog.getByText('до 15:45').isVisible(), 'подсказка конца записи «до 15:45»')
+    c.ok((await dialog.getByTestId('schedule-end-hint').innerText()).includes('до 15:45'), 'подсказка конца записи «до 15:45»')
     await screenshot(page, 'coach-calendar-form')
     await dialog.getByRole('button', { name: 'Сохранить' }).click()
     await dialog.waitFor({ state: 'hidden', timeout: 10_000 })
@@ -338,7 +338,12 @@ export async function run(browser) {
     await secondRow.waitFor({ state: 'visible', timeout: 5_000 })
     c.ok((await secondRow.count()) === 1, 'правка: поиск находит второго при уже выбранном')
     await secondRow.click()
-    c.ok((await editOne.getByTestId('schedule-clients-count').innerText()).includes('Выбрано 2 из 15'), 'правка: добавили второго клиента')
+    await editOne.getByTestId('schedule-clients-search').blur()
+    c.ok(
+      (await secondRow.locator('input[type="checkbox"]').isChecked()) &&
+        (await editOne.getByTestId('schedule-clients-count').innerText()).includes('Выбрано 2 из 15'),
+      'правка: добавили второго клиента',
+    )
     await editOne.getByRole('button', { name: 'Сохранить' }).click()
     await editOne.waitFor({ state: 'hidden', timeout: 10_000 })
     c.ok(

@@ -43,8 +43,21 @@ export function chatFitViewHeightPx({ visualHeight, layoutHeight, offsetTop = 0,
 }
 
 /**
+ * Верх диалога в координатах видимой части (visualViewport), не страницы.
+ * getBoundingClientRect — от layout viewport; минус offsetTop — от видимого верха.
+ * Так не схлопываем высоту, когда iPhone докрутил страницу к полю до укорачивания диалога
+ * (INC-2026-11-03-04: поле у верха, ниже пустота до клавиатуры; закрыть/открыть лечит).
+ * @param {{ rectTop: unknown, offsetTop?: unknown }} p
+ * @returns {number} px ≥ 0
+ */
+export function chatFitVisualTopPx({ rectTop, offsetTop = 0 }) {
+  const top = Math.round(Number(rectTop) || 0) - Math.round(Number(offsetTop) || 0)
+  return top > 0 ? top : 0
+}
+
+/**
  * @param {{ viewHeight: unknown, top: unknown, gap: unknown, min?: number }} p
- * top — верх диалога от верха страницы; gap — отступы оболочки под ним
+ * top — верх диалога в видимой части; gap — отступы оболочки под ним
  * @returns {number} px
  */
 export function chatFitHeightPx({ viewHeight, top, gap, min = CHAT_FIT_MIN_PX }) {
@@ -130,29 +143,40 @@ export function attachChatViewportFit(el) {
   let raf = 0
   let touchStartedAt = null
   let pending = false
+  /** @type {ReturnType<typeof setTimeout>[]} */
+  let focusTimers = []
 
   const sync = () => {
     raf = 0
     if (vv && vv.scale > 1.01) return
     const layoutHeight = Math.max(window.innerHeight || 0, root.clientHeight || 0)
+    const offsetTop = vv?.offsetTop
     const viewHeight = chatFitViewHeightPx({
       visualHeight: vv ? vv.height : layoutHeight,
       layoutHeight,
-      offsetTop: vv?.offsetTop,
+      offsetTop,
       iosLike,
     })
-    const top = el.getBoundingClientRect().top + window.scrollY - shift
-    const next = `${chatFitHeightPx({ viewHeight, top, gap: bottomGapPx(el) })}px`
-    if (el.style.getPropertyValue(CHAT_FIT_VAR) !== next) el.style.setProperty(CHAT_FIT_VAR, next)
     /* Сдвиг страницы за offsetTop — только iPhone; на Android (Honor) ложный offsetTop иначе увозит ленту. */
-    const nextShift = iosLike ? chatFitShiftPx({ offsetTop: vv?.offsetTop, scale: vv?.scale }) : 0
+    const nextShift = iosLike ? chatFitShiftPx({ offsetTop, scale: vv?.scale }) : 0
     if (nextShift !== shift) {
       shift = nextShift
       shell.style.transform = shift ? `translateY(${shift}px)` : ''
     }
+    let unpanned = false
     if (chatFitShouldUnpan({ docHeight: root.scrollHeight - shift, viewHeight, scrollY: window.scrollY })) {
       window.scrollTo(0, 0)
+      unpanned = true
     }
+    /* Высота — после сдвига/unpan, от верха в visible viewport (не document+scrollY). */
+    const top = chatFitVisualTopPx({
+      rectTop: el.getBoundingClientRect().top,
+      offsetTop: vv ? vv.offsetTop : 0,
+    })
+    const next = `${chatFitHeightPx({ viewHeight, top, gap: bottomGapPx(el) })}px`
+    if (el.style.getPropertyValue(CHAT_FIT_VAR) !== next) el.style.setProperty(CHAT_FIT_VAR, next)
+    /* После unpan / анимации клавиатуры — ещё кадр, иначе на iPhone 17 Pro высота зависает до закрытия диалога. */
+    if (unpanned) schedule()
   }
   const schedule = () => {
     if (chatFitDeferDuringTouch({ touchStartedAt, now: Date.now() })) {
@@ -172,10 +196,12 @@ export function attachChatViewportFit(el) {
       schedule()
     }
   }
-  /* Тап по полю ввода: клавиатура выезжает уже после «отпустил», но на всякий случай фокус снимает отсрочку. */
+  /* Тап по полю ввода: клавиатура выезжает уже после «отпустил»; фокус снимает отсрочку и даёт кадры после анимации. */
   const onFocusChange = () => {
     touchStartedAt = null
     pending = false
+    for (const t of focusTimers) window.clearTimeout(t)
+    focusTimers = [window.setTimeout(schedule, 120), window.setTimeout(schedule, 320)]
     schedule()
   }
   const touchOpts = { passive: true, capture: true }
@@ -195,6 +221,8 @@ export function attachChatViewportFit(el) {
   sync()
   return () => {
     if (raf) window.cancelAnimationFrame(raf)
+    for (const t of focusTimers) window.clearTimeout(t)
+    focusTimers = []
     root.removeAttribute(CHAT_FIT_ROOT_ATTR)
     ro?.disconnect()
     vv?.removeEventListener('resize', schedule)

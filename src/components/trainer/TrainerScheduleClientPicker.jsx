@@ -25,6 +25,9 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, cl
     [clients, query, selectedIds],
   )
   const full = selectedIds.length >= SCHEDULE_MAX_CLIENTS
+  const searching = Boolean(query.trim())
+  /* Чипы только при поиске: иначе дубль с галочкой в списке. */
+  const showChips = searching && selectedRows.length > 0
 
   return (
     <div className="trainer-schedule-modal__clients-wrap">
@@ -37,7 +40,7 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, cl
           Клиенты не выбраны
         </p>
       )}
-      {selectedRows.length ? (
+      {showChips ? (
         <ul className="trainer-schedule-modal__selected" aria-label="Уже выбраны">
           {selectedRows.map((c) => (
             <li key={String(c.id)}>

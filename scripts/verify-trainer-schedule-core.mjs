@@ -252,14 +252,16 @@ ok(
 }
 
 {
-  const { scheduleModalOverlayInsetStyle, scheduleModalPanelMaxHeightPx } = await import(
+  const { scheduleModalFrameHeightPx, scheduleModalOverlayInsetStyle } = await import(
     '../src/lib/trainer/scheduleModalViewportCore.js'
   )
-  ok(scheduleModalPanelMaxHeightPx({ viewportHeight: 400 }) === 388, 'modal panel max height under keyboard')
-  ok(scheduleModalPanelMaxHeightPx({ viewportHeight: 100 }) === 220, 'modal panel min height floor')
-  ok(scheduleModalPanelMaxHeightPx({ viewportHeight: 'x' }) === null, 'modal panel bad height')
+  ok(scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 120 }) === 500, 'modal frame: pan + keyboard → vv')
+  ok(scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 0 }) === 500, 'modal frame: keyboard without pan → vv')
+  ok(scheduleModalFrameHeightPx({ viewportHeight: 800, layoutHeight: 844, offsetTop: 0 }) === 844, 'modal frame: after keyboard sticky short vv → layout (не сжимать)')
+  ok(scheduleModalFrameHeightPx({ viewportHeight: 'x', layoutHeight: 700 }) === 700, 'modal frame: bad vv → layout')
+  ok(scheduleModalFrameHeightPx({ viewportHeight: 0, layoutHeight: 0 }) === null, 'modal frame: both bad')
   const inset = scheduleModalOverlayInsetStyle({ offsetTop: 12.4, height: 500.6 })
-  ok(inset.top === '12px' && inset.height === '501px' && inset.bottom === 'auto', 'modal overlay inset from visualViewport')
+  ok(inset.top === '12px' && inset.height === '501px' && inset.bottom === 'auto' && inset.width === '100%', 'modal overlay inset from visualViewport')
   ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 0, height: 0 })).length === 0, 'modal overlay empty when height 0')
 }
 

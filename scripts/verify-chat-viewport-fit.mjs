@@ -12,6 +12,7 @@ import {
   chatFitShiftPx,
   chatFitShouldUnpan,
   chatFitViewHeightPx,
+  chatFitVisualTopPx,
 } from '../src/lib/chat/chatViewportFit.js'
 
 function ok(cond, msg) {
@@ -68,5 +69,12 @@ ok(view(508, 844, 336, true) === 508, 'iPhone со сдвигом offsetTop — 
 ok(view(508, 844, 336, false) === 508, 'сдвиг offsetTop на любом UA — высота видимой части')
 ok(view(null, 900, 0, false) === 900, 'нет vv — layout')
 ok(view('x', 0, 0, false) === 0 && view(null, null, 0, true) === 0, 'битые размеры — 0')
+
+const vtop = (rectTop, offsetTop = 0) => chatFitVisualTopPx({ rectTop, offsetTop })
+ok(vtop(64, 0) === 64, 'visual top без сдвига vv')
+ok(vtop(400, 336) === 64, 'iPhone: rect с translate/offsetTop — верх в видимой части')
+ok(vtop(-80, 0) === 0, 'страница докручена к полю (rect выше экрана) — не раздуваем top, высота не схлопывается (INC-2026-11-03-04)')
+ok(vtop(50.6, 10.2) === 41, 'дробные пиксели visual top (round каждой части)')
+ok(fit(508, vtop(-120, 0)) === 508, 'после докрутки к полю высота = вся видимая часть, поле не у верха с пустотой')
 
 console.log('verify-chat-viewport-fit: all passed')

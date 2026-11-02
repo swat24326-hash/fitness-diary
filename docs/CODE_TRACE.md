@@ -221,7 +221,7 @@
 |------|------|
 | API | `api/_lib/moiZvonkiHandler.js`, `api/_lib/moiZvonkiCallHandler.js`, `api/_lib/moiZvonkiWebhookHandler.js`; `api/admin-data.js` |
 | UI | `src/components/admin/AdminClubMoizvonkiSection.jsx`, `src/lib/admin/salesCallTodayCore.js` (главная менеджера) |
-| Чат · экран | `src/lib/chat/chatViewportFit.js` (`chatFitViewHeightPx`, Honor vs iOS), `ChatThreadView.jsx`, `chat.css` |
+| Чат · экран | `src/lib/chat/chatViewportFit.js` (`chatFitViewHeightPx`, `chatFitVisualTopPx`, Honor vs iOS), `ChatThreadView.jsx`, `chat.css` |
 | Чат · АЗ инструктор | `api/_lib/chat/chatContactsStore.js`, `src/lib/chat/chatContactsCore.js`, `api/_lib/coach/coachHandler.js` (`coachChatKind`), `src/lib/push/pushTargetUrlCore.js`, `CoachChatPage.jsx` |
 | Verify | `scripts/verify-sales-call-today.mjs`, `scripts/verify-chat-viewport-fit.mjs`, `verify-chat-contacts.mjs`, `verify-client-az-chat.mjs`, `verify-coach-app.mjs`; e2e `staffDm` |
 | Docs | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md), INCIDENTS **O** |

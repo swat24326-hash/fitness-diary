@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, Repeat, X } from 'lucide-react'
+import { FileText, Repeat, Save, X } from 'lucide-react'
 import { trainerScheduleLocalActions } from '../../lib/trainer/trainerScheduleLocalActions.js'
 import {
   resolveScheduleTrainingStart,
@@ -69,6 +69,8 @@ export function TrainerScheduleEntryModal({
   const [deleteAsk, setDeleteAsk] = useState(false)
   /** @type {'kind' | 'note' | 'repeat' | null} */
   const [extra, setExtra] = useState(/** @type {'kind' | 'note' | 'repeat' | null} */ (null))
+  /** Пока ищем клиента — время свёрнуто в одну строку (место списку под клавиатуру). */
+  const [timeCollapsed, setTimeCollapsed] = useState(false)
   const { overlayStyle, panelStyle } = useScheduleModalViewport(open)
   const editing = !draft?.id || editingId === draft.id
   const followingSiblings = useMemo(
@@ -80,6 +82,7 @@ export function TrainerScheduleEntryModal({
     setError('')
     setDeleteAsk(false)
     setExtra(null)
+    setTimeCollapsed(false)
     if (!open) setEditingId(null)
   }, [open, draft])
 
@@ -223,19 +226,29 @@ export function TrainerScheduleEntryModal({
         onClick={(ev) => ev.stopPropagation()}
       >
         <div className="trainer-schedule-modal__head">
-          <h2 id="trainer-schedule-modal-title" className="trainer-schedule-modal__title">
+          <h2 id="trainer-schedule-modal-title" className="sr-only">
             {draft?.id ? 'Запись' : 'Новая запись'}
           </h2>
+          <div className="trainer-schedule-modal__head-kind">
+            <TrainerScheduleKindPicker
+              value={form.kind}
+              onChange={form.pickKind}
+              menuOpen={extra === 'kind'}
+              onOpenChange={(v) => setExtra(v ? 'kind' : null)}
+            />
+          </div>
           <div className="trainer-schedule-modal__head-actions">
             {deleteAsk ? null : (
               <button
                 type="submit"
                 form="trainer-schedule-entry-form"
-                className="btn btn-primary trainer-schedule-modal__save"
+                className="btn btn-icon-square btn-primary trainer-schedule-modal__save"
                 disabled={busy}
                 data-testid="schedule-save"
+                aria-label="Сохранить"
+                title="Сохранить"
               >
-                {busy ? '…' : 'Сохранить'}
+                <Save size={18} aria-hidden />
               </button>
             )}
             <button type="button" className="btn btn-icon-square btn-secondary" onClick={onClose} aria-label="Закрыть">
@@ -253,57 +266,77 @@ export function TrainerScheduleEntryModal({
         {/* noValidate: Safari/iPhone иначе тихо блокирует submit (time/required) — без нашей ошибки на русском. */}
         <form
           id="trainer-schedule-entry-form"
-          className="trainer-schedule-modal__form"
+          className={`trainer-schedule-modal__form${timeCollapsed ? ' trainer-schedule-modal__form--time-collapsed' : ''}`}
           onSubmit={onSubmit}
           noValidate
         >
           <div className="trainer-schedule-modal__form-top">
-            <div className="trainer-schedule-modal__row trainer-schedule-modal__row--compact">
-              <label className="trainer-schedule-modal__field">
-                <span>Время</span>
-                <input
-                  className="input"
-                  type="time"
-                  step={60}
-                  value={form.time}
-                  onChange={(ev) => form.setTime(normalizeScheduleTimeInput(ev.target.value))}
-                />
-              </label>
-              <label className="trainer-schedule-modal__field">
-                <span>Длительность</span>
-                <span className="trainer-schedule-modal__duration">
+            {timeCollapsed ? (
+              <button
+                type="button"
+                className="trainer-schedule-modal__time-summary"
+                data-testid="schedule-time-summary"
+                onClick={() => setTimeCollapsed(false)}
+              >
+                <span>
+                  {form.time || '—'} · {form.duration || '—'} мин
+                  {form.endLabel ? ` · до ${form.endLabel}` : ''}
+                </span>
+                <span className="muted">изменить</span>
+              </button>
+            ) : (
+              <div className="trainer-schedule-modal__row trainer-schedule-modal__row--compact">
+                <label className="trainer-schedule-modal__field">
+                  <span>Время</span>
                   <input
                     className="input"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    value={form.duration}
-                    onChange={(ev) => form.setDuration(ev.target.value)}
-                    onFocus={(ev) => ev.target.select()}
-                    aria-label="Длительность в минутах"
-                    data-testid="schedule-duration"
+                    type="time"
+                    step={60}
+                    value={form.time}
+                    onChange={(ev) => form.setTime(normalizeScheduleTimeInput(ev.target.value))}
+                    onFocus={() => setExtra(null)}
                   />
-                  <span className="trainer-schedule-modal__duration-unit" aria-hidden>
-                    мин
+                </label>
+                <label className="trainer-schedule-modal__field">
+                  <span>Длительность</span>
+                  <span className="trainer-schedule-modal__duration">
+                    <input
+                      className="input"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={form.duration}
+                      onChange={(ev) => form.setDuration(ev.target.value)}
+                      onFocus={(ev) => {
+                        setExtra(null)
+                        ev.target.select()
+                      }}
+                      aria-label="Длительность в минутах"
+                      data-testid="schedule-duration"
+                    />
+                    <span className="trainer-schedule-modal__duration-unit" aria-hidden>
+                      мин
+                    </span>
                   </span>
-                </span>
-              </label>
-            </div>
+                  {form.endLabel ? (
+                    <small className="trainer-schedule-modal__duration-hint" data-testid="schedule-end-hint">
+                      до {form.endLabel}
+                    </small>
+                  ) : null}
+                </label>
+              </div>
+            )}
 
-            <TrainerScheduleKindPicker
-              value={form.kind}
-              onChange={form.pickKind}
-              menuOpen={extra === 'kind'}
-              onOpenChange={(v) => setExtra(v ? 'kind' : null)}
-            />
-            <TrainerScheduleDirectionField
-              kind={form.kind}
-              value={form.directionTypeId}
-              onChange={form.setDirectionTypeId}
-              options={azDirections}
-            />
+            {timeCollapsed ? null : (
+              <TrainerScheduleDirectionField
+                kind={form.kind}
+                value={form.directionTypeId}
+                onChange={form.setDirectionTypeId}
+                options={azDirections}
+              />
+            )}
 
-            {form.formMode === 'either' ? (
+            {!timeCollapsed && form.formMode === 'either' ? (
               <div className="trainer-schedule-modal__modes" role="tablist" aria-label="Тип записи">
                 <button
                   type="button"
@@ -334,7 +367,10 @@ export function TrainerScheduleEntryModal({
                 selectedIds={selectedIds}
                 onToggle={form.toggleClient}
                 clientInfoById={clientInfoById}
-                onSearchFocus={() => setExtra(null)}
+                onSearchFocus={() => {
+                  setExtra(null)
+                  setTimeCollapsed(true)
+                }}
               />
             ) : (
               <label className="trainer-schedule-modal__field trainer-schedule-modal__field--wide">
@@ -387,7 +423,10 @@ export function TrainerScheduleEntryModal({
                   className={`trainer-schedule-modal__more-btn${noteText || extra === 'note' ? ' trainer-schedule-modal__more-btn--on' : ''}`}
                   aria-pressed={extra === 'note'}
                   data-testid="schedule-note-toggle"
-                  onClick={() => toggleExtra('note')}
+                  onClick={() => {
+                    setTimeCollapsed(false)
+                    toggleExtra('note')
+                  }}
                 >
                   <FileText size={14} aria-hidden />
                   Примечание{noteText ? ' · есть' : ''}
@@ -398,18 +437,21 @@ export function TrainerScheduleEntryModal({
                 className={`trainer-schedule-modal__more-btn${repeat.on || extra === 'repeat' ? ' trainer-schedule-modal__more-btn--on' : ''}`}
                 aria-pressed={extra === 'repeat'}
                 data-testid="schedule-repeat-toggle"
-                onClick={() => toggleExtra('repeat')}
+                onClick={() => {
+                  setTimeCollapsed(false)
+                  toggleExtra('repeat')
+                }}
               >
                 <Repeat size={14} aria-hidden />
                 Повтор{repeat.on ? ' · вкл' : ''}
               </button>
             </div>
 
-            <p className="trainer-schedule-modal__preview muted">
-              Будет: <strong>{form.previewLabel}</strong>
-              {form.endLabel ? <> · до {form.endLabel}</> : null}
-              {trainingChip ? <> · <span className="trainer-schedule-modal__chip">{trainingChip}</span></> : null}
-            </p>
+            {trainingChip ? (
+              <p className="trainer-schedule-modal__preview muted">
+                <span className="trainer-schedule-modal__chip">{trainingChip}</span>
+              </p>
+            ) : null}
 
             {deleteAsk ? null : (
               <TrainerScheduleTrainingStart start={trainingStart} clientNameById={clientNameById} />
