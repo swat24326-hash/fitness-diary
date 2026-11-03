@@ -508,20 +508,28 @@
   grid-template-columns: var(--schedule-time-col, 52px) minmax(0, 1fr);
   gap: 8px;
   overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: auto;
   max-height: min(68vh, 720px);
   /* Щипок двумя пальцами — масштаб сетки (useScheduleZoomGesture), а не зум всей страницы. */
   touch-action: pan-x pan-y;
 }
 
-/* Листание пальцем вбок (как в Google Календаре): вертикаль отдаём браузеру, вбок ведёт JS. */
+/* Листание пальцем вбок (как в Google Календаре): вертикаль — браузеру, вбок — JS.
+ * pan-x на __board иначе даёт iPhone резиновый сдвиг всей страницы (INC-2026-11-03-05). */
 .trainer-schedule-day--swipe {
+  touch-action: pan-y;
+  overflow-x: clip;
+}
+
+.trainer-schedule-day--swipe .trainer-schedule-day__board {
   touch-action: pan-y;
 }
 
 .trainer-schedule-month--swipe {
   touch-action: pan-y;
   overflow: hidden;
+  overflow-x: clip;
 }
 
 /* Поднятую запись держат у края — подсветка края: сейчас перелистнётся. */

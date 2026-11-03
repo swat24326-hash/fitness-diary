@@ -5,6 +5,7 @@
   box-sizing: border-box;
   flex: none;
   width: 100%;
+  max-width: 100%;
 }
 
 .coach-app--fill .coach-app__main {
@@ -12,6 +13,10 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .coach-app--fill .coach-app__main > * {
@@ -25,6 +30,8 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .coach-app--fill .coach-app__main > .coach-schedule {
@@ -102,11 +109,17 @@
   overflow-wrap: anywhere;
 }
 
-/* Листание пальцем вбок (как в Google Календаре): вертикаль отдаём браузеру, вбок ведёт JS; уехавшее за край обрезаем. */
+/* Листание пальцем вбок: вертикаль — браузеру, вбок — JS; уехавшее за край обрезаем.
+ * Без pan-y на __board iPhone параллельно сдвигает страницу (INC-2026-11-03-05). */
 .coach-schedule .trainer-schedule-day--swipe,
 .coach-schedule .trainer-schedule-month--swipe {
   touch-action: pan-y;
   overflow: hidden;
+  overflow-x: clip;
+}
+
+.coach-schedule .trainer-schedule-day--swipe .trainer-schedule-day__board {
+  touch-action: pan-y;
 }
 
 .coach-schedule .trainer-schedule-day__title,

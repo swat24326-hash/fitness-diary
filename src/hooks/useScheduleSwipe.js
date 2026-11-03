@@ -102,6 +102,8 @@ export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPr
         return
       }
       if (g.axis === 'x') {
+        /* Иначе iPhone параллельно резинит страницу вбок (passive + pan-x на сетке). */
+        e.preventDefault()
         g.dx = dx
         setShift(dx, 0)
       }
@@ -127,7 +129,7 @@ export function useScheduleSwipe({ areaRef, contentRef, enabled, isBlocked, onPr
     }
 
     area.addEventListener('touchstart', onStart, { passive: true })
-    area.addEventListener('touchmove', onMove, { passive: true })
+    area.addEventListener('touchmove', onMove, { passive: false })
     area.addEventListener('touchend', onEnd)
     area.addEventListener('touchcancel', onCancel)
     return () => {
