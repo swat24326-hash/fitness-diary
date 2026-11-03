@@ -1243,6 +1243,19 @@
   box-shadow: none;
 }
 
+/*
+ * iPhone зумит страницу, если в поле < 16px — шторка «уезжает в бок» (Анжелика, 17 Pro).
+ * Только форма записи на узком экране; админский поиск на планшете не трогаем.
+ */
+@media (max-width: 640px) {
+  .trainer-schedule-modal__search .admin-clients-search-input,
+  .trainer-schedule-modal__row--compact .trainer-schedule-modal__field input,
+  .trainer-schedule-modal__duration input,
+  .trainer-schedule-modal__form-foot > .trainer-schedule-modal__field--note-aside .input {
+    font-size: 16px;
+  }
+}
+
 .trainer-schedule-modal__search:focus-within {
   border-color: color-mix(in srgb, var(--accent) 48%, transparent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);

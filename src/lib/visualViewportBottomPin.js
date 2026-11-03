@@ -1,17 +1,19 @@
 /**
  * Нижняя панель (вкладки /coach) к видимому низу экрана на iPhone.
- * WebKit иногда кладёт position:fixed; bottom:0 выше home indicator / панели Safari —
- * под панелью остаётся чёрный зазор, пальцем можно «опустить» (INC-2026-10-17-05/08).
- * Подъём `bottom` только при реальной клавиатуре — иначе залипший короткий vv
- * поднимает вкладки на полэкрана (INC-2026-11-03-05, Анжелика).
+ * WebKit иногда кладёт position:fixed; bottom:0 выше home indicator —
+ * под панелью зазор, пальцем можно «опустить» (INC-2026-10-17-05/08).
+ *
+ * Подъём `bottom` только при фокусе в поле (реальная клавиатура).
+ * Иначе sticky короткий vv / pan без фокуса поднимал вкладки на 17 Pro
+ * с чёрной дырой снизу (INC-2026-11-03-05).
  */
 
-import { visualViewportKeyboardOpen, visualViewportTextFieldFocused } from './visualViewportKeyboard.js'
+import { VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX, visualViewportTextFieldFocused } from './visualViewportKeyboard.js'
 
 export const VISUAL_VIEWPORT_BOTTOM_EPS = 0.5
 
 /**
- * На сколько поднять панель над низом layout viewport (клавиатура / панель Safari снизу).
+ * На сколько поднять панель над низом layout viewport (клавиатура).
  * @param {{ innerHeight: unknown, offsetTop: unknown, height: unknown }} p
  * @returns {number} px ≥ 0
  */
@@ -25,8 +27,7 @@ export function visualViewportBottomGapPx({ innerHeight, offsetTop, height }) {
 }
 
 /**
- * Зазор под панелью внутри layout viewport: bottom:0 не дотянул до innerHeight
- * (WebKit уже «посадил» fixed выше safe-area). Сдвиг вниз на этот зазор.
+ * Зазор под панелью внутри layout viewport: bottom:0 не дотянул до innerHeight.
  * @param {{ tabsBottom: unknown, layoutHeight: unknown }} p
  * @returns {number} px ≥ 0
  */
@@ -36,6 +37,20 @@ export function tabsShiftDownToLayoutBottomPx({ tabsBottom, layoutHeight }) {
   if (![bottom, layout].every(Number.isFinite) || layout <= 0) return 0
   const gap = layout - bottom
   return gap > VISUAL_VIEWPORT_BOTTOM_EPS ? gap : 0
+}
+
+/**
+ * Поднимать вкладки только когда в поле фокус и vv укорочен (не pan «вхолостую»).
+ * @param {{ viewportHeight: unknown, layoutHeight: unknown, inputFocused?: unknown }} p
+ * @returns {boolean}
+ */
+export function visualViewportTabsShouldLift({ viewportHeight, layoutHeight, inputFocused = false }) {
+  if (!inputFocused) return false
+  const vv = Number(viewportHeight)
+  const layout = Number(layoutHeight)
+  if (!Number.isFinite(layout) || layout <= 0) return false
+  if (!Number.isFinite(vv) || vv <= 0) return false
+  return vv < layout - VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX
 }
 
 /**
@@ -59,17 +74,16 @@ export function attachVisualViewportBottomPin(el) {
     const offsetTop = vv?.offsetTop ?? 0
     const viewportHeight = vv?.height ?? layoutH
     const inputFocused = visualViewportTextFieldFocused(document.activeElement)
-    const keyboard = visualViewportKeyboardOpen({
-      viewportHeight,
-      layoutHeight: layoutH,
-      offsetTop,
-      inputFocused,
-    })
-    if (!keyboard && (offsetTop > 0.5 || window.scrollY > 0)) {
+    if (!inputFocused && (offsetTop > 0.5 || window.scrollY > 0 || (vv && vv.offsetLeft > 0.5))) {
       window.scrollTo(0, 0)
     }
+    const lift = visualViewportTabsShouldLift({
+      viewportHeight,
+      layoutHeight: layoutH,
+      inputFocused,
+    })
     const gapUp =
-      keyboard && vv
+      lift && vv
         ? visualViewportBottomGapPx({
             innerHeight: layoutH,
             offsetTop,
@@ -100,8 +114,12 @@ export function attachVisualViewportBottomPin(el) {
   document.addEventListener('focusout', schedule, true)
   sync()
   window.requestAnimationFrame(() => window.requestAnimationFrame(sync))
+  const t1 = window.setTimeout(schedule, 120)
+  const t2 = window.setTimeout(schedule, 400)
   return () => {
     if (raf) window.cancelAnimationFrame(raf)
+    window.clearTimeout(t1)
+    window.clearTimeout(t2)
     if (vv) {
       vv.removeEventListener('resize', schedule)
       vv.removeEventListener('scroll', schedule)

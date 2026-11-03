@@ -83,7 +83,7 @@ export function attachCoachShellViewportLock(el) {
       offsetTop,
       inputFocused,
     })
-    if (!keyboard && (offsetTop > 0.5 || window.scrollY > 0)) {
+    if (!keyboard && (offsetTop > 0.5 || window.scrollY > 0 || (vv && vv.offsetLeft > 0.5))) {
       window.scrollTo(0, 0)
     }
     apply(

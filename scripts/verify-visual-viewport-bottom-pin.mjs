@@ -4,6 +4,7 @@
 import {
   tabsShiftDownToLayoutBottomPx,
   visualViewportBottomGapPx,
+  visualViewportTabsShouldLift,
 } from '../src/lib/visualViewportBottomPin.js'
 import { visualViewportKeyboardOpen, visualViewportTextFieldFocused } from '../src/lib/visualViewportKeyboard.js'
 import { coachShellLayoutLockStyle } from '../src/lib/coach/coachShellViewportLock.js'
@@ -40,6 +41,18 @@ ok(
 ok(
   visualViewportKeyboardOpen({ viewportHeight: 500, layoutHeight: 844, offsetTop: 120 }) === true,
   'keyboard: short + pan',
+)
+ok(
+  visualViewportTabsShouldLift({ viewportHeight: 500, layoutHeight: 844, inputFocused: false }) === false,
+  'tabs lift: без фокуса не поднимать (даже короткий vv / 17 Pro)',
+)
+ok(
+  visualViewportTabsShouldLift({ viewportHeight: 500, layoutHeight: 844, inputFocused: true }) === true,
+  'tabs lift: фокус + короткий vv',
+)
+ok(
+  visualViewportTabsShouldLift({ viewportHeight: 820, layoutHeight: 844, inputFocused: true }) === false,
+  'tabs lift: фокус без укорочения vv',
 )
 
 const locked = coachShellLayoutLockStyle({
