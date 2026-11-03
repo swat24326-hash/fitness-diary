@@ -252,16 +252,26 @@ ok(
 }
 
 {
-  const { scheduleModalFrameHeightPx, scheduleModalOverlayInsetStyle } = await import(
-    '../src/lib/trainer/scheduleModalViewportCore.js'
-  )
+  const {
+    scheduleModalFrameHeightPx,
+    scheduleModalOverlayInsetStyle,
+    scheduleModalShouldPinVisualViewport,
+  } = await import('../src/lib/trainer/scheduleModalViewportCore.js')
+  ok(scheduleModalShouldPinVisualViewport({ viewportHeight: 500, layoutHeight: 844 }) === true, 'pin: keyboard shortens vv')
+  ok(scheduleModalShouldPinVisualViewport({ viewportHeight: 820, layoutHeight: 844 }) === false, 'pin: near-full vv → no pin')
+  ok(scheduleModalShouldPinVisualViewport({ viewportHeight: 844, layoutHeight: 844 }) === false, 'pin: full screen → no pin')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 120 }) === 500, 'modal frame: pan + keyboard → vv')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 0 }) === 500, 'modal frame: keyboard without pan → vv')
+  ok(
+    scheduleModalFrameHeightPx({ viewportHeight: 820, layoutHeight: 844, offsetTop: 40 }) === 844,
+    'modal frame: rubber-band pan without keyboard → layout (не уезжать под статус-бар)',
+  )
   ok(scheduleModalFrameHeightPx({ viewportHeight: 800, layoutHeight: 844, offsetTop: 0 }) === 844, 'modal frame: after keyboard sticky short vv → layout (не сжимать)')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 'x', layoutHeight: 700 }) === 700, 'modal frame: bad vv → layout')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 0, layoutHeight: 0 }) === null, 'modal frame: both bad')
-  const inset = scheduleModalOverlayInsetStyle({ offsetTop: 12.4, height: 500.6 })
+  const inset = scheduleModalOverlayInsetStyle({ offsetTop: 12.4, height: 500.6, pin: true })
   ok(inset.top === '12px' && inset.height === '501px' && inset.bottom === 'auto' && inset.width === '100%', 'modal overlay inset from visualViewport')
+  ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 40, height: 844, pin: false })).length === 0, 'modal overlay empty when not pinning')
   ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 0, height: 0 })).length === 0, 'modal overlay empty when height 0')
 }
 

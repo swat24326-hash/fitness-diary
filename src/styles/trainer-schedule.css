@@ -868,19 +868,25 @@
   gap: 8px;
   flex: 0 0 auto;
   margin: 0 0 8px;
+  /* Glow Save не должен выглядеть «зелёной полоской» под кнопкой. */
+  overflow: visible;
 }
 
 .trainer-schedule-modal__head-kind {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 .trainer-schedule-modal__head-kind .trainer-schedule-kinds-compact {
   max-width: 100%;
+  align-self: center;
 }
 
 .trainer-schedule-modal__head-kind .trainer-schedule-kinds-compact__btn {
   max-width: 100%;
+  min-height: 42px;
 }
 
 .trainer-schedule-modal__head-actions {
@@ -892,6 +898,8 @@
 
 .trainer-schedule-modal__save.btn-icon-square {
   flex: 0 0 auto;
+  /* На iPhone accent-glow рисуется как полоска под кнопкой. */
+  box-shadow: none;
 }
 
 /* Свёртка времени при поиске: одна строка вместо двух полей. */

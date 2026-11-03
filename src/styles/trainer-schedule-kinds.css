@@ -75,7 +75,7 @@
 .trainer-schedule-kinds-compact {
   position: relative;
   flex: 0 0 auto;
-  align-self: flex-start;
+  align-self: center;
 }
 
 .trainer-schedule-kinds-compact__btn {

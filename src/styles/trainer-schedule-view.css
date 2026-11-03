@@ -82,7 +82,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding-top: 10px;
+  /* Не затирать safe-area: иначе корзина/крестик под Dynamic Island (iPhone). */
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
 }
 
 .trainer-schedule-view__tools {

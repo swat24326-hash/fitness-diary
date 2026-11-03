@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import {
   scheduleModalFrameHeightPx,
   scheduleModalOverlayInsetStyle,
+  scheduleModalShouldPinVisualViewport,
 } from '../lib/trainer/scheduleModalViewportCore.js'
 
 /**
  * Оверлей формы записи на весь visible viewport; панель на 100% оверлея (не «карточка с запасом»).
+ * Без клавиатуры — CSS inset:0 (не цеплять offsetTop: иначе кнопки уезжают под статус-бар iPhone).
  * @param {boolean} open
  * @returns {{ overlayStyle: Record<string, string>, panelStyle: Record<string, string> }}
  */
@@ -25,8 +27,10 @@ export function useScheduleModalViewport(open) {
       raf = 0
       const layoutHeight = Math.max(window.innerHeight || 0, document.documentElement?.clientHeight || 0)
       const offsetTop = vv?.offsetTop ?? 0
+      const viewportHeight = vv?.height ?? layoutHeight
+      const pin = scheduleModalShouldPinVisualViewport({ viewportHeight, layoutHeight })
       const height = scheduleModalFrameHeightPx({
-        viewportHeight: vv?.height ?? layoutHeight,
+        viewportHeight,
         layoutHeight,
         offsetTop,
       })
@@ -35,7 +39,7 @@ export function useScheduleModalViewport(open) {
         setPanelStyle({ height: '100%', maxHeight: '100%', width: '100%' })
         return
       }
-      setOverlayStyle(scheduleModalOverlayInsetStyle({ offsetTop, height }))
+      setOverlayStyle(scheduleModalOverlayInsetStyle({ offsetTop, height, pin }))
       setPanelStyle({ height: '100%', maxHeight: '100%', width: '100%' })
     }
     const schedule = () => {

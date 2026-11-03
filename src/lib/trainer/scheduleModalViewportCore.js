@@ -2,20 +2,37 @@
  * Высота кадра формы записи: на весь видимый экран.
  * После закрытия клавиатуры iPhone иногда оставляет короткий visualViewport при offsetTop≈0 —
  * тогда берём layout, иначе окно «сжимается» и не расправляется (жалоба 03.11).
+ * Pin к visualViewport — только когда клавиатура реально укоротила vv (не rubber-band / scroll).
+ */
+
+const KEYBOARD_SHORTEN_PX = 80
+
+/**
+ * Клавиатура открыта: visible viewport заметно короче layout.
+ * Один offsetTop > 0 без укорочения — пружина/скролл: не пинить (иначе кнопки под Dynamic Island).
+ * @param {{ viewportHeight: unknown, layoutHeight: unknown }} p
+ * @returns {boolean}
+ */
+export function scheduleModalShouldPinVisualViewport({ viewportHeight, layoutHeight }) {
+  const vv = Number(viewportHeight)
+  const layout = Number(layoutHeight)
+  if (!Number.isFinite(layout) || layout <= 0) return false
+  if (!Number.isFinite(vv) || vv <= 0) return false
+  return vv < layout - KEYBOARD_SHORTEN_PX
+}
+
+/**
  * @param {{ viewportHeight: unknown, layoutHeight: unknown, offsetTop?: unknown }} p
  * @returns {number | null}
  */
 export function scheduleModalFrameHeightPx({ viewportHeight, layoutHeight, offsetTop = 0 }) {
   const vv = Number(viewportHeight)
   const layout = Number(layoutHeight)
-  const pan = Number(offsetTop) || 0
-  if (pan > 0.5 && Number.isFinite(vv) && vv > 0) return Math.round(vv)
-  if (Number.isFinite(layout) && layout > 0) {
-    if (!Number.isFinite(vv) || vv <= 0) return Math.round(layout)
-    /* Клавиатура без pan: vv заметно короче layout. Иначе — полный экран (не залипать коротким vv). */
-    if (vv < layout - 80) return Math.round(vv)
-    return Math.round(layout)
+  void offsetTop
+  if (scheduleModalShouldPinVisualViewport({ viewportHeight: vv, layoutHeight: layout })) {
+    return Math.round(vv)
   }
+  if (Number.isFinite(layout) && layout > 0) return Math.round(layout)
   return Number.isFinite(vv) && vv > 0 ? Math.round(vv) : null
 }
 
@@ -28,10 +45,12 @@ export function scheduleModalPanelMaxHeightPx({ viewportHeight, margin = 0, min 
 
 /**
  * Overlay ровно на visible viewport (iOS клавиатура).
- * @param {{ offsetTop: unknown, height: unknown }} p
+ * Без pin (клавиатуры нет) — пустой объект: CSS `inset: 0` + safe-area на панели.
+ * @param {{ offsetTop: unknown, height: unknown, pin?: boolean }} p
  * @returns {{ top: string, height: string, bottom: string, left?: string, right?: string, width?: string } | Record<string, never>}
  */
-export function scheduleModalOverlayInsetStyle({ offsetTop, height }) {
+export function scheduleModalOverlayInsetStyle({ offsetTop, height, pin = true }) {
+  if (!pin) return {}
   const top = Number(offsetTop)
   const h = Number(height)
   if (![top, h].every(Number.isFinite) || h <= 0) return {}

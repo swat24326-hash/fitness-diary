@@ -108,8 +108,9 @@
 | Главная | `src/pages/trainer/TrainerHome.jsx`, `src/components/trainer/TrainerHomeTodayStrip.jsx` |
 | Списки клиентов | `src/components/trainer/TrainerClientListItem.jsx`, `src/lib/clientListSignals.js` |
 | Ежедневник: №карты · тип абона | `src/lib/trainer/trainerScheduleClientInfoCore.js`; планшет — `useTrainerScheduleData.js`; телефон — `api/_lib/coach/coachScheduleHandler.js` (`membership_types`: только `id, code`, без `name`) + `CoachCalendarPage.jsx` (INC-2026-10-17-03/04) |
+| Ежедневник: кадр модалки iPhone | `src/lib/trainer/scheduleModalViewportCore.js`, `src/hooks/useScheduleModalViewport.js` — pin VV только при клавиатуре; safe-area у просмотра (`trainer-schedule-view.css`) — INC-2026-11-03-05 |
 | Pull архива | `src/lib/trainerPullClientPruneCore.js`, [SYNC.md](./SYNC.md) §«Архив на планшете» |
-| Verify | `scripts/verify-critical-hall.mjs`, `scripts/verify-app-stability.mjs`, `scripts/verify-trainer-schedule-client-info.mjs`; экран телефона — e2e «Ежедневник с правкой» |
+| Verify | `scripts/verify-critical-hall.mjs`, `scripts/verify-app-stability.mjs`, `scripts/verify-trainer-schedule-client-info.mjs`, `scripts/verify-trainer-schedule-core.mjs`; экран телефона — e2e «Ежедневник с правкой» |
 | Docs | INCIDENTS **F**, [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |
 
 ### G — форма, пульс, Л/П

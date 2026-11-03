@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Clock, Pencil, StickyNote, Trash2, User, Users, X } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
+import { useScheduleModalViewport } from '../../hooks/useScheduleModalViewport.js'
 import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import {
   formatScheduleTimeRange,
@@ -43,17 +44,19 @@ export function TrainerScheduleEntryReadonly({
   footer = null,
   children,
 }) {
+  const { overlayStyle, panelStyle } = useScheduleModalViewport(true)
   const clientIds = normalizeScheduleClientIds(draft?.client_ids)
   const note = String(draft?.title ?? '').trim()
   const kind = resolveScheduleEntryKind(draft)
   const day = String(draft?.day_date ?? '').slice(0, 10)
   return (
-    <div className="trainer-schedule-modal" role="presentation" onClick={onClose}>
+    <div className="trainer-schedule-modal" role="presentation" style={overlayStyle} onClick={onClose}>
       <div
         className="trainer-schedule-modal__panel card trainer-schedule-view"
         role="dialog"
         aria-modal="true"
         aria-labelledby="trainer-schedule-view-title"
+        style={panelStyle}
         onClick={(ev) => ev.stopPropagation()}
       >
         <div className="trainer-schedule-view__tools">
