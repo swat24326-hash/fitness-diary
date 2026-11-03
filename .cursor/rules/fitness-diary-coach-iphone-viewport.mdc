@@ -1,0 +1,30 @@
+---
+description: iPhone /coach — visualViewport только через coachVisualViewport (вкладки, оболочка, шторка записи). Не изобретать новый pin.
+globs: src/pages/coach/**/*,src/lib/coach/**/*,src/lib/visualViewport*.js,src/lib/trainer/scheduleModalViewport*,src/hooks/useScheduleModalViewport.js,src/styles/coach*.css,src/styles/trainer-schedule*.css
+alwaysApply: false
+---
+
+# /coach на iPhone — один контур visualViewport
+
+**Канон API:** `src/lib/coach/coachVisualViewport.js` (INC-2026-11-03-05, 10-17-05/08).  
+Probe: `public/probe/coach-tabs-bottom.html`. Verify: `scripts/verify-visual-viewport-bottom-pin.mjs`, `verify-trainer-schedule-core.mjs`.
+
+## Делать
+
+1. Новая логика vv / клавиатуры / safe-area на телефоне тренера — **только** через `coachVisualViewport.js` (или его уже экспортируемые функции).
+2. Оболочка + вкладки: `attachCoachVisualViewport({ shell, tabs })` из `CoachShell`.
+3. Шторка записи: `useScheduleModalViewport` → стили из того же фасада.
+4. Поля ввода формы на ≤640px: **font-size ≥ 16px** (иначе iOS зумит и «уезжает в бок»).
+5. safe-area у шторки: селектор **сильнее** `.card` (`.trainer-schedule-modal__panel.card`), не голый `.panel`.
+
+## Не делать
+
+- Новый `top: visualViewport.offsetTop` на оверлее модалки / оболочки (кнопки под антеннами).
+- Поднимать вкладки (`bottom` / gapUp) без фокуса в текстовом поле.
+- Второй параллельный pin «только для этой фичи» рядом с `coachVisualViewport`.
+- `padding` у `.card`, который снова затирает safe-area шторки.
+- Чинить vv только в JSX без lib + verify при ветвлениях.
+
+## Напоминание
+
+Android обычно ок; регрессии — iPhone (PWA / Safari). После правки — verify выше; на устройстве: вкладки у низа, запись ниже статус-бара, поиск без сдвига вбок.

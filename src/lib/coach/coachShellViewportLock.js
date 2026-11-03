@@ -1,7 +1,6 @@
 /**
- * iPhone /coach: после клавиатуры или жеста «потянуть вниз» visualViewport залипает —
- * чёрный верх, оболочка в нижней половине (Android ок). Без клавиатуры сбрасываем scroll
- * и прибиваем shell к layout; с клавиатурой не трогаем высоту оболочки.
+ * iPhone /coach: shell не уползает после клавиатуры / жеста (Android ок).
+ * Публичный вход: `src/lib/coach/coachVisualViewport.js` → `attachCoachVisualViewport`.
  */
 
 import { isAppleTouchDevice } from '../client/sparkShakeCore.js'

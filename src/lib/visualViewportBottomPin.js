@@ -1,11 +1,9 @@
 /**
  * Нижняя панель (вкладки /coach) к видимому низу экрана на iPhone.
- * WebKit иногда кладёт position:fixed; bottom:0 выше home indicator —
- * под панелью зазор, пальцем можно «опустить» (INC-2026-10-17-05/08).
+ * Публичный вход для /coach: `src/lib/coach/coachVisualViewport.js`.
  *
- * Подъём `bottom` только при фокусе в поле (реальная клавиатура).
- * Иначе sticky короткий vv / pan без фокуса поднимал вкладки на 17 Pro
- * с чёрной дырой снизу (INC-2026-11-03-05).
+ * WebKit: fixed bottom:0 выше home indicator (INC-2026-10-17-05/08).
+ * Подъём `bottom` только при фокусе в поле (INC-2026-11-03-05).
  */
 
 import { VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX, visualViewportTextFieldFocused } from './visualViewportKeyboard.js'

@@ -35,6 +35,7 @@
 | API | `docs/API.md` |
 | Очередь продукта | `docs/PATH_TO_GOAL.md` |
 | Цель продукта | `docs/PRODUCT_VISION.md` |
+| iPhone `/coach` vv / клавиатура / вкладки | `src/lib/coach/coachVisualViewport.js` + правило `fitness-diary-coach-iphone-viewport.mdc` |
 
 ## Не делать
 

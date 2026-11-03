@@ -5,7 +5,7 @@ import {
   scheduleModalOverlayInsetStyle,
   scheduleModalPanelFrameStyle,
   scheduleModalShouldPinVisualViewport,
-} from '../lib/trainer/scheduleModalViewportCore.js'
+} from '../lib/coach/coachVisualViewport.js'
 
 /**
  * Оверлей всегда fullscreen; при клавиатуре ужимается только панель (не top оверлея).

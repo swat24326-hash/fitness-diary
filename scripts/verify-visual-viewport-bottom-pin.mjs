@@ -2,12 +2,14 @@
  * node scripts/verify-visual-viewport-bottom-pin.mjs
  */
 import {
+  attachCoachVisualViewport,
+  coachShellLayoutLockStyle,
   tabsShiftDownToLayoutBottomPx,
   visualViewportBottomGapPx,
+  visualViewportKeyboardOpen,
   visualViewportTabsShouldLift,
-} from '../src/lib/visualViewportBottomPin.js'
-import { visualViewportKeyboardOpen, visualViewportTextFieldFocused } from '../src/lib/visualViewportKeyboard.js'
-import { coachShellLayoutLockStyle } from '../src/lib/coach/coachShellViewportLock.js'
+  visualViewportTextFieldFocused,
+} from '../src/lib/coach/coachVisualViewport.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -69,6 +71,8 @@ const duringKb = coachShellLayoutLockStyle({
   inputFocused: true,
 })
 ok(duringKb.top === '' && duringKb.height === '', 'shell lock: during keyboard — CSS as-is')
+ok(typeof attachCoachVisualViewport === 'function', 'facade: attachCoachVisualViewport')
+ok(typeof attachCoachVisualViewport({}) === 'function', 'facade: attach returns detach')
 
 if (failed) {
   console.error(`\nverify-visual-viewport-bottom-pin: ${failed} FAIL`)

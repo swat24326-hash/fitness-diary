@@ -1,6 +1,6 @@
 # PWA — установка и обновление на планшете
 
-**Актуально:** 2026-11-03 — статика `manifest-client.json` / `manifest-coach.json` пишется `sync:brand` (any + **maskable**; без maskable Android ставит голый зелёный знак — INC-2026-11-03-02). Splash: прозрачный `purpose: any` + чёрный `background_color`; maskable на домашний экран. Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+**Актуально:** 2026-11-03 — `/coach` на iPhone: visualViewport только через `src/lib/coach/coachVisualViewport.js` (вкладки / оболочка / шторка; INC-2026-11-03-05). Статика `manifest-client.json` / `manifest-coach.json` — `sync:brand` (any + **maskable**; INC-2026-11-03-02). Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
 
 ### Стартовый вход и манифесты
 
@@ -8,7 +8,7 @@
 |-------------|----------------------|-----|
 | Зал / сотрудник (основной PWA) | `manifest.json` → `/` | `StartHubPage`: Сотрудник (логин на месте). Кнопка «Мобильное приложение» раскрывает Тренер→`/coach` и Клиент→`/me`. Запасной прямой вход — `/login`. |
 | Клиент | `manifest-client.json` → `/me` (+ API клуба); icons any+maskable | Не ставить ярлык на `/`. Без maskable — голый знак на Android. |
-| Тренер на телефоне | `manifest-coach.json` → `/coach`; icons any+maskable | То же: свой scope, не смешивать с хабом. |
+| Тренер на телефоне | `manifest-coach.json` → `/coach`; icons any+maskable | То же: свой scope, не смешивать с хабом. Экран/клавиатура iPhone — [§ visualViewport /coach](#visualviewport-coach-iphone). |
 
 Цепочка splash: `#yadro-boot-splash` → хаб или роль → после входа сотрудника `AppWelcomeSplash` (как раньше). Обновление PWA на `/` и `/login` — `immediate` (`appUpdatePolicy.js`).
 
@@ -92,6 +92,22 @@ needRefresh / buildStale
 | **Помощь → Восстановить** | сессия + версия |
 | Ctrl+F5 / закрыть PWA | если баннера нет |
 | Не чистить очередь Sync | очередь тут ни при чём |
+
+---
+
+## visualViewport /coach (iPhone)
+
+На телефоне тренера layout и visible viewport расходятся (клавиатура, пружина). **Один вход:** `src/lib/coach/coachVisualViewport.js` + правило `.cursor/rules/fitness-diary-coach-iphone-viewport.mdc`.
+
+| Что | Как |
+|-----|-----|
+| Оболочка + вкладки | `attachCoachVisualViewport` в `CoachShell` |
+| Шторка записи | `useScheduleModalViewport` — оверлей fullscreen, панель ужимается при клавиатуре |
+| Вкладки вверх | только фокус в текстовом поле |
+| Zoom «в бок» | поля формы на ≤640px ≥ 16px |
+| Probe | `public/probe/coach-tabs-bottom.html` |
+
+Android обычно не страдает. Verify: `verify-visual-viewport-bottom-pin`, `verify-trainer-schedule-core`.
 
 ---
 
