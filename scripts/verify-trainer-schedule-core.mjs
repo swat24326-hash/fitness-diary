@@ -253,26 +253,53 @@ ok(
 
 {
   const {
+    scheduleModalFieldFocused,
     scheduleModalFrameHeightPx,
     scheduleModalOverlayInsetStyle,
     scheduleModalShouldPinVisualViewport,
   } = await import('../src/lib/trainer/scheduleModalViewportCore.js')
-  ok(scheduleModalShouldPinVisualViewport({ viewportHeight: 500, layoutHeight: 844 }) === true, 'pin: keyboard shortens vv')
+  ok(scheduleModalFieldFocused({ tagName: 'INPUT', type: 'search' }) === true, 'field: search focused')
+  ok(scheduleModalFieldFocused({ tagName: 'INPUT', type: 'checkbox' }) === false, 'field: checkbox not text')
+  ok(scheduleModalFieldFocused({ tagName: 'BUTTON' }) === false, 'field: button not text')
+  ok(
+    scheduleModalShouldPinVisualViewport({ viewportHeight: 500, layoutHeight: 844, inputFocused: true }) === true,
+    'pin: keyboard + focus',
+  )
+  ok(
+    scheduleModalShouldPinVisualViewport({ viewportHeight: 500, layoutHeight: 844, offsetTop: 80 }) === true,
+    'pin: short vv + pan (клавиатура без focusin)',
+  )
+  ok(
+    scheduleModalShouldPinVisualViewport({ viewportHeight: 500, layoutHeight: 844, inputFocused: false, offsetTop: 0 }) ===
+      false,
+    'pin: sticky short vv после blur → fullscreen',
+  )
   ok(scheduleModalShouldPinVisualViewport({ viewportHeight: 820, layoutHeight: 844 }) === false, 'pin: near-full vv → no pin')
   ok(scheduleModalShouldPinVisualViewport({ viewportHeight: 844, layoutHeight: 844 }) === false, 'pin: full screen → no pin')
-  ok(scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 120 }) === 500, 'modal frame: pan + keyboard → vv')
-  ok(scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 0 }) === 500, 'modal frame: keyboard without pan → vv')
+  ok(
+    scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 120, inputFocused: true }) === 500,
+    'modal frame: pan + keyboard → vv',
+  )
+  ok(
+    scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 0, inputFocused: true }) === 500,
+    'modal frame: keyboard without pan → vv',
+  )
+  ok(
+    scheduleModalFrameHeightPx({ viewportHeight: 500, layoutHeight: 844, offsetTop: 0, inputFocused: false }) === 844,
+    'modal frame: sticky short after blur → layout (календарь не просвечивает)',
+  )
   ok(
     scheduleModalFrameHeightPx({ viewportHeight: 820, layoutHeight: 844, offsetTop: 40 }) === 844,
     'modal frame: rubber-band pan without keyboard → layout (не уезжать под статус-бар)',
   )
-  ok(scheduleModalFrameHeightPx({ viewportHeight: 800, layoutHeight: 844, offsetTop: 0 }) === 844, 'modal frame: after keyboard sticky short vv → layout (не сжимать)')
+  ok(scheduleModalFrameHeightPx({ viewportHeight: 800, layoutHeight: 844, offsetTop: 0 }) === 844, 'modal frame: near-full sticky → layout')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 'x', layoutHeight: 700 }) === 700, 'modal frame: bad vv → layout')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 0, layoutHeight: 0 }) === null, 'modal frame: both bad')
   const inset = scheduleModalOverlayInsetStyle({ offsetTop: 12.4, height: 500.6, pin: true })
   ok(inset.top === '12px' && inset.height === '501px' && inset.bottom === 'auto' && inset.width === '100%', 'modal overlay inset from visualViewport')
-  ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 40, height: 844, pin: false })).length === 0, 'modal overlay empty when not pinning')
-  ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 0, height: 0 })).length === 0, 'modal overlay empty when height 0')
+  const full = scheduleModalOverlayInsetStyle({ offsetTop: 40, height: 844, pin: false })
+  ok(full.top === '0px' && full.bottom === '0' && full.height === '100%', 'modal overlay fullscreen when not pinning')
+  ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 0, height: 0, pin: true })).length === 0, 'modal overlay empty when height 0')
 }
 
 if (failed) {

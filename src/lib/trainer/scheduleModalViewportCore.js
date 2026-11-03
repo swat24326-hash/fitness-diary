@@ -1,35 +1,38 @@
 /**
- * Высота кадра формы записи: на весь видимый экран.
- * После закрытия клавиатуры iPhone иногда оставляет короткий visualViewport при offsetTop≈0 —
- * тогда берём layout, иначе окно «сжимается» и не расправляется (жалоба 03.11).
- * Pin к visualViewport — только когда клавиатура реально укоротила vv (не rubber-band / scroll).
+ * Кадр формы записи на телефоне.
+ * Оверлей на весь layout (календарь не просвечивает). Pin к visualViewport —
+ * только пока реально клавиатура (поле в фокусе или pan), иначе залипший короткий vv
+ * оставляет щель снизу и кнопки под статус-баром (INC-2026-11-03-05).
  */
 
-const KEYBOARD_SHORTEN_PX = 80
+import {
+  visualViewportKeyboardOpen,
+  visualViewportTextFieldFocused,
+} from '../visualViewportKeyboard.js'
+
+export { visualViewportTextFieldFocused as scheduleModalFieldFocused }
 
 /**
- * Клавиатура открыта: visible viewport заметно короче layout.
- * Один offsetTop > 0 без укорочения — пружина/скролл: не пинить (иначе кнопки под Dynamic Island).
- * @param {{ viewportHeight: unknown, layoutHeight: unknown }} p
+ * @param {{ viewportHeight: unknown, layoutHeight: unknown, offsetTop?: unknown, inputFocused?: unknown }} p
  * @returns {boolean}
  */
-export function scheduleModalShouldPinVisualViewport({ viewportHeight, layoutHeight }) {
-  const vv = Number(viewportHeight)
-  const layout = Number(layoutHeight)
-  if (!Number.isFinite(layout) || layout <= 0) return false
-  if (!Number.isFinite(vv) || vv <= 0) return false
-  return vv < layout - KEYBOARD_SHORTEN_PX
+export function scheduleModalShouldPinVisualViewport(p) {
+  return visualViewportKeyboardOpen(p)
 }
 
 /**
- * @param {{ viewportHeight: unknown, layoutHeight: unknown, offsetTop?: unknown }} p
+ * @param {{ viewportHeight: unknown, layoutHeight: unknown, offsetTop?: unknown, inputFocused?: unknown }} p
  * @returns {number | null}
  */
-export function scheduleModalFrameHeightPx({ viewportHeight, layoutHeight, offsetTop = 0 }) {
+export function scheduleModalFrameHeightPx({
+  viewportHeight,
+  layoutHeight,
+  offsetTop = 0,
+  inputFocused = false,
+}) {
   const vv = Number(viewportHeight)
   const layout = Number(layoutHeight)
-  void offsetTop
-  if (scheduleModalShouldPinVisualViewport({ viewportHeight: vv, layoutHeight: layout })) {
+  if (visualViewportKeyboardOpen({ viewportHeight: vv, layoutHeight: layout, offsetTop, inputFocused })) {
     return Math.round(vv)
   }
   if (Number.isFinite(layout) && layout > 0) return Math.round(layout)
@@ -44,13 +47,21 @@ export function scheduleModalPanelMaxHeightPx({ viewportHeight, margin = 0, min 
 }
 
 /**
- * Overlay ровно на visible viewport (iOS клавиатура).
- * Без pin (клавиатуры нет) — пустой объект: CSS `inset: 0` + safe-area на панели.
+ * При pin — ровно visible viewport. Без pin — явный fullscreen (сбросить inline height после клавиатуры).
  * @param {{ offsetTop: unknown, height: unknown, pin?: boolean }} p
  * @returns {{ top: string, height: string, bottom: string, left?: string, right?: string, width?: string } | Record<string, never>}
  */
 export function scheduleModalOverlayInsetStyle({ offsetTop, height, pin = true }) {
-  if (!pin) return {}
+  if (!pin) {
+    return {
+      top: '0px',
+      left: '0',
+      right: '0',
+      bottom: '0',
+      width: '100%',
+      height: '100%',
+    }
+  }
   const top = Number(offsetTop)
   const h = Number(height)
   if (![top, h].every(Number.isFinite) || h <= 0) return {}

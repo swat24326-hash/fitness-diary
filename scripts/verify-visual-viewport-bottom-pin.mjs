@@ -5,6 +5,8 @@ import {
   tabsShiftDownToLayoutBottomPx,
   visualViewportBottomGapPx,
 } from '../src/lib/visualViewportBottomPin.js'
+import { visualViewportKeyboardOpen, visualViewportTextFieldFocused } from '../src/lib/visualViewportKeyboard.js'
+import { coachShellLayoutLockStyle } from '../src/lib/coach/coachShellViewportLock.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -25,6 +27,35 @@ ok(tabsShiftDownToLayoutBottomPx({ tabsBottom: 800, layoutHeight: 800 }) === 0, 
 ok(tabsShiftDownToLayoutBottomPx({ tabsBottom: 766, layoutHeight: 800 }) === 34, 'зазор 34px (safe-area WebKit) — опустить')
 ok(tabsShiftDownToLayoutBottomPx({ tabsBottom: 799.8, layoutHeight: 800 }) === 0, 'шум < eps')
 ok(tabsShiftDownToLayoutBottomPx({ tabsBottom: 900, layoutHeight: 800 }) === 0, 'ниже layout — не трогаем')
+
+ok(visualViewportTextFieldFocused({ tagName: 'INPUT', type: 'search' }) === true, 'keyboard: search field')
+ok(
+  visualViewportKeyboardOpen({ viewportHeight: 500, layoutHeight: 844, inputFocused: true }) === true,
+  'keyboard: short + focus',
+)
+ok(
+  visualViewportKeyboardOpen({ viewportHeight: 500, layoutHeight: 844, inputFocused: false, offsetTop: 0 }) === false,
+  'keyboard: sticky short without focus — не поднимать вкладки',
+)
+ok(
+  visualViewportKeyboardOpen({ viewportHeight: 500, layoutHeight: 844, offsetTop: 120 }) === true,
+  'keyboard: short + pan',
+)
+
+const locked = coachShellLayoutLockStyle({
+  offsetTop: 0,
+  viewportHeight: 500,
+  layoutHeight: 844,
+  inputFocused: false,
+})
+ok(locked.top === '0px' && locked.bottom === '0px' && locked.height === '100%', 'shell lock: sticky short → fullscreen')
+const duringKb = coachShellLayoutLockStyle({
+  offsetTop: 80,
+  viewportHeight: 500,
+  layoutHeight: 844,
+  inputFocused: true,
+})
+ok(duringKb.top === '' && duringKb.height === '', 'shell lock: during keyboard — CSS as-is')
 
 if (failed) {
   console.error(`\nverify-visual-viewport-bottom-pin: ${failed} FAIL`)

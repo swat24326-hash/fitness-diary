@@ -34,11 +34,17 @@
   overflow: hidden;
 }
 
-/* Не ставить overflow:hidden на body: на iPhone ломает position:fixed модалки (шторка Ежедневника). */
-html:has(.coach-app--tabs) {
+/*
+ * iPhone: без overflow на body страница пружинит — чёрный верх, оболочка уползает вниз
+ * (Анжелика, INC-2026-11-03-05). Шторка Ежедневника и вкладки — portal в body, fixed ок.
+ */
+html:has(.coach-app--tabs),
+html:has(.coach-app--tabs) body {
   overscroll-behavior: none;
+  overflow: hidden;
   height: 100%;
   height: -webkit-fill-available;
+  touch-action: manipulation;
 }
 
 /* Строка состояния iPhone прозрачная (black-translucent): отступ под неё — внутри прилипшей шапки,

@@ -5,6 +5,7 @@ import { CalendarDays, Menu, MessageCircle, Users } from 'lucide-react'
 import { OsMark } from '../../components/brand/OsMark.jsx'
 import { NetStatusBar } from '../../components/net/NetStatusBar.jsx'
 import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
+import { attachCoachShellViewportLock } from '../../lib/coach/coachShellViewportLock.js'
 import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
 import { attachVisualViewportBottomPin } from '../../lib/visualViewportBottomPin.js'
 import { useClientBranding } from '../client/useClientBranding.js'
@@ -62,8 +63,16 @@ export function CoachShell({ children, title = '', actions = null, tabs = true, 
   useCoachPushSelfHeal(signedIn)
   const clubTitle = club?.name || COACH_APP_TITLE
   useClientBranding(clubTitle, club?.manifest_url || COACH_MANIFEST)
+  const shellRef = useRef(null)
+  useLayoutEffect(() => {
+    if (!tabs) return undefined
+    return attachCoachShellViewportLock(shellRef.current)
+  }, [tabs])
   return (
-    <div className={`coach-app${tabs ? ' coach-app--tabs' : ''}${fill ? ' coach-app--fill' : ''}${bar ? ' coach-app--bar' : ''}`}>
+    <div
+      ref={shellRef}
+      className={`coach-app${tabs ? ' coach-app--tabs' : ''}${fill ? ' coach-app--fill' : ''}${bar ? ' coach-app--bar' : ''}`}
+    >
       {bar ? <div className="coach-app__top coach-app__top--bar">{bar}</div> : <CoachTop title={title || clubTitle} actions={actions} menu={tabs} />}
       <main className="coach-app__main">{children}</main>
       {tabs ? <CoachTabs /> : null}

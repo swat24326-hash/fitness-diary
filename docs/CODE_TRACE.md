@@ -97,8 +97,9 @@
 | «Выбрать фото» у клиента | Меню ☰ снимается по нажатию мимо (`src/hooks/usePopoverDismiss.js`). Окно «Мой профиль» — портал, но жило внутри меню (`ClientMenu.jsx` → `ProfileMenuUser.jsx` → `ProfilePhotoSheet.jsx`). Тап по кнопке снимал меню вместе с окном (INC-2026-10-23-04). e2e `profileAvatar` |
 | Кнопка тухнет на телефоне | `.btn:hover` в `src/index.css` сильнее `.btn-primary` и на таче залипает после системного окна (выбор фото). Наведение только при мыши (INC-2026-10-23-06). e2e `profileAvatar` |
 | Единичка на «Сообщениях» | Вкладка: `ClientTabs.jsx`. Пока экран открыт число спрашивает `useClientChatAttention.js` (список диалогов, сразу / push / 15 с) — старый ноль главной его не перекрывает (INC-2026-10-23-07). Прочтение: `useClientChat.js` + `noteClientChatRead` (INC-2026-10-23-05). e2e `clientChat` |
+| `/coach` iPhone: shell / вкладки / vv | `visualViewportKeyboard.js`, `coachShellViewportLock.js`, `visualViewportBottomPin.js`, `coach.css` — не поднимать вкладки на sticky short vv; lock оболочки; body overflow (INC-2026-11-03-05). Verify `verify-visual-viewport-bottom-pin.mjs` |
 | SW / обновление | `src/lib/appLifecycle.js`, `src/lib/appUpdateApplyService.js`, `src/lib/appBuildInfo.js` |
-| Verify | `scripts/verify-auth-sign-in-fallback.mjs`, `scripts/verify-auth-sign-in-fast-path.mjs`, `scripts/verify-auth-session-recover.mjs`, `scripts/verify-client-handoff.mjs` |
+| Verify | `scripts/verify-auth-sign-in-fallback.mjs`, `scripts/verify-auth-sign-in-fast-path.mjs`, `scripts/verify-auth-session-recover.mjs`, `scripts/verify-client-handoff.mjs`, `scripts/verify-visual-viewport-bottom-pin.mjs` |
 | Docs | [PWA.md](./PWA.md), [CLIENT_APP.md](./CLIENT_APP.md), [RUNBOOK.md](./RUNBOOK.md) §4, INCIDENTS **E** |
 
 ### F — главная, активные / архив
@@ -108,7 +109,7 @@
 | Главная | `src/pages/trainer/TrainerHome.jsx`, `src/components/trainer/TrainerHomeTodayStrip.jsx` |
 | Списки клиентов | `src/components/trainer/TrainerClientListItem.jsx`, `src/lib/clientListSignals.js` |
 | Ежедневник: №карты · тип абона | `src/lib/trainer/trainerScheduleClientInfoCore.js`; планшет — `useTrainerScheduleData.js`; телефон — `api/_lib/coach/coachScheduleHandler.js` (`membership_types`: только `id, code`, без `name`) + `CoachCalendarPage.jsx` (INC-2026-10-17-03/04) |
-| Ежедневник: кадр модалки iPhone | `src/lib/trainer/scheduleModalViewportCore.js`, `src/hooks/useScheduleModalViewport.js` — pin VV только при клавиатуре; safe-area у просмотра (`trainer-schedule-view.css`) — INC-2026-11-03-05 |
+| Ежедневник: кадр модалки iPhone | `scheduleModalViewportCore.js`, `useScheduleModalViewport.js` — pin VV только при клавиатуре; см. также **E** shell — INC-2026-11-03-05 |
 | Pull архива | `src/lib/trainerPullClientPruneCore.js`, [SYNC.md](./SYNC.md) §«Архив на планшете» |
 | Verify | `scripts/verify-critical-hall.mjs`, `scripts/verify-app-stability.mjs`, `scripts/verify-trainer-schedule-client-info.mjs`, `scripts/verify-trainer-schedule-core.mjs`; экран телефона — e2e «Ежедневник с правкой» |
 | Docs | INCIDENTS **F**, [TRAINER_SCHEDULE.md](./TRAINER_SCHEDULE.md) |

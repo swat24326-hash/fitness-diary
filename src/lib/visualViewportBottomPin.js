@@ -2,7 +2,11 @@
  * Нижняя панель (вкладки /coach) к видимому низу экрана на iPhone.
  * WebKit иногда кладёт position:fixed; bottom:0 выше home indicator / панели Safari —
  * под панелью остаётся чёрный зазор, пальцем можно «опустить» (INC-2026-10-17-05/08).
+ * Подъём `bottom` только при реальной клавиатуре — иначе залипший короткий vv
+ * поднимает вкладки на полэкрана (INC-2026-11-03-05, Анжелика).
  */
+
+import { visualViewportKeyboardOpen, visualViewportTextFieldFocused } from './visualViewportKeyboard.js'
 
 export const VISUAL_VIEWPORT_BOTTOM_EPS = 0.5
 
@@ -52,13 +56,26 @@ export function attachVisualViewportBottomPin(el) {
     raf = 0
     clearInline()
     const layoutH = window.innerHeight
-    const gapUp = vv
-      ? visualViewportBottomGapPx({
-          innerHeight: layoutH,
-          offsetTop: vv.offsetTop,
-          height: vv.height,
-        })
-      : 0
+    const offsetTop = vv?.offsetTop ?? 0
+    const viewportHeight = vv?.height ?? layoutH
+    const inputFocused = visualViewportTextFieldFocused(document.activeElement)
+    const keyboard = visualViewportKeyboardOpen({
+      viewportHeight,
+      layoutHeight: layoutH,
+      offsetTop,
+      inputFocused,
+    })
+    if (!keyboard && (offsetTop > 0.5 || window.scrollY > 0)) {
+      window.scrollTo(0, 0)
+    }
+    const gapUp =
+      keyboard && vv
+        ? visualViewportBottomGapPx({
+            innerHeight: layoutH,
+            offsetTop,
+            height: viewportHeight,
+          })
+        : 0
     if (gapUp > 0) {
       el.style.bottom = `${Math.round(gapUp)}px`
       return
@@ -79,8 +96,9 @@ export function attachVisualViewportBottomPin(el) {
   }
   window.addEventListener('resize', schedule, { passive: true })
   window.addEventListener('orientationchange', schedule, { passive: true })
+  document.addEventListener('focusin', schedule, true)
+  document.addEventListener('focusout', schedule, true)
   sync()
-  /* iPhone: в первом кадре safe-area / vv часто ещё 0 — дотянуть после layout. */
   window.requestAnimationFrame(() => window.requestAnimationFrame(sync))
   return () => {
     if (raf) window.cancelAnimationFrame(raf)
@@ -90,6 +108,8 @@ export function attachVisualViewportBottomPin(el) {
     }
     window.removeEventListener('resize', schedule)
     window.removeEventListener('orientationchange', schedule)
+    document.removeEventListener('focusin', schedule, true)
+    document.removeEventListener('focusout', schedule, true)
     clearInline()
   }
 }
