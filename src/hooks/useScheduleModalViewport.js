@@ -3,12 +3,12 @@ import {
   scheduleModalFieldFocused,
   scheduleModalFrameHeightPx,
   scheduleModalOverlayInsetStyle,
+  scheduleModalPanelFrameStyle,
   scheduleModalShouldPinVisualViewport,
 } from '../lib/trainer/scheduleModalViewportCore.js'
 
 /**
- * Оверлей на весь экран; к visualViewport — только пока клавиатура (фокус в поле).
- * После blur не оставлять короткий кадр (календарь просвечивает) и не держать top под антеннами.
+ * Оверлей всегда fullscreen; при клавиатуре ужимается только панель (не top оверлея).
  * @param {boolean} open
  * @returns {{ overlayStyle: Record<string, string>, panelStyle: Record<string, string> }}
  */
@@ -45,13 +45,14 @@ export function useScheduleModalViewport(open) {
         offsetTop,
         inputFocused,
       })
-      if (height == null) {
-        setOverlayStyle(scheduleModalOverlayInsetStyle({ offsetTop: 0, height: 0, pin: false }))
-        setPanelStyle({ height: '100%', maxHeight: '100%', width: '100%' })
-        return
-      }
-      setOverlayStyle(scheduleModalOverlayInsetStyle({ offsetTop, height, pin }))
-      setPanelStyle({ height: '100%', maxHeight: '100%', width: '100%' })
+      setOverlayStyle(scheduleModalOverlayInsetStyle())
+      setPanelStyle(
+        scheduleModalPanelFrameStyle({
+          offsetTop,
+          height: height ?? layoutHeight,
+          pin,
+        }),
+      )
     }
     const schedule = () => {
       if (raf) return

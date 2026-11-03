@@ -1,8 +1,7 @@
 /**
  * Кадр формы записи на телефоне.
- * Оверлей на весь layout (календарь не просвечивает). Pin к visualViewport —
- * только пока реально клавиатура (поле в фокусе или pan), иначе залипший короткий vv
- * оставляет щель снизу и кнопки под статус-баром (INC-2026-11-03-05).
+ * Оверлей всегда на весь layout (не двигать top — иначе шапка под антеннами).
+ * При клавиатуре ужимаем только панель (height + marginTop по visualViewport).
  */
 
 import {
@@ -47,30 +46,35 @@ export function scheduleModalPanelMaxHeightPx({ viewportHeight, margin = 0, min 
 }
 
 /**
- * При pin — ровно visible viewport. Без pin — явный fullscreen (сбросить inline height после клавиатуры).
- * @param {{ offsetTop: unknown, height: unknown, pin?: boolean }} p
- * @returns {{ top: string, height: string, bottom: string, left?: string, right?: string, width?: string } | Record<string, never>}
+ * Оверлей всегда fullscreen — не ставить top:offsetTop (шапка уезжает под статус-бар).
+ * @returns {{ top: string, left: string, right: string, bottom: string, width: string, height: string }}
  */
-export function scheduleModalOverlayInsetStyle({ offsetTop, height, pin = true }) {
-  if (!pin) {
-    return {
-      top: '0px',
-      left: '0',
-      right: '0',
-      bottom: '0',
-      width: '100%',
-      height: '100%',
-    }
-  }
-  const top = Number(offsetTop)
-  const h = Number(height)
-  if (![top, h].every(Number.isFinite) || h <= 0) return {}
+export function scheduleModalOverlayInsetStyle() {
   return {
-    top: `${Math.round(Math.max(0, top))}px`,
-    height: `${Math.round(h)}px`,
-    bottom: 'auto',
+    top: '0px',
     left: '0',
     right: '0',
+    bottom: '0',
     width: '100%',
+    height: '100%',
+  }
+}
+
+/**
+ * Панель: при клавиатуре — высота vv и сдвиг на offsetTop внутри fullscreen-оверлея.
+ * @param {{ offsetTop: unknown, height: unknown, pin?: boolean }} p
+ * @returns {{ height: string, maxHeight: string, width: string, marginTop: string }}
+ */
+export function scheduleModalPanelFrameStyle({ offsetTop, height, pin = false }) {
+  const base = { height: '100%', maxHeight: '100%', width: '100%', marginTop: '0px' }
+  if (!pin) return base
+  const top = Number(offsetTop)
+  const h = Number(height)
+  if (![top, h].every(Number.isFinite) || h <= 0) return base
+  return {
+    height: `${Math.round(h)}px`,
+    maxHeight: `${Math.round(h)}px`,
+    width: '100%',
+    marginTop: `${Math.round(Math.max(0, top))}px`,
   }
 }

@@ -393,8 +393,8 @@
 | Направление | **E** |
 | Кто / когда | Владелец / Анжелика, 03.11. iPhone `/coach` (на Android ок). Скрины: чёрный верх на половину, шапка под LTE; форма записи с календарём снизу |
 | Симптом | Приложение изначально не на весь экран; тянешь за низ — уползает вниз на половину рабочей области; в записи кнопки под антеннами; после клавиатуры календарь просвечивает |
-| Причина | (1) `attachVisualViewportBottomPin` поднимал вкладки при любом коротком vv — залипший vv после клавиатуры = вкладки на полэкрана. (2) У `body` не было `overflow/overscroll` при `/coach` — пружина страницы (iPhone). (3) Модалка пинила короткий vv без фокуса. |
-| Фикс | Общий `visualViewportKeyboardOpen` (фокус или pan); pin вкладок/модалки только тогда; `attachCoachShellViewportLock` на iPhone; `html/body` overflow+overscroll при `--tabs`; modal fullscreen после blur |
+| Причина | (1) `.card { padding }` из `index.css` (специфичность равная, файл позже) затирал `padding-top: safe-area` у шторки → ~16px и кнопки под антеннами. (2) Pin оверлея `top:offsetTop` + sticky vv. (3) Вкладки поднимались на любом коротком vv; body пружинил. |
+| Фикс | `.trainer-schedule-modal__panel.card` выше `.card`; оверлей всегда fullscreen, панель ужимается при клавиатуре; keyboard detect; shell lock; body overflow |
 | Статус | 🚀 на prod `32e2205e` (аварийный r3: стенд оборвал SSH на сборке) — закрыть ✅ после проверки на iPhone Анжелики |
 | Пути | `visualViewportKeyboard.js`, `visualViewportBottomPin.js`, `coachShellViewportLock.js`, `CoachShell.jsx`, `coach.css`, `scheduleModalViewportCore.js` |
 | Проверка | `node scripts/verify-visual-viewport-bottom-pin.mjs`; `verify-trainer-schedule-core.mjs`; на iPhone Анжелики — /coach на весь экран, низ не уползает |

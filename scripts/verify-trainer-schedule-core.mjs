@@ -256,6 +256,7 @@ ok(
     scheduleModalFieldFocused,
     scheduleModalFrameHeightPx,
     scheduleModalOverlayInsetStyle,
+    scheduleModalPanelFrameStyle,
     scheduleModalShouldPinVisualViewport,
   } = await import('../src/lib/trainer/scheduleModalViewportCore.js')
   ok(scheduleModalFieldFocused({ tagName: 'INPUT', type: 'search' }) === true, 'field: search focused')
@@ -295,11 +296,15 @@ ok(
   ok(scheduleModalFrameHeightPx({ viewportHeight: 800, layoutHeight: 844, offsetTop: 0 }) === 844, 'modal frame: near-full sticky → layout')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 'x', layoutHeight: 700 }) === 700, 'modal frame: bad vv → layout')
   ok(scheduleModalFrameHeightPx({ viewportHeight: 0, layoutHeight: 0 }) === null, 'modal frame: both bad')
-  const inset = scheduleModalOverlayInsetStyle({ offsetTop: 12.4, height: 500.6, pin: true })
-  ok(inset.top === '12px' && inset.height === '501px' && inset.bottom === 'auto' && inset.width === '100%', 'modal overlay inset from visualViewport')
-  const full = scheduleModalOverlayInsetStyle({ offsetTop: 40, height: 844, pin: false })
-  ok(full.top === '0px' && full.bottom === '0' && full.height === '100%', 'modal overlay fullscreen when not pinning')
-  ok(Object.keys(scheduleModalOverlayInsetStyle({ offsetTop: 0, height: 0, pin: true })).length === 0, 'modal overlay empty when height 0')
+  const overlay = scheduleModalOverlayInsetStyle()
+  ok(overlay.top === '0px' && overlay.bottom === '0' && overlay.height === '100%', 'modal overlay always fullscreen (не top:offsetTop)')
+  const panelKb = scheduleModalPanelFrameStyle({ offsetTop: 12.4, height: 500.6, pin: true })
+  ok(
+    panelKb.marginTop === '12px' && panelKb.height === '501px' && panelKb.maxHeight === '501px',
+    'modal panel: keyboard → vv height + marginTop',
+  )
+  const panelFull = scheduleModalPanelFrameStyle({ offsetTop: 40, height: 500, pin: false })
+  ok(panelFull.marginTop === '0px' && panelFull.height === '100%', 'modal panel: no keyboard → full')
 }
 
 if (failed) {

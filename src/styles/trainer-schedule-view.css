@@ -78,11 +78,11 @@
 }
 
 /* --- Просмотр записи --- */
-.trainer-schedule-modal__panel.trainer-schedule-view {
+.trainer-schedule-modal__panel.card.trainer-schedule-view {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  /* Не затирать safe-area: иначе корзина/крестик под Dynamic Island (iPhone). */
+  /* Тот же селектор .card, что у формы — иначе index.css .card снова затрёт safe-area. */
   padding-top: max(12px, env(safe-area-inset-top, 0px));
 }
 

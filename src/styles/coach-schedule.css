@@ -168,8 +168,9 @@
   bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Полноэкранная шторка: не ужимать max-height (иначе щель и «полэкрана» на iPhone). */
 .coach-schedule-layer .trainer-schedule-modal__panel {
-  max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: 100%;
 }
 
 /* Карандаш / удалить / закрыть в шторке — зона касания 44px, глобальный btn-icon-square не трогаем. */
