@@ -5,7 +5,10 @@ import { CalendarDays, Menu, MessageCircle, Users } from 'lucide-react'
 import { OsMark } from '../../components/brand/OsMark.jsx'
 import { NetStatusBar } from '../../components/net/NetStatusBar.jsx'
 import { APP_BRAND_COACH_TITLE } from '../../lib/appBrand.js'
-import { attachCoachVisualViewport } from '../../lib/coach/coachVisualViewport.js'
+import {
+  attachCoachShellViewportLock,
+  attachVisualViewportBottomPin,
+} from '../../lib/coach/coachVisualViewport.js'
 import { COACH_HOME } from '../../lib/pwa/appHomePath.js'
 import { useClientBranding } from '../client/useClientBranding.js'
 import { useCoachApp } from './CoachAppContext.jsx'
@@ -22,10 +25,13 @@ const TABS = [
   { to: '/coach/clients', icon: Users, label: 'Клиенты' },
 ]
 
-function CoachTabs({ tabsRef }) {
+function CoachTabs() {
   const attention = useCoachAttention()
+  const ref = useRef(null)
+  /* Pin здесь, не в родителе: иначе tabsRef ещё null и зазор под вкладками не закрывается. */
+  useLayoutEffect(() => attachVisualViewportBottomPin(ref.current), [])
   const nav = (
-    <nav ref={tabsRef} className="coach-tabs coach-tabs--coach" aria-label="Разделы">
+    <nav ref={ref} className="coach-tabs coach-tabs--coach" aria-label="Разделы">
       {TABS.map(({ to, end, icon: Icon, label, attention: withBadge }) => {
         const badge = withBadge && attention > 0 ? attention : 0
         return (
@@ -61,10 +67,9 @@ export function CoachShell({ children, title = '', actions = null, tabs = true, 
   const clubTitle = club?.name || COACH_APP_TITLE
   useClientBranding(clubTitle, club?.manifest_url || COACH_MANIFEST)
   const shellRef = useRef(null)
-  const tabsRef = useRef(null)
   useLayoutEffect(() => {
     if (!tabs) return undefined
-    return attachCoachVisualViewport({ shell: shellRef.current, tabs: tabsRef.current })
+    return attachCoachShellViewportLock(shellRef.current)
   }, [tabs])
   return (
     <div
@@ -73,7 +78,7 @@ export function CoachShell({ children, title = '', actions = null, tabs = true, 
     >
       {bar ? <div className="coach-app__top coach-app__top--bar">{bar}</div> : <CoachTop title={title || clubTitle} actions={actions} menu={tabs} />}
       <main className="coach-app__main">{children}</main>
-      {tabs ? <CoachTabs tabsRef={tabsRef} /> : null}
+      {tabs ? <CoachTabs /> : null}
       {signedIn ? <NetStatusBar /> : null}
     </div>
   )

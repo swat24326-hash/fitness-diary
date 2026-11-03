@@ -849,8 +849,11 @@
   padding: 12px 14px;
   padding-top: max(12px, env(safe-area-inset-top, 0px));
   padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
   /* .card анимация подъезда на fullscreen-шторке даёт рывок — не нужна. */
   animation: none;
+  overflow-x: hidden;
 }
 
 @media (min-width: 640px) {
@@ -1289,9 +1292,16 @@
   align-items: center;
   gap: 12px;
   min-height: 48px;
-  padding: 6px 2px;
+  padding: 6px 4px;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trainer-schedule-modal__client-item > input[type='checkbox'] {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 0;
 }
 
 .trainer-schedule-modal__client-list li:last-child .trainer-schedule-modal__client-item {

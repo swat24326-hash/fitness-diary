@@ -68,11 +68,15 @@ export function attachVisualViewportBottomPin(el) {
   const sync = () => {
     raf = 0
     clearInline()
-    const layoutH = window.innerHeight
+    const layoutH = Math.max(
+      window.innerHeight || 0,
+      document.documentElement?.clientHeight || 0,
+      vv ? Math.round((vv.offsetTop || 0) + (vv.height || 0)) : 0,
+    )
     const offsetTop = vv?.offsetTop ?? 0
     const viewportHeight = vv?.height ?? layoutH
     const inputFocused = visualViewportTextFieldFocused(document.activeElement)
-    if (!inputFocused && (offsetTop > 0.5 || window.scrollY > 0 || (vv && vv.offsetLeft > 0.5))) {
+    if (!inputFocused && (offsetTop > 0.5 || window.scrollY > 0 || window.scrollX > 0 || (vv && vv.offsetLeft > 0.5))) {
       window.scrollTo(0, 0)
     }
     const lift = visualViewportTabsShouldLift({
@@ -92,9 +96,15 @@ export function attachVisualViewportBottomPin(el) {
       el.style.bottom = `${Math.round(gapUp)}px`
       return
     }
-    const rect = el.getBoundingClientRect()
-    const shift = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
-    if (shift > 0) el.style.transform = `translateY(${Math.round(shift)}px)`
+    /* Два прохода: после translateY перемерить — на 17 Pro один кадр часто недотягивает. */
+    let rect = el.getBoundingClientRect()
+    let shift = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
+    if (shift > 0) {
+      el.style.transform = `translateY(${Math.round(shift)}px)`
+      rect = el.getBoundingClientRect()
+      const more = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
+      if (more > 0) el.style.transform = `translateY(${Math.round(shift + more)}px)`
+    }
   }
 
   const schedule = () => {

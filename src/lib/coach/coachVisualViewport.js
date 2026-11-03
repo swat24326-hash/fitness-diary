@@ -45,7 +45,9 @@ export {
 } from '../trainer/scheduleModalViewportCore.js'
 
 /**
- * Оболочка + вкладки одним detach. Вызывать из CoachShell, когда оба узла в DOM.
+ * Оболочка + вкладки одним detach.
+ * Важно: вкладки порталятся в body — pin вешать в CoachTabs на живой ref,
+ * иначе tabs=null и зазор снизу не закрывается (регресс после объединения API).
  * @param {{ shell?: HTMLElement | null, tabs?: HTMLElement | null }} p
  * @returns {() => void}
  */

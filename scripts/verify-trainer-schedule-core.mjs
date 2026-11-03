@@ -298,6 +298,9 @@ ok(
   ok(scheduleModalFrameHeightPx({ viewportHeight: 0, layoutHeight: 0 }) === null, 'modal frame: both bad')
   const overlay = scheduleModalOverlayInsetStyle()
   ok(overlay.top === '0px' && overlay.bottom === '0' && overlay.height === '100%', 'modal overlay always fullscreen (не top:offsetTop)')
+  ok(overlay.transform === 'none', 'modal overlay: без горизонтального pan — без translateX')
+  const overlayPan = scheduleModalOverlayInsetStyle({ offsetLeft: 24.4 })
+  ok(overlayPan.transform === 'translateX(24px)', 'modal overlay: offsetLeft → translateX (галочки не режет слева)')
   const panelKb = scheduleModalPanelFrameStyle({ offsetTop: 12.4, height: 500.6, pin: true })
   ok(
     panelKb.marginTop === '12px' && panelKb.height === '501px' && panelKb.maxHeight === '501px',

@@ -28,6 +28,7 @@ export function useScheduleModalViewport(open) {
       raf = 0
       const layoutHeight = Math.max(window.innerHeight || 0, document.documentElement?.clientHeight || 0)
       const offsetTop = vv?.offsetTop ?? 0
+      const offsetLeft = vv?.offsetLeft ?? 0
       const viewportHeight = vv?.height ?? layoutHeight
       const inputFocused = scheduleModalFieldFocused(document.activeElement)
       const pin = scheduleModalShouldPinVisualViewport({
@@ -36,7 +37,7 @@ export function useScheduleModalViewport(open) {
         offsetTop,
         inputFocused,
       })
-      if (!pin && (offsetTop > 0.5 || window.scrollY > 0)) {
+      if (offsetLeft > 0.5 || window.scrollX > 0 || (!pin && (offsetTop > 0.5 || window.scrollY > 0))) {
         window.scrollTo(0, 0)
       }
       const height = scheduleModalFrameHeightPx({
@@ -45,7 +46,7 @@ export function useScheduleModalViewport(open) {
         offsetTop,
         inputFocused,
       })
-      setOverlayStyle(scheduleModalOverlayInsetStyle())
+      setOverlayStyle(scheduleModalOverlayInsetStyle({ offsetLeft }))
       setPanelStyle(
         scheduleModalPanelFrameStyle({
           offsetTop,

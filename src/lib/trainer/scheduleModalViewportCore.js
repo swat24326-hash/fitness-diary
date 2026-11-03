@@ -46,10 +46,13 @@ export function scheduleModalPanelMaxHeightPx({ viewportHeight, margin = 0, min 
 }
 
 /**
- * Оверлей всегда fullscreen — не ставить top:offsetTop (шапка уезжает под статус-бар).
- * @returns {{ top: string, left: string, right: string, bottom: string, width: string, height: string }}
+ * Оверлей на весь layout. При горизонтальном pan/zoom iPhone (offsetLeft) —
+ * сдвиг в видимую область, иначе галочки/текст обрезаются слева.
+ * @param {{ offsetLeft?: unknown }} [p]
+ * @returns {{ top: string, left: string, right: string, bottom: string, width: string, height: string, transform: string }}
  */
-export function scheduleModalOverlayInsetStyle() {
+export function scheduleModalOverlayInsetStyle({ offsetLeft = 0 } = {}) {
+  const x = Number(offsetLeft) || 0
   return {
     top: '0px',
     left: '0',
@@ -57,6 +60,7 @@ export function scheduleModalOverlayInsetStyle() {
     bottom: '0',
     width: '100%',
     height: '100%',
+    transform: x > 0.5 ? `translateX(${Math.round(x)}px)` : 'none',
   }
 }
 
