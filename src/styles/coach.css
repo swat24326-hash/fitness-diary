@@ -35,16 +35,19 @@
 }
 
 /*
- * iPhone: без overflow на body страница пружинит — чёрный верх, оболочка уползает вниз
- * (Анжелика, INC-2026-11-03-05). Шторка Ежедневника и вкладки — portal в body, fixed ок.
+ * iPhone: без overflow на body страница пружинит / ездит влево-вправо
+ * (Анжелика, INC-2026-11-03-05). Замок на всём /coach — и диалог без вкладок.
+ * Шторка Ежедневника и вкладки — portal в body, fixed ок.
  */
-html:has(.coach-app--tabs),
-html:has(.coach-app--tabs) body {
+html:has(.coach-app),
+html:has(.coach-app) body {
   overscroll-behavior: none;
   overflow: hidden;
+  overflow-x: hidden;
   height: 100%;
   height: -webkit-fill-available;
   touch-action: manipulation;
+  scrollbar-gutter: auto;
 }
 
 /* Строка состояния iPhone прозрачная (black-translucent): отступ под неё — внутри прилипшей шапки,
@@ -111,6 +114,39 @@ html:has(.coach-app--tabs) body {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+/* Диалог на телефоне: оболочка на весь экран — поле ввода не уезжает под низ (INC-2026-11-03-04/05). */
+.coach-app:has(> .coach-app__main > .chat-thread) {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  max-height: 100dvh;
+  max-height: -webkit-fill-available;
+  min-height: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.coach-app:has(> .coach-app__main > .chat-thread) .coach-app__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+.coach-app:has(> .coach-app__main > .chat-thread) .chat-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 
 .coach-app__top--bar > .chat-bar {

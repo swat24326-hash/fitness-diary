@@ -46,13 +46,12 @@ export function scheduleModalPanelMaxHeightPx({ viewportHeight, margin = 0, min 
 }
 
 /**
- * Оверлей на весь layout. При горизонтальном pan/zoom iPhone (offsetLeft) —
- * сдвиг в видимую область, иначе галочки/текст обрезаются слева.
+ * Оверлей на весь layout. Без translateX(offsetLeft): сдвиг на 100% ширины
+ * уезжает вбок и режет галочки (INC-2026-11-03-05). Горизонт — overflow + сброс scroll/zoom.
  * @param {{ offsetLeft?: unknown }} [p]
  * @returns {{ top: string, left: string, right: string, bottom: string, width: string, height: string, transform: string }}
  */
-export function scheduleModalOverlayInsetStyle({ offsetLeft = 0 } = {}) {
-  const x = Number(offsetLeft) || 0
+export function scheduleModalOverlayInsetStyle(_p = {}) {
   return {
     top: '0px',
     left: '0',
@@ -60,7 +59,7 @@ export function scheduleModalOverlayInsetStyle({ offsetLeft = 0 } = {}) {
     bottom: '0',
     width: '100%',
     height: '100%',
-    transform: x > 0.5 ? `translateX(${Math.round(x)}px)` : 'none',
+    transform: 'none',
   }
 }
 

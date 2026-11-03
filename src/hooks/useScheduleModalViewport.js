@@ -46,7 +46,7 @@ export function useScheduleModalViewport(open) {
         offsetTop,
         inputFocused,
       })
-      setOverlayStyle(scheduleModalOverlayInsetStyle({ offsetLeft }))
+      setOverlayStyle(scheduleModalOverlayInsetStyle())
       setPanelStyle(
         scheduleModalPanelFrameStyle({
           offsetTop,

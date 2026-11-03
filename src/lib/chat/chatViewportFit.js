@@ -148,30 +148,34 @@ export function attachChatViewportFit(el) {
 
   const sync = () => {
     raf = 0
-    if (vv && vv.scale > 1.01) return
     const layoutHeight = Math.max(window.innerHeight || 0, root.clientHeight || 0)
     const offsetTop = vv?.offsetTop
+    const zoomed = Boolean(vv && vv.scale > 1.01)
+    /* При pinch-zoom не двигаем оболочку; высоту всё равно считаем — иначе поле ввода пропадает. */
     const viewHeight = chatFitViewHeightPx({
       visualHeight: vv ? vv.height : layoutHeight,
       layoutHeight,
-      offsetTop,
+      offsetTop: zoomed ? 0 : offsetTop,
       iosLike,
     })
     /* Сдвиг страницы за offsetTop — только iPhone; на Android (Honor) ложный offsetTop иначе увозит ленту. */
-    const nextShift = iosLike ? chatFitShiftPx({ offsetTop, scale: vv?.scale }) : 0
+    const nextShift = !zoomed && iosLike ? chatFitShiftPx({ offsetTop, scale: vv?.scale }) : 0
     if (nextShift !== shift) {
       shift = nextShift
       shell.style.transform = shift ? `translateY(${shift}px)` : ''
     }
     let unpanned = false
-    if (chatFitShouldUnpan({ docHeight: root.scrollHeight - shift, viewHeight, scrollY: window.scrollY })) {
+    if (
+      window.scrollX > 0 ||
+      chatFitShouldUnpan({ docHeight: root.scrollHeight - shift, viewHeight, scrollY: window.scrollY })
+    ) {
       window.scrollTo(0, 0)
       unpanned = true
     }
     /* Высота — после сдвига/unpan, от верха в visible viewport (не document+scrollY). */
     const top = chatFitVisualTopPx({
       rectTop: el.getBoundingClientRect().top,
-      offsetTop: vv ? vv.offsetTop : 0,
+      offsetTop: zoomed ? 0 : vv ? vv.offsetTop : 0,
     })
     const next = `${chatFitHeightPx({ viewHeight, top, gap: bottomGapPx(el) })}px`
     if (el.style.getPropertyValue(CHAT_FIT_VAR) !== next) el.style.setProperty(CHAT_FIT_VAR, next)
@@ -219,6 +223,9 @@ export function attachChatViewportFit(el) {
   document.addEventListener('touchcancel', onTouchEnd, touchOpts)
   root.setAttribute(CHAT_FIT_ROOT_ATTR, '')
   sync()
+  /* Повтор после layout шапки — иначе первый кадр даёт top=0 и поле уезжает под низ (iPhone 17 Pro). */
+  window.requestAnimationFrame(() => window.requestAnimationFrame(schedule))
+  focusTimers = [window.setTimeout(schedule, 120), window.setTimeout(schedule, 320)]
   return () => {
     if (raf) window.cancelAnimationFrame(raf)
     for (const t of focusTimers) window.clearTimeout(t)

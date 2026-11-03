@@ -20,6 +20,7 @@ Probe: `public/probe/coach-tabs-bottom.html`. Verify: `scripts/verify-visual-vie
 ## Не делать
 
 - Новый `top: visualViewport.offsetTop` на оверлее модалки / оболочки (кнопки под антеннами).
+- `translateX(offsetLeft)` на fullscreen-оверлее шириной 100% — режет галочки, экран ездит вбок.
 - Поднимать вкладки (`bottom` / gapUp) без фокуса в текстовом поле.
 - Второй параллельный pin «только для этой фичи» рядом с `coachVisualViewport`.
 - `padding` у `.card`, который снова затирает safe-area шторки.

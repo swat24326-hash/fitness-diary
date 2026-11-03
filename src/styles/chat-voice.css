@@ -467,7 +467,7 @@
 /* ——— Мини-плеер ——— */
 
 .chat-thread:has(> .chat-voice-mini) {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .chat-voice-mini {

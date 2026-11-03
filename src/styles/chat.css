@@ -8,17 +8,23 @@
 
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
+  /* Лента 1fr + поле ввода auto — иначе поле уезжает под низ при неверном --chat-fit-h (iPhone). */
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
   /* Ровно видимая часть экрана (chatViewportFit.js): листается лента, страница стоит — поле ввода не ездит. */
   height: var(--chat-fit-h, auto);
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* Пока открыт диалог, страница целиком не пружинит (iPhone): тянется и пружинит только лента. Иначе подгонка
-   под экран (chatViewportFit.js) спорит с пружиной страницы и экран дрожит (INC-2026-10-14-04). */
+/* Пока открыт диалог, страница целиком не пружинит и не ездит вбок (iPhone). */
 html[data-chat-fit],
 html[data-chat-fit] body {
   overscroll-behavior: none;
+  overflow: hidden;
+  overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 .chat-thread__feed {
@@ -338,7 +344,8 @@ html[data-chat-fit] body {
   color: var(--accent-bright, var(--accent));
 }
 
-/* Без field-sizing: он берёт ширину по содержимому, и длинная ссылка раздвигала экран телефона. Высоту растит ChatComposer. */
+/* Без field-sizing: он берёт ширину по содержимому, и длинная ссылка раздвигала экран телефона. Высоту растит ChatComposer.
+ * font-size ≥ 16px — иначе iPhone зумит страницу, поле пропадает, экран ездит вбок. */
 .chat-compose__input {
   flex: 1;
   width: 100%;
@@ -351,6 +358,7 @@ html[data-chat-fit] body {
   background: transparent;
   color: var(--text);
   font: inherit;
+  font-size: 16px;
   line-height: 1.35;
   resize: none;
 }

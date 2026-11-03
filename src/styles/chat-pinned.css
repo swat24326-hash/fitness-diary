@@ -1,10 +1,10 @@
 /* Закреплённое сообщение над лентой, как в Telegram: черта акцента слева, заголовок и одна строка текста. */
 .chat-thread:has(> .chat-pinned) {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .chat-thread:has(> .chat-voice-mini):has(> .chat-pinned) {
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 .chat-pinned {

@@ -820,6 +820,8 @@
   justify-content: center;
   padding: 0;
   box-sizing: border-box;
+  overflow-x: hidden;
+  overscroll-behavior: none;
 }
 
 @media (min-width: 640px) {
