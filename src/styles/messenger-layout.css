@@ -253,6 +253,9 @@
 
 .msgr--phone {
   grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .msgr--phone .msgr__side {
@@ -261,7 +264,21 @@
   padding: 0;
   border: 0;
   background: transparent;
-  overflow: visible;
+  /* visible раздувал страницу сторис/папками; clip по X — список не ездит вбок на iPhone. */
+  overflow-x: clip;
+  overflow-y: visible;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.msgr--phone .msgr__rail,
+.msgr--phone .msgr__list {
+  touch-action: pan-y;
+}
+
+.msgr--phone .chat-folders,
+.msgr--phone .stories-rail__row {
+  touch-action: pan-x;
 }
 
 .msgr--phone .msgr__thread {

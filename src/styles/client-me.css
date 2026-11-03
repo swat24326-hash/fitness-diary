@@ -1,12 +1,36 @@
 /* Приложение клиента /me (телефон) и QR-приглашение в карточке клиента. */
 
+/*
+ * iPhone: страница не ездит вбок / не пружинит (тот же класс, что /coach, INC-2026-11-03-05).
+ * pan-x оставляем сторис и другим горизонтальным лентам.
+ */
+html:has(.client-me),
+html:has(.client-me) body {
+  overscroll-behavior: none;
+  overflow: hidden;
+  overflow-x: hidden;
+  height: 100%;
+  height: -webkit-fill-available;
+  touch-action: manipulation;
+  scrollbar-gutter: auto;
+}
+
 .client-me {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   min-height: 100dvh;
+  height: 100%;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  max-height: 100dvh;
+  max-height: -webkit-fill-available;
   overflow-x: hidden;
   overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
   background:
     radial-gradient(120% 60% at 50% -10%, var(--premium-bg-radial), transparent 60%),
     var(--bg);
@@ -17,6 +41,31 @@
 /* Нижние вкладки (.coach-tabs — общий вид с тренером) не закрывают низ экрана. */
 .client-me.client-me--tabs {
   padding-bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
+/* Диалог: оболочка на весь экран — поле ввода не уезжает под низ (как /coach). */
+.client-me:has(> .client-me__main > .chat-thread) {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.client-me:has(> .client-me__main > .chat-thread) .client-me__main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
+.client-me:has(> .client-me__main > .chat-thread) .chat-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 
 /* Табы той же ширины, что шапка/контент (560) — иначе при узком масштабе «плывут» относительно шапки. */
@@ -85,6 +134,17 @@
   min-width: 0;
   margin: 0 auto;
   padding: 0 16px;
+}
+
+.client-me__main > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Сторис на главной / в сообщениях — жест вбок только у ряда, не у страницы. */
+.client-me .stories-rail__row {
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
 }
 
 .client-me__hello {

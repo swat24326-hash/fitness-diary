@@ -176,7 +176,14 @@ html:has(.coach-app) body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   overscroll-behavior-x: none;
+  /* Список/чаты: вертикаль только здесь; pan-x оставляем дочерним (папки, сторис). */
+  touch-action: pan-y;
   padding-bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
+.coach-app--tabs .coach-app__main > * {
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* Экран без шапки (заставка загрузки) — отступ под строку состояния сам. */

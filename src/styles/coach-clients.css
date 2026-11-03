@@ -6,6 +6,9 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  touch-action: pan-y;
 }
 
 .coach-clients .trainer-clients-filters,
