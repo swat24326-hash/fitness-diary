@@ -42,10 +42,7 @@
  */
 html:has(.coach-app),
 html:has(.coach-app) body {
-  /* fixed inset — iOS 17 Pro: иначе layout короче экрана, под вкладками чёрная полоса. */
-  position: fixed;
-  inset: 0;
-  width: 100%;
+  /* Не position:fixed — иначе fixed-вкладки якорятся к короткому vv и «задраны» над home indicator. */
   overscroll-behavior: none;
   overscroll-behavior-x: none;
   overflow: hidden;
@@ -255,7 +252,7 @@ html:has(.coach-app) body {
   vertical-align: -3px;
 }
 
-/* Нижние вкладки: большой палец, ≥56px. padding под home indicator; JS pin — top к visualViewport. */
+/* Нижние вкладки: большой палец, ≥56px. Покой — CSS bottom:0 (JS не поднимает). */
 .coach-tabs {
   position: fixed;
   left: 0;
@@ -265,9 +262,9 @@ html:has(.coach-app) body {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
+  /* Иконки над home indicator; фон панели до физического низа. */
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
-  /* Без прозрачности: иначе safe-area выглядит как «задрана над чёрным». */
   background: var(--bg);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));

@@ -2,9 +2,11 @@
  * Нижняя панель (вкладки /coach) к видимому низу экрана на iPhone.
  * Публичный вход для /coach: `src/lib/coach/coachVisualViewport.js`.
  *
- * WebKit: fixed bottom:0 часто выше реального низа (INC-2026-10-17-05/08).
- * 17 Pro: прижимаем через top = targetBottom - height (не bottom+translateY).
- * Короткий vv без фокуса — к layout, иначе вкладки «задраны» (INC-2026-11-03-05).
+ * Покой: только CSS `bottom:0` + safe-area padding — без JS top/bottom.
+ *   JS-pin к visualViewport в покое поднимал панель над home indicator
+ *   (чёрная полоса, «шапка задрана», INC-2026-11-03-05 повтор 7–8).
+ * Клавиатура + фокус: `bottom = gapUp` (vv короче layout).
+ * WebKit: если после bottom:0 низ панели выше layout — translateY вниз.
  */
 
 import { VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX, visualViewportTextFieldFocused } from './visualViewportKeyboard.js'
@@ -53,9 +55,10 @@ export function visualViewportTabsShouldLift({ viewportHeight, layoutHeight, inp
 }
 
 /**
- * Y низа, к которому прижать панель (низ visualViewport или layout при sticky short).
+ * Цель низа для документации/verify: в покое — layout; при клавиатуре — низ vv.
+ * (Idle-pin через top больше не применяем — см. attach.)
  * @param {{ offsetTop?: unknown, viewportHeight?: unknown, layoutHeight: unknown, inputFocused?: unknown }} p
- * @returns {number} px ≥ 0, или 0 если данные плохие
+ * @returns {number}
  */
 export function tabsPinTargetBottomPx({
   offsetTop = 0,
@@ -67,15 +70,13 @@ export function tabsPinTargetBottomPx({
   if (!Number.isFinite(layout) || layout <= 0) return 0
   const ot = Number(offsetTop) || 0
   const vh = Number(viewportHeight)
-  const short =
-    Number.isFinite(vh) && vh > 0 && vh < layout - VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX
-  if (short && !inputFocused) return layout
-  if (Number.isFinite(vh) && vh > 0) return ot + vh
+  if (visualViewportTabsShouldLift({ viewportHeight: vh, layoutHeight: layout, inputFocused })) {
+    return ot + vh
+  }
   return layout
 }
 
 /**
- * top панели: низ = targetBottom.
  * @param {{ targetBottom: unknown, tabsHeight: unknown }} p
  * @returns {number | null}
  */
@@ -116,26 +117,32 @@ export function attachVisualViewportBottomPin(el) {
       window.scrollTo(0, 0)
     }
 
-    const tabsHeight = el.offsetHeight || el.getBoundingClientRect().height
-    const targetBottom = tabsPinTargetBottomPx({
-      offsetTop,
+    const lift = visualViewportTabsShouldLift({
       viewportHeight,
       layoutHeight: layoutH,
       inputFocused,
     })
-    const top = tabsPinTopPx({ targetBottom, tabsHeight })
-    if (top == null) {
-      el.style.bottom = '0px'
-      return
+    if (lift && vv) {
+      const gapUp = visualViewportBottomGapPx({
+        innerHeight: layoutH,
+        offsetTop,
+        height: viewportHeight,
+      })
+      if (gapUp > 0) {
+        el.style.bottom = `${Math.round(gapUp)}px`
+        return
+      }
     }
-    el.style.top = `${top}px`
-    el.style.bottom = 'auto'
-    el.style.transform = ''
 
-    /* Второй проход: после top высота/safe-area могли пересчитаться (17 Pro). */
-    const h2 = el.offsetHeight || el.getBoundingClientRect().height
-    const top2 = tabsPinTopPx({ targetBottom, tabsHeight: h2 })
-    if (top2 != null && top2 !== top) el.style.top = `${top2}px`
+    /* Покой: CSS bottom:0. JS только дотянуть, если WebKit оставил зазор до layout. */
+    let rect = el.getBoundingClientRect()
+    let shift = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
+    if (shift > 0) {
+      el.style.transform = `translateY(${Math.round(shift)}px)`
+      rect = el.getBoundingClientRect()
+      const more = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
+      if (more > 0) el.style.transform = `translateY(${Math.round(shift + more)}px)`
+    }
   }
 
   const schedule = () => {

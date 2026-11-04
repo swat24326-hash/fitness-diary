@@ -63,7 +63,7 @@ ok(
 )
 ok(
   tabsPinTargetBottomPx({ offsetTop: 0, viewportHeight: 844, layoutHeight: 844 }) === 844,
-  'tabs pin target: полный vv — низ vv',
+  'tabs pin target: покой — layout (CSS bottom:0, не vv-top)',
 )
 ok(
   tabsPinTargetBottomPx({ offsetTop: 0, viewportHeight: 500, layoutHeight: 844, inputFocused: false }) === 844,
