@@ -2,8 +2,9 @@
  * Нижняя панель (вкладки /coach) к видимому низу экрана на iPhone.
  * Публичный вход для /coach: `src/lib/coach/coachVisualViewport.js`.
  *
- * WebKit: fixed bottom:0 выше home indicator (INC-2026-10-17-05/08).
- * Подъём `bottom` только при фокусе в поле (INC-2026-11-03-05).
+ * WebKit: fixed bottom:0 часто выше реального низа (INC-2026-10-17-05/08).
+ * 17 Pro: прижимаем через top = targetBottom - height (не bottom+translateY).
+ * Короткий vv без фокуса — к layout, иначе вкладки «задраны» (INC-2026-11-03-05).
  */
 
 import { VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX, visualViewportTextFieldFocused } from './visualViewportKeyboard.js'
@@ -52,6 +53,40 @@ export function visualViewportTabsShouldLift({ viewportHeight, layoutHeight, inp
 }
 
 /**
+ * Y низа, к которому прижать панель (низ visualViewport или layout при sticky short).
+ * @param {{ offsetTop?: unknown, viewportHeight?: unknown, layoutHeight: unknown, inputFocused?: unknown }} p
+ * @returns {number} px ≥ 0, или 0 если данные плохие
+ */
+export function tabsPinTargetBottomPx({
+  offsetTop = 0,
+  viewportHeight,
+  layoutHeight,
+  inputFocused = false,
+}) {
+  const layout = Number(layoutHeight)
+  if (!Number.isFinite(layout) || layout <= 0) return 0
+  const ot = Number(offsetTop) || 0
+  const vh = Number(viewportHeight)
+  const short =
+    Number.isFinite(vh) && vh > 0 && vh < layout - VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX
+  if (short && !inputFocused) return layout
+  if (Number.isFinite(vh) && vh > 0) return ot + vh
+  return layout
+}
+
+/**
+ * top панели: низ = targetBottom.
+ * @param {{ targetBottom: unknown, tabsHeight: unknown }} p
+ * @returns {number | null}
+ */
+export function tabsPinTopPx({ targetBottom, tabsHeight }) {
+  const tb = Number(targetBottom)
+  const th = Number(tabsHeight)
+  if (![tb, th].every(Number.isFinite) || th <= 0) return null
+  return Math.round(tb - th)
+}
+
+/**
  * @param {HTMLElement | null} el
  * @returns {() => void}
  */
@@ -61,6 +96,7 @@ export function attachVisualViewportBottomPin(el) {
 
   let raf = 0
   const clearInline = () => {
+    el.style.top = ''
     el.style.bottom = ''
     el.style.transform = ''
   }
@@ -79,34 +115,27 @@ export function attachVisualViewportBottomPin(el) {
     if (!inputFocused && (offsetTop > 0.5 || window.scrollY > 0 || window.scrollX > 0 || (vv && vv.offsetLeft > 0.5))) {
       window.scrollTo(0, 0)
     }
-    const lift = visualViewportTabsShouldLift({
+
+    const tabsHeight = el.offsetHeight || el.getBoundingClientRect().height
+    const targetBottom = tabsPinTargetBottomPx({
+      offsetTop,
       viewportHeight,
       layoutHeight: layoutH,
       inputFocused,
     })
-    const gapUp =
-      lift && vv
-        ? visualViewportBottomGapPx({
-            innerHeight: layoutH,
-            offsetTop,
-            height: viewportHeight,
-          })
-        : 0
-    if (gapUp > 0) {
-      el.style.bottom = `${Math.round(gapUp)}px`
+    const top = tabsPinTopPx({ targetBottom, tabsHeight })
+    if (top == null) {
+      el.style.bottom = '0px'
       return
     }
-    /* Явно bottom:0 — иначе после клавиатуры/pulse остаётся «задрано». */
-    el.style.bottom = '0px'
-    /* Два прохода: после translateY перемерить — на 17 Pro один кадр часто недотягивает. */
-    let rect = el.getBoundingClientRect()
-    let shift = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
-    if (shift > 0) {
-      el.style.transform = `translateY(${Math.round(shift)}px)`
-      rect = el.getBoundingClientRect()
-      const more = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
-      if (more > 0) el.style.transform = `translateY(${Math.round(shift + more)}px)`
-    }
+    el.style.top = `${top}px`
+    el.style.bottom = 'auto'
+    el.style.transform = ''
+
+    /* Второй проход: после top высота/safe-area могли пересчитаться (17 Pro). */
+    const h2 = el.offsetHeight || el.getBoundingClientRect().height
+    const top2 = tabsPinTopPx({ targetBottom, tabsHeight: h2 })
+    if (top2 != null && top2 !== top) el.style.top = `${top2}px`
   }
 
   const schedule = () => {

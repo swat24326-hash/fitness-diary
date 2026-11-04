@@ -27,6 +27,8 @@ export {
 
 export {
   VISUAL_VIEWPORT_BOTTOM_EPS,
+  tabsPinTargetBottomPx,
+  tabsPinTopPx,
   tabsShiftDownToLayoutBottomPx,
   visualViewportBottomGapPx,
   visualViewportTabsShouldLift,

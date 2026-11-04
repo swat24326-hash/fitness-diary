@@ -7,6 +7,8 @@ import {
   coachShellPulseViewportMeta,
   coachShellShouldBlockPinchTouch,
   coachShellViewportScaleStuck,
+  tabsPinTargetBottomPx,
+  tabsPinTopPx,
   tabsShiftDownToLayoutBottomPx,
   visualViewportBottomGapPx,
   visualViewportKeyboardOpen,
@@ -59,6 +61,20 @@ ok(
   visualViewportTabsShouldLift({ viewportHeight: 820, layoutHeight: 844, inputFocused: true }) === false,
   'tabs lift: фокус без укорочения vv',
 )
+ok(
+  tabsPinTargetBottomPx({ offsetTop: 0, viewportHeight: 844, layoutHeight: 844 }) === 844,
+  'tabs pin target: полный vv — низ vv',
+)
+ok(
+  tabsPinTargetBottomPx({ offsetTop: 0, viewportHeight: 500, layoutHeight: 844, inputFocused: false }) === 844,
+  'tabs pin target: sticky short без фокуса — layout (не задрать)',
+)
+ok(
+  tabsPinTargetBottomPx({ offsetTop: 80, viewportHeight: 500, layoutHeight: 844, inputFocused: true }) === 580,
+  'tabs pin target: клавиатура + фокус — низ vv',
+)
+ok(tabsPinTopPx({ targetBottom: 844, tabsHeight: 90 }) === 754, 'tabs pin top: 844-90')
+ok(tabsPinTopPx({ targetBottom: 844, tabsHeight: 0 }) === null, 'tabs pin top: нулевая высота')
 
 const locked = coachShellLayoutLockStyle({
   offsetTop: 0,
