@@ -24,19 +24,23 @@ export function chatFitIsIosLike({ ua = '', maxTouchPoints = 0 } = {}) {
 
 /**
  * Какую высоту видимой части брать для подгонки диалога.
+ * Android: всегда layout (`interactive-widget=resizes-content`). Honor врёт и короткий vv,
+ * и иногда offsetTop>0 при уже сжатом/полном layout — если взять vv, поле уезжает вверх (повтор INC-2026-10-29-04).
+ * iPhone: layout не сжимается — высота из visualViewport (с pan или без).
  * @param {{ visualHeight: unknown, layoutHeight: unknown, offsetTop?: unknown, iosLike?: boolean }} p
  * @returns {number} px (0 — битые размеры)
  */
 export function chatFitViewHeightPx({ visualHeight, layoutHeight, offsetTop = 0, iosLike = false }) {
   const vv = Number(visualHeight)
   const layout = Number(layoutHeight)
+  if (!iosLike) {
+    if (Number.isFinite(layout) && layout > 0) return layout
+    return Number.isFinite(vv) && vv > 0 ? vv : 0
+  }
   const pan = Number(offsetTop) || 0
   if (pan > 0) {
     if (Number.isFinite(vv) && vv > 0) return vv
     return Number.isFinite(layout) && layout > 0 ? layout : 0
-  }
-  if (!iosLike) {
-    if (Number.isFinite(layout) && layout > 0) return layout
   }
   if (Number.isFinite(vv) && vv > 0) return vv
   return Number.isFinite(layout) && layout > 0 ? layout : 0
@@ -172,10 +176,11 @@ export function attachChatViewportFit(el) {
       window.scrollTo(0, 0)
       unpanned = true
     }
-    /* Высота — после сдвига/unpan, от верха в visible viewport (не document+scrollY). */
+    /* Высота — после сдвига/unpan, от верха в visible viewport (не document+scrollY).
+       offsetTop в top — только iOS: на Android ложный pan иначе завышает/занижает верх. */
     const top = chatFitVisualTopPx({
       rectTop: el.getBoundingClientRect().top,
-      offsetTop: zoomed ? 0 : vv ? vv.offsetTop : 0,
+      offsetTop: zoomed || !iosLike ? 0 : vv ? vv.offsetTop : 0,
     })
     const next = `${chatFitHeightPx({ viewHeight, top, gap: bottomGapPx(el) })}px`
     if (el.style.getPropertyValue(CHAT_FIT_VAR) !== next) el.style.setProperty(CHAT_FIT_VAR, next)

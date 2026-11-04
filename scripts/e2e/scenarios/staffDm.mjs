@@ -348,12 +348,13 @@ async function iphoneKeyboardAfterSend(c, browser, backend) {
 }
 
 /**
- * Honor/Android: visualViewport.height врёт короткий при полном layout и offsetTop=0 —
- * поле ввода уезжает вверх, ниже пустота (INC-2026-10-29-04). Берём layout, не vv.
+ * Honor/Android: visualViewport.height врёт короткий при полном layout —
+ * и с offsetTop=0, и с ложным offsetTop>0. Берём layout, не vv (INC-2026-10-29-04, повтор 04.11).
  */
 async function honorShortVisualViewport(c, browser, backend) {
   const FULL = 900
   const FAKE_VV = 320
+  const FAKE_PAN = 280
   const context = await newE2eContext(browser, backend, {
     viewport: { width: 800, height: FULL },
     userAgent:
@@ -372,28 +373,46 @@ async function honorShortVisualViewport(c, browser, backend) {
     { full: FULL, fake: FAKE_VV },
   )
   const page = await context.newPage()
+  const measure = () =>
+    page.evaluate(() => {
+      const compose = globalThis.document.querySelector('.chat-compose')?.getBoundingClientRect()
+      const thread = globalThis.document.querySelector('.chat-thread')?.getBoundingClientRect()
+      return {
+        composeBottom: compose?.bottom ?? 0,
+        threadHeight: thread?.height ?? 0,
+        layout: globalThis.innerHeight,
+        vv: globalThis.visualViewport?.height ?? 0,
+        pan: globalThis.visualViewport?.offsetTop ?? 0,
+      }
+    })
   try {
     await loginUi(page, TRAINER_LOGIN, TRAINER_PASSWORD)
     await page.goto(`${ORIGIN}/messages/dm/${SUP_ID}`)
     await page.getByTestId('chat-input').waitFor()
     await page.waitForTimeout(400)
-    const m = await page.evaluate(() => {
-      const compose = globalThis.document.querySelector('.chat-compose')?.getBoundingClientRect()
-      const thread = globalThis.document.querySelector('.chat-thread')?.getBoundingClientRect()
-      return {
-        composeBottom: compose?.bottom ?? 0,
-        composeTop: compose?.top ?? 0,
-        threadHeight: thread?.height ?? 0,
-        layout: globalThis.innerHeight,
-        vv: globalThis.visualViewport?.height ?? 0,
-      }
-    })
+    const m = await measure()
     c.ok(m.vv === FAKE_VV && m.layout === FULL, `Honor-эмуляция: vv=${Math.round(m.vv)} при layout=${Math.round(m.layout)}`)
     c.ok(
       m.composeBottom <= m.layout + 1 && m.composeBottom >= m.layout - 80,
       `Honor: поле ввода у низа layout, не уехало вверх по короткому vv (низ ${Math.round(m.composeBottom)}, layout ${m.layout}, vv ${m.vv})`,
     )
     c.ok(m.threadHeight > FAKE_VV + 40, `диалог выше лживого vv (${Math.round(m.threadHeight)} > ${FAKE_VV})`)
+
+    await page.evaluate((pan) => {
+      const vv = globalThis.__fakeVv
+      if (!vv) return
+      vv.offsetTop = pan
+      vv.dispatchEvent(new Event('resize'))
+      vv.dispatchEvent(new Event('scroll'))
+    }, FAKE_PAN)
+    await page.waitForTimeout(400)
+    const m2 = await measure()
+    c.ok(m2.pan === FAKE_PAN, `Honor: подставили ложный offsetTop=${FAKE_PAN}`)
+    c.ok(
+      m2.composeBottom <= m2.layout + 1 && m2.composeBottom >= m2.layout - 80,
+      `Honor + ложный pan: поле у низа layout, не уехало по vv (низ ${Math.round(m2.composeBottom)}, layout ${m2.layout}, vv ${m2.vv})`,
+    )
+    c.ok(m2.threadHeight > FAKE_VV + 40, `Honor + pan: диалог выше лживого vv (${Math.round(m2.threadHeight)} > ${FAKE_VV})`)
     await screenshot(page, 'staff-dm-honor-viewport')
   } catch (e) {
     await screenshot(page, 'staff-dm-honor-viewport-FAIL').catch(() => null)

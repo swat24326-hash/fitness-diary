@@ -63,10 +63,11 @@ const view = (visualHeight, layoutHeight, offsetTop = 0, iosLike = false) =>
   chatFitViewHeightPx({ visualHeight, layoutHeight, offsetTop, iosLike })
 
 ok(view(400, 1200, 0, false) === 1200, 'Honor: vv врёт короткий, layout полный — берём layout, поле не уезжает вверх (INC-2026-10-29-04)')
+ok(view(400, 1200, 280, false) === 1200, 'Honor: ложный offsetTop + короткий vv — всё равно layout, не vv (повтор 04.11)')
 ok(view(800, 800, 0, false) === 800, 'Android: layout сжат клавиатурой (resizes-content) — высота layout')
 ok(view(500, 844, 0, true) === 500, 'iPhone: layout полный, vv короче — берём vv')
 ok(view(508, 844, 336, true) === 508, 'iPhone со сдвигом offsetTop — высота видимой части')
-ok(view(508, 844, 336, false) === 508, 'сдвиг offsetTop на любом UA — высота видимой части')
+ok(view(508, 844, 336, false) === 844, 'Android: offsetTop не переключает на vv')
 ok(view(null, 900, 0, false) === 900, 'нет vv — layout')
 ok(view('x', 0, 0, false) === 0 && view(null, null, 0, true) === 0, 'битые размеры — 0')
 
