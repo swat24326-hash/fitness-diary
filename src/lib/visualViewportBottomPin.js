@@ -2,11 +2,9 @@
  * Нижняя панель (вкладки /coach) к видимому низу экрана на iPhone.
  * Публичный вход для /coach: `src/lib/coach/coachVisualViewport.js`.
  *
- * Покой: только CSS `bottom:0` + safe-area padding — без JS top/bottom.
- *   JS-pin к visualViewport в покое поднимал панель над home indicator
- *   (чёрная полоса, «шапка задрана», INC-2026-11-03-05 повтор 7–8).
- * Клавиатура + фокус: `bottom = gapUp` (vv короче layout).
- * WebKit: если после bottom:0 низ панели выше layout — translateY вниз.
+ * Покой: вообще без inline top/bottom/transform — только CSS.
+ *   Любой idle JS (top-pin, translateY) на 17 Pro давал «задрана» + чёрную полосу.
+ * Клавиатура + фокус: bottom = gapUp.
  */
 
 import { VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX, visualViewportTextFieldFocused } from './visualViewportKeyboard.js'
@@ -28,7 +26,7 @@ export function visualViewportBottomGapPx({ innerHeight, offsetTop, height }) {
 }
 
 /**
- * Зазор под панелью внутри layout viewport: bottom:0 не дотянул до innerHeight.
+ * Зазор под панелью внутри layout viewport (verify / диагностика).
  * @param {{ tabsBottom: unknown, layoutHeight: unknown }} p
  * @returns {number} px ≥ 0
  */
@@ -41,7 +39,7 @@ export function tabsShiftDownToLayoutBottomPx({ tabsBottom, layoutHeight }) {
 }
 
 /**
- * Поднимать вкладки только когда в поле фокус и vv укорочен (не pan «вхолостую»).
+ * Поднимать вкладки только когда в поле фокус и vv укорочен.
  * @param {{ viewportHeight: unknown, layoutHeight: unknown, inputFocused?: unknown }} p
  * @returns {boolean}
  */
@@ -55,8 +53,6 @@ export function visualViewportTabsShouldLift({ viewportHeight, layoutHeight, inp
 }
 
 /**
- * Цель низа для документации/verify: в покое — layout; при клавиатуре — низ vv.
- * (Idle-pin через top больше не применяем — см. attach.)
  * @param {{ offsetTop?: unknown, viewportHeight?: unknown, layoutHeight: unknown, inputFocused?: unknown }} p
  * @returns {number}
  */
@@ -122,27 +118,14 @@ export function attachVisualViewportBottomPin(el) {
       layoutHeight: layoutH,
       inputFocused,
     })
-    if (lift && vv) {
-      const gapUp = visualViewportBottomGapPx({
-        innerHeight: layoutH,
-        offsetTop,
-        height: viewportHeight,
-      })
-      if (gapUp > 0) {
-        el.style.bottom = `${Math.round(gapUp)}px`
-        return
-      }
-    }
+    if (!lift || !vv) return
 
-    /* Покой: CSS bottom:0. JS только дотянуть, если WebKit оставил зазор до layout. */
-    let rect = el.getBoundingClientRect()
-    let shift = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
-    if (shift > 0) {
-      el.style.transform = `translateY(${Math.round(shift)}px)`
-      rect = el.getBoundingClientRect()
-      const more = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })
-      if (more > 0) el.style.transform = `translateY(${Math.round(shift + more)}px)`
-    }
+    const gapUp = visualViewportBottomGapPx({
+      innerHeight: layoutH,
+      offsetTop,
+      height: viewportHeight,
+    })
+    if (gapUp > 0) el.style.bottom = `${Math.round(gapUp)}px`
   }
 
   const schedule = () => {

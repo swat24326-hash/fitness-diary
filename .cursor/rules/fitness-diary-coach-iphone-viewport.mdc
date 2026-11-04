@@ -12,7 +12,7 @@ Probe: `public/probe/coach-tabs-bottom.html`. Verify: `scripts/verify-visual-vie
 ## Делать
 
 1. Новая логика vv / клавиатуры / safe-area на телефоне тренера — **только** через `coachVisualViewport.js` (или его уже экспортируемые функции).
-2. Оболочка: `attachCoachShellViewportLock` в `CoachShell`. Вкладки: `attachVisualViewportBottomPin` **в `CoachTabs` на живой ref** (портал в body). Покой: CSS `bottom:0`, без JS top-pin к vv (иначе чёрная полоса над home indicator). JS `bottom`/`translateY` — только клавиатура или зазор WebKit до layout.
+2. Оболочка: `attachCoachShellViewportLock` в `CoachShell`. Вкладки: `attachVisualViewportBottomPin` **в `CoachTabs` на живой ref** (портал в body). Покой: только CSS `bottom:0` + safe-area padding + box-shadow-заливка щели — **без любого idle JS** (top/translateY на 17 Pro дают «задрана»). JS `bottom` — только клавиатура + фокус.
 3. Шторка записи: `useScheduleModalViewport` → стили из того же фасада.
 4. Поля ввода формы на ≤640px: **font-size ≥ 16px** (иначе iOS зумит и «уезжает в бок»).
 5. safe-area у шторки: селектор **сильнее** `.card` (`.trainer-schedule-modal__panel.card`), не голый `.panel`.
