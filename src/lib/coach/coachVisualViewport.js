@@ -36,7 +36,9 @@ export {
 export {
   attachCoachShellViewportLock,
   coachShellLayoutLockStyle,
+  coachShellPulseViewportMeta,
   coachShellShouldBlockPinchTouch,
+  coachShellViewportScaleStuck,
 } from './coachShellViewportLock.js'
 
 export {

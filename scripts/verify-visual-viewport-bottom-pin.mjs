@@ -4,7 +4,9 @@
 import {
   attachCoachVisualViewport,
   coachShellLayoutLockStyle,
+  coachShellPulseViewportMeta,
   coachShellShouldBlockPinchTouch,
+  coachShellViewportScaleStuck,
   tabsShiftDownToLayoutBottomPx,
   visualViewportBottomGapPx,
   visualViewportKeyboardOpen,
@@ -72,7 +74,10 @@ const strayPan = coachShellLayoutLockStyle({
   inputFocused: false,
 })
 ok(
-  strayPan.top === '0px' && strayPan.left === '0px' && strayPan.width === '100%',
+  strayPan.top === '0px' &&
+    strayPan.left === '0px' &&
+    strayPan.right === '0px' &&
+    strayPan.height === '100%',
   'shell lock: pan без фокуса — не отпускать (иначе «Сообщения» закусывает с края)',
 )
 const duringKb = coachShellLayoutLockStyle({
@@ -82,13 +87,32 @@ const duringKb = coachShellLayoutLockStyle({
   inputFocused: true,
 })
 ok(duringKb.top === '' && duringKb.height === '', 'shell lock: клавиатура + фокус — вертикаль отпущена')
-ok(duringKb.left === '0px' && duringKb.right === '0px' && duringKb.width === '100%', 'shell lock: при печати горизонталь всё равно зажата (не ездить влево-вправо)')
+ok(duringKb.left === '0px' && duringKb.right === '0px' && duringKb.width === '', 'shell lock: при печати left/right, width не зажимать (иначе закус 17 Pro)')
 ok(!('transform' in duringKb), 'shell lock: при печати не затирает translateY чата')
 ok(strayPan.transform === 'none', 'shell lock: без фокуса transform none (экран не уезжает)')
 ok(strayPan.left === '0px' && locked.left === '0px', 'shell lock: left всегда 0')
+ok(locked.width === '' && strayPan.width === '', 'shell lock: без inline width 100% (left+right+width закусывает край)')
 ok(coachShellShouldBlockPinchTouch({ touchesLength: 1 }) === false, 'pinch block: один палец — ок')
-ok(coachShellShouldBlockPinchTouch({ touchesLength: 2 }) === true, 'pinch block: два пальца — стоп (17 Pro offsetLeft)')
+ok(coachShellShouldBlockPinchTouch({ touchesLength: 2 }) === true, 'pinch block: два пальца при scale 1 — стоп')
+ok(coachShellShouldBlockPinchTouch({ touchesLength: 2, scale: 1.2 }) === false, 'pinch block: при увеличении — отзум разрешён (не закус)')
 ok(coachShellShouldBlockPinchTouch({ touchesLength: 0 }) === false, 'pinch block: пустой touch — не блокируем')
+ok(coachShellViewportScaleStuck({ scale: 1, offsetLeft: 0 }) === false, 'scale stuck: норма')
+ok(coachShellViewportScaleStuck({ scale: 1.05, offsetLeft: 0 }) === true, 'scale stuck: zoom')
+ok(coachShellViewportScaleStuck({ scale: 1, offsetLeft: 12 }) === true, 'scale stuck: offsetLeft')
+ok(
+  coachShellPulseViewportMeta({
+    getAttribute: () => 'width=device-width, initial-scale=1',
+    setAttribute() {},
+  }) === true,
+  'viewport pulse: без maximum-scale — pulse',
+)
+ok(
+  coachShellPulseViewportMeta({
+    getAttribute: () => 'width=device-width, maximum-scale=1',
+    setAttribute() {},
+  }) === false,
+  'viewport pulse: уже есть maximum-scale — не трогаем',
+)
 ok(typeof attachCoachVisualViewport === 'function', 'facade: attachCoachVisualViewport')
 ok(typeof attachCoachVisualViewport({}) === 'function', 'facade: attach returns detach')
 

@@ -17,7 +17,7 @@ Probe: `public/probe/coach-tabs-bottom.html`. Verify: `scripts/verify-visual-vie
 4. Поля ввода формы на ≤640px: **font-size ≥ 16px** (иначе iOS зумит и «уезжает в бок»).
 5. safe-area у шторки: селектор **сильнее** `.card` (`.trainer-schedule-modal__panel.card`), не голый `.panel`.
 6. Ежедневник со свайпом: на `.trainer-schedule-day__board` при `--swipe` только `touch-action: pan-y`; горизонтальный жест — `preventDefault` в `useScheduleSwipe` (не `passive: true`).
-7. Списки «Сообщения»/«Клиенты»: `min-width:0` у горизонтальных лент (папки); `overflow-x: clip` у оболочки; `touch-action: pan-y` на html/body/shell/main (не `manipulation` — pinch даёт `offsetLeft`), `pan-x` только у папок/сторис; pinch/gesture — `preventDefault` в `coachShellViewportLock`.
+7. Списки «Сообщения»/«Клиенты»: `min-width:0` у горизонтальных лент (папки); `overflow-x: clip` у оболочки; html/body — `manipulation` (не `pan-y`: пересечение с `pan-x` папок = none → закус); shell/main — `pan-y`; папки/сторис — `pan-x`. Pinch: block только при scale≈1; при scale>1 разрешить отзум + pulse viewport meta.
 
 ## Не делать
 

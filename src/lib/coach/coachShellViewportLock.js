@@ -3,16 +3,16 @@
  * Публичный вход: `src/lib/coach/coachVisualViewport.js` → `attachCoachVisualViewport`.
  *
  * Горизонт: `translateX(offsetLeft)` на fullscreen запрещён (режет края).
- * На 17 Pro «ездит влево-вправо» чаще от pinch / gesture → vv.offsetLeft;
- * scrollTo это не снимает — блокируем pinch и держим touch-action: pan-y.
+ * Pinch → vv.scale/offsetLeft («ездит»); полный блок pinch без отзума → статичный «закус».
+ * html/body: manipulation (не pan-y) — иначе пересечение с pan-x папок даёт none.
  */
 
 import { isAppleTouchDevice } from '../client/sparkShakeCore.js'
 import { visualViewportKeyboardOpen, visualViewportTextFieldFocused } from '../visualViewportKeyboard.js'
 
 /**
- * Горизонталь (left/right/width) — всегда: иначе iPhone чуть ездит влево-вправо.
- * Вертикаль отпускаем только при печати (chatViewportFit ставит translateY).
+ * Горизонталь (left/right) — всегда. width не задаём: left+right+width=100% на 17 Pro
+ * перетягивает и «закусывает» край. Вертикаль отпускаем только при печати.
  * @param {{ offsetTop: unknown, viewportHeight: unknown, layoutHeight: unknown, inputFocused?: unknown }} p
  * @returns {Record<string, string>}
  */
@@ -28,7 +28,7 @@ export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHei
   const horizontal = {
     left: '0px',
     right: '0px',
-    width: '100%',
+    width: '',
   }
   if (typing) {
     return {
@@ -48,13 +48,44 @@ export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHei
 }
 
 /**
- * Pinch / Safari gesture → visualViewport.scale + offsetLeft (экран «плывёт» вбок).
- * @param {{ touchesLength?: unknown }} p
+ * Pinch / Safari gesture → visualViewport.scale + offsetLeft.
+ * Если уже увеличено — не блокируем (иначе нельзя отзумить → статичный закус).
+ * @param {{ touchesLength?: unknown, scale?: unknown }} p
  * @returns {boolean}
  */
-export function coachShellShouldBlockPinchTouch({ touchesLength } = {}) {
+export function coachShellShouldBlockPinchTouch({ touchesLength, scale = 1 } = {}) {
   const n = Number(touchesLength)
-  return Number.isFinite(n) && n > 1
+  if (!Number.isFinite(n) || n <= 1) return false
+  const s = Number(scale)
+  if (Number.isFinite(s) && s > 1.01) return false
+  return true
+}
+
+/**
+ * Нужен сброс масштаба (залипший pinch / offsetLeft).
+ * @param {{ scale?: unknown, offsetLeft?: unknown }} p
+ * @returns {boolean}
+ */
+export function coachShellViewportScaleStuck({ scale = 1, offsetLeft = 0 } = {}) {
+  const s = Number(scale)
+  const left = Number(offsetLeft)
+  if (Number.isFinite(s) && Math.abs(s - 1) > 0.01) return true
+  if (Number.isFinite(left) && Math.abs(left) > 0.5) return true
+  return false
+}
+
+/**
+ * Короткий pulse maximum-scale=1 — сбрасывает залипший zoom Safari (без translateX).
+ * @param {HTMLMetaElement | null | undefined} meta
+ * @returns {boolean} true если pulse сделан
+ */
+export function coachShellPulseViewportMeta(meta) {
+  if (!meta || typeof meta.getAttribute !== 'function') return false
+  const content = meta.getAttribute('content')
+  if (!content || /maximum-scale\s*=/i.test(content)) return false
+  meta.setAttribute('content', `${content}, maximum-scale=1`)
+  meta.setAttribute('content', content)
+  return true
 }
 
 /**
@@ -71,6 +102,7 @@ export function attachCoachShellViewportLock(el) {
 
   const vv = window.visualViewport
   let raf = 0
+  let lastPulseAt = 0
 
   const clearInline = () => {
     el.style.top = ''
@@ -93,6 +125,8 @@ export function attachCoachShellViewportLock(el) {
     raf = 0
     const layoutHeight = Math.max(window.innerHeight || 0, document.documentElement?.clientHeight || 0)
     const offsetTop = vv?.offsetTop ?? 0
+    const offsetLeft = vv?.offsetLeft ?? 0
+    const scale = vv?.scale ?? 1
     const viewportHeight = vv?.height ?? layoutHeight
     const inputFocused = visualViewportTextFieldFocused(document.activeElement)
     const keyboard = visualViewportKeyboardOpen({
@@ -102,12 +136,22 @@ export function attachCoachShellViewportLock(el) {
       inputFocused,
     })
     const typing = Boolean(keyboard && inputFocused)
-    /* Горизонтальный сдвиг страницы — всегда сбрасывать (микро-«влево-вправо» на iPhone). */
     if (window.scrollX > 0.5 || window.scrollX < -0.5) {
       window.scrollTo(0, window.scrollY)
     }
-    if (!typing && (offsetTop > 0.5 || window.scrollY > 0.5 || (vv && Math.abs(vv.offsetLeft) > 0.5))) {
+    if (!typing && (offsetTop > 0.5 || window.scrollY > 0.5 || Math.abs(offsetLeft) > 0.5)) {
       window.scrollTo(0, 0)
+    }
+    /* Залипший zoom: pulse meta не чаще раза в 800 мс (иначе мерцание). */
+    if (
+      !typing &&
+      coachShellViewportScaleStuck({ scale, offsetLeft }) &&
+      Date.now() - lastPulseAt > 800
+    ) {
+      const meta = document.querySelector('meta[name="viewport"]')
+      if (coachShellPulseViewportMeta(/** @type {HTMLMetaElement | null} */ (meta))) {
+        lastPulseAt = Date.now()
+      }
     }
     apply(
       coachShellLayoutLockStyle({
@@ -126,14 +170,20 @@ export function attachCoachShellViewportLock(el) {
 
   /** @param {TouchEvent} e */
   const onTouchMove = (e) => {
-    if (coachShellShouldBlockPinchTouch({ touchesLength: e.touches?.length })) {
+    if (
+      coachShellShouldBlockPinchTouch({
+        touchesLength: e.touches?.length,
+        scale: vv?.scale ?? 1,
+      })
+    ) {
       e.preventDefault()
       schedule()
     }
   }
 
   /** @param {Event} e */
-  const blockGesture = (e) => {
+  const onGestureStart = (e) => {
+    if ((vv?.scale ?? 1) > 1.01) return
     e.preventDefault()
     schedule()
   }
@@ -146,10 +196,9 @@ export function attachCoachShellViewportLock(el) {
   window.addEventListener('orientationchange', schedule, { passive: true })
   document.addEventListener('focusin', schedule, true)
   document.addEventListener('focusout', schedule, true)
-  /* non-passive: иначе preventDefault на pinch не сработает. */
   document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
-  document.addEventListener('gesturestart', blockGesture, { passive: false, capture: true })
-  document.addEventListener('gesturechange', blockGesture, { passive: false, capture: true })
+  /* Только gesturestart: gesturechange mid-flight + preventDefault залипает scale. */
+  document.addEventListener('gesturestart', onGestureStart, { passive: false, capture: true })
   sync()
   window.requestAnimationFrame(() => window.requestAnimationFrame(schedule))
   const t1 = window.setTimeout(schedule, 120)
@@ -167,8 +216,7 @@ export function attachCoachShellViewportLock(el) {
     document.removeEventListener('focusin', schedule, true)
     document.removeEventListener('focusout', schedule, true)
     document.removeEventListener('touchmove', onTouchMove, true)
-    document.removeEventListener('gesturestart', blockGesture, true)
-    document.removeEventListener('gesturechange', blockGesture, true)
+    document.removeEventListener('gesturestart', onGestureStart, true)
     clearInline()
   }
 }

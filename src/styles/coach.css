@@ -22,7 +22,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: 100%;
+  /* Без width:100% при left+right — на 17 Pro перетяг и статичный закус края. */
   max-width: 100%;
   height: 100%;
   height: 100dvh;
@@ -35,7 +35,6 @@
   overflow: hidden;
   overflow-x: clip;
   overscroll-behavior-x: none;
-  /* pan-y, не manipulation: pinch даёт vv.offsetLeft — экран ездит вбок (17 Pro). */
   touch-action: pan-y;
 }
 
@@ -43,7 +42,8 @@
  * iPhone: без overflow на body страница пружинит / ездит влево-вправо
  * (Анжелика, INC-2026-11-03-05). Замок на всём /coach — и диалог без вкладок.
  * Шторка Ежедневника и вкладки — portal в body, fixed ок.
- * pan-y вместо manipulation — иначе Safari всё ещё зумит двумя пальцами.
+ * html/body: manipulation (не pan-y) — иначе pan-y∩pan-x папок = none и «закус» края.
+ * Pinch режем в coachShellViewportLock (с разрешением отзума).
  */
 html:has(.coach-app),
 html:has(.coach-app) body {
@@ -53,7 +53,7 @@ html:has(.coach-app) body {
   overflow-x: hidden;
   height: 100%;
   height: -webkit-fill-available;
-  touch-action: pan-y;
+  touch-action: manipulation;
   scrollbar-gutter: auto;
 }
 
@@ -130,7 +130,7 @@ html:has(.coach-app) body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: 100%;
+  /* width не ставить вместе с inset — см. --tabs выше. */
   height: 100%;
   height: 100dvh;
   height: -webkit-fill-available;
