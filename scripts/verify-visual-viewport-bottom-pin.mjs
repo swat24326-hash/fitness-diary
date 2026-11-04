@@ -80,9 +80,11 @@ const duringKb = coachShellLayoutLockStyle({
   layoutHeight: 844,
   inputFocused: true,
 })
-ok(duringKb.top === '' && duringKb.height === '', 'shell lock: клавиатура + фокус в поле — CSS as-is')
+ok(duringKb.top === '' && duringKb.height === '', 'shell lock: клавиатура + фокус — вертикаль отпущена')
+ok(duringKb.left === '0px' && duringKb.right === '0px' && duringKb.width === '100%', 'shell lock: при печати горизонталь всё равно зажата (не ездить влево-вправо)')
 ok(!('transform' in duringKb), 'shell lock: при печати не затирает translateY чата')
 ok(strayPan.transform === 'none', 'shell lock: без фокуса transform none (экран не уезжает)')
+ok(strayPan.left === '0px' && locked.left === '0px', 'shell lock: left всегда 0')
 ok(typeof attachCoachVisualViewport === 'function', 'facade: attachCoachVisualViewport')
 ok(typeof attachCoachVisualViewport({}) === 'function', 'facade: attach returns detach')
 

@@ -117,6 +117,8 @@
   background: transparent;
   color: var(--text);
   font: inherit;
+  /* iPhone: меньше 16px — зум страницы, экран ездит влево-вправо (INC-2026-11-03-05). */
+  font-size: 16px;
   outline: none;
 }
 

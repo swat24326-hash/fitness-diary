@@ -7,8 +7,10 @@ import { isAppleTouchDevice } from '../client/sparkShakeCore.js'
 import { visualViewportKeyboardOpen, visualViewportTextFieldFocused } from '../visualViewportKeyboard.js'
 
 /**
+ * Горизонталь (left/right/width) — всегда: иначе iPhone чуть ездит влево-вправо.
+ * Вертикаль отпускаем только при печати (chatViewportFit ставит translateY).
  * @param {{ offsetTop: unknown, viewportHeight: unknown, layoutHeight: unknown, inputFocused?: unknown }} p
- * @returns {{ top: string, left: string, right: string, bottom: string, height: string, width: string, transform: string }}
+ * @returns {Record<string, string>}
  */
 export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHeight, inputFocused = false }) {
   const keyboard = visualViewportKeyboardOpen({
@@ -17,26 +19,26 @@ export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHei
     offsetTop,
     inputFocused,
   })
-  /* Отпускать оболочку только когда реально печатают. Ложный pan / короткий vv без фокуса
-     иначе снимает left/right:0 — «Сообщения» закусывает с края (повтор INC-2026-11-03-05 после Honor).
-     transform не трогаем: его ставит chatViewportFit (translateY за pan клавиатуры). */
-  if (keyboard && inputFocused) {
+  const typing = Boolean(keyboard && inputFocused)
+  /** @type {Record<string, string>} */
+  const horizontal = {
+    left: '0px',
+    right: '0px',
+    width: '100%',
+  }
+  if (typing) {
     return {
+      ...horizontal,
       top: '',
-      left: '',
-      right: '',
       bottom: '',
       height: '',
-      width: '',
     }
   }
   return {
+    ...horizontal,
     top: '0px',
-    left: '0px',
-    right: '0px',
     bottom: '0px',
     height: '100%',
-    width: '100%',
     transform: 'none',
   }
 }
@@ -85,7 +87,12 @@ export function attachCoachShellViewportLock(el) {
       offsetTop,
       inputFocused,
     })
-    if (!keyboard && (offsetTop > 0.5 || window.scrollY > 0 || (vv && vv.offsetLeft > 0.5))) {
+    const typing = Boolean(keyboard && inputFocused)
+    /* Горизонтальный сдвиг страницы — всегда сбрасывать (микро-«влево-вправо» на iPhone). */
+    if (window.scrollX > 0.5 || window.scrollX < -0.5) {
+      window.scrollTo(0, window.scrollY)
+    }
+    if (!typing && (offsetTop > 0.5 || window.scrollY > 0.5 || (vv && Math.abs(vv.offsetLeft) > 0.5))) {
       window.scrollTo(0, 0)
     }
     apply(
