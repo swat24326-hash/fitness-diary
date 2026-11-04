@@ -7,7 +7,10 @@ import { listMemberships, listTrainingsForClient } from '../dataAccess.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { planMembershipUsedReconcile } from './membershipUsedReconcileCore.js'
 
-export { planMembershipUsedReconcile } from './membershipUsedReconcileCore.js'
+export {
+  applyMembershipUsedReconcilePlan,
+  planMembershipUsedReconcile,
+} from './membershipUsedReconcileCore.js'
 
 /**
  * @param {string} clientId

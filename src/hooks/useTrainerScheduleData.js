@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { todayLocalIso } from '../lib/dateRu.js'
 import { getDb } from '../lib/localDb.js'
-import { listClientsByTrainerId, listMembershipsMapByClientIds } from '../lib/localDbClubQuery'
+import {
+  listClientsByTrainerId,
+  listMembershipsMapByClientIds,
+  listTrainingsMapByClientIds,
+} from '../lib/localDbClubQuery'
 import { listMembershipTypesForClub } from '../lib/membershipTypesService.js'
 import { filterTrainerSchedulePickerClients } from '../lib/trainer/trainerClientsPzListCore.js'
 import { buildScheduleClientInfoById } from '../lib/trainer/trainerScheduleClientInfoCore.js'
@@ -68,10 +72,11 @@ export function useTrainerScheduleData(trainerId, clubId) {
       const scheduleClientIds = [
         ...new Set(scheduleRows.flatMap((e) => e.client_ids ?? []).map((id) => String(id ?? '').trim()).filter(Boolean)),
       ]
-      const [membershipsMap, types, lifecycleRows] = await Promise.all([
+      const [membershipsMap, types, lifecycleRows, trainingsByClientId] = await Promise.all([
         listMembershipsMapByClientIds(scheduleClientIds),
         cid ? listMembershipTypesForClub(cid) : Promise.resolve([]),
         loadLifecycleForClientIds(notClubArchived.map((c) => c.id)),
+        listTrainingsMapByClientIds(scheduleClientIds),
       ])
       const pickerClients = filterTrainerSchedulePickerClients(notClubArchived, lifecycleRows)
       /** @type {Record<string, string>} */
@@ -84,7 +89,9 @@ export function useTrainerScheduleData(trainerId, clubId) {
       setTrainingById(trainings)
       setClients(pickerClients)
       setClientNameById(names)
-      setClientInfoById(buildScheduleClientInfoById(notClubArchived, membershipsMap, types, todayLocalIso()))
+      setClientInfoById(
+        buildScheduleClientInfoById(notClubArchived, membershipsMap, types, todayLocalIso(), trainingsByClientId),
+      )
     } finally {
       setLoading(false)
     }

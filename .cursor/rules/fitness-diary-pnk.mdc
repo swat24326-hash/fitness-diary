@@ -10,7 +10,7 @@ alwaysApply: false
 
 ## Одна правда
 
-- **Одна карточка клиента.** Совпал телефон или № карты — attach к существующему `clients` (`src/lib/pnk/pnkCreateAttachCore.js`), не вторая карточка. Жизненный цикл `pnk` + абонемент БЗ, оформление = платный ДК.
+- **Одна карточка клиента.** Совпал телефон или № карты — attach к существующему `clients` (`src/lib/pnk/pnkCreateAttachCore.js`), не вторая карточка. **Только после `confirm_attach`** (иначе 409 + превью); ФИО без `overwrite_name` не трогать. Жизненный цикл `pnk` + абонемент БЗ, оформление = платный ДК.
 - **Главная и доска — один список открытых.** «Обновить» на доске пишет кэш и шлёт `fd-pnk-home-glance-changed` (`pnkHomeGlanceRevalidateCore.js`); сеть на главной — с debounce из канона, не запрос на каждый рендер (админка ×10 клубов).
 - **Endpoint только `admin-data?action=`** (`api/_lib/adminData/pnkHandlers.js`). Новый `api/*.js` не создавать — лимит Vercel.
 - Правила шагов и статусов — в `src/lib/pnk/*Core.js`, не в JSX доски и не в панели тренера.

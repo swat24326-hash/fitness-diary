@@ -256,6 +256,23 @@ export async function listMembershipsByClientId(clientId) {
 }
 
 /**
+ * Дневник по клиентам (для подписи N/M в ежедневнике = max(поле, completed)).
+ * @param {string[]} clientIds
+ * @returns {Promise<Record<string, object[]>>}
+ */
+export async function listTrainingsMapByClientIds(clientIds) {
+  /** @type {Record<string, object[]>} */
+  const map = {}
+  for (const id of clientIds ?? []) {
+    const cid = String(id ?? '').trim()
+    if (!cid) continue
+    const rows = await listTrainingsByClientId(cid)
+    if (rows.length) map[cid] = rows
+  }
+  return map
+}
+
+/**
  * @param {string[]} clientIds
  * @returns {Promise<Record<string, object[]>>}
  */

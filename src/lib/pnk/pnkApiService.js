@@ -40,7 +40,21 @@ export async function fetchPnkBundle(opts) {
 }
 
 /**
- * @param {{ clubId: string, name: string, phone?: string, card_number?: string, trainer_id: string, pnk_source?: string, pnk_trial_sessions?: 1|2 }} payload
+ * @param {{
+ *   clubId: string,
+ *   name: string,
+ *   phone?: string,
+ *   card_number?: string,
+ *   trainer_id: string,
+ *   pnk_source?: string,
+ *   pnk_trial_sessions?: 1|2,
+ *   confirm_attach?: boolean,
+ *   overwrite_name?: boolean,
+ * }} payload
+ * @returns {Promise<
+ *   | { client: object, attached: boolean, matchedBy: string|null, needsConfirm?: false }
+ *   | { needsConfirm: true, matched: object|null, matchedBy: string|null, error: string }
+ * >}
  */
 export async function createPnkClient(payload) {
   const clubId = String(payload.clubId ?? '').trim()
@@ -62,11 +76,26 @@ export async function createPnkClient(payload) {
         trainer_id: payload.trainer_id,
         pnk_source: payload.pnk_source || 'manager',
         pnk_trial_sessions: payload.pnk_trial_sessions,
+        confirm_attach: payload.confirm_attach === true,
+        overwrite_name: payload.overwrite_name === true,
       }),
     })
     const data = await parseJson(res)
+    if (res.status === 409 && data?.needs_confirm) {
+      return {
+        needsConfirm: true,
+        matched: data.matched ?? null,
+        matchedBy: data.matchedBy ?? null,
+        error: String(data.error || 'Найден существующий клиент — подтвердите привязку ПНК'),
+      }
+    }
     if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`)
-    return { client: data.client, attached: Boolean(data.attached), matchedBy: data.matchedBy ?? null }
+    return {
+      client: data.client,
+      attached: Boolean(data.attached),
+      matchedBy: data.matchedBy ?? null,
+      needsConfirm: false,
+    }
   } catch (e) {
     throw new Error(humanizeNetworkError(e))
   }

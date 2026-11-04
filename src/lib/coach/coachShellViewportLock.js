@@ -17,7 +17,10 @@ export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHei
     offsetTop,
     inputFocused,
   })
-  if (keyboard) {
+  /* Отпускать оболочку только когда реально печатают. Ложный pan / короткий vv без фокуса
+     иначе снимает left/right:0 — «Сообщения» закусывает с края (повтор INC-2026-11-03-05 после Honor).
+     transform не трогаем: его ставит chatViewportFit (translateY за pan клавиатуры). */
+  if (keyboard && inputFocused) {
     return {
       top: '',
       left: '',
@@ -25,7 +28,6 @@ export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHei
       bottom: '',
       height: '',
       width: '',
-      transform: '',
     }
   }
   return {
@@ -66,6 +68,7 @@ export function attachCoachShellViewportLock(el) {
 
   const apply = (style) => {
     for (const [key, value] of Object.entries(style)) {
+      if (value === undefined) continue
       el.style[key] = value
     }
   }

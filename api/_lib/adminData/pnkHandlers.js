@@ -6,10 +6,14 @@ import { mergeNewPnkOntoClient, normalizeClientPnkFields, pickClientPnkFields } 
 import { buildPnkLostFunnelEvent, normalizePnkFunnelEventPushPayload } from '../../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../../../src/lib/pnk/pnkStatsAgg.js'
 import { buildPnkBzCompletedByClientId } from '../../../src/lib/pnk/pnkBzCompletedCore.js'
+import { todayInTimeZoneIso } from '../../../src/lib/dateRu.js'
 import {
   buildPnkAttachClientRow,
+  buildPnkAttachMatchPreview,
+  canWritePnkCreateAttach,
   resolvePnkCreateAttachTarget,
 } from '../../../src/lib/pnk/pnkCreateAttachCore.js'
+import { rows } from '../inbox/inboxStore.js'
 import { fetchClubTrainersForSales, parseJsonBody } from './salesHandlers.js'
 import { recordClientDeletionAudit } from '../deletionAuditWrite.js'
 import { cancelAwaitingSaleClipsForClient } from '../saleClipClientGone.js'
@@ -221,6 +225,33 @@ async function handlePnkPost(ctx, req, res) {
         return
       }
       if (target.action === 'attach') {
+        if (!canWritePnkCreateAttach({ confirmAttach: body.confirm_attach === true })) {
+          let mems = []
+          try {
+            mems = await rows(
+              supabaseAdmin
+                .from('memberships')
+                .select('id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id')
+                .eq('client_id', target.client.id)
+                .eq('club_id', clubId),
+            )
+          } catch (e) {
+            console.warn('[pnk] attach preview memberships', e?.message || e)
+          }
+          const matched = buildPnkAttachMatchPreview({
+            client: target.client,
+            memberships: mems,
+            todayIso: todayInTimeZoneIso(),
+            proposedName: name,
+          })
+          sendJson(res, 409, {
+            needs_confirm: true,
+            matched,
+            matchedBy: target.matchedBy,
+            error: 'Найден существующий клиент — подтвердите привязку ПНК',
+          })
+          return
+        }
         const row = buildPnkAttachClientRow(target.client, {
           name,
           phone,
@@ -228,6 +259,7 @@ async function handlePnkPost(ctx, req, res) {
           trainerId,
           pnk_source: body.pnk_source || 'manager',
           pnk_trial_sessions: body.pnk_trial_sessions,
+          overwriteName: body.overwrite_name === true,
         })
         const { data, error } = await supabaseAdmin
           .from('clients')

@@ -2,9 +2,7 @@
    Парит над лентой: полупрозрачная карточка с размытием и тенью, как плашки в Telegram. */
 
 .chat-head.chat-bar {
-  /* sticky: если браузер докрутил страницу к полю (Honor), шапка остаётся у видимого верха до unpan. */
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 3;
   display: flex;
   align-items: center;

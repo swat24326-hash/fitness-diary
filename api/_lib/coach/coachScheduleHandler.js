@@ -92,9 +92,32 @@ export async function sendCoachScheduleRange(ctx, req, res) {
   const clientsList = [...byId.values()]
   const names = Object.fromEntries(clientsList.map((c) => [String(c.id), String(c.name ?? '')]))
   const trainingIds = [...new Set(entries.map((e) => e.linked_training_id).filter(Boolean))]
-  const trainings = await loadInChunks(trainingIds, (part) =>
-    rows(db.from('trainings').select('id, status').eq('trainer_id', uid).in('id', part)),
-  )
+  const scheduleClientIds = [...new Set(entries.flatMap((e) => e.client_ids ?? []).map((id) => String(id ?? '').trim()).filter(Boolean))]
+  const [trainings, diaryRows] = await Promise.all([
+    loadInChunks(trainingIds, (part) =>
+      rows(db.from('trainings').select('id, status').eq('trainer_id', uid).in('id', part)),
+    ),
+    scheduleClientIds.length
+      ? loadInChunks(scheduleClientIds, (part) =>
+          rows(
+            db
+              .from('trainings')
+              .select('id, client_id, date, status, data')
+              .eq('trainer_id', uid)
+              .eq('status', 'completed')
+              .in('client_id', part),
+          ),
+        )
+      : Promise.resolve([]),
+  ])
+  /** @type {Record<string, object[]>} */
+  const trainingsByClientId = {}
+  for (const t of diaryRows) {
+    const cid = String(t?.client_id ?? '').trim()
+    if (!cid) continue
+    if (!trainingsByClientId[cid]) trainingsByClientId[cid] = []
+    trainingsByClientId[cid].push(t)
+  }
   const azDirections = filterAerobicSalesTypes(membershipTypes)
     .map((t) => ({
       id: String(t.id ?? '').trim(),
@@ -104,7 +127,13 @@ export async function sendCoachScheduleRange(ctx, req, res) {
   sendJson(res, 200, {
     entries,
     clientNameById: names,
-    clientInfoById: buildScheduleClientInfoById(clientsList, membershipsByClientId, membershipTypes, todayInTimeZoneIso()),
+    clientInfoById: buildScheduleClientInfoById(
+      clientsList,
+      membershipsByClientId,
+      membershipTypes,
+      todayInTimeZoneIso(),
+      trainingsByClientId,
+    ),
     trainingById: Object.fromEntries(trainings.map((t) => [String(t.id), { status: String(t.status ?? '') }])),
     clients: pickerClients.map((c) => ({ id: String(c.id), name: String(c.name ?? '') })),
     az_directions: azDirections,

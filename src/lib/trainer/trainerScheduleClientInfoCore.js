@@ -6,6 +6,7 @@ import { formatDateRu } from '../dateRu.js'
 import {
   membershipCoversDate,
   membershipHasTypeId,
+  membershipUsageLabel,
   pickUsableTypedMembershipForDate,
 } from '../membershipRules.js'
 import {
@@ -13,6 +14,13 @@ import {
   normalizeScheduleClientIds,
   shortScheduleClientName,
 } from './trainerScheduleCore.js'
+
+/** @param {Record<string, object[]>|Map<string, object[]>|null|undefined} byClientId @param {string} clientId */
+function trainingsForClient(byClientId, clientId) {
+  if (!byClientId) return []
+  if (byClientId instanceof Map) return byClientId.get(clientId) ?? []
+  return byClientId[clientId] ?? []
+}
 
 /** @param {unknown} endDateIso @returns {string} «до ДД.ММ.ГГГГ» или '' */
 export function scheduleMembershipEndsOnLabel(endDateIso) {
@@ -40,12 +48,18 @@ export function pickMembershipForScheduleCardLabel(memberships, dateIso) {
   return typed.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0] ?? null
 }
 
-/** Подпись «5/13» из полей абона; без лимита занятий — пусто. */
-export function scheduleMembershipVisitsLabel(membership) {
+/**
+ * Подпись «5/13» — та же правда, что список клиентов (`membershipUsageLabel`).
+ * Без дневника = только поле used_trainings; с дневником = max(поле, completed).
+ * Без лимита занятий — пусто.
+ * @param {object|null|undefined} membership
+ * @param {object[]|null|undefined} [clientTrainings]
+ */
+export function scheduleMembershipVisitsLabel(membership, clientTrainings) {
   const total = Number(membership?.total_trainings ?? 0)
   if (!(total > 0)) return ''
-  const used = Number(membership?.used_trainings ?? 0)
-  return `${Number.isFinite(used) ? used : 0}/${total}`
+  const label = membershipUsageLabel(membership, clientTrainings ?? [])
+  return label && label !== '—' ? label : ''
 }
 
 /**
@@ -87,9 +101,16 @@ function membershipTypeLabel(typesOrMap, typeId) {
  * @param {Record<string, object[]>|Map<string, object[]>|null|undefined} membershipsByClientId
  * @param {Array<{ id?: string, code?: string, name?: string }>|Map<string, object>|null|undefined} membershipTypes
  * @param {string} asOfIso — дата, на которую смотрим абон
+ * @param {Record<string, object[]>|Map<string, object[]>|null|undefined} [trainingsByClientId] — дневник для effective used
  * @returns {Record<string, { name: string, cardNumber: string, membershipLabel: string, visitsLabel: string, endsOnLabel: string, membershipEnded: boolean }>}
  */
-export function buildScheduleClientInfoById(clients, membershipsByClientId, membershipTypes, asOfIso) {
+export function buildScheduleClientInfoById(
+  clients,
+  membershipsByClientId,
+  membershipTypes,
+  asOfIso,
+  trainingsByClientId,
+) {
   const day = String(asOfIso ?? '').slice(0, 10)
   /** @type {Record<string, { name: string, cardNumber: string, membershipLabel: string, visitsLabel: string, endsOnLabel: string, membershipEnded: boolean }>} */
   const out = {}
@@ -106,7 +127,7 @@ export function buildScheduleClientInfoById(clients, membershipsByClientId, memb
       name: String(c?.name ?? '').trim() || 'Клиент',
       cardNumber: String(c?.card_number ?? '').trim(),
       membershipLabel: active ? membershipTypeLabel(membershipTypes, active.membership_type_id) : '',
-      visitsLabel: active ? scheduleMembershipVisitsLabel(active) : '',
+      visitsLabel: active ? scheduleMembershipVisitsLabel(active, trainingsForClient(trainingsByClientId, id)) : '',
       endsOnLabel: active ? scheduleMembershipEndsOnLabel(active.end_date) : '',
       membershipEnded: Boolean(active && day && !covers),
     }

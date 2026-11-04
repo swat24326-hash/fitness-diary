@@ -50,6 +50,24 @@ ok(formatScheduleClientCardMeta({ endsOnLabel: 'до 01.01.2027' }) === 'до 01
 
 ok(scheduleMembershipVisitsLabel({ total_trainings: 13, used_trainings: 5 }) === '5/13', 'visits 5/13')
 ok(scheduleMembershipVisitsLabel({ total_trainings: 0, used_trainings: 0 }) === '', 'visits unlimited empty')
+const lazMem = {
+  id: 'm-laz',
+  start_date: '2026-01-01',
+  end_date: '2026-12-28',
+  total_trainings: 38,
+  used_trainings: 9,
+}
+const lazDiary = Array.from({ length: 12 }, (_, i) => ({
+  id: `tl${i}`,
+  status: 'completed',
+  date: `2026-02-${String(i + 1).padStart(2, '0')}`,
+  data: { membership_id: 'm-laz' },
+}))
+ok(
+  scheduleMembershipVisitsLabel(lazMem, lazDiary) === '12/38',
+  'visits: effective used max(поле 9, дневник 12)',
+)
+ok(scheduleMembershipVisitsLabel(lazMem, []) === '9/38', 'visits: без дневника — только поле')
 ok(scheduleMembershipEndsOnLabel('2026-12-31') === 'до 31.12.2026', 'ends-on label')
 ok(scheduleMembershipEndsOnLabel('') === '', 'ends-on empty')
 ok(scheduleMembershipEndsOnLabel('bad') === '', 'ends-on bad')
@@ -99,6 +117,36 @@ ok(info.c3?.endsOnLabel === 'до 05.09.2026', 'info: ended ends-on')
 ok(
   formatScheduleClientCardMeta(info.c3) === '№5597 · R3+ · 5/13 · до 05.09.2026 · закончился',
   'abaeva-style meta',
+)
+
+const lazClients = [{ id: 'c-laz', name: 'Лазутко Лилия', card_number: '3303' }]
+const lazMems = {
+  'c-laz': [
+    {
+      id: 'm-laz',
+      membership_type_id: 't-vip',
+      start_date: '2026-01-01',
+      end_date: '2026-12-28',
+      total_trainings: 38,
+      used_trainings: 9,
+    },
+  ],
+}
+const lazTypes = [{ id: 't-vip', code: 'Vip 3' }]
+const lazTrainings = {
+  'c-laz': Array.from({ length: 12 }, (_, i) => ({
+    id: `tl${i}`,
+    status: 'completed',
+    date: `2026-02-${String(i + 1).padStart(2, '0')}`,
+    data: { membership_id: 'm-laz' },
+  })),
+}
+const lazInfo = buildScheduleClientInfoById(lazClients, lazMems, lazTypes, '2026-11-04', lazTrainings)
+ok(lazInfo['c-laz']?.visitsLabel === '12/38', 'info: Лазутко effective 12/38 при поле 9')
+ok(lazInfo['c-laz']?.membershipLabel === 'Vip 3', 'info: Vip 3')
+ok(
+  buildScheduleClientInfoById(lazClients, lazMems, lazTypes, '2026-11-04')['c-laz']?.visitsLabel === '9/38',
+  'info: без дневника остаётся поле 9/38',
 )
 
 const picked = pickMembershipForScheduleCardLabel(mems.c3, '2026-10-17')

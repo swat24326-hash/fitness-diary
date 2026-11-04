@@ -84,6 +84,16 @@ async function phone(c, browser) {
     await page.getByRole('button', { name: 'Войти', exact: true }).click()
     await page.getByRole('link', { name: /^Сообщения/ }).click()
     await checkList(c, page, 'телефон')
+    const noSideScroll = await page.evaluate(() => {
+      const root = globalThis.document.querySelector('.coach-app')
+      if (!root) return false
+      const w = root.getBoundingClientRect().width
+      const vw = globalThis.visualViewport?.width ?? globalThis.innerWidth
+      const menu = globalThis.document.querySelector('.coach-app__menu')
+      const menuRight = menu?.getBoundingClientRect().right ?? 0
+      return w <= vw + 1 && menuRight <= vw + 1 && globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth + 1
+    })
+    c.ok(noSideScroll, 'телефон: «Сообщения» не закусывает справа, страница не шире экрана')
     await screenshot(page, 'coach-contacts')
 
     await page.getByRole('searchbox', { name: 'Найти по имени' }).fill('галин')

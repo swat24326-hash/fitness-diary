@@ -64,13 +64,25 @@ const locked = coachShellLayoutLockStyle({
   inputFocused: false,
 })
 ok(locked.top === '0px' && locked.bottom === '0px' && locked.height === '100%', 'shell lock: sticky short → fullscreen')
+const strayPan = coachShellLayoutLockStyle({
+  offsetTop: 80,
+  viewportHeight: 500,
+  layoutHeight: 844,
+  inputFocused: false,
+})
+ok(
+  strayPan.top === '0px' && strayPan.left === '0px' && strayPan.width === '100%',
+  'shell lock: pan без фокуса — не отпускать (иначе «Сообщения» закусывает с края)',
+)
 const duringKb = coachShellLayoutLockStyle({
   offsetTop: 80,
   viewportHeight: 500,
   layoutHeight: 844,
   inputFocused: true,
 })
-ok(duringKb.top === '' && duringKb.height === '', 'shell lock: during keyboard — CSS as-is')
+ok(duringKb.top === '' && duringKb.height === '', 'shell lock: клавиатура + фокус в поле — CSS as-is')
+ok(!('transform' in duringKb), 'shell lock: при печати не затирает translateY чата')
+ok(strayPan.transform === 'none', 'shell lock: без фокуса transform none (экран не уезжает)')
 ok(typeof attachCoachVisualViewport === 'function', 'facade: attachCoachVisualViewport')
 ok(typeof attachCoachVisualViewport({}) === 'function', 'facade: attach returns detach')
 

@@ -100,6 +100,18 @@ const attached = buildPnkAttachClientRow(deskClient, {
 })
 ok(attached.trainer_id === 'tr1' && attached.card_number === '7199', 'attach keeps card + trainer')
 ok(String(attached.lifecycle ?? '') === 'pnk' || Boolean(attached.pnk_created_at), 'attach sets pnk')
+ok(
+  String(attached.name ?? '') === String(deskClient.name ?? ''),
+  'attach без overwriteName — ФИО существующего',
+)
+const attachedRename = buildPnkAttachClientRow(deskClient, {
+  name: 'Иванов Пётр',
+  phone: '79001234567',
+  cardNumber: '7199',
+  trainerId: 'tr1',
+  overwriteName: true,
+})
+ok(attachedRename.name === 'Иванов Пётр', 'attach с overwriteName — новое ФИО')
 
 if (failed) {
   console.error(`\n${failed} failed`)

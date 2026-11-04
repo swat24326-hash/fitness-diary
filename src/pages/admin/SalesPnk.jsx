@@ -6,6 +6,7 @@ import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCo
 import { todayLocalIso } from '../../lib/dateRu'
 import { createPnkClient, deletePnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
 import { syncPnkHomeGlanceFromBoard } from '../../lib/pnk/pnkHomeGlanceSession.js'
+import { PnkAttachConfirmDialog } from '../../components/pnk/PnkAttachConfirmDialog'
 import { PnkCoachNotifyChip } from '../../components/pnk/PnkCoachNotifyChip'
 import { PnkManagerControlBoard } from '../../components/pnk/PnkManagerControlBoard'
 import {
@@ -40,6 +41,7 @@ export function SalesPnk() {
     pnk_trial_sessions: 1,
   })
   const [createOpen, setCreateOpen] = useState(false)
+  const [attachConfirm, setAttachConfirm] = useState(null)
   const [boardFilter, setBoardFilter] = useState('all')
   const [toast, setToast] = useState('')
   const [lastCreated, setLastCreated] = useState(null)
@@ -113,38 +115,61 @@ export function SalesPnk() {
     void load()
   }, [load])
 
-  async function onCreate(e) {
-    e.preventDefault()
+  async function finishCreate(created) {
+    const client = created?.client ?? created
+    const trainer = (bundle?.trainers ?? []).find((t) => t.id === form.trainer_id)
+    setLastCreated({
+      client,
+      trainerName: trainer?.name || '',
+      trainerPhone: trainer?.phone || null,
+    })
+    if (created?.attached) {
+      setToast('ПНК привязан к существующей карточке (тот же № карты / телефон)')
+      setTimeout(() => setToast(''), 4000)
+    }
+    setAttachConfirm(null)
+    setForm((f) => ({ ...f, name: '', phone: '', card_number: '', pnk_trial_sessions: 1 }))
+    setCreateOpen(false)
+    await load()
+  }
+
+  /**
+   * @param {{ confirm_attach?: boolean, overwrite_name?: boolean, card_number?: string }} [extra]
+   */
+  async function submitCreate(extra = {}) {
     setBusy(true)
     setError('')
     try {
+      const card =
+        extra.card_number !== undefined ? extra.card_number : form.card_number
       const created = await createPnkClient({
         clubId,
         name: form.name,
         phone: form.phone,
-        card_number: form.card_number,
+        card_number: card,
         trainer_id: form.trainer_id,
         pnk_trial_sessions: Number(form.pnk_trial_sessions) === 2 ? 2 : 1,
+        confirm_attach: extra.confirm_attach === true,
+        overwrite_name: extra.overwrite_name === true,
       })
-      const client = created?.client ?? created
-      const trainer = (bundle?.trainers ?? []).find((t) => t.id === form.trainer_id)
-      setLastCreated({
-        client,
-        trainerName: trainer?.name || '',
-        trainerPhone: trainer?.phone || null,
-      })
-      if (created?.attached) {
-        setToast('ПНК привязан к существующей карточке (тот же № карты / телефон)')
-        setTimeout(() => setToast(''), 4000)
+      if (created?.needsConfirm) {
+        setAttachConfirm({
+          matched: created.matched,
+          matchedBy: created.matchedBy,
+        })
+        return
       }
-      setForm((f) => ({ ...f, name: '', phone: '', card_number: '', pnk_trial_sessions: 1 }))
-      setCreateOpen(false)
-      await load()
+      await finishCreate(created)
     } catch (err) {
       setError(String(err?.message ?? err))
     } finally {
       setBusy(false)
     }
+  }
+
+  async function onCreate(e) {
+    e.preventDefault()
+    await submitCreate()
   }
 
   async function onComment(clientId, text) {
@@ -346,8 +371,11 @@ export function SalesPnk() {
                         value={form.card_number}
                         onChange={(e) => setForm((f) => ({ ...f, card_number: e.target.value }))}
                         inputMode="numeric"
-                        placeholder="если уже в клубе — привяжем"
+                        placeholder="только если уже был в клубе"
                       />
+                      <span className="muted" style={{ display: 'block', fontSize: '0.85rem', marginTop: 4 }}>
+                        Новому ПНК карту не ставьте. Чужой номер привяжет чужую карточку и абонемент.
+                      </span>
                     </label>
                     <label>
                       Тренер
@@ -432,6 +460,19 @@ export function SalesPnk() {
             }
           />
         </div>
+      ) : null}
+
+      {attachConfirm?.matched ? (
+        <PnkAttachConfirmDialog
+          matched={attachConfirm.matched}
+          matchedBy={attachConfirm.matchedBy}
+          busy={busy}
+          onCancel={() => setAttachConfirm(null)}
+          onCreateWithoutCard={() => void submitCreate({ card_number: '' })}
+          onAttach={({ overwriteName }) =>
+            void submitCreate({ confirm_attach: true, overwrite_name: overwriteName })
+          }
+        />
       ) : null}
     </div>
   )

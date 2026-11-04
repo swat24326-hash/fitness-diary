@@ -97,7 +97,7 @@
 | «Выбрать фото» у клиента | Меню ☰ снимается по нажатию мимо (`src/hooks/usePopoverDismiss.js`). Окно «Мой профиль» — портал, но жило внутри меню (`ClientMenu.jsx` → `ProfileMenuUser.jsx` → `ProfilePhotoSheet.jsx`). Тап по кнопке снимал меню вместе с окном (INC-2026-10-23-04). e2e `profileAvatar` |
 | Кнопка тухнет на телефоне | `.btn:hover` в `src/index.css` сильнее `.btn-primary` и на таче залипает после системного окна (выбор фото). Наведение только при мыши (INC-2026-10-23-06). e2e `profileAvatar` |
 | Единичка на «Сообщениях» | Вкладка: `ClientTabs.jsx`. Пока экран открыт число спрашивает `useClientChatAttention.js` (список диалогов, сразу / push / 15 с) — старый ноль главной его не перекрывает (INC-2026-10-23-07). Прочтение: `useClientChat.js` + `noteClientChatRead` (INC-2026-10-23-05). e2e `clientChat` |
-| `/coach` iPhone: shell / вкладки / vv | **вход** `src/lib/coach/coachVisualViewport.js` (+ правило `fitness-diary-coach-iphone-viewport.mdc`); внутри keyboard / shellLock / bottomPin / scheduleModalViewport. INC-2026-11-03-05. Verify `verify-visual-viewport-bottom-pin.mjs` |
+| `/coach` iPhone: shell / вкладки / vv | **вход** `src/lib/coach/coachVisualViewport.js` (+ правило `fitness-diary-coach-iphone-viewport.mdc`); внутри keyboard / shellLock / bottomPin / scheduleModalViewport. INC-2026-11-03-05. Verify `scripts/verify-visual-viewport-bottom-pin.mjs` |
 | SW / обновление | `src/lib/appLifecycle.js`, `src/lib/appUpdateApplyService.js`, `src/lib/appBuildInfo.js` |
 | Verify | `scripts/verify-auth-sign-in-fallback.mjs`, `scripts/verify-auth-sign-in-fast-path.mjs`, `scripts/verify-auth-session-recover.mjs`, `scripts/verify-client-handoff.mjs`, `scripts/verify-visual-viewport-bottom-pin.mjs` |
 | Docs | [PWA.md](./PWA.md), [CLIENT_APP.md](./CLIENT_APP.md), [RUNBOOK.md](./RUNBOOK.md) §4, INCIDENTS **E** |
@@ -108,7 +108,7 @@
 |------|------|
 | Главная | `src/pages/trainer/TrainerHome.jsx`, `src/components/trainer/TrainerHomeTodayStrip.jsx` |
 | Списки клиентов | `src/components/trainer/TrainerClientListItem.jsx`, `src/lib/clientListSignals.js` |
-| Ежедневник: №карты · тип абона | `src/lib/trainer/trainerScheduleClientInfoCore.js`; планшет — `useTrainerScheduleData.js`; телефон — `api/_lib/coach/coachScheduleHandler.js` (`membership_types`: только `id, code`, без `name`) + `CoachCalendarPage.jsx` (INC-2026-10-17-03/04) |
+| Ежедневник: №карты · тип абона · N/M | `src/lib/trainer/trainerScheduleClientInfoCore.js` (`membershipUsageLabel` = max(поле, дневник)); планшет — `useTrainerScheduleData.js` + `listTrainingsMapByClientIds`; телефон — `api/_lib/coach/coachScheduleHandler.js` (INC-2026-10-17-03/04, **INC-2026-11-04-01**) |
 | Ежедневник: кадр модалки iPhone | `scheduleModalViewportCore.js`, `useScheduleModalViewport.js` — pin VV только при клавиатуре; см. также **E** shell — INC-2026-11-03-05 |
 | Pull архива | `src/lib/trainerPullClientPruneCore.js`, [SYNC.md](./SYNC.md) §«Архив на планшете» |
 | Verify | `scripts/verify-critical-hall.mjs`, `scripts/verify-app-stability.mjs`, `scripts/verify-trainer-schedule-client-info.mjs`, `scripts/verify-trainer-schedule-core.mjs`; экран телефона — e2e «Ежедневник с правкой» |
@@ -131,11 +131,12 @@
 |------|------|
 | Правила | `src/lib/membershipRules.js` |
 | UI абона | `src/components/MembershipManager.jsx` |
+| Reconcile used | `src/lib/membership/membershipUsedReconcileCore.js` (`applyMembershipUsedReconcilePlan`); планшет — `membershipUsedReconcile.js`; телефон «Клиенты» — `api/_lib/coach/coachClientsHandler.js` — INC-2026-11-04-01 |
 | Сдвиг дат | `src/lib/trainer/membershipStartShiftService.js` |
 | Gate draft / copy | `src/lib/trainer/trainingMembershipDraftGateCore.js`, `trainingMembershipDraftGateService.js`, `TrainingPage.jsx` |
 | Дата /new (не вчера из durable) | `src/lib/trainer/trainingNewDraftDateCore.js` — INC **H** 09-16 |
-| Verify | `scripts/verify-membership-total-guard.mjs`, `scripts/verify-training-membership-link.mjs`, `scripts/verify-training-membership-draft-gate.mjs` |
-| Docs | INCIDENTS **H**, INC-2026-09-12-01 |
+| Verify | `scripts/verify-membership-total-guard.mjs`, `scripts/verify-training-membership-link.mjs`, `scripts/verify-training-membership-draft-gate.mjs`, `scripts/verify-membership-used-reconcile.mjs`, `scripts/verify-trainer-schedule-client-info.mjs` |
+| Docs | INCIDENTS **H**, INC-2026-09-12-01, INC-2026-11-04-01 |
 
 ---
 
@@ -198,12 +199,13 @@
 | Слой | Путь |
 |------|------|
 | Домен | `src/lib/admin/salesManagerStatsAgg.js`, `src/lib/admin/salesPlanMatrixCompare.js`, `src/lib/pnk/` |
+| ПНК create attach | `src/lib/pnk/pnkCreateAttachCore.js` (confirm + preview); UI `PnkAttachConfirmDialog.jsx` + `SalesPnk.jsx`; API `pnkHandlers.js` — INC-2026-11-04-02 |
 | Заявка/клип | `src/lib/admin/saleClipCore.js`, `saleClipInstantCore.js` (`planFulfillAwaitingSaleClip`), `saleClipPullPruneCore.js`, `api/_lib/saleClipsReconcile.js`, `api/_lib/saleClipInstantWrite.js` (INC-2026-09-18-01: БЗ ≠ done; INC-2026-10-21-02: старая awaiting закрывается менеджером, не планшетом) |
 | Glance главной × шапка Продаж | `AdminHomeSalesPlanGlance.jsx`, `salesPlanGlanceSession.js` (`loadSig` / `salesPlanGlanceLooksSame`), расход: `supervisorExpenseCore.js` (`resolveExpenseRubFromForm`), черновик: `adminSalesDraftStorage.js` (`resolveExpenseDraftAfterLoad` — пустой не затирает сервер) |
 | UI | `src/pages/admin/AdminSales.jsx`, `src/pages/admin/SalesPnk.jsx`, компоненты `SalesPlan*`, `SalesStrategy*` |
 | API | `api/_lib/adminData/salesHandlers.js`, `api/_lib/adminData/pnkHandlers.js` |
-| Verify | `scripts/verify-sale-clips.mjs`, `scripts/verify-sales-plan-matrix-compare.mjs`, `scripts/verify-club-finance-forecast.mjs`, `scripts/verify-sales-plan-glance-sig.mjs`, `scripts/verify-admin-sales-draft.mjs` (полный каталог: `verify-sales-*.mjs` в [TESTING.md](./TESTING.md)) |
-| Docs | [SALES_MANAGER.md](./SALES_MANAGER.md), [PNK_FUNNEL.md](./PNK_FUNNEL.md), INCIDENTS **M** |
+| Verify | `scripts/verify-pnk-create-attach.mjs`, `scripts/verify-sale-clips.mjs`, `scripts/verify-sales-plan-matrix-compare.mjs`, `scripts/verify-club-finance-forecast.mjs`, `scripts/verify-sales-plan-glance-sig.mjs`, `scripts/verify-admin-sales-draft.mjs` (полный каталог: `verify-sales-*.mjs` в [TESTING.md](./TESTING.md)) |
+| Docs | [SALES_MANAGER.md](./SALES_MANAGER.md), [PNK_FUNNEL.md](./PNK_FUNNEL.md), INCIDENTS **M** / **K** INC-2026-11-04-02 |
 
 ### N — импорт Excel, мост оплат
 
@@ -225,7 +227,7 @@
 | UI | `src/components/admin/AdminClubMoizvonkiSection.jsx`, `src/lib/admin/salesCallTodayCore.js` (главная менеджера) |
 | Чат · экран | `src/lib/chat/chatViewportFit.js` (`chatFitViewHeightPx`, `chatFitVisualTopPx`, Honor vs iOS), `ChatThreadView.jsx`, `chat.css` |
 | Чат · АЗ инструктор | `api/_lib/chat/chatContactsStore.js`, `src/lib/chat/chatContactsCore.js`, `api/_lib/coach/coachHandler.js` (`coachChatKind`), `src/lib/push/pushTargetUrlCore.js`, `CoachChatPage.jsx` |
-| Verify | `scripts/verify-sales-call-today.mjs`, `scripts/verify-chat-viewport-fit.mjs`, `verify-chat-contacts.mjs`, `verify-client-az-chat.mjs`, `verify-coach-app.mjs`; e2e `staffDm` |
+| Verify | `scripts/verify-sales-call-today.mjs`, `scripts/verify-chat-viewport-fit.mjs`, `scripts/verify-chat-contacts.mjs`, `scripts/verify-client-az-chat.mjs`, `scripts/verify-coach-app.mjs`; e2e `staffDm` |
 | Docs | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md), INCIDENTS **O** |
 
 ### P — деплой, старая сборка, chunk

@@ -4,6 +4,7 @@
  * Телефон клиента уходит на телефон тренера — осознанно (docs/COACH_APP.md), на устройстве не хранится.
  */
 import { addCalendarDaysIso, todayInTimeZoneIso } from '../../../src/lib/dateRu.js'
+import { applyMembershipUsedReconcilePlan } from '../../../src/lib/membership/membershipUsedReconcileCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { loadInChunks } from '../batchCore.js'
 import {
@@ -39,7 +40,7 @@ export async function loadCoachClientsRows(db, trainerId, today) {
     pagedRows(() =>
       db
         .from('trainings')
-        .select('client_id, date, status')
+        .select('id, client_id, date, status, data')
         .eq('trainer_id', trainerId)
         .eq('status', 'completed')
         .gte('date', since)
@@ -52,9 +53,30 @@ export async function loadCoachClientsRows(db, trainerId, today) {
   return { clients, memberships, lifecycleRows, trainings, typeCodeById }
 }
 
+/**
+ * Подтянуть used_trainings к дневнику (тот же plan, что MembershipManager) и записать в облако.
+ * Не на GET ежедневника — только список клиентов, где абон уже показывают.
+ * @param {import('@supabase/supabase-js').SupabaseClient} db
+ * @param {object[]} memberships
+ * @param {object[]} trainings
+ */
+export async function reconcileCoachClientsMembershipUsed(db, memberships, trainings) {
+  const { memberships: next, patches } = applyMembershipUsedReconcilePlan(memberships, trainings)
+  for (const p of patches) {
+    const { error } = await db.from('memberships').update({ used_trainings: p.used_trainings }).eq('id', p.id)
+    if (error) console.warn('[coach] membership used reconcile', p.id, error.message || error)
+  }
+  return next
+}
+
 export async function sendCoachClients(ctx, res) {
   const trainerId = String(ctx.user.id)
   const today = todayInTimeZoneIso()
   const data = await loadCoachClientsRows(ctx.supabaseAdmin, trainerId, today)
-  sendJson(res, 200, { today, clients: buildCoachClients({ trainerId, ...data }) })
+  const memberships = await reconcileCoachClientsMembershipUsed(
+    ctx.supabaseAdmin,
+    data.memberships,
+    data.trainings,
+  )
+  sendJson(res, 200, { today, clients: buildCoachClients({ trainerId, ...data, memberships }) })
 }
