@@ -96,6 +96,8 @@ export function attachVisualViewportBottomPin(el) {
       el.style.bottom = `${Math.round(gapUp)}px`
       return
     }
+    /* Явно bottom:0 — иначе после клавиатуры/pulse остаётся «задрано». */
+    el.style.bottom = '0px'
     /* Два прохода: после translateY перемерить — на 17 Pro один кадр часто недотягивает. */
     let rect = el.getBoundingClientRect()
     let shift = tabsShiftDownToLayoutBottomPx({ tabsBottom: rect.bottom, layoutHeight: layoutH })

@@ -66,7 +66,7 @@ const locked = coachShellLayoutLockStyle({
   layoutHeight: 844,
   inputFocused: false,
 })
-ok(locked.top === '0px' && locked.bottom === '0px' && locked.height === '100%', 'shell lock: sticky short → fullscreen')
+ok(locked.top === '0px' && locked.bottom === '0px' && locked.height === '', 'shell lock: sticky short → fullscreen без height%')
 const strayPan = coachShellLayoutLockStyle({
   offsetTop: 80,
   viewportHeight: 500,
@@ -77,7 +77,7 @@ ok(
   strayPan.top === '0px' &&
     strayPan.left === '0px' &&
     strayPan.right === '0px' &&
-    strayPan.height === '100%',
+    strayPan.height === '',
   'shell lock: pan без фокуса — не отпускать (иначе «Сообщения» закусывает с края)',
 )
 const duringKb = coachShellLayoutLockStyle({
@@ -96,9 +96,9 @@ ok(coachShellShouldBlockPinchTouch({ touchesLength: 1 }) === false, 'pinch block
 ok(coachShellShouldBlockPinchTouch({ touchesLength: 2 }) === true, 'pinch block: два пальца при scale 1 — стоп')
 ok(coachShellShouldBlockPinchTouch({ touchesLength: 2, scale: 1.2 }) === false, 'pinch block: при увеличении — отзум разрешён (не закус)')
 ok(coachShellShouldBlockPinchTouch({ touchesLength: 0 }) === false, 'pinch block: пустой touch — не блокируем')
-ok(coachShellViewportScaleStuck({ scale: 1, offsetLeft: 0 }) === false, 'scale stuck: норма')
-ok(coachShellViewportScaleStuck({ scale: 1.05, offsetLeft: 0 }) === true, 'scale stuck: zoom')
-ok(coachShellViewportScaleStuck({ scale: 1, offsetLeft: 12 }) === true, 'scale stuck: offsetLeft')
+ok(coachShellViewportScaleStuck({ scale: 1 }) === false, 'scale stuck: норма')
+ok(coachShellViewportScaleStuck({ scale: 1.05 }) === true, 'scale stuck: zoom')
+ok(coachShellViewportScaleStuck({ scale: 1 }) === false, 'scale stuck: offsetLeft один не pulse (иначе вкладки задраны)')
 ok(
   coachShellPulseViewportMeta({
     getAttribute: () => 'width=device-width, initial-scale=1',

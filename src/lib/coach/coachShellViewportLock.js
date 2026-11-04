@@ -42,7 +42,8 @@ export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHei
     ...horizontal,
     top: '0px',
     bottom: '0px',
-    height: '100%',
+    /* height не задавать с top+bottom — на 17 Pro оболочка короче экрана, вкладки «задраны». */
+    height: '',
     transform: 'none',
   }
 }
@@ -62,16 +63,14 @@ export function coachShellShouldBlockPinchTouch({ touchesLength, scale = 1 } = {
 }
 
 /**
- * Нужен сброс масштаба (залипший pinch / offsetLeft).
- * @param {{ scale?: unknown, offsetLeft?: unknown }} p
+ * Нужен сброс масштаба (залипший pinch). Только scale — offsetLeft один не трогаем
+ * (pulse meta из‑за offsetLeft ломал высоту, вкладки «задраны»).
+ * @param {{ scale?: unknown }} p
  * @returns {boolean}
  */
-export function coachShellViewportScaleStuck({ scale = 1, offsetLeft = 0 } = {}) {
+export function coachShellViewportScaleStuck({ scale = 1 } = {}) {
   const s = Number(scale)
-  const left = Number(offsetLeft)
-  if (Number.isFinite(s) && Math.abs(s - 1) > 0.01) return true
-  if (Number.isFinite(left) && Math.abs(left) > 0.5) return true
-  return false
+  return Number.isFinite(s) && Math.abs(s - 1) > 0.01
 }
 
 /**
@@ -143,11 +142,7 @@ export function attachCoachShellViewportLock(el) {
       window.scrollTo(0, 0)
     }
     /* Залипший zoom: pulse meta не чаще раза в 800 мс (иначе мерцание). */
-    if (
-      !typing &&
-      coachShellViewportScaleStuck({ scale, offsetLeft }) &&
-      Date.now() - lastPulseAt > 800
-    ) {
+    if (!typing && coachShellViewportScaleStuck({ scale }) && Date.now() - lastPulseAt > 800) {
       const meta = document.querySelector('meta[name="viewport"]')
       if (coachShellPulseViewportMeta(/** @type {HTMLMetaElement | null} */ (meta))) {
         lastPulseAt = Date.now()
