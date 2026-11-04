@@ -4,6 +4,7 @@
 import {
   attachCoachVisualViewport,
   coachShellLayoutLockStyle,
+  coachShellShouldBlockPinchTouch,
   tabsShiftDownToLayoutBottomPx,
   visualViewportBottomGapPx,
   visualViewportKeyboardOpen,
@@ -85,6 +86,9 @@ ok(duringKb.left === '0px' && duringKb.right === '0px' && duringKb.width === '10
 ok(!('transform' in duringKb), 'shell lock: при печати не затирает translateY чата')
 ok(strayPan.transform === 'none', 'shell lock: без фокуса transform none (экран не уезжает)')
 ok(strayPan.left === '0px' && locked.left === '0px', 'shell lock: left всегда 0')
+ok(coachShellShouldBlockPinchTouch({ touchesLength: 1 }) === false, 'pinch block: один палец — ок')
+ok(coachShellShouldBlockPinchTouch({ touchesLength: 2 }) === true, 'pinch block: два пальца — стоп (17 Pro offsetLeft)')
+ok(coachShellShouldBlockPinchTouch({ touchesLength: 0 }) === false, 'pinch block: пустой touch — не блокируем')
 ok(typeof attachCoachVisualViewport === 'function', 'facade: attachCoachVisualViewport')
 ok(typeof attachCoachVisualViewport({}) === 'function', 'facade: attach returns detach')
 

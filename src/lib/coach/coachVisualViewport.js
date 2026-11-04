@@ -33,7 +33,11 @@ export {
   attachVisualViewportBottomPin,
 } from '../visualViewportBottomPin.js'
 
-export { attachCoachShellViewportLock, coachShellLayoutLockStyle } from './coachShellViewportLock.js'
+export {
+  attachCoachShellViewportLock,
+  coachShellLayoutLockStyle,
+  coachShellShouldBlockPinchTouch,
+} from './coachShellViewportLock.js'
 
 export {
   scheduleModalFieldFocused,

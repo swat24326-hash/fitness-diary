@@ -1,6 +1,10 @@
 /**
  * iPhone /coach: shell не уползает после клавиатуры / жеста (Android ок).
  * Публичный вход: `src/lib/coach/coachVisualViewport.js` → `attachCoachVisualViewport`.
+ *
+ * Горизонт: `translateX(offsetLeft)` на fullscreen запрещён (режет края).
+ * На 17 Pro «ездит влево-вправо» чаще от pinch / gesture → vv.offsetLeft;
+ * scrollTo это не снимает — блокируем pinch и держим touch-action: pan-y.
  */
 
 import { isAppleTouchDevice } from '../client/sparkShakeCore.js'
@@ -41,6 +45,16 @@ export function coachShellLayoutLockStyle({ offsetTop, viewportHeight, layoutHei
     height: '100%',
     transform: 'none',
   }
+}
+
+/**
+ * Pinch / Safari gesture → visualViewport.scale + offsetLeft (экран «плывёт» вбок).
+ * @param {{ touchesLength?: unknown }} p
+ * @returns {boolean}
+ */
+export function coachShellShouldBlockPinchTouch({ touchesLength } = {}) {
+  const n = Number(touchesLength)
+  return Number.isFinite(n) && n > 1
 }
 
 /**
@@ -110,6 +124,20 @@ export function attachCoachShellViewportLock(el) {
     raf = window.requestAnimationFrame(sync)
   }
 
+  /** @param {TouchEvent} e */
+  const onTouchMove = (e) => {
+    if (coachShellShouldBlockPinchTouch({ touchesLength: e.touches?.length })) {
+      e.preventDefault()
+      schedule()
+    }
+  }
+
+  /** @param {Event} e */
+  const blockGesture = (e) => {
+    e.preventDefault()
+    schedule()
+  }
+
   if (vv) {
     vv.addEventListener('resize', schedule, { passive: true })
     vv.addEventListener('scroll', schedule, { passive: true })
@@ -118,6 +146,10 @@ export function attachCoachShellViewportLock(el) {
   window.addEventListener('orientationchange', schedule, { passive: true })
   document.addEventListener('focusin', schedule, true)
   document.addEventListener('focusout', schedule, true)
+  /* non-passive: иначе preventDefault на pinch не сработает. */
+  document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true })
+  document.addEventListener('gesturestart', blockGesture, { passive: false, capture: true })
+  document.addEventListener('gesturechange', blockGesture, { passive: false, capture: true })
   sync()
   window.requestAnimationFrame(() => window.requestAnimationFrame(schedule))
   const t1 = window.setTimeout(schedule, 120)
@@ -134,6 +166,9 @@ export function attachCoachShellViewportLock(el) {
     window.removeEventListener('orientationchange', schedule)
     document.removeEventListener('focusin', schedule, true)
     document.removeEventListener('focusout', schedule, true)
+    document.removeEventListener('touchmove', onTouchMove, true)
+    document.removeEventListener('gesturestart', blockGesture, true)
+    document.removeEventListener('gesturechange', blockGesture, true)
     clearInline()
   }
 }

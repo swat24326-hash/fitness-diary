@@ -35,12 +35,15 @@
   overflow: hidden;
   overflow-x: clip;
   overscroll-behavior-x: none;
+  /* pan-y, не manipulation: pinch даёт vv.offsetLeft — экран ездит вбок (17 Pro). */
+  touch-action: pan-y;
 }
 
 /*
  * iPhone: без overflow на body страница пружинит / ездит влево-вправо
  * (Анжелика, INC-2026-11-03-05). Замок на всём /coach — и диалог без вкладок.
  * Шторка Ежедневника и вкладки — portal в body, fixed ок.
+ * pan-y вместо manipulation — иначе Safari всё ещё зумит двумя пальцами.
  */
 html:has(.coach-app),
 html:has(.coach-app) body {
@@ -50,7 +53,7 @@ html:has(.coach-app) body {
   overflow-x: hidden;
   height: 100%;
   height: -webkit-fill-available;
-  touch-action: manipulation;
+  touch-action: pan-y;
   scrollbar-gutter: auto;
 }
 
@@ -136,6 +139,9 @@ html:has(.coach-app) body {
   min-height: 0;
   padding-bottom: 0;
   overflow: hidden;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
 }
 
 .coach-app:has(> .coach-app__main > .chat-thread) .coach-app__main {
