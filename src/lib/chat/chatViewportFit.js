@@ -3,10 +3,13 @@
  * шапка и поле ввода не ездят. iPhone не сжимает страницу под клавиатуру (меньше становится только visualViewport),
  * поэтому высоту ленты считаем сами: от верха диалога до низа видимой части, минус отступы оболочки снизу.
  *
- * Android (в т.ч. планшет): в index.html стоит interactive-widget=resizes-content — клавиатура сжимает
- * layout (innerHeight). Высоту берём из layout. Honor иногда отдаёт visualViewport.height сильно меньше
- * при полном layout и offsetTop=0 — тогда поле ввода уезжает вверх, ниже пустота (INC-2026-10-29-04).
+ * Android: interactive-widget=resizes-content — обычно сжимает layout. Honor:
+ * (1) короткий vv при offsetTop=0 и полном layout — врёт, берём layout (INC-2026-10-29-04);
+ * (2) клавиатура с реальным pan (offsetTop>0, vv короче) — как iPhone: высота vv + translateY,
+ * иначе шапка с именем уезжает «за горизонт», поле висит над клавиатурой (повтор 04.11).
  */
+
+import { VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX } from '../visualViewportKeyboard.js'
 
 export const CHAT_FIT_VAR = '--chat-fit-h'
 export const CHAT_FIT_MIN_PX = 240
@@ -23,21 +26,47 @@ export function chatFitIsIosLike({ ua = '', maxTouchPoints = 0 } = {}) {
 }
 
 /**
+ * Браузер реально сдвинул видимую часть к клавиатуре (не «ложный» короткий vv без pan).
+ * @param {{ visualHeight: unknown, layoutHeight: unknown, offsetTop?: unknown, scale?: unknown, iosLike?: boolean }} p
+ */
+export function chatFitShouldFollowPan({
+  visualHeight,
+  layoutHeight,
+  offsetTop = 0,
+  scale = 1,
+  iosLike = false,
+} = {}) {
+  if (Number(scale) > 1.01) return false
+  const pan = Number(offsetTop) || 0
+  if (pan <= 0.5) return false
+  if (iosLike) return true
+  const vv = Number(visualHeight)
+  const layout = Number(layoutHeight)
+  if (!Number.isFinite(vv) || vv <= 0 || !Number.isFinite(layout) || layout <= 0) return false
+  return vv < layout - VISUAL_VIEWPORT_KEYBOARD_SHORTEN_PX
+}
+
+/**
  * Какую высоту видимой части брать для подгонки диалога.
- * Android: всегда layout (`interactive-widget=resizes-content`). Honor врёт и короткий vv,
- * и иногда offsetTop>0 при уже сжатом/полном layout — если взять vv, поле уезжает вверх (повтор INC-2026-10-29-04).
- * iPhone: layout не сжимается — высота из visualViewport (с pan или без).
  * @param {{ visualHeight: unknown, layoutHeight: unknown, offsetTop?: unknown, iosLike?: boolean }} p
  * @returns {number} px (0 — битые размеры)
  */
 export function chatFitViewHeightPx({ visualHeight, layoutHeight, offsetTop = 0, iosLike = false }) {
   const vv = Number(visualHeight)
   const layout = Number(layoutHeight)
+  const pan = Number(offsetTop) || 0
   if (!iosLike) {
+    /* Реальный pan клавиатуры — vv; короткий vv без pan (Honor врёт) — layout. */
+    if (
+      chatFitShouldFollowPan({ visualHeight, layoutHeight, offsetTop: pan, iosLike: false }) &&
+      Number.isFinite(vv) &&
+      vv > 0
+    ) {
+      return vv
+    }
     if (Number.isFinite(layout) && layout > 0) return layout
     return Number.isFinite(vv) && vv > 0 ? vv : 0
   }
-  const pan = Number(offsetTop) || 0
   if (pan > 0) {
     if (Number.isFinite(vv) && vv > 0) return vv
     return Number.isFinite(layout) && layout > 0 ? layout : 0
@@ -72,15 +101,12 @@ export function chatFitHeightPx({ viewHeight, top, gap, min = CHAT_FIT_MIN_PX })
 }
 
 /**
- * Страница прокручена, хотя диалог уже влез в видимую часть (браузер докрутил к полю ввода до укорачивания) —
- * шапка уехала: возвращаем страницу наверх. Сдвиг самой видимой части (iPhone) — chatFitShiftPx.
- * @param {{ docHeight: unknown, viewHeight: unknown, scrollY: unknown }} p
+ * Браузер докрутил страницу к полю (шапка уехала) — вернуть наверх.
+ * Пока открыт диалог, html/body с overflow:hidden: любой scrollY — артефакт фокуса/клавиатуры, не жест человека.
+ * @param {{ docHeight?: unknown, viewHeight?: unknown, scrollY: unknown }} p
  */
-export function chatFitShouldUnpan({ docHeight, viewHeight, scrollY }) {
-  const doc = Number(docHeight)
-  const view = Number(viewHeight)
-  if (!(doc > 0) || !(view > 0)) return false
-  return (Number(scrollY) || 0) > 0 && doc <= view + 1
+export function chatFitShouldUnpan({ scrollY }) {
+  return (Number(scrollY) || 0) > 0
 }
 
 /**
@@ -155,32 +181,38 @@ export function attachChatViewportFit(el) {
     const layoutHeight = Math.max(window.innerHeight || 0, root.clientHeight || 0)
     const offsetTop = vv?.offsetTop
     const zoomed = Boolean(vv && vv.scale > 1.01)
+    const visualHeight = vv ? vv.height : layoutHeight
+    const followPan =
+      !zoomed &&
+      chatFitShouldFollowPan({
+        visualHeight,
+        layoutHeight,
+        offsetTop,
+        scale: vv?.scale,
+        iosLike,
+      })
     /* При pinch-zoom не двигаем оболочку; высоту всё равно считаем — иначе поле ввода пропадает. */
     const viewHeight = chatFitViewHeightPx({
-      visualHeight: vv ? vv.height : layoutHeight,
+      visualHeight,
       layoutHeight,
       offsetTop: zoomed ? 0 : offsetTop,
       iosLike,
     })
-    /* Сдвиг страницы за offsetTop — только iPhone; на Android (Honor) ложный offsetTop иначе увозит ленту. */
-    const nextShift = !zoomed && iosLike ? chatFitShiftPx({ offsetTop, scale: vv?.scale }) : 0
+    /* Сдвиг за pan: iPhone всегда; Android — только реальный pan клавиатуры (Honor: шапка не уезжает). */
+    const nextShift = followPan ? chatFitShiftPx({ offsetTop, scale: vv?.scale }) : 0
     if (nextShift !== shift) {
       shift = nextShift
       shell.style.transform = shift ? `translateY(${shift}px)` : ''
     }
     let unpanned = false
-    if (
-      window.scrollX > 0 ||
-      chatFitShouldUnpan({ docHeight: root.scrollHeight - shift, viewHeight, scrollY: window.scrollY })
-    ) {
+    if (window.scrollX > 0 || chatFitShouldUnpan({ scrollY: window.scrollY })) {
       window.scrollTo(0, 0)
       unpanned = true
     }
-    /* Высота — после сдвига/unpan, от верха в visible viewport (не document+scrollY).
-       offsetTop в top — только iOS: на Android ложный pan иначе завышает/занижает верх. */
+    /* Высота — после сдвига/unpan, от верха в visible viewport (не document+scrollY). */
     const top = chatFitVisualTopPx({
       rectTop: el.getBoundingClientRect().top,
-      offsetTop: zoomed || !iosLike ? 0 : vv ? vv.offsetTop : 0,
+      offsetTop: followPan && vv ? vv.offsetTop : 0,
     })
     const next = `${chatFitHeightPx({ viewHeight, top, gap: bottomGapPx(el) })}px`
     if (el.style.getPropertyValue(CHAT_FIT_VAR) !== next) el.style.setProperty(CHAT_FIT_VAR, next)

@@ -10,6 +10,7 @@ import {
   chatFitHeightPx,
   chatFitIsIosLike,
   chatFitShiftPx,
+  chatFitShouldFollowPan,
   chatFitShouldUnpan,
   chatFitViewHeightPx,
   chatFitVisualTopPx,
@@ -34,12 +35,12 @@ ok(fit(300, 200) === CHAT_FIT_MIN_PX, 'очень низкий экран — н
 ok(fit(null, 64) === CHAT_FIT_MIN_PX && fit('x', 64) === CHAT_FIT_MIN_PX && fit(0, 0) === CHAT_FIT_MIN_PX, 'битые размеры — минимум')
 ok(fit(844, undefined, undefined) === 844, 'нет верха / отступа — весь экран')
 
-const unpan = (docHeight, viewHeight, scrollY) => chatFitShouldUnpan({ docHeight, viewHeight, scrollY })
-ok(unpan(508, 508, 120), 'страница прокручена, хотя всё влезло — вернуть наверх')
-ok(!unpan(508, 508, 0), 'ничего не прокручено — не трогать')
-ok(!unpan(1400, 844, 300), 'страница длиннее экрана (над диалогом много всего) — прокрутку человека не трогать')
-ok(unpan(508.6, 508, 10), 'дробный шум < 1px — диалог влез')
-ok(!unpan(null, 508, 30) && !unpan(508, 'x', 30), 'битые размеры — не трогать')
+const unpan = (scrollY) => chatFitShouldUnpan({ scrollY })
+ok(unpan(120), 'браузер докрутил к полю — вернуть наверх (шапка не уезжает)')
+ok(!unpan(0), 'ничего не прокручено — не трогать')
+ok(unpan(300), 'при открытом диалоге любой scrollY — артефакт клавиатуры, сбрасываем')
+ok(unpan(10), 'малый сдвиг тоже сбрасываем')
+ok(!unpan(null) && !unpan('x') && !unpan(-1), 'битые / отрицательные — не трогать')
 
 const shiftBy = (offsetTop, scale) => chatFitShiftPx({ offsetTop, scale })
 ok(shiftBy(336) === 336, 'iPhone сдвинул видимую часть к полю ввода — страница едет за ней, поле над клавиатурой (клиентка 13.10)')
@@ -62,14 +63,32 @@ ok(!chatFitIsIosLike({ ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }), 'ко
 const view = (visualHeight, layoutHeight, offsetTop = 0, iosLike = false) =>
   chatFitViewHeightPx({ visualHeight, layoutHeight, offsetTop, iosLike })
 
-ok(view(400, 1200, 0, false) === 1200, 'Honor: vv врёт короткий, layout полный — берём layout, поле не уезжает вверх (INC-2026-10-29-04)')
-ok(view(400, 1200, 280, false) === 1200, 'Honor: ложный offsetTop + короткий vv — всё равно layout, не vv (повтор 04.11)')
+ok(view(400, 1200, 0, false) === 1200, 'Honor: vv врёт короткий без pan — layout, поле не уезжает вверх (INC-2026-10-29-04)')
+ok(view(400, 1200, 280, false) === 400, 'Honor: реальный pan + короткий vv — высота vv, шапка едет в видимую часть (04.11)')
 ok(view(800, 800, 0, false) === 800, 'Android: layout сжат клавиатурой (resizes-content) — высота layout')
+ok(view(800, 800, 40, false) === 800, 'Android: pan при почти полном vv — не считаем клавиатурой, layout')
 ok(view(500, 844, 0, true) === 500, 'iPhone: layout полный, vv короче — берём vv')
 ok(view(508, 844, 336, true) === 508, 'iPhone со сдвигом offsetTop — высота видимой части')
-ok(view(508, 844, 336, false) === 844, 'Android: offsetTop не переключает на vv')
+ok(view(508, 844, 336, false) === 508, 'Android с реальным pan — высота vv как у iPhone')
 ok(view(null, 900, 0, false) === 900, 'нет vv — layout')
 ok(view('x', 0, 0, false) === 0 && view(null, null, 0, true) === 0, 'битые размеры — 0')
+
+ok(
+  !chatFitShouldFollowPan({ visualHeight: 400, layoutHeight: 1200, offsetTop: 0, iosLike: false }),
+  'Honor без pan — не follow',
+)
+ok(
+  chatFitShouldFollowPan({ visualHeight: 400, layoutHeight: 1200, offsetTop: 280, iosLike: false }),
+  'Honor с pan и коротким vv — follow (шапка в кадре)',
+)
+ok(
+  !chatFitShouldFollowPan({ visualHeight: 800, layoutHeight: 820, offsetTop: 20, iosLike: false }),
+  'Android: мелкий pan без сжатия vv — не follow',
+)
+ok(
+  chatFitShouldFollowPan({ visualHeight: 508, layoutHeight: 844, offsetTop: 336, iosLike: true }),
+  'iPhone с pan — follow',
+)
 
 const vtop = (rectTop, offsetTop = 0) => chatFitVisualTopPx({ rectTop, offsetTop })
 ok(vtop(64, 0) === 64, 'visual top без сдвига vv')

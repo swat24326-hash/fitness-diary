@@ -348,8 +348,8 @@ async function iphoneKeyboardAfterSend(c, browser, backend) {
 }
 
 /**
- * Honor/Android: visualViewport.height врёт короткий при полном layout —
- * и с offsetTop=0, и с ложным offsetTop>0. Берём layout, не vv (INC-2026-10-29-04, повтор 04.11).
+ * Honor/Android: (1) короткий vv без pan — layout (INC-2026-10-29-04);
+ * (2) клавиатура с реальным pan — как iPhone: диалог едет за видимой частью, шапка в кадре (04.11).
  */
 async function honorShortVisualViewport(c, browser, backend) {
   const FULL = 900
@@ -377,9 +377,14 @@ async function honorShortVisualViewport(c, browser, backend) {
     page.evaluate(() => {
       const compose = globalThis.document.querySelector('.chat-compose')?.getBoundingClientRect()
       const thread = globalThis.document.querySelector('.chat-thread')?.getBoundingClientRect()
+      const head = globalThis.document.querySelector('.chat-head')?.getBoundingClientRect()
+      const shell = globalThis.document.getElementById('root')?.firstElementChild
       return {
         composeBottom: compose?.bottom ?? 0,
         threadHeight: thread?.height ?? 0,
+        headTop: head?.top ?? -1,
+        headBottom: head?.bottom ?? -1,
+        shellTy: shell?.style?.transform || '',
         layout: globalThis.innerHeight,
         vv: globalThis.visualViewport?.height ?? 0,
         pan: globalThis.visualViewport?.offsetTop ?? 0,
@@ -394,9 +399,10 @@ async function honorShortVisualViewport(c, browser, backend) {
     c.ok(m.vv === FAKE_VV && m.layout === FULL, `Honor-эмуляция: vv=${Math.round(m.vv)} при layout=${Math.round(m.layout)}`)
     c.ok(
       m.composeBottom <= m.layout + 1 && m.composeBottom >= m.layout - 80,
-      `Honor: поле ввода у низа layout, не уехало вверх по короткому vv (низ ${Math.round(m.composeBottom)}, layout ${m.layout}, vv ${m.vv})`,
+      `Honor без pan: поле у низа layout, не уехало по короткому vv (низ ${Math.round(m.composeBottom)}, layout ${m.layout}, vv ${m.vv})`,
     )
     c.ok(m.threadHeight > FAKE_VV + 40, `диалог выше лживого vv (${Math.round(m.threadHeight)} > ${FAKE_VV})`)
+    c.ok(m.headTop >= -1 && m.headTop < 120, `Honor без pan: шапка диалога на месте (top ${Math.round(m.headTop)})`)
 
     await page.evaluate((pan) => {
       const vv = globalThis.__fakeVv
@@ -407,12 +413,19 @@ async function honorShortVisualViewport(c, browser, backend) {
     }, FAKE_PAN)
     await page.waitForTimeout(400)
     const m2 = await measure()
-    c.ok(m2.pan === FAKE_PAN, `Honor: подставили ложный offsetTop=${FAKE_PAN}`)
+    c.ok(m2.pan === FAKE_PAN, `Honor: подставили pan=${FAKE_PAN}`)
     c.ok(
-      m2.composeBottom <= m2.layout + 1 && m2.composeBottom >= m2.layout - 80,
-      `Honor + ложный pan: поле у низа layout, не уехало по vv (низ ${Math.round(m2.composeBottom)}, layout ${m2.layout}, vv ${m2.vv})`,
+      m2.shellTy.includes(`translateY(${FAKE_PAN}px)`),
+      `Honor + pan: оболочка едет за видимой частью (${m2.shellTy || 'без transform'})`,
     )
-    c.ok(m2.threadHeight > FAKE_VV + 40, `Honor + pan: диалог выше лживого vv (${Math.round(m2.threadHeight)} > ${FAKE_VV})`)
+    c.ok(
+      m2.composeBottom <= FAKE_PAN + FAKE_VV + 1 && m2.composeBottom >= FAKE_PAN + FAKE_VV - 80,
+      `Honor + pan: поле над клавиатурой в видимой части (низ ${Math.round(m2.composeBottom)}, ожидали ~${FAKE_PAN + FAKE_VV})`,
+    )
+    c.ok(
+      m2.headTop >= FAKE_PAN - 2 && m2.headBottom > FAKE_PAN,
+      `Honor + pan: шапка с именем в видимой части (top ${Math.round(m2.headTop)}, pan ${FAKE_PAN})`,
+    )
     await screenshot(page, 'staff-dm-honor-viewport')
   } catch (e) {
     await screenshot(page, 'staff-dm-honor-viewport-FAIL').catch(() => null)
