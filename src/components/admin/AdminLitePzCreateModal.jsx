@@ -14,9 +14,11 @@ import {
   formatDeskPackageMonthsLabel,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import {
-  listNoTabletTrainersForClub,
+  listActiveTrainersForClub,
   validateLitePzCreateForm,
 } from '../../lib/admin/litePzClientCreateCore.js'
+import { isTrainerWithoutTablet } from '../../lib/admin/trainerTabletModeCore.js'
+import { sortTrainersForPzPaymentLink } from '../../lib/admin/salesPaymentsLinkCore.js'
 
 const initialForm = (clubId) => ({
   name: '',
@@ -31,7 +33,8 @@ const initialForm = (clubId) => ({
 })
 
 /**
- * Форма lite-ПЗ (без overlay) — для оболочки «Новый клиент» с выбором зала.
+ * Форма ПЗ (без overlay) — для оболочки «Новый клиент» с выбором зала.
+ * Любой активный тренер клуба: без планшета → lite, с планшетом → полный дневник.
  */
 export function AdminLitePzCreateForm({
   active = false,
@@ -47,15 +50,23 @@ export function AdminLitePzCreateForm({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const noTabletTrainers = useMemo(
-    () => listNoTabletTrainersForClub(trainers, clubId),
+  const clubTrainers = useMemo(
+    () => sortTrainersForPzPaymentLink(listActiveTrainersForClub(trainers, clubId)),
     [trainers, clubId],
+  )
+  const trainersNoTablet = useMemo(
+    () => clubTrainers.filter((t) => isTrainerWithoutTablet(t)),
+    [clubTrainers],
+  )
+  const trainersWithTablet = useMemo(
+    () => clubTrainers.filter((t) => !isTrainerWithoutTablet(t)),
+    [clubTrainers],
   )
 
   useEffect(() => {
     if (!active) return
     const base = initialForm(clubId)
-    const list = listNoTabletTrainersForClub(trainers, clubId)
+    const list = listActiveTrainersForClub(trainers, clubId)
     if (list.length === 1) base.trainer_id = list[0].id
     setForm(base)
     setError('')
@@ -83,7 +94,7 @@ export function AdminLitePzCreateForm({
     setError('')
     try {
       const clubClients = clubId ? await listClientsByClubId(clubId) : []
-      const checked = validateLitePzCreateForm({ ...form, club_id: clubId }, noTabletTrainers, clubClients)
+      const checked = validateLitePzCreateForm({ ...form, club_id: clubId }, clubTrainers, clubClients)
       if (!checked.ok) {
         setError(checked.error)
         return
@@ -138,25 +149,25 @@ export function AdminLitePzCreateForm({
     <>
       {showLead ? (
         <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
-          Для тренера <strong>без планшета</strong>: ФИО, карта, абон и оплата. Когда выдадите планшет — в Организации
-          снимите галку «Без планшета»: карточка станет полным дневником, пересоздавать не нужно.
+          ФИО, карта, абон и оплата — любому тренеру клуба. Без планшета карточку ведёт админ/менеджер; с планшетом
+          клиент появится в дневнике тренера после Sync. Галка «Без планшета» в{' '}
+          {organizationHref ? <a href={organizationHref}>Структуре</a> : <>Структуре</>} меняет режим без
+          пересоздания карточки.
         </p>
       ) : null}
       {!clubId ? (
         <p className="muted" style={{ color: 'var(--danger, #f87171)' }}>
           Сначала выберите клуб в шапке.
         </p>
-      ) : noTabletTrainers.length === 0 ? (
+      ) : clubTrainers.length === 0 ? (
         <p className="muted">
-          В этом клубе нет тренеров с галкой «Без планшета».{' '}
+          В этом клубе нет активных тренеров.{' '}
           {organizationHref ? (
             <>
-              Отметьте её в{' '}
-              <a href={organizationHref}>Структуре</a>
-              , затем вернитесь сюда.
+              Добавьте тренера в <a href={organizationHref}>Структуре</a>, затем вернитесь сюда.
             </>
           ) : (
-            <>Отметьте её у тренера в настройках клуба (админ → Структура), затем вернитесь сюда.</>
+            <>Добавьте тренера в настройках клуба (админ → Структура), затем вернитесь сюда.</>
           )}
         </p>
       ) : (
@@ -174,12 +185,28 @@ export function AdminLitePzCreateForm({
               required
             >
               <option value="">Выберите…</option>
-              {noTabletTrainers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name ?? '—'}
-                </option>
-              ))}
+              {trainersNoTablet.length ? (
+                <optgroup label="Без планшета → ведёт админ/менеджер">
+                  {trainersNoTablet.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name ?? '—'}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {trainersWithTablet.length ? (
+                <optgroup label="С планшетом → дневник тренера">
+                  {trainersWithTablet.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name ?? '—'}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
+            <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+              Без планшета — лёгкая карточка; с планшетом — полный дневник у тренера.
+            </p>
           </div>
           <div className="field">
             <label className="label" htmlFor="lite-pz-name">
@@ -294,7 +321,7 @@ export function AdminLitePzCreateForm({
           </div>
         </form>
       )}
-      {clubId && noTabletTrainers.length === 0 ? (
+      {clubId && clubTrainers.length === 0 ? (
         <div className="row td-modal-actions" style={{ marginTop: 12 }}>
           <button type="button" className="btn btn-ghost btn-touch" onClick={onClose}>
             Закрыть
@@ -313,7 +340,7 @@ export function AdminLitePzCreateForm({
 }
 
 /**
- * Модалка: админ создаёт lite-клиента ПЗ на тренера без планшета.
+ * Модалка: новый клиент ПЗ любому тренеру клуба.
  */
 export function AdminLitePzCreateModal({
   open,

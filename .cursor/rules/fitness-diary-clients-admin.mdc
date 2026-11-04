@@ -21,7 +21,7 @@ alwaysApply: false
 |---|---|
 | Номер карты | Занят в этом клубе — новую карточку не создаём. Проверка обязательна в desk-создании, lite-ПЗ и при смене клуба (`assertClubCardAvailableForCreate`) |
 | Матчинг | Карта, затем телефон. Статус `archived` возвращает архивную карточку, `conflict` разбирают руками — молча «создать нового» нельзя (`salesClientMatchCore.js`) |
-| Контуры desk | ТЗ и АЗ — `deskManualClientCreateCore.js`; ПЗ без планшета — `litePzClientCreateCore.js` (тренер обязан быть lite и из этого клуба). Desk-клиент — `trainer_id: null` + зал |
+| Контуры desk | ТЗ и АЗ — `deskManualClientCreateCore.js`; ПЗ с ресепшена — `litePzClientCreateCore.js` (любой активный тренер клуба; lite vs дневник по `uses_tablet`). Desk-клиент — `trainer_id: null` + зал |
 | Живой абонемент | ТЗ — по календарю; ПЗ и АЗ — срок **и** остаток занятий; указан зал — смотрим только его абонементы (`deskMembershipLedgerCore.js`) |
 | Форма карточки | Hydrate из облака не затирает то, что правят сейчас: dirty-поле держит черновик, включая очищенную дату рождения (`deskClientFormMergeCore.js`) |
 | Жёсткое удаление | Не архив: код подтверждения плюс запись в журнал удалений. Тихого delete быть не должно |

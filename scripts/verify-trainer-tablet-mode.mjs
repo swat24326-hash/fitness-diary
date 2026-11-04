@@ -9,6 +9,7 @@ import {
 } from '../src/lib/admin/trainerTabletModeCore.js'
 import { filterHallOperationalClients } from '../src/lib/admin/holdingClientsCore.js'
 import {
+  listActiveTrainersForClub,
   listNoTabletTrainersForClub,
   validateLitePzCreateForm,
 } from '../src/lib/admin/litePzClientCreateCore.js'
@@ -30,6 +31,7 @@ const trainers = [
   { id: 't1', uses_tablet: true, name: 'А', club_id: 'c1', is_active: true },
   { id: 't2', uses_tablet: false, name: 'Б', club_id: 'c1', is_active: true },
   { id: 't3', uses_tablet: false, name: 'В', club_id: 'c2', is_active: true },
+  { id: 't4', uses_tablet: true, name: 'Г', club_id: 'c1', is_active: false },
 ]
 const noTab = collectNoTabletTrainerIds(trainers)
 ok(noTab.has('t2') && !noTab.has('t1'), 'collect no-tablet ids')
@@ -78,10 +80,18 @@ ok(period2.activeWithMembership === 0, 'lite expired not active')
 const clubNoTab = listNoTabletTrainersForClub(trainers, 'c1')
 ok(clubNoTab.length === 1 && clubNoTab[0].id === 't2', 'no-tablet trainers for club')
 
-const bad = validateLitePzCreateForm({ name: '', trainer_id: 't2', club_id: 'c1' }, clubNoTab)
+const clubActive = listActiveTrainersForClub(trainers, 'c1')
+ok(
+  clubActive.length === 2 && clubActive.some((t) => t.id === 't1') && clubActive.some((t) => t.id === 't2'),
+  'active trainers for club include tablet + no-tablet',
+)
+ok(!clubActive.some((t) => t.id === 't4'), 'inactive trainer excluded')
+ok(!listActiveTrainersForClub(trainers, 'c1').some((t) => t.id === 't3'), 'other club excluded')
+
+const bad = validateLitePzCreateForm({ name: '', trainer_id: 't2', club_id: 'c1' }, clubActive)
 ok(!bad.ok, 'create rejects empty name')
 
-const good = validateLitePzCreateForm(
+const goodLite = validateLitePzCreateForm(
   {
     name: 'Иванов Иван',
     trainer_id: 't2',
@@ -90,9 +100,45 @@ const good = validateLitePzCreateForm(
     package_months: 1,
     paid_amount: '5000',
   },
-  clubNoTab,
+  clubActive,
 )
-ok(good.ok && good.client.trainer_id === 't2' && good.membership.paid_amount === 5000, 'create ok')
+ok(goodLite.ok && goodLite.client.trainer_id === 't2' && goodLite.membership.paid_amount === 5000, 'create lite ok')
+
+const goodTablet = validateLitePzCreateForm(
+  {
+    name: 'Петров Пётр',
+    trainer_id: 't1',
+    club_id: 'c1',
+    start_date: '2026-08-01',
+    package_months: 1,
+  },
+  clubActive,
+)
+ok(goodTablet.ok && goodTablet.client.trainer_id === 't1', 'create for tablet trainer ok')
+
+const foreign = validateLitePzCreateForm(
+  {
+    name: 'Сидоров',
+    trainer_id: 't3',
+    club_id: 'c1',
+    start_date: '2026-08-01',
+    package_months: 1,
+  },
+  clubActive,
+)
+ok(!foreign.ok, 'create rejects trainer from other club')
+
+const inactive = validateLitePzCreateForm(
+  {
+    name: 'Сидоров',
+    trainer_id: 't4',
+    club_id: 'c1',
+    start_date: '2026-08-01',
+    package_months: 1,
+  },
+  clubActive,
+)
+ok(!inactive.ok, 'create rejects inactive trainer')
 
 if (failed) {
   console.error(`\n${failed} failed`)

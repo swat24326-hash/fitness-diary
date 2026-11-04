@@ -2485,18 +2485,29 @@ tr:last-child td {
   position: relative;
 }
 
+/* Открытый список выше ряда «Закончить» (он ниже в DOM и иначе перехватывает тапы). */
+.exercise-catalog-combo--open {
+  z-index: 60;
+}
+
+.training-actions-row {
+  position: relative;
+  z-index: 1;
+}
+
 .exercise-catalog-suggest {
   position: absolute;
   left: 0;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 25;
+  z-index: 1;
   max-height: min(280px, 42vh);
   overflow-y: auto;
   padding: 6px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: rgba(16, 18, 17, 0.98);
+  /* Стекло приложения, чуть плотнее прежних ~98% — клики закрывает z-index combo--open. */
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
   box-shadow: var(--shadow);
   -webkit-overflow-scrolling: touch;
 }

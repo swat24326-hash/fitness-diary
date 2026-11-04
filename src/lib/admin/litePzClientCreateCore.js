@@ -1,5 +1,6 @@
 /**
- * Чистые правила создания lite-клиента ПЗ (тренер без планшета).
+ * Чистые правила создания клиента ПЗ с ресепшена (админ / менеджер / управляющий).
+ * Режим lite vs полный дневник определяется по uses_tablet выбранного тренера.
  * Без React / IDB.
  */
 
@@ -9,17 +10,26 @@ import { formatClientName } from '../clientNameFormat.js'
 import { assertClubCardAvailableForCreate } from './salesClientMatchCore.js'
 
 /**
+ * Активные тренеры клуба (с планшетом и без) — для выбора в «Новый клиент ПЗ».
  * @param {object[]} trainers
  * @param {string} clubId
  */
-export function listNoTabletTrainersForClub(trainers, clubId) {
+export function listActiveTrainersForClub(trainers, clubId) {
   const cid = String(clubId ?? '').trim()
   return (trainers ?? []).filter((t) => {
-    if (!isTrainerWithoutTablet(t)) return false
     if (t?.is_active === false) return false
     if (!cid) return true
     return String(t.club_id ?? '').trim() === cid
   })
+}
+
+/**
+ * Только тренеры без планшета (KPI / «Карточки из оплат» → lite).
+ * @param {object[]} trainers
+ * @param {string} clubId
+ */
+export function listNoTabletTrainersForClub(trainers, clubId) {
+  return listActiveTrainersForClub(trainers, clubId).filter((t) => isTrainerWithoutTablet(t))
 }
 
 /**
@@ -34,10 +44,10 @@ export function listNoTabletTrainersForClub(trainers, clubId) {
  *   end_date?: string,
  *   paid_amount?: string|number,
  * }} form
- * @param {object[]} noTabletTrainers
+ * @param {object[]} clubTrainers активные тренеры клуба (или узкий список — например только без планшета)
  * @param {object[]|null|undefined} [clubClients] клиенты клуба для проверки уникальности карты
  */
-export function validateLitePzCreateForm(form, noTabletTrainers, clubClients) {
+export function validateLitePzCreateForm(form, clubTrainers, clubClients) {
   const name = formatClientName(form?.name)
   if (!name) return { ok: false, error: 'Укажите ФИО' }
 
@@ -45,10 +55,10 @@ export function validateLitePzCreateForm(form, noTabletTrainers, clubClients) {
   if (!clubId) return { ok: false, error: 'Выберите клуб' }
 
   const trainerId = String(form?.trainer_id ?? '').trim()
-  if (!trainerId) return { ok: false, error: 'Выберите тренера без планшета' }
+  if (!trainerId) return { ok: false, error: 'Выберите тренера' }
 
-  const trainer = (noTabletTrainers ?? []).find((t) => String(t.id) === trainerId)
-  if (!trainer) return { ok: false, error: 'Тренер должен быть без планшета и из этого клуба' }
+  const trainer = (clubTrainers ?? []).find((t) => String(t.id) === trainerId)
+  if (!trainer) return { ok: false, error: 'Тренер должен быть из этого клуба' }
 
   const start = String(form?.start_date ?? '').trim().slice(0, 10)
   if (!start) return { ok: false, error: 'Укажите начало абонемента' }

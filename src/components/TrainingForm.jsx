@@ -572,7 +572,10 @@ export function TrainingForm({
                 </span>
               ) : null}
               <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
-                <div className="field exercise-name-field exercise-catalog-combo" style={{ flex: '1 1 240px', marginBottom: 0 }}>
+                <div
+                  className={`field exercise-name-field exercise-catalog-combo${suggestOpenId === ex.id ? ' exercise-catalog-combo--open' : ''}`}
+                  style={{ flex: '1 1 240px', marginBottom: 0 }}
+                >
                   <label className="label">Упражнение</label>
                   <div className="exercise-name-row">
                     <span className="training-exercise-order-badge" title={`Упражнение №${exIdx + 1}`} aria-hidden>
