@@ -19,14 +19,18 @@ function ok(cond, msg) {
 const css = readFileSync(join(root, 'src/index.css'), 'utf8')
 const form = readFileSync(join(root, 'src/components/TrainingForm.jsx'), 'utf8')
 
-ok(css.includes('.exercise-catalog-combo--open'), 'css: open combo class')
-ok(/\.exercise-catalog-combo--open\s*\{[^}]*z-index:\s*60/s.test(css), 'css: open combo z-index 60')
-ok(/\.training-actions-row\s*\{[^}]*z-index:\s*1/s.test(css), 'css: actions row below suggest')
+ok(form.includes('training-form--suggest-open'), 'jsx: form root class when suggest open')
+ok(form.includes('exercise-catalog-combo--open'), 'jsx: open class on combo')
+ok(/\.training-form--suggest-open\s*\{[^}]*z-index:\s*40/s.test(css), 'css: form stacking above actions')
+ok(/\.training-actions-row\s*\{[^}]*z-index:\s*1/s.test(css), 'css: actions row z-index 1')
+ok(
+  /body:has\(\.training-form--suggest-open\)\s+\.training-actions-row\s*\{[^}]*pointer-events:\s*none/s.test(css),
+  'css: actions row ignores pointer while suggest open',
+)
 ok(
   /\.exercise-catalog-suggest\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--bg-elevated\)/s.test(css),
   'css: suggest uses elevated glass (not solid fill)',
 )
-ok(form.includes('exercise-catalog-combo--open'), 'jsx: open class when suggest visible')
 
 if (failed) {
   console.error(`\n${failed} failed`)

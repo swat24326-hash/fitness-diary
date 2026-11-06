@@ -2485,14 +2485,26 @@ tr:last-child td {
   position: relative;
 }
 
-/* Открытый список выше ряда «Закончить» (он ниже в DOM и иначе перехватывает тапы). */
 .exercise-catalog-combo--open {
-  z-index: 60;
+  z-index: 2;
+}
+
+/*
+ * z-index внутри формы не поднимает список над соседним .training-actions-row
+ * (кнопка «Закончить» ниже в DOM). Поднимаем всю форму + глушим тапы по ряду кнопок.
+ */
+.training-form--suggest-open {
+  position: relative;
+  z-index: 40;
 }
 
 .training-actions-row {
   position: relative;
   z-index: 1;
+}
+
+body:has(.training-form--suggest-open) .training-actions-row {
+  pointer-events: none;
 }
 
 .exercise-catalog-suggest {
@@ -2506,10 +2518,10 @@ tr:last-child td {
   padding: 6px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  /* Стекло приложения, чуть плотнее прежних ~98% — клики закрывает z-index combo--open. */
   background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
   box-shadow: var(--shadow);
   -webkit-overflow-scrolling: touch;
+  pointer-events: auto;
 }
 
 .exercise-catalog-suggest__empty {

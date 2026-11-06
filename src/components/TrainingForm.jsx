@@ -464,7 +464,7 @@ export function TrainingForm({
   }
 
   return (
-    <div className="steps">
+    <div className={`steps training-form${suggestOpenId ? ' training-form--suggest-open' : ''}`}>
       <div className="step-nav tabs" role="tablist">
         {steps.map((s, i) => (
           <button key={s.id} type="button" className="tab" aria-selected={i === step} onClick={() => setStep(i)}>
