@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { listClientsByClubId, listMembershipsByClubId } from '../lib/localDbClubQuery.js'
+import { useLocation } from 'react-router-dom'
+import { AzDayWriteoffRoll } from './admin/AzDayWriteoffRoll.jsx'
 import {
   aggregateDeskAzSessionsForDay,
   countUnaccountedAzSessionSlots,
   fillEmptyAerobicMatrixFromAzSessions,
+  listDeskAzDayWriteoffs,
   mergeAerobicMatrixWithAzSessionCounts,
 } from '../lib/admin/deskAzSessionDeductCore.js'
-import { deskAzDirectionLabel } from '../lib/admin/deskMembershipLedgerCore.js'
+import { buildAdminClientCardHref } from '../lib/admin/adminClientsListHrefCore.js'
+import { listClientsByClubId, listMembershipsByClubId } from '../lib/localDbClubQuery.js'
+import { removeDeskAzSessionVisit } from '../lib/admin/deskAzSessionDeductService.js'
 import { LOCAL_DATA_CHANGED } from '../lib/localDataEvents.js'
 
 /**
- * Подсказка дневного отчёта по списаниям АЗ.
- *
- * Автоподстановка: при открытии дня заполняет только пустые ячейки матрицы.
- * Уже введённые числа не меняет. Баннер — если списаний больше, чем в матрице.
+ * Перекличка списаний АЗ за день отчёта и доведение матрицы.
+ * Пустые ячейки при открытии дня заполняются сами. Уже введённое число вниз не уменьшается.
  *
  * @param {{
  *   clubId: string,
@@ -32,14 +34,17 @@ export function SalesAerobicAzSessionsHint({
   azTypes = [],
   canEdit = true,
 }) {
-  const [rows, setRows] = useState([])
+  const { pathname } = useLocation()
+  const [people, setPeople] = useState([])
+  const [counts, setCounts] = useState([])
   const autoFilledDateRef = useRef('')
   const matrixRef = useRef(matrix)
   matrixRef.current = matrix
 
   const reload = useCallback(() => {
     if (!clubId || !reportDate) {
-      setRows([])
+      setPeople([])
+      setCounts([])
       return
     }
     void (async () => {
@@ -48,22 +53,24 @@ export function SalesAerobicAzSessionsHint({
           listClientsByClubId(clubId),
           listMembershipsByClubId(clubId),
         ])
-        const nextRows = aggregateDeskAzSessionsForDay(memberships ?? [], clients ?? [], reportDate)
-        setRows(nextRows)
+        const nextPeople = listDeskAzDayWriteoffs(memberships ?? [], clients ?? [], reportDate)
+        const nextCounts = aggregateDeskAzSessionsForDay(memberships ?? [], clients ?? [], reportDate)
+        setPeople(nextPeople)
+        setCounts(nextCounts)
 
-        // Один раз на дату отчёта: пустые ячейки ← списания (ручные цифры не трогаем).
         if (
           canEdit &&
           typeof onMatrixChange === 'function' &&
           autoFilledDateRef.current !== reportDate &&
-          nextRows.length
+          nextCounts.length
         ) {
           autoFilledDateRef.current = reportDate
-          const filled = fillEmptyAerobicMatrixFromAzSessions(matrixRef.current, nextRows)
+          const filled = fillEmptyAerobicMatrixFromAzSessions(matrixRef.current, nextCounts)
           if (filled.filledCells > 0) onMatrixChange(filled.matrix)
         }
       } catch {
-        setRows([])
+        setPeople([])
+        setCounts([])
       }
     })()
   }, [clubId, reportDate, canEdit, onMatrixChange])
@@ -82,50 +89,51 @@ export function SalesAerobicAzSessionsHint({
     return () => window.removeEventListener(LOCAL_DATA_CHANGED, onLocal)
   }, [reload])
 
-  const summary = useMemo(() => {
-    return rows
-      .map((r) => {
-        const label = deskAzDirectionLabel(r.membership_type_id, azTypes)
-        return `${label}: ${r.count}`
-      })
-      .join(' · ')
-  }, [rows, azTypes])
-
   const unaccounted = useMemo(
-    () => countUnaccountedAzSessionSlots(matrix, rows),
-    [rows, matrix],
+    () => countUnaccountedAzSessionSlots(matrix, counts),
+    [counts, matrix],
   )
 
-  const needsApply = unaccounted > 0
+  const hrefForClient = useCallback(
+    (clientId) => {
+      const base = pathname.startsWith('/sales')
+        ? '/sales/clients'
+        : pathname.startsWith('/club')
+          ? '/club/clients'
+          : '/admin/clients'
+      return buildAdminClientCardHref(base, clientId, {
+        clubId: pathname.startsWith('/sales') ? '' : clubId,
+        clientsTab: 'az',
+        hall: 'az',
+      })
+    },
+    [pathname, clubId],
+  )
 
-  if (!rows.length) return null
+  const onCancel = useCallback(async (row) => {
+    return removeDeskAzSessionVisit({
+      membershipId: row.membershipId,
+      visitId: row.visitId,
+    })
+  }, [])
+
+  if (!people.length) return null
 
   return (
-    <div className="sales-aerobic-az-hint" role="status">
-      <p className="sales-aerobic-az-hint__text">
-        Списания АЗ за этот день: <strong>{summary}</strong>.
-        {needsApply ? (
-          <>
-            {' '}
-            Ещё не в матрице: <strong>{unaccounted}</strong> занят.
-            {canEdit
-              ? ' Пустые ячейки подставляем сами; если вы уже ввели число — его не уменьшаем. Можно довести кнопкой.'
-              : ''}
-          </>
-        ) : (
-          <> Матрица уже покрывает списания (или больше).</>
-        )}
-      </p>
-      {canEdit && needsApply ? (
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onMatrixChange?.(mergeAerobicMatrixWithAzSessionCounts(matrix, rows))}
-          title="Довести каждую ячейку минимум до числа списаний по направлению"
-        >
-          Довести матрицу до списаний
-        </button>
-      ) : null}
-    </div>
+    <AzDayWriteoffRoll
+      people={people}
+      dayIso={reportDate}
+      azTypes={azTypes}
+      hrefForClient={hrefForClient}
+      enableDirectionFilter
+      canCancel={canEdit}
+      onCancel={canEdit ? onCancel : null}
+      matrixLag={canEdit ? unaccounted : 0}
+      onFillMatrix={
+        canEdit && unaccounted > 0
+          ? () => onMatrixChange?.(mergeAerobicMatrixWithAzSessionCounts(matrix, counts))
+          : null
+      }
+    />
   )
 }

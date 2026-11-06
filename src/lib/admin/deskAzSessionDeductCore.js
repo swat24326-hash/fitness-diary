@@ -200,38 +200,79 @@ export function formatDeskAzSessionUsageRu(membership) {
 }
 
 /**
- * Агрегат списаний АЗ за день по направлениям (для подсказки в дневном отчёте).
- * Тип берём из визита (снимок), иначе с абона — для старых записей.
+ * Перекличка списаний АЗ за день: кто, когда, с какого абона.
+ * Новые сверху. Тип — снимок визита, иначе текущий тип абона.
+ * @param {object[]} memberships
+ * @param {object[]} clients — только desk_hall=az
+ * @param {string} dayIso
+ * @returns {Array<{
+ *   visitId: string,
+ *   membershipId: string,
+ *   clientId: string,
+ *   clientName: string,
+ *   membershipTypeId: string,
+ *   createdAt: string,
+ *   used: number,
+ *   total: number,
+ * }>}
+ */
+export function listDeskAzDayWriteoffs(memberships, clients, dayIso) {
+  const day = String(dayIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return []
+
+  /** @type {Map<string, object>} */
+  const clientById = new Map()
+  for (const c of clients ?? []) {
+    if (normalizeDeskHall(c?.desk_hall) !== 'az') continue
+    const id = String(c?.id ?? '').trim()
+    if (id) clientById.set(id, c)
+  }
+
+  /** @type {Array<{ visitId: string, membershipId: string, clientId: string, clientName: string, membershipTypeId: string, createdAt: string, used: number, total: number }>} */
+  const out = []
+  for (const m of memberships ?? []) {
+    const cid = String(m?.client_id ?? '').trim()
+    const client = clientById.get(cid)
+    if (!client) continue
+    const usage = deskAzSessionUsage(m)
+    for (const v of normalizeSessionVisits(m?.session_visits)) {
+      if (v.date !== day) continue
+      const typeId = resolveVisitMembershipTypeId(v, m)
+      if (!typeId) continue
+      out.push({
+        visitId: v.id,
+        membershipId: String(m?.id ?? '').trim(),
+        clientId: cid,
+        clientName: String(client?.name ?? '').trim(),
+        membershipTypeId: typeId,
+        createdAt: v.created_at,
+        used: usage.used,
+        total: usage.total,
+      })
+    }
+  }
+
+  out.sort(
+    (a, b) =>
+      String(b.createdAt).localeCompare(String(a.createdAt)) ||
+      String(b.visitId).localeCompare(String(a.visitId)),
+  )
+  return out
+}
+
+/**
+ * Агрегат списаний АЗ за день по направлениям (для матрицы дневного отчёта).
  * @param {object[]} memberships
  * @param {object[]} clients — для фильтра desk_hall=az
  * @param {string} dayIso
  * @returns {Array<{ membership_type_id: string, count: number }>}
  */
 export function aggregateDeskAzSessionsForDay(memberships, clients, dayIso) {
-  const day = String(dayIso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return []
-
-  /** @type {Set<string>} */
-  const azClientIds = new Set()
-  for (const c of clients ?? []) {
-    if (normalizeDeskHall(c?.desk_hall) !== 'az') continue
-    const id = String(c?.id ?? '').trim()
-    if (id) azClientIds.add(id)
-  }
-
   /** @type {Map<string, number>} */
   const byType = new Map()
-  for (const m of memberships ?? []) {
-    const cid = String(m?.client_id ?? '').trim()
-    if (!cid || !azClientIds.has(cid)) continue
-    for (const v of normalizeSessionVisits(m?.session_visits)) {
-      if (v.date !== day) continue
-      const typeId = resolveVisitMembershipTypeId(v, m)
-      if (!typeId) continue
-      byType.set(typeId, (byType.get(typeId) || 0) + 1)
-    }
+  for (const row of listDeskAzDayWriteoffs(memberships, clients, dayIso)) {
+    byType.set(row.membershipTypeId, (byType.get(row.membershipTypeId) || 0) + 1)
   }
-
   return [...byType.entries()]
     .map(([membership_type_id, count]) => ({ membership_type_id, count }))
     .filter((r) => r.count > 0)

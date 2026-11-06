@@ -344,7 +344,7 @@
 | Архив: подвкладки ПЗ / ТЗ / АЗ | `verify-admin-clients-archive-hall.mjs` |
 | Списки клиентов (зал × признак × архив-период) | `verify-client-lists-query.mjs` |
 | АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |
-| АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |
+| АЗ: списание занятий + журнал дат + перекличка дня | `verify-desk-az-session-deduct.mjs` |
 | АЗ: инструкторы (не `trainer_id`) | `verify-client-az-instructors.mjs` |
 | АЗ: диалоги в «Сообщениях» (`az_instructor` + `peer_user_id`, без «От тренера» у чистого АЗ) | `verify-client-az-chat.mjs` |
 | АЗ: «Следующая» = персоналка или группа по инструктору+направлению | `verify-client-az-next-session.mjs` |

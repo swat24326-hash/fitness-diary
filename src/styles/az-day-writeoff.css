@@ -1,0 +1,151 @@
+.az-day-writeoff {
+  margin: 0.75rem 0 0.35rem;
+  padding: 0.7rem 0.85rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+}
+
+.az-day-writeoff__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.az-day-writeoff__title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.az-day-writeoff__title-dir {
+  color: var(--text-muted);
+  font-weight: 550;
+}
+
+.az-day-writeoff__count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.05rem 0.4rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 40%, transparent);
+}
+
+.az-day-writeoff__fill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.7rem;
+}
+
+.az-day-writeoff__lag {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.az-day-writeoff__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.az-day-writeoff__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.az-day-writeoff__chip.is-active {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 650;
+}
+
+.az-day-writeoff__chip-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.az-day-writeoff__list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  max-height: 13.5rem;
+  overflow: auto;
+}
+
+.az-day-writeoff__row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.5rem;
+  padding: 0.15rem 0.1rem;
+}
+
+.az-day-writeoff__row + .az-day-writeoff__row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.az-day-writeoff__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.az-day-writeoff__name:hover {
+  color: var(--accent);
+}
+
+.az-day-writeoff__time,
+.az-day-writeoff__dir,
+.az-day-writeoff__usage {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.az-day-writeoff__dir {
+  max-width: 8.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.az-day-writeoff__confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.az-day-writeoff__error {
+  margin: 0.35rem 0 0.15rem;
+  color: var(--danger);
+  font-size: 0.82rem;
+}

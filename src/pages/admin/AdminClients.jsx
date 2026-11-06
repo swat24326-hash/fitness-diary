@@ -16,6 +16,9 @@ import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBr
 import { AdminClientsAzDirectionFilters } from '../../components/admin/AdminClientsAzDirectionFilters.jsx'
 import { AdminClientsArchiveHallFilters } from '../../components/admin/AdminClientsArchiveHallFilters.jsx'
 import { AdminClientsListRow } from '../../components/admin/AdminClientsListRow.jsx'
+import { AzDayWriteoffRoll } from '../../components/admin/AzDayWriteoffRoll.jsx'
+import { listDeskAzDayWriteoffs } from '../../lib/admin/deskAzSessionDeductCore.js'
+import { removeDeskAzSessionVisit } from '../../lib/admin/deskAzSessionDeductService.js'
 import { AdminClientsSearchBar } from '../../components/admin/AdminClientsSearchBar.jsx'
 import {
   deleteClientAndAllData,
@@ -563,6 +566,23 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     for (const list of Object.values(memByClient)) out.push(...(list ?? []))
     return out
   }, [memByClient])
+
+  const azDayWriteoffs = useMemo(
+    () => (clientsTab === 'az' ? listDeskAzDayWriteoffs(allMemberships, clients, today) : []),
+    [clientsTab, allMemberships, clients, today],
+  )
+
+  const cancelAzDayWriteoff = useCallback(async (row) => {
+    const res = await removeDeskAzSessionVisit({
+      membershipId: row.membershipId,
+      visitId: row.visitId,
+    })
+    if (res.ok) {
+      const name = String(row.clientName ?? '').trim()
+      setRefreshMsg(res.warning || (name ? `Списание отменено: ${name}` : 'Списание отменено'))
+    }
+    return res
+  }, [])
 
   const todaySnapshot = useMemo(
     () => buildAdminClientsTodaySnapshot(clients, allMemberships, today, holdingTrainerIds, noTabletTrainerIds),
@@ -1444,6 +1464,15 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               countsPending={!lifecycleReady}
             />
             {clientsTab === 'az' ? (
+              <AzDayWriteoffRoll
+                people={azDayWriteoffs}
+                dayIso={today}
+                azTypes={azMembershipTypes}
+                hrefForClient={(id) => cardHrefForClient(id, 'az')}
+                onCancel={cancelAzDayWriteoff}
+              />
+            ) : null}
+            {clientsTab === 'az' ? (
               <AdminClientsAzDirectionFilters
                 options={azDirectionOptions}
                 value={crossHallSearch ? AZ_DIRECTION_FILTER_ALL : azDirectionFilter}
@@ -1453,11 +1482,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             ) : null}
             {isDeskHallTab ? (
               <p className="admin-clients-workspace__archive-hint muted">
-                Вкладка {clientsTab === 'tz' ? 'ТЗ' : 'АЗ'}: люди из списка заканчивающихся, без живого тренера.
-                Карточка — контакты и абонементы. Загрузка файла — в «Списки из Excel».
                 {clientsTab === 'az'
-                  ? ' Направления — типы абон. АЗ. Списание занятий — кнопка рядом с профилем (и в карточке); журнал дат — в абонементе.'
-                  : ''}
+                  ? 'Списание — кнопка у фамилии. Файл — в «Списки из Excel».'
+                  : 'Вкладка ТЗ: люди из списка заканчивающихся, без живого тренера. Карточка — контакты и абонементы. Загрузка файла — в «Списки из Excel».'}
               </p>
             ) : null}
           </>

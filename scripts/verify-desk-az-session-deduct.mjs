@@ -3,6 +3,7 @@
  */
 import {
   aggregateDeskAzSessionsForDay,
+  listDeskAzDayWriteoffs,
   applyDeskAzSessionDeduct,
   applyDeskAzSessionVisitDateChange,
   applyDeskAzSessionVisitRemove,
@@ -103,6 +104,37 @@ const mems = [
 ]
 const dayAgg = aggregateDeskAzSessionsForDay(mems, clients, '2026-08-04')
 ok(dayAgg.length === 1 && dayAgg[0].count === 2 && dayAgg[0].membership_type_id === 'box', 'day agg uses visit type')
+
+const rollMems = [
+  {
+    id: 'm-roll',
+    client_id: 'c1',
+    membership_type_id: 'step',
+    total_trainings: 10,
+    used_trainings: 3,
+    session_visits: [
+      { id: 'a', date: '2026-08-04', created_at: '2026-08-04T07:00:00.000Z', membership_type_id: 'box' },
+      { id: 'b', date: '2026-08-04', created_at: '2026-08-04T15:00:00.000Z', membership_type_id: 'box' },
+      { id: 'c', date: '2026-08-05', created_at: '2026-08-05T10:00:00.000Z', membership_type_id: 'step' },
+    ],
+  },
+  {
+    id: 'm-tz',
+    client_id: 'c2',
+    total_trainings: 8,
+    used_trainings: 1,
+    session_visits: [{ id: 'z', date: '2026-08-04', created_at: '2026-08-04T18:00:00.000Z', membership_type_id: 'box' }],
+  },
+]
+const rollClients = [
+  { id: 'c1', desk_hall: 'az', name: 'Иванова Анна' },
+  { id: 'c2', desk_hall: 'tz', name: 'Чужой' },
+]
+const roll = listDeskAzDayWriteoffs(rollMems, rollClients, '2026-08-04')
+ok(roll.length === 2 && roll[0].visitId === 'b' && roll[1].visitId === 'a', 'roll newer first, other hall out')
+ok(roll[0].clientName === 'Иванова Анна' && roll[0].membershipId === 'm-roll', 'roll name and membership')
+ok(roll[0].used === 3 && roll[0].total === 10, 'roll usage')
+ok(listDeskAzDayWriteoffs(rollMems, rollClients, '2026-08-09').length === 0, 'roll empty day')
 
 const merged = mergeAerobicMatrixWithAzSessionCounts({ box: '1' }, dayAgg)
 ok(merged.box === '2', 'merge max')
