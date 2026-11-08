@@ -65,7 +65,9 @@ import { chatReplyQuoteFor } from '../../../src/lib/chat/chatReplyCore.js'
 import { buildChatSearchHit, CHAT_SEARCH_LIMIT, chatTextMatches, normalizeChatSearchQuery } from '../../../src/lib/chat/chatSearchCore.js'
 import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { resolveChatOutgoing } from '../../../src/lib/chat/chatStickerCore.js'
+import { azGroupAttention } from '../../../src/lib/chat/azGroupCore.js'
 import { staffGroupAttention } from '../../../src/lib/chat/staffGroupCore.js'
+import { createFakeAzGroup } from './fakeAzGroup.mjs'
 import { createFakeStaffGroup } from './fakeStaffGroup.mjs'
 
 function staffCtx(user) {
@@ -94,6 +96,8 @@ export function createFakeChat(state) {
   }
   const group = createFakeStaffGroup(state)
   chat.group = group.state
+  const az = createFakeAzGroup(state)
+  chat.az = az.state
   /**
    * Как storeChatVoice: куски — звук телефона (WebM / Ogg / MP4) или MP3, файл под ключом автора. Без ffmpeg: кусков
    * один — хранится как есть (играет в браузере стенда), склейку и обрезку проверяет verify-chat-voice.
@@ -276,6 +280,8 @@ export function createFakeChat(state) {
   function client(clientId, body) {
     const row = state.clients.find((c) => c.id === clientId)
     const kind = String(body?.kind ?? '')
+    const azHit = az.handleClient(clientId, body)
+    if (azHit) return azHit
     if (body.action === 'chat-list') {
       const threads = clientChatKinds(row).map((k) => {
         const t = threadOf(clientId, k)
@@ -291,7 +297,7 @@ export function createFakeChat(state) {
           reaction: chatUnseenReaction('client', t),
         }
       })
-      return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length } }
+      return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length + az.attentionClient(clientId) } }
     }
     if (body.action === 'chat-thread') {
       const name = kind === 'trainer' ? names().get(String(row.trainer_id)) ?? '' : ''
@@ -314,7 +320,7 @@ export function createFakeChat(state) {
   }
 
   function attentionForClient(clientId) {
-    return chat.threads.filter((t) => t.client_id === clientId && isChatUnreadFor('client', t)).length
+    return chat.threads.filter((t) => t.client_id === clientId && isChatUnreadFor('client', t)).length + az.attentionClient(clientId)
   }
 
   const folderOf = (id, role, contacts) => {
@@ -376,8 +382,10 @@ export function createFakeChat(state) {
     const groups = group.summaries(viewer)
     const own = dmRole === 'admin' ? null : groups[0] ?? null
     const colleagues = staff ? folderOf(CHAT_FOLDER_COLLEAGUES, viewerRole, staff.colleagues) : null
+    const azRow = az.summaryForInstructor(user)
+    const clients = clientsFolder(viewerRole, user)
     const folders = [
-      clientsFolder(viewerRole, user),
+      clients && azRow ? { ...clients, azGroup: azRow, unread: clients.unread + azGroupAttention(azRow) } : clients,
       colleagues && own ? { ...colleagues, group: own, unread: colleagues.unread + staffGroupAttention(own) } : colleagues,
       staff ? folderOf(CHAT_FOLDER_ADMIN, viewerRole, staff.admin) : null,
       complaints ? folderOf(CHAT_FOLDER_COMPLAINTS, viewerRole, buildThreadContacts(complaints, clientNames)) : null,
@@ -462,6 +470,8 @@ export function createFakeChat(state) {
   function staff(req, user) {
     if (req.searchParams.get('action') !== 'chat') return null
     const ctx = staffCtx(user)
+    const inAz = az.handleStaff(req, dmUser(user))
+    if (inAz) return inAz
     const inGroup = group.handle(req, dmUser(user))
     if (inGroup) return inGroup
     if (req.method === 'POST' && ['dm-voice-audio', 'dm-voice-text', 'dm-attach'].includes(req.body?.op)) {
@@ -526,7 +536,7 @@ export function createFakeChat(state) {
           unread_count: chatUnreadCount('staff', t),
           reaction: chatUnseenReaction('staff', t),
         }))
-      return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length + dmAttention(user) + group.attention(dmUser(user)) } }
+      return { status: 200, json: { threads, attention: threads.filter((t) => t.unread).length + dmAttention(user) + group.attention(dmUser(user)) + az.attentionStaff(dmUser(user)) } }
     }
     const kind = req.searchParams.get('kind')
     const row = find(req.searchParams.get('client_id'))

@@ -224,13 +224,22 @@ export function voiceOnceRefusal(message, listener, want = 'audio') {
 
 /**
  * Отметить «прослушано», когда звук берёт собеседник автора: в диалоге с клиентом — другая сторона,
- * в личной переписке — не автор. Свои, уже прослушанные и чужой просмотр (mark: false) — нет.
- * @param {{ side?: 'client'|'staff', userId?: string, mark?: boolean }} listener
+ * в личной переписке — не автор, в группе АЗ — другой участник (u: / c:). Свои, уже прослушанные
+ * и чужой просмотр (mark: false) — нет.
+ * @param {{ side?: 'client'|'staff', userId?: string, participant?: string, mark?: boolean }} listener
  */
 export function voiceHeardBy(message, listener) {
   if (!message?.voice_sec || message.voice_played_at || listener?.mark === false) return false
   if (listener?.side) return Boolean(message.author_side) && message.author_side !== listener.side
   if (listener?.userId) return String(message.author_user_id ?? '') !== String(listener.userId)
+  if (listener?.participant) {
+    const key = String(listener.participant).trim().toLowerCase()
+    const author =
+      message.author_side === 'client'
+        ? `c:${String(message.author_client_id ?? '').trim().toLowerCase()}`
+        : `u:${String(message.author_user_id ?? '').trim().toLowerCase()}`
+    return key.length > 2 && author.length > 2 && author !== key
+  }
   return false
 }
 

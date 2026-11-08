@@ -8,6 +8,7 @@
  * POST /api/client-me { action: 'training', id } — одна своя тренировка для окна просмотра (clientTrainingHandler.js).
  * POST /api/client-me { action: 'inbox-list' | 'inbox-item' | 'inbox-answer' } — «Входящие» (../inbox/inboxClientHandler.js).
  * POST /api/client-me { action: 'chat-list' | 'chat-thread' | 'chat-send' } — переписка с тренером и клубом (../chat/chatClientHandler.js).
+ * POST /api/client-me { action: 'az-group-list' | 'az-group-thread' | 'az-group-send' | … } — группа АЗ инструктора (../chat/azGroupRoutes.js). instructor_user_id обязателен, кроме списка.
  * POST /api/client-me { action: 'plan-list' | 'plan-item' } — задание от тренера и рацион (../clientPlans/clientPlansClientHandler.js).
  * POST /api/client-me { action: 'rating-get' | 'rating-answer' | 'rating-dismiss' } — оценка после абонемента (../clientRatings/clientRatingHandler.js).
  * POST /api/client-me { action: 'membership-notice-read' } — прочитано оповещение об абонементе.
@@ -23,6 +24,7 @@ import { handleClientPushPost } from './clientPushHandler.js'
 import { handleClientTraining } from './clientTrainingHandler.js'
 import { handleClientInboxPost, loadClientInboxAttention } from '../inbox/inboxClientHandler.js'
 import { handleClientChatPost, loadClientChatAttention } from '../chat/chatClientHandler.js'
+import { handleClientAzGroupPost } from '../chat/azGroupRoutes.js'
 import { VIDEO_OPS_CLIENT, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
 import { handleClientPlansPost, loadClientPlansSummary } from '../clientPlans/clientPlansClientHandler.js'
 import { handleClientRatingPost, loadClientRatingsSummary } from '../clientRatings/clientRatingHandler.js'
@@ -85,6 +87,7 @@ export async function clientMeHandler(req, res) {
     else if (body?.action === 'training') await handleClientTraining(createServiceDataClient(), ctx, body.id, res)
     else if (String(body?.action ?? '').startsWith('inbox-')) await handleClientInboxPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('chat-')) await handleClientChatPost(createServiceDataClient(), ctx, body, res)
+    else if (String(body?.action ?? '').startsWith('az-group-')) await handleClientAzGroupPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('plan-')) await handleClientPlansPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('rating-')) await handleClientRatingPost(createServiceDataClient(), ctx, body, res)
     else if (String(body?.action ?? '').startsWith('membership-notice-')) {

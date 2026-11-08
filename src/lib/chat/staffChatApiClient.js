@@ -116,3 +116,30 @@ export const staffGroupApi = (clubId) => ({
     file: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'group-attach', club_id: clubId, message_id: messageId }, fileOpts),
   },
 })
+
+/** Группа АЗ инструктора на планшете. Чужой instructor_user_id сервер отклонит. */
+export const staffAzGroupApi = (instructorUserId) => ({
+  async load(before, seen) {
+    const data = await inboxApiCall('chat', 'GET', {
+      view: 'az-group-thread',
+      instructor_user_id: instructorUserId,
+      ...(before ? { before } : {}),
+      ...chatSeenParam(seen),
+    })
+    if (data?.marked_read) window.dispatchEvent(new Event(STAFF_INBOX_CHANGED))
+    return data
+  },
+  send: (outgoing) => sendChat({ op: 'az-group-send', instructor_user_id: instructorUserId }, outgoing),
+  react: (messageId, emoji) =>
+    inboxApiCall('chat', 'POST', {}, { op: 'az-group-react', instructor_user_id: instructorUserId, message_id: messageId, emoji }),
+  search: (q) => inboxApiCall('chat', 'GET', { view: 'az-group-search', instructor_user_id: instructorUserId, q }),
+  mute: (muted) => inboxApiCall('chat', 'POST', {}, { op: 'az-group-mute', instructor_user_id: instructorUserId, muted }),
+  pin: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'az-group-pin', instructor_user_id: instructorUserId, message_id: messageId }),
+  readers: (messageId) => inboxApiCall('chat', 'GET', { view: 'az-group-readers', instructor_user_id: instructorUserId, message_id: messageId }),
+  voice: {
+    audio: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'az-group-voice-audio', instructor_user_id: instructorUserId, message_id: messageId }),
+    text: (messageId) => inboxApiCall('chat', 'POST', {}, { op: 'az-group-voice-text', instructor_user_id: instructorUserId, message_id: messageId }),
+    file: (messageId) =>
+      inboxApiCall('chat', 'POST', {}, { op: 'az-group-attach', instructor_user_id: instructorUserId, message_id: messageId }, fileOpts),
+  },
+})

@@ -116,7 +116,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
       const { message_id, emoji, reply_to, audio, sec, wave, once, silent, attach, client_msg_id } = req.body ?? {}
       const op = req.body?.op
       if (String(op).startsWith('story-')) return { status: 200, json: { ok: true, stories: [], can_publish: false } }
-      if (String(op).startsWith('group-')) return staff({}, req.body)
+      if (String(op).startsWith('az-group-') || String(op).startsWith('group-')) return staff({}, req.body)
       if (op === 'dm-send') {
         return staff({}, { op: 'dm-send', user_id: req.body.user_id, body: req.body.body, sticker: req.body.sticker, audio, sec, wave, once, attach, client_msg_id, reply_to, silent })
       }
@@ -154,7 +154,7 @@ export function createFakeCoach(state, chat, { trainerId, today, schedule, train
     if (view === 'chats') return staff({ view: 'list' })
     if (view === 'contacts') return staff({ view: 'contacts' })
     if (view === 'dm-thread') return staff({ view: 'dm-thread', user_id: q.get('user_id') })
-    if (view.startsWith('group-')) return staff(Object.fromEntries(q))
+    if (view.startsWith('az-group-') || view.startsWith('group-')) return staff(Object.fromEntries(q))
     if (view === 'chat-thread') return staff({ view: 'thread', kind: coachKind(q.get('kind')), client_id: q.get('client_id') })
     if (view === 'dm-search') return staff({ view: 'dm-search', user_id: q.get('user_id'), q: q.get('q') })
     if (view === 'chat-search') return staff({ view: 'search', kind: coachKind(q.get('kind')), client_id: q.get('client_id'), q: q.get('q') })

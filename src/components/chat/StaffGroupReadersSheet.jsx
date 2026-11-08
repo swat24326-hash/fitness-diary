@@ -28,9 +28,10 @@ function People({ title, icon: Icon, people, dim = false }) {
 
 /**
  * «Кто прочитал» своё сообщение в чате клуба: прочитали и ещё не открыли (управляющей — кому напомнить).
- * @param {{ messageId: string|null, load: (id: string) => Promise<{ read: object[], unread: object[] }>, onClose: () => void }} props
+ * seenRu — подпись в шапке окна («Прочитали N из M»); у группы АЗ своя.
+ * @param {{ messageId: string|null, load: (id: string) => Promise<{ read: object[], unread: object[] }>, onClose: () => void, seenRu?: (seen: { seen: number, total: number }) => string }} props
  */
-export function StaffGroupReadersSheet({ messageId, load, onClose }) {
+export function StaffGroupReadersSheet({ messageId, load, onClose, seenRu = staffGroupSeenRu }) {
   const titleId = useId()
   const [state, setState] = useState({ id: null, data: null, error: '' })
 
@@ -57,7 +58,7 @@ export function StaffGroupReadersSheet({ messageId, load, onClose }) {
       <div className="modal-panel staff-readers" onClick={(e) => e.stopPropagation()} data-testid="group-readers">
         <header className="staff-readers__top">
           <h2 id={titleId} className="section-title">
-            {data ? staffGroupSeenRu({ seen: data.read.length, total: data.read.length + data.unread.length }) : 'Кто прочитал'}
+            {data ? seenRu({ seen: data.read.length, total: data.read.length + data.unread.length }) : 'Кто прочитал'}
           </h2>
           <button type="button" className="btn btn-ghost btn-icon-square btn-touch" onClick={onClose} aria-label="Закрыть" autoFocus>
             <X size={20} aria-hidden />

@@ -1,5 +1,5 @@
 /**
- * Реакции на сообщения (service role): переписка с клиентом — chat_*, сотрудников — staff_dm_*, чат клуба — staff_group_*.
+ * Реакции на сообщения (service role): переписка с клиентом — chat_*, сотрудников — staff_dm_*, чат клуба — staff_group_*, группа АЗ — az_group_*.
  * Доступ к диалогу проверяет вызывающий handler; здесь — что сообщение из этого диалога, запись, чтение,
  * имена «кто поставил» и значок реакции в списке диалогов (last_reaction_* у диалога).
  */
@@ -21,6 +21,13 @@ const TABLES = {
   dm: { reactions: 'staff_dm_message_reactions', messages: 'staff_dm_messages', threads: 'staff_dm_threads', author: 'author_user_id' },
   /** Чат клуба: значка реакции в списке нет — threads не нужен. */
   group: { reactions: 'staff_group_message_reactions', messages: 'staff_group_messages', threads: null, author: 'author_user_id' },
+  /** Группа АЗ: авторы user | client, значка в списке нет. */
+  az: {
+    reactions: 'az_group_message_reactions',
+    messages: 'az_group_messages',
+    threads: null,
+    author: 'author_side, author_user_id, author_client_id',
+  },
 }
 const FIELDS = 'message_id, reactor, emoji'
 const UNAVAILABLE_RU = 'Реакции пока недоступны — попробуйте позже'
@@ -63,9 +70,18 @@ export async function loadReactionsFor(db, scope, messageIds, viewerKey, clientN
   }
 }
 
-/** Ключ автора сообщения для сравнения с тем, кто ставит: в переписке с клиентом — сторона, у сотрудников — человек. */
+/** Ключ автора сообщения для сравнения с тем, кто ставит: в переписке с клиентом — сторона, у сотрудников — человек, в группе АЗ — u: / c:. */
 function authorKey(scope, message) {
   if (scope === 'chat') return message.author_side
+  if (scope === 'az') {
+    return message.author_side === 'client'
+      ? message.author_client_id
+        ? `c:${String(message.author_client_id).toLowerCase()}`
+        : ''
+      : message.author_user_id
+        ? `u:${String(message.author_user_id).toLowerCase()}`
+        : ''
+  }
   return message.author_user_id ? `u:${message.author_user_id}` : ''
 }
 

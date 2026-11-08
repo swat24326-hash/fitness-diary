@@ -25,6 +25,7 @@ import { chatSeenFromRequest } from '../../../src/lib/chat/chatSeenCore.js'
 import { sendChatFileAnswer } from './chatAttachHandler.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { rows } from '../inbox/inboxStore.js'
+import { clientAzGroupsAttention } from './azGroupList.js'
 import { isMissingChatTable, loadClientAzInstructorRows, loadClientThreads, loadStaffCards } from './chatStore.js'
 
 const UNAVAILABLE_RU = 'Сообщения пока недоступны — попробуйте позже'
@@ -93,7 +94,8 @@ async function listThreads(db, client) {
       reaction: chatUnseenReaction('client', t),
     }
   })
-  return { threads, attention: threads.filter((t) => t.unread).length }
+  const groups = await clientAzGroupsAttention(db, client.id)
+  return { threads, attention: threads.filter((t) => t.unread).length + groups }
 }
 
 function peerFromBody(body) {
@@ -124,13 +126,14 @@ async function assertClientChatAccess(db, client, kind, peerUserId, res) {
 
 /** Число непрочитанных диалогов для конверта (GET /api/client-me) — только те, что видны в списке. До миграции — 0. */
 export async function loadClientChatAttention(db, client) {
+  let chat = 0
   try {
     const [threads, azRows] = await Promise.all([loadClientThreads(db, client.id), loadClientAzInstructorRows(db, client.id)])
-    return clientChatAttention(client, threads, clientAzInstructorPeerIds(azRows))
+    chat = clientChatAttention(client, threads, clientAzInstructorPeerIds(azRows))
   } catch (e) {
-    if (isMissingChatTable(e)) return 0
-    throw e
+    if (!isMissingChatTable(e)) throw e
   }
+  return chat + (await clientAzGroupsAttention(db, client.id))
 }
 
 export async function handleClientChatPost(db, ctx, body, res) {

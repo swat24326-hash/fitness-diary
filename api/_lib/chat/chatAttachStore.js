@@ -20,7 +20,7 @@ export function attachColumns(attach) {
   }
 }
 
-/** @param {'chat_messages' | 'staff_dm_messages' | 'staff_group_messages'} table — только в диалоге, к которому у человека есть доступ */
+/** @param {'chat_messages' | 'staff_dm_messages' | 'staff_group_messages' | 'az_group_messages'} table — только в диалоге, к которому у человека есть доступ */
 export async function loadAttachMessage(db, table, threadId, messageId) {
   if (!threadId || !isInboxUuid(messageId)) return null
   const { data, error } = await db

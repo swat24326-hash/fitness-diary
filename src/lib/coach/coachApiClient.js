@@ -114,6 +114,22 @@ export const coachGroupApi = Object.freeze({
   }),
 })
 
+/** Группа АЗ на телефоне инструктора: клуб и человек — из учётки, чужой тред сервер не отдаст. */
+export const coachAzGroupApi = Object.freeze({
+  load: (before, seen) => coachRequest({ view: 'az-group-thread', ...(before ? { before } : {}), ...chatSeenParam(seen) }),
+  send: (outgoing) => (isVideoOutgoing(outgoing) ? sendVideo({ op: 'az-group-send' }, outgoing) : coachRequest({}, { op: 'az-group-send', ...outgoing })),
+  react: (messageId, emoji) => coachRequest({}, { op: 'az-group-react', message_id: messageId, emoji }),
+  search: (q) => coachRequest({ view: 'az-group-search', q }),
+  mute: (muted) => coachRequest({}, { op: 'az-group-mute', muted }),
+  pin: (messageId) => coachRequest({}, { op: 'az-group-pin', message_id: messageId }),
+  readers: (messageId) => coachRequest({ view: 'az-group-readers', message_id: messageId }),
+  voice: Object.freeze({
+    audio: (messageId) => coachRequest({}, { op: 'az-group-voice-audio', message_id: messageId }),
+    text: (messageId) => coachRequest({}, { op: 'az-group-voice-text', message_id: messageId }),
+    file: (messageId) => coachRequest({}, { op: 'az-group-attach', message_id: messageId }, fileOpts),
+  }),
+})
+
 export const fetchCoachPushStatus = (endpoint) => coachRequest({ view: 'push-status', endpoint: endpoint || '' })
 
 /** @param {{ endpoint: string, p256dh?: string, auth?: string, user_agent?: string }} sub */

@@ -80,6 +80,12 @@ ok(!voiceHeardBy(voiceMsg, { side: 'staff' }), 'сотрудник слушае�
 ok(!voiceHeardBy({ ...voiceMsg, author_side: 'client' }, { side: 'staff', mark: false }), 'главный админ смотрит чужой диалог — не ставим')
 ok(!voiceHeardBy({ ...voiceMsg, voice_played_at: '2026-10-13T10:00:00Z' }, { side: 'client' }), 'уже прослушано — время первое')
 ok(voiceHeardBy(voiceMsg, { userId: 'u2' }) && !voiceHeardBy(voiceMsg, { userId: 'u1' }), 'личная переписка: слушает собеседник — да, автор — нет')
+const azClient = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+const azInst = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const azVoice = { voice_sec: 4, author_side: 'client', author_client_id: azClient, author_user_id: null, voice_played_at: null }
+ok(!voiceHeardBy(azVoice, { participant: `c:${azClient}` }), 'группа АЗ: автор-клиент слушает своё — нет')
+ok(voiceHeardBy(azVoice, { participant: `u:${azInst}` }), 'группа АЗ: инструктор слушает клиента — да')
+ok(!voiceHeardBy({ voice_sec: 4, author_side: 'user', author_user_id: azInst, voice_played_at: null }, { participant: `u:${azInst}` }), 'группа АЗ: инструктор слушает своё — нет')
 ok(!voiceHeardBy({ ...voiceMsg, voice_sec: null }, { side: 'client' }), 'не голосовое — нет')
 ok(buildVoiceView({ voice_sec: 7, voice_key: 'k', created_at: new Date().toISOString(), voice_played_at: 'x' }).played === true, 'экран получает played')
 let marked = 0

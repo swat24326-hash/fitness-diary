@@ -3,6 +3,7 @@
  * тренера (app 'coach') получает адрес внутри /coach — иначе тап открыл бы полное приложение зала.
  * «Жалобы и предложения» (kind supervisor) — телефон тренера, связанного с управляющим (linkedStaffCore).
  * Чат клуба (/messages?group=<клуб>) — на телефоне тренера всегда чат своего клуба: /coach/group.
+ * Группа АЗ (/messages?azGroup=<инструктор>) — на телефоне: /coach/az-group.
  */
 import { COACH_HOME } from '../pwa/appHomePath.js'
 
@@ -13,9 +14,11 @@ const STAFF_CLIENT_CHAT =
   /^\/messages\/chat\/([0-9a-f-]{36})\/(trainer|supervisor|az_instructor)(?:\/([0-9a-f-]{36}))?(?:[/?#]|$)/i
 const STAFF_DM = /^\/messages\/dm\/([0-9a-f-]{36})(?:[/?#]|$)/i
 const STAFF_GROUP = /^\/messages\?group=[0-9a-f-]{36}(?:[&#]|$)/i
+const AZ_GROUP = /^\/messages\?azGroup=[0-9a-f-]{36}(?:[&#]|$)/i
 
 export function coachPushUrl(url) {
   if (STAFF_GROUP.test(String(url ?? ''))) return '/coach/group'
+  if (AZ_GROUP.test(String(url ?? ''))) return '/coach/az-group'
   const chat = STAFF_CLIENT_CHAT.exec(String(url ?? ''))
   if (chat) {
     const id = chat[1].toLowerCase()

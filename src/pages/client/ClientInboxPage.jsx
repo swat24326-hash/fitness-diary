@@ -29,7 +29,7 @@ export function ClientInboxPage() {
     >
       <ClientPageTitle title="Сообщения" back={false} />
       <ClubStoryRail channel="client" />
-      <ClientChatThreadsSection threads={chats.threads} error={chats.status === 'error' ? chats.error : ''} />
+      <ClientChatThreadsSection threads={chats.threads} groups={chats.groups} error={chats.status === 'error' ? chats.error : ''} />
     </ClientMeShell>
   )
 }

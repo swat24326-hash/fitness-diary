@@ -4,6 +4,7 @@
  *      contacts — папки «Сообщений», клиенты с приложением сверху (chatContactsHandler.js)
  *      | dm-thread&user_id[&before] — переписка с коллегой / администрацией (staffDmHandler.js)
  *      | group-thread | group-search | group-readers — чат клуба (staffGroupRoutes.js); POST op group-send | group-react | group-mute | group-pin | group-voice-*
+ *      | az-group-thread | az-group-search | az-group-readers — группа АЗ своего инструктора (azGroupRoutes.js); POST op az-group-send | az-group-react | az-group-mute | az-group-pin | az-group-voice-* | az-group-attach
  *      | chat-search&client_id[&kind]&q | dm-search&user_id&q — поиск по диалогу → { results }
  *      | schedule-range&from&to — Ежедневник за период (coachScheduleHandler.js)
  *      | clients — свои «Активные» клиенты с абонементами (coachClientsHandler.js)
@@ -15,7 +16,7 @@
  *      | { op: 'chat-voice-audio' | 'chat-voice-text', client_id, kind?, message_id } | { op: 'dm-voice-audio' | 'dm-voice-text', user_id, message_id }
  *      | { op: 'chat-attach', client_id, kind?, message_id } | { op: 'dm-attach', user_id, message_id } → { data, mime, name } — фото / PDF
  *        — звук голосового (сутки) и расшифровка «→ Аа»; у видеокружка chat-attach / dm-attach отдают байты
- *      | бинарный POST video/mp4|webm ?op=chat-send|dm-send|group-send&…&sec — видеокружок (chatVideoHandler.js)
+ *      | бинарный POST video/mp4|webm ?op=chat-send|dm-send|group-send|az-group-send&…&sec — видеокружок (chatVideoHandler.js)
  *      | { op: 'client-invite', client_id } — ссылка клиенту в приложение (только выдать, отключать — с планшета)
  *      | { op: 'handoff' } — одноразовый вход для значка iPhone (coachHandoffHandler.js)
  *      | { op: 'avatar-get' | 'avatar-set' (data — base64 JPEG) | 'avatar-delete' } — своё фото профиля (../profile/avatarHandler.js)
@@ -31,6 +32,7 @@ import { handleStaffStoriesGet, handleStaffStoriesPost } from '../stories/storyH
 import { sendChatContacts } from '../chat/chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice } from '../chat/staffDmHandler.js'
 import { handleStaffGroupGet, handleStaffGroupPost } from '../chat/staffGroupRoutes.js'
+import { handleAzGroupGet, handleAzGroupPost } from '../chat/azGroupRoutes.js'
 import { VIDEO_OPS_COACH, isVideoUpload, videoSendBody } from '../chat/chatVideoHandler.js'
 import { storyVideoPublishBody } from '../stories/storyVideoBody.js'
 import { issueClientInvite } from '../clientPortal/clientInviteHandler.js'
@@ -117,6 +119,7 @@ async function handleGet(ctx, req, res, store) {
   if (view === 'contacts') return sendChatContacts(ctx, res)
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
   if (view === 'dm-search') return sendStaffDmSearch(ctx, res, req.query?.user_id, req.query?.q)
+  if (view.startsWith('az-group-')) return handleAzGroupGet(ctx, res, view, req.query ?? {})
   if (view.startsWith('group-')) return handleStaffGroupGet(ctx, res, view, req.query ?? {})
   if (view === 'chat-search') {
     const { client_id, q } = req.query ?? {}
@@ -172,6 +175,7 @@ async function handlePost(ctx, res, body, store) {
     return sendStaffDmMessage(ctx, res, body.user_id, { body: text, sticker, parts, audio, trim, sec, wave, once, attach, client_msg_id, reply_to, silent })
   }
   if (op === 'dm-react') return reactStaffDmMessage(ctx, res, body.user_id, { message_id: body.message_id, emoji: body.emoji })
+  if (op.startsWith('az-group-')) return handleAzGroupPost(ctx, res, op, body)
   if (op.startsWith('group-')) return handleStaffGroupPost(ctx, res, op, body)
   if (op === 'client-invite') {
     const out = await issueClientInvite(ctx, { client_id: body.client_id })

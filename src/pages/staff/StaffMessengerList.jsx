@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Mail, MessageCircle, RefreshCw, WifiOff } from 'lucide-react'
 import { ChatContactList } from '../../components/chat/ChatContactList.jsx'
 import { ChatThreadList } from '../../components/chat/ChatThreadList.jsx'
+import { AzGroupRow } from '../../components/chat/AzGroupRow.jsx'
 import { StaffGroupRow } from '../../components/chat/StaffGroupRow.jsx'
 import { ClientInviteModal } from '../../components/client/ClientInviteModal.jsx'
 import { InboxItemList } from '../../components/inbox/InboxItemList.jsx'
@@ -95,6 +96,15 @@ export function StaffMessengerList({ folder, chats, inbox, open, href }) {
           }}
           onInvite={setInviting}
           selectedId={clientsSelected}
+          pinned={
+            folder.azGroup ? (
+              <AzGroupRow
+                group={folder.azGroup}
+                to={href({ azGroup: folder.azGroup.instructor_user_id })}
+                selected={open?.type === 'azGroup'}
+              />
+            ) : null
+          }
         />
         <ClientInviteModal open={Boolean(inviting)} client={inviting ?? { id: '' }} onClose={() => setInviting(null)} />
       </>

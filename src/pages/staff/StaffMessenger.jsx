@@ -5,6 +5,7 @@ import { ChatFolders } from '../../components/chat/ChatFolders.jsx'
 import { MessengerBack, MessengerHead, MessengerLayout, MessengerPick } from '../../components/chat/MessengerLayout.jsx'
 import { StaffChatPane } from '../../components/chat/StaffChatPane.jsx'
 import { StaffDmPane } from '../../components/chat/StaffDmPane.jsx'
+import { AzGroupPane } from '../../components/chat/AzGroupPane.jsx'
 import { StaffGroupPane } from '../../components/chat/StaffGroupPane.jsx'
 import { CHAT_FOLDER_ADMIN, CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_COMPLAINTS } from '../../lib/chat/chatContactsCore.js'
 import { useStaffMessengerRefresh } from '../../hooks/useStaffMessengerRefresh.js'
@@ -91,6 +92,8 @@ export function StaffMessenger({ chats, inbox }) {
           <StaffDmPane key={open.userId} userId={open.userId} onSent={reloadChats} backTo={closeHref} back={back} />
         ) : open?.type === 'group' ? (
           <StaffGroupPane key={open.clubId} clubId={open.clubId} onSent={reloadChats} backTo={closeHref} back={back} />
+        ) : open?.type === 'azGroup' ? (
+          <AzGroupPane key={open.instructorUserId} instructorUserId={open.instructorUserId} onSent={reloadChats} backTo={closeHref} back={back} />
         ) : open?.type === 'chat' ? (
           <StaffChatPane
             key={`${open.clientId}:${open.kind}:${open.peerUserId || ''}`}

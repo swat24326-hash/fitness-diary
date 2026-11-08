@@ -88,7 +88,7 @@ export function sendChatFileAnswer(res, out) {
   res.end(out.file)
 }
 
-/** @param {'chat_messages' | 'staff_dm_messages' | 'staff_group_messages'} table */
+/** @param {'chat_messages' | 'staff_dm_messages' | 'staff_group_messages' | 'az_group_messages'} table */
 export async function answerChatAttach(db, table, threadId, messageId) {
   return attachFileAnswer(await loadAttachMessage(db, table, threadId, messageId))
 }

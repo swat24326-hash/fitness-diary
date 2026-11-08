@@ -1,7 +1,8 @@
 /**
  * Папки «Сообщений»: GET /api/coach?view=contacts и admin-data?action=chat&view=contacts.
- * → { role, folders: [{ id, label, unread, contacts, group? }], groups }; люди уже в порядке «яркие сверху».
+ * → { role, folders: [{ id, label, unread, contacts, group?, azGroup? }], groups }; люди уже в порядке «яркие сверху».
  * groups — чаты клубов (у сотрудника — свой, он же group в «Коллегах»; у главного админа — все клубы).
+ * azGroup — группа АЗ в «Клиентах», только у тренера с подопечными.
  * «Клиенты» — только у тренера (у менеджера и управляющего клиентская часть — прежний список диалогов).
  * «Жалобы и предложения» — только у тренера, связанного с управляющим (linkedStaffStore).
  */
@@ -23,7 +24,9 @@ import { isMissingChatTable, loadClientsByIds } from './chatStore.js'
 import { linkedComplaintThreads, linkedSupervisorCtx } from './linkedStaffStore.js'
 import { loadStaffDmContacts } from './staffDmHandler.js'
 import { loadStaffGroups } from './staffGroupHandler.js'
+import { azGroupAttention } from '../../../src/lib/chat/azGroupCore.js'
 import { staffGroupAttention } from '../../../src/lib/chat/staffGroupCore.js'
+import { loadInstructorAzGroup } from './azGroupList.js'
 
 function folder(id, role, contacts) {
   const sorted = sortChatContacts(contacts)
@@ -60,14 +63,15 @@ export async function sendChatContacts(ctx, res) {
     sendJson(res, 403, { error: CHAT_NO_ACCESS_RU })
     return
   }
-  const [clients, staff, complaints, groups] = await Promise.all([
+  const [clients, staff, complaints, groups, azGroup] = await Promise.all([
     clientsFolder(ctx, role),
     loadStaffDmContacts(ctx),
     complaintsFolder(ctx, role),
     loadStaffGroups(ctx),
+    loadInstructorAzGroup(ctx),
   ])
   const folders = [
-    clients,
+    withAzGroup(clients, azGroup),
     staff ? withGroup(folder(CHAT_FOLDER_COLLEAGUES, role, staff.colleagues), role === 'admin' ? null : groups?.[0]) : null,
     staff ? folder(CHAT_FOLDER_ADMIN, role, staff.admin) : null,
     complaints,
@@ -78,4 +82,10 @@ export async function sendChatContacts(ctx, res) {
 /** Чат своего клуба — первой строкой в «Коллегах» / «Тренерах»; незаглушённое новое — в число на вкладке. */
 function withGroup(f, group) {
   return group ? { ...f, group, unread: f.unread + staffGroupAttention(group) } : f
+}
+
+/** Группа АЗ — первой строкой «Клиентов»; незаглушённое новое — в число на папке. */
+function withAzGroup(f, azGroup) {
+  if (!f || !azGroup) return f
+  return { ...f, azGroup, unread: f.unread + azGroupAttention(azGroup) }
 }

@@ -144,6 +144,7 @@ const ClientInboxItemPage = lazy(() =>
   import('./pages/client/ClientInboxItemPage.jsx').then((m) => ({ default: m.ClientInboxItemPage })),
 )
 const ClientChatPage = lazy(() => import('./pages/client/ClientChatPage.jsx').then((m) => ({ default: m.ClientChatPage })))
+const ClientAzGroupPage = lazy(() => import('./pages/client/ClientAzGroupPage.jsx').then((m) => ({ default: m.ClientAzGroupPage })))
 const ClientAppProvider = lazy(() =>
   import('./pages/client/ClientAppContext.jsx').then((m) => ({ default: m.ClientAppProvider })),
 )
@@ -201,6 +202,7 @@ function ClientAppRoutes() {
           <Route path="inbox" element={<ClientInboxPage />} />
           <Route path="inbox-preview" element={<ClientInboxPreviewPage />} />
           <Route path="inbox/:id" element={<ClientInboxItemPage />} />
+          <Route path="az-group/:instructorUserId" element={<ClientAzGroupPage />} />
           <Route path="chat/:kind/:peerUserId" element={<ClientChatPage />} />
           <Route path="chat/:kind" element={<ClientChatPage />} />
           <Route path="*" element={<ClientMePage />} />

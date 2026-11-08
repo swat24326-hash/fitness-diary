@@ -1,6 +1,6 @@
 /**
  * «Сообщения клуба» сотрудника (тренер, менеджер, управляющий) как Telegram на планшете: слева папки и список,
- * справа открытый диалог или рассылка. Состояние — в адресе: ?folder=…&dm=… | group=клуб | chat=клиент:вид | item=…
+ * справа открытый диалог или рассылка. Состояние — в адресе: ?folder=…&dm=… | group=клуб | azGroup=инструктор | chat=клиент:вид | item=…
  */
 import { CHAT_FOLDER_CLIENTS, CHAT_FOLDER_COLLEAGUES, CHAT_FOLDER_COMPLAINTS, chatFolderLabelRu } from './chatContactsCore.js'
 import { parseStaffClientChatKey } from './clientAzChatCore.js'
@@ -45,11 +45,13 @@ export function pickStaffFolder({ requested, folders }) {
 /**
  * Что открыто справа.
  * @param {URLSearchParams} params
- * @returns {{ type: 'dm', userId: string } | { type: 'group', clubId: string } | { type: 'chat', clientId: string, kind: string, peerUserId?: string|null } | { type: 'item', id: string } | null}
+ * @returns {{ type: 'dm', userId: string } | { type: 'group', clubId: string } | { type: 'azGroup', instructorUserId: string } | { type: 'chat', clientId: string, kind: string, peerUserId?: string|null } | { type: 'item', id: string } | null}
  */
 export function staffOpenFromParams(params) {
   const dm = String(params.get('dm') ?? '').trim()
   if (dm) return { type: 'dm', userId: dm }
+  const azGroup = String(params.get('azGroup') ?? '').trim()
+  if (azGroup) return { type: 'azGroup', instructorUserId: azGroup }
   const group = String(params.get('group') ?? '').trim()
   if (group) return { type: 'group', clubId: group }
   const parsed = parseStaffClientChatKey(params.get('chat'))
@@ -66,6 +68,7 @@ export function staffFolderOfOpen(open) {
   if (!open) return ''
   if (open.type === 'item') return STAFF_FOLDER_INBOX
   if (open.type === 'group') return CHAT_FOLDER_COLLEAGUES
+  if (open.type === 'azGroup') return CHAT_FOLDER_CLIENTS
   if (open.type === 'chat') return open.kind === 'supervisor' ? CHAT_FOLDER_COMPLAINTS : CHAT_FOLDER_CLIENTS
   return ''
 }
@@ -73,7 +76,7 @@ export function staffFolderOfOpen(open) {
 /**
  * Адрес мессенджера: меняем одно — справа открыто что-то одно.
  * @param {URLSearchParams} params
- * @param {{ folder?: string, dm?: string, group?: string, chat?: string, item?: string, close?: boolean }} patch
+ * @param {{ folder?: string, dm?: string, group?: string, azGroup?: string, chat?: string, item?: string, close?: boolean }} patch
  */
 export function staffMessengerHref(params, patch) {
   const qs = staffMessengerParams(params, patch).toString()
@@ -85,9 +88,12 @@ export function staffMessengerParams(params, patch) {
   const next = new URLSearchParams(params)
   next.delete('tab')
   if (patch.folder != null) next.set('folder', patch.folder)
-  if (patch.close || patch.dm || patch.group || patch.chat || patch.item) for (const k of ['dm', 'group', 'chat', 'item']) next.delete(k)
+  if (patch.close || patch.dm || patch.group || patch.azGroup || patch.chat || patch.item) {
+    for (const k of ['dm', 'group', 'azGroup', 'chat', 'item']) next.delete(k)
+  }
   if (patch.dm) next.set('dm', patch.dm)
   if (patch.group) next.set('group', patch.group)
+  if (patch.azGroup) next.set('azGroup', patch.azGroup)
   if (patch.chat) next.set('chat', patch.chat)
   if (patch.item) next.set('item', patch.item)
   return next

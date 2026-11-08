@@ -5,6 +5,7 @@
  * GET  view=contacts → папки «Клиенты · Коллеги · Администрация» (chatContactsHandler.js)
  * GET  view=dm-thread&user_id / POST { op: 'dm-send', user_id } — переписка сотрудников (staffDmHandler.js)
  * GET  view=group-* / POST { op: 'group-*', club_id } — чат клуба (staffGroupRoutes.js)
+ * GET  view=az-group-* / POST { op: 'az-group-*' } — группа АЗ инструктора, только свой тред (azGroupRoutes.js)
  * GET  view=thread&client_id&kind[&before][&seen=0] → { client, kind, can_write, messages, has_more } (отмечает прочитанным; seen=0 — нет)
  * GET  view=search&client_id&kind&q | view=dm-search&user_id&q → { results: [{ id, created_at, who, snippet }] } — поиск по диалогу, новые сверху
  * POST { op: 'send', client_id, kind, body | sticker | (audio, sec, wave) } → { message } (audio — голосовое, base64 MP3)
@@ -14,7 +15,7 @@
  *      → { audio, mime } | { done, text? } — звук голосового (сутки) и расшифровка «→ Аа»; права — как на чтение диалога
  * POST { op: 'attach', client_id, kind, message_id } | { op: 'dm-attach', user_id, message_id } → { data, mime, name } — фото / PDF (сутки);
  *      в send / dm-send — attach { kind: 'photo'|'file', data (base64), name?, w?, h? }, body — подпись
- * Видеокружок — бинарный POST ?action=chat&op=send|dm-send|group-send&…&sec (chatVideoHandler.js); attach у видео отдаёт байты.
+ * Видеокружок — бинарный POST ?action=chat&op=send|dm-send|group-send|az-group-send&…&sec (chatVideoHandler.js); attach у видео отдаёт байты.
  * Тренер, связанный с управляющим (linkedStaffStore), ведёт «Жалобы и предложения» (kind supervisor) от учётки управляющего.
  */
 import { sendJson } from '../adminSupabase.js'
@@ -45,6 +46,7 @@ import { sendChatFileAnswer } from './chatAttachHandler.js'
 import { chatVoiceOf, openChatThread, reactChatMessage, searchChatThread, sendChatMessage } from './chatConversation.js'
 import { sendChatContacts } from './chatContactsHandler.js'
 import { reactStaffDmMessage, sendStaffDmMessage, sendStaffDmSearch, sendStaffDmThread, sendStaffDmVoice, staffDmAttention } from './staffDmHandler.js'
+import { handleAzGroupGet, handleAzGroupPost, azGroupsAttention } from './azGroupRoutes.js'
 import { handleStaffGroupGet, handleStaffGroupPost, staffGroupsAttention } from './staffGroupRoutes.js'
 import { isMissingChatTable, loadChatClient, loadClientsByIds, loadStaffThreads } from './chatStore.js'
 import { linkedComplaintThreads, linkedSupervisorCtx } from './linkedStaffStore.js'
@@ -137,14 +139,15 @@ export async function handleStaffChatGet(ctx, req, res) {
   if (view === 'contacts') return sendChatContacts(ctx, res)
   if (view === 'dm-thread') return sendStaffDmThread(ctx, res, req.query?.user_id, req.query?.before, req.query?.seen)
   if (view === 'dm-search') return sendStaffDmSearch(ctx, res, req.query?.user_id, req.query?.q)
+  if (view.startsWith('az-group-')) return handleAzGroupGet(ctx, res, view, req.query ?? {})
   if (view.startsWith('group-')) return handleStaffGroupGet(ctx, res, view, req.query ?? {})
   const scope = scopeOf(ctx, res)
   if (!scope) return
   try {
     if (view === 'list') {
       const clients = scope.role === 'admin' ? Promise.resolve({ threads: [], attention: 0 }) : listThreads(ctx, scope)
-      const [list, dm, group] = await Promise.all([clients, staffDmAttention(ctx), staffGroupsAttention(ctx)])
-      sendJson(res, 200, { ...list, attention: list.attention + dm + group })
+      const [list, dm, group, az] = await Promise.all([clients, staffDmAttention(ctx), staffGroupsAttention(ctx), azGroupsAttention(ctx)])
+      sendJson(res, 200, { ...list, attention: list.attention + dm + group + az })
       return
     }
     const kind = String(req.query?.kind ?? '')
@@ -204,6 +207,7 @@ export async function handleStaffChatPost(ctx, res, body) {
     return sendStaffDmVoice(ctx, res, body?.user_id, body?.message_id, op === 'dm-voice-text' ? 'text' : 'audio')
   }
   if (op === 'dm-attach') return sendStaffDmVoice(ctx, res, body?.user_id, body?.message_id, 'file')
+  if (op.startsWith('az-group-')) return handleAzGroupPost(ctx, res, op, body ?? {})
   if (op.startsWith('group-')) return handleStaffGroupPost(ctx, res, op, body ?? {})
   const scope = scopeOf(ctx, res)
   if (!scope) return

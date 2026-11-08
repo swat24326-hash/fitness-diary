@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { fetchClientAzGroups } from '../../lib/client/clientAzGroupService.js'
 import {
   clientChatVoice,
   fetchClientChatThread,
@@ -27,6 +28,7 @@ const LIST_CACHE = screenCacheKey('client', 'chats')
 export function useClientChats() {
   const [state, setState] = useState(() => ({
     threads: peekScreenCache(LIST_CACHE),
+    groups: [],
     attention: null,
     status: 'loading',
     error: '',
@@ -37,13 +39,13 @@ export function useClientChats() {
     const gen = ++genRef.current
     const epoch = clientChatAttentionEpoch()
     setState((s) => ({ ...s, status: 'loading', error: '' }))
-    fetchClientChats()
-      .then(({ threads, attention }) => {
+    Promise.all([fetchClientChats(), fetchClientAzGroups().catch(() => ({ groups: [] }))])
+      .then(([{ threads, attention }, listed]) => {
         if (gen !== genRef.current) return
         freshRef.current = true
         const count = Math.max(0, Number(attention) || 0)
         const still = epoch === clientChatAttentionEpoch()
-        setState((s) => ({ threads, attention: still ? count : s.attention, status: 'ready', error: '' }))
+        setState((s) => ({ threads, groups: listed.groups, attention: still ? count : s.attention, status: 'ready', error: '' }))
         if (still) writeClientChatAttention(count)
         void writeScreenCache(LIST_CACHE, threads)
       })

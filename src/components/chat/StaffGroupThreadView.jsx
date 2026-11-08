@@ -9,9 +9,17 @@ const EMPTY_RU = 'Сообщений пока нет. Напишите — ув�
 /**
  * Лента и поле ввода чата клуба (планшет, админ, телефон тренера). Как в группах Telegram: закреп над лентой,
  * в меню долгого нажатия — «Закрепить» / «Открепить» и у своего сообщения «Прочитали N из M».
- * @param {{ group: ReturnType<typeof import('../../hooks/useStaffGroupThread.js').useStaffGroupThread>, onSubmit?: Function, searchHost?: HTMLElement | null }} props
+ * emptyHint / placeholder / seenRu — у группы АЗ свои подписи, лента та же.
+ * @param {{ group: ReturnType<typeof import('../../hooks/useStaffGroupThread.js').useStaffGroupThread>, onSubmit?: Function, searchHost?: HTMLElement | null, emptyHint?: string, placeholder?: string, seenRu?: (seen: { seen: number, total: number }) => string }} props
  */
-export function StaffGroupThreadView({ group, onSubmit, searchHost = null }) {
+export function StaffGroupThreadView({
+  group,
+  onSubmit,
+  searchHost = null,
+  emptyHint = EMPTY_RU,
+  placeholder = 'Сообщение в чат клуба',
+  seenRu = staffGroupSeenRu,
+}) {
   const { chat, pin, readers } = group
   const [readersOf, setReadersOf] = useState(null)
   const closeReaders = useCallback(() => setReadersOf(null), [])
@@ -19,7 +27,7 @@ export function StaffGroupThreadView({ group, onSubmit, searchHost = null }) {
   const menuActions = (message) => {
     const items = []
     if (message.mine && message.seen) {
-      items.push({ key: 'seen', label: staffGroupSeenRu(message.seen), icon: CheckCheck, onSelect: () => setReadersOf(String(message.id)) })
+      items.push({ key: 'seen', label: seenRu(message.seen), icon: CheckCheck, onSelect: () => setReadersOf(String(message.id)) })
     }
     if (pin.canPin) {
       items.push(
@@ -52,22 +60,22 @@ export function StaffGroupThreadView({ group, onSubmit, searchHost = null }) {
         sending={chat.sending}
         sendError={chat.sendError}
         canWrite={Boolean(chat.meta?.can_write)}
-        emptyHint={EMPTY_RU}
-        placeholder="Сообщение в чат клуба"
+        emptyHint={emptyHint}
+        placeholder={placeholder}
         pinned={pin.pinned}
         onUnpin={pin.canPin ? () => void pin.setPin(null) : undefined}
         menuActions={menuActions}
         searchHost={searchHost}
       />
-      <StaffGroupReadersSheet messageId={readersOf} load={readers} onClose={closeReaders} />
+      <StaffGroupReadersSheet messageId={readersOf} load={readers} onClose={closeReaders} seenRu={seenRu} />
     </>
   )
 }
 
 /** «Без звука»: без push и без числа на конверте; новое в списке всё равно видно. */
-/** Строка в «⋮» шапки чата клуба: включить / выключить звук уведомлений. */
-export function StaffGroupMuteItem({ muted, onToggle, error }) {
-  const label = muted ? 'Включить уведомления чата клуба' : 'Без звука — не присылать уведомления чата клуба'
+/** Строка в «⋮» шапки: включить / выключить звук. chatName — «чата клуба» или «группы АЗ». */
+export function StaffGroupMuteItem({ muted, onToggle, error, chatName = 'чата клуба', testId = 'group-mute' }) {
+  const label = muted ? `Включить уведомления ${chatName}` : `Без звука — не присылать уведомления ${chatName}`
   return (
     <button
       type="button"
@@ -76,7 +84,7 @@ export function StaffGroupMuteItem({ muted, onToggle, error }) {
       aria-pressed={muted}
       aria-label={label}
       title={error || label}
-      data-testid="group-mute"
+      data-testid={testId}
     >
       {muted ? <Bell size={18} aria-hidden /> : <BellOff size={18} aria-hidden />}
       {muted ? 'Включить звук' : 'Без звука'}

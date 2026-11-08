@@ -11,6 +11,7 @@ import { CoachChatPage } from './CoachChatPage.jsx'
 import { CoachChatsPage } from './CoachChatsPage.jsx'
 import { CoachClientsPage } from './CoachClientsPage.jsx'
 import { CoachDmPage } from './CoachDmPage.jsx'
+import { CoachAzGroupPage } from './CoachAzGroupPage.jsx'
 import { CoachGroupPage } from './CoachGroupPage.jsx'
 import { CoachJoinPage } from './CoachJoinPage.jsx'
 import { CoachMorePage } from './CoachMorePage.jsx'
@@ -63,6 +64,7 @@ function CoachRoutes() {
       <Route path="chat/:clientId/:kind" element={<CoachChatPage />} />
       <Route path="dm/:userId" element={<CoachDmPage />} />
       <Route path="group" element={<CoachGroupPage />} />
+      <Route path="az-group" element={<CoachAzGroupPage />} />
       <Route path="clients" element={<CoachClientsPage />} />
       <Route path="notifications" element={<CoachNotificationsPage />} />
       <Route path="more" element={<CoachMorePage />} />
