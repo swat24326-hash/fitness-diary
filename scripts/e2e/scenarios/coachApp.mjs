@@ -110,10 +110,83 @@ export async function run(browser) {
   } finally {
     await context.close()
   }
+  await runCoachChatKeyboard(browser, c)
   await runQrJoin(browser, c)
   await runIconHandoff(browser, c)
   await runAndroidManifest(browser, c)
   return c.failures
+}
+
+/**
+ * /coach/chat: оболочка fixed+flex на весь layout; --chat-fit-h + max-height должны укоротить .chat-thread,
+ * иначе flex снова растянет диалог и поле останется за клавиатурой iPhone (INC-2026-11-09-01).
+ * Fake visualViewport — в initScript до загрузки, как в staffDm (слушатели цепляются к этому объекту).
+ */
+async function runCoachChatKeyboard(browser, c) {
+  const KB = 340
+  const { backend } = setup()
+  const context = await newE2eContext(browser, backend, PHONE)
+  await context.addInitScript((kb) => {
+    const vv = new EventTarget()
+    const layout = () => Math.max(globalThis.innerHeight || 0, globalThis.document.documentElement?.clientHeight || 0)
+    Object.assign(vv, { offsetTop: 0, offsetLeft: 0, scale: 1, width: 390, pageTop: 0, pageLeft: 0 })
+    Object.defineProperty(vv, 'height', { get: () => (globalThis.__coachKbOpen ? layout() - kb : layout()) })
+    Object.defineProperty(globalThis, 'visualViewport', { value: vv, configurable: true })
+    globalThis.__coachKbVv = vv
+  }, KB)
+  const page = await context.newPage()
+  try {
+    await page.goto(`${ORIGIN}/coach`)
+    await page.getByRole('button', { name: 'Войти логином и паролем' }).click()
+    await fillCoachCredentials(page, TRAINER_LOGIN, TRAINER_PASSWORD)
+    await page.getByRole('button', { name: 'Войти', exact: true }).click()
+    await reaches(slot10(page))
+    await page.getByRole('link', { name: /Сообщения/ }).click()
+    await page.getByRole('link', { name: new RegExp(CLIENT_NAME) }).click()
+    await page.waitForURL(`${ORIGIN}/coach/chat/${CLIENT_ID}`)
+    await page.getByTestId('chat-input').waitFor()
+    await page.evaluate(() => {
+      globalThis.__coachKbOpen = true
+      globalThis.__coachKbVv.dispatchEvent(new Event('resize'))
+    })
+    await page.waitForTimeout(350)
+    const m = await page.evaluate(() => {
+      const thread = globalThis.document.querySelector('.chat-thread')
+      const compose = globalThis.document.querySelector('.chat-compose')
+      if (!thread || !compose) return null
+      const fit = thread.style.getPropertyValue('--chat-fit-h')
+      const cs = globalThis.getComputedStyle(thread)
+      return {
+        fit,
+        height: cs.height,
+        composeBottom: compose.getBoundingClientRect().bottom,
+        view: globalThis.visualViewport?.height ?? 0,
+        layout: Math.max(globalThis.innerHeight || 0, globalThis.document.documentElement?.clientHeight || 0),
+        shellFlex: Boolean(globalThis.document.querySelector('.coach-app:has(> .coach-app__main > .chat-thread)')),
+      }
+    })
+    c.ok(Boolean(m?.shellFlex), '/coach/chat: оболочка coach-app с flex-диалогом')
+    const fitPx = Number.parseFloat(m?.fit || '')
+    const heightPx = Number.parseFloat(m?.height || '')
+    c.ok(
+      Number.isFinite(fitPx) && fitPx > 0 && fitPx < m.layout - 80,
+      `/coach/chat: --chat-fit-h короче layout (${Math.round(fitPx)} < ${Math.round(m.layout)})`,
+    )
+    c.ok(
+      Number.isFinite(heightPx) && Math.abs(heightPx - fitPx) <= 2,
+      `/coach/chat: computed height = --chat-fit-h, flex не растянул (${Math.round(heightPx)} vs ${Math.round(fitPx)})`,
+    )
+    c.ok(
+      m.composeBottom <= m.view + 2 && m.composeBottom >= m.view - 48,
+      `/coach/chat: поле над клавиатурой (низ ${Math.round(m.composeBottom)}, vv ${Math.round(m.view)})`,
+    )
+    await screenshot(page, 'coach-chat-keyboard')
+  } catch (e) {
+    await screenshot(page, 'coach-chat-kb-FAIL').catch(() => null)
+    c.ok(false, `/coach/chat клавиатура: сценарий прерван: ${e.message.split('\n')[0]}`)
+  } finally {
+    await context.close()
+  }
 }
 
 /** Android: значок по manifest клуба — после входа и сразу при загрузке, ещё до приложения (manifest-boot.js). */

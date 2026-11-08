@@ -11,8 +11,11 @@
   /* Лента 1fr + поле ввода auto — иначе поле уезжает под низ при неверном --chat-fit-h (iPhone). */
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
-  /* Ровно видимая часть экрана (chatViewportFit.js): листается лента, страница стоит — поле ввода не ездит. */
+  /* Ровно видимая часть экрана (chatViewportFit.js): листается лента, страница стоит — поле ввода не ездит.
+     max-height обязателен: оболочка /coach и /me — flex:1 на весь layout; без потолка flex снова
+     растягивает диалог под клавиатуру, хотя --chat-fit-h уже короткий (iPhone / Яндекс). */
   height: var(--chat-fit-h, auto);
+  max-height: var(--chat-fit-h, none);
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;

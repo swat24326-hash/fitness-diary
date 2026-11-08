@@ -1,8 +1,12 @@
 /**
  * Переписка ровно в видимую часть экрана: высота ленты от верха диалога до низа видимой части (клавиатура iPhone),
  * лишний сдвиг страницы вверх — вернуть. Android/Honor: не верить укороченному visualViewport при полном layout.
+ * CSS: max-height: var(--chat-fit-h) — иначе flex:1 оболочки снова растянет диалог под клавиатуру.
  * node scripts/verify-chat-viewport-fit.mjs
  */
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   CHAT_FIT_MIN_PX,
   CHAT_FIT_TOUCH_MAX_MS,
@@ -15,6 +19,9 @@ import {
   chatFitViewHeightPx,
   chatFitVisualTopPx,
 } from '../src/lib/chat/chatViewportFit.js'
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const chatCss = readFileSync(join(root, 'src/styles/chat.css'), 'utf8')
 
 function ok(cond, msg) {
   if (!cond) {
@@ -96,5 +103,10 @@ ok(vtop(400, 336) === 64, 'iPhone: rect с translate/offsetTop — верх в �
 ok(vtop(-80, 0) === 0, 'страница докручена к полю (rect выше экрана) — не раздуваем top, высота не схлопывается (INC-2026-11-03-04)')
 ok(vtop(50.6, 10.2) === 41, 'дробные пиксели visual top (round каждой части)')
 ok(fit(508, vtop(-120, 0)) === 508, 'после докрутки к полю высота = вся видимая часть, поле не у верха с пустотой')
+
+ok(
+  /max-height:\s*var\(\s*--chat-fit-h/.test(chatCss),
+  'chat.css: max-height: var(--chat-fit-h) — flex:1 /coach и /me не растягивает диалог под клавиатуру (INC-2026-11-09-01)',
+)
 
 console.log('verify-chat-viewport-fit: all passed')

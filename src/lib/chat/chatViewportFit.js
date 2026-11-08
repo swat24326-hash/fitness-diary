@@ -3,6 +3,10 @@
  * шапка и поле ввода не ездят. iPhone не сжимает страницу под клавиатуру (меньше становится только visualViewport),
  * поэтому высоту ленты считаем сами: от верха диалога до низа видимой части, минус отступы оболочки снизу.
  *
+ * CSS-контракт: `.chat-thread` — `height` и `max-height: var(--chat-fit-h)`. Без max-height flex:1 у
+ * оболочки /coach и /me снова растягивает диалог на весь layout — поле остаётся за клавиатурой
+ * (INC-2026-11-09-01), хотя JS уже выставил короткий --chat-fit-h.
+ *
  * Android: interactive-widget=resizes-content — обычно сжимает layout. Honor:
  * (1) короткий vv при offsetTop=0 и полном layout — врёт, берём layout (INC-2026-10-29-04);
  * (2) клавиатура с реальным pan (offsetTop>0, vv короче) — как iPhone: высота vv + translateY,

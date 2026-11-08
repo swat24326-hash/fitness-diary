@@ -63,6 +63,7 @@ html:has(.client-me) body {
 }
 
 .client-me:has(> .client-me__main > .chat-thread) .chat-thread {
+  /* Как /coach: flex заполняет экран; потолок высоты — max-height: var(--chat-fit-h) в chat.css. */
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;

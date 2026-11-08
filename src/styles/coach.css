@@ -149,6 +149,7 @@ html:has(.coach-app) body {
 }
 
 .coach-app:has(> .coach-app__main > .chat-thread) .chat-thread {
+  /* flex-grow ок до появления --chat-fit-h; дальше max-height в chat.css не даёт уехать под клавиатуру. */
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
