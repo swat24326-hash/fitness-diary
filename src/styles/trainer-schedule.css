@@ -722,14 +722,15 @@
   right: 6px;
   border: 0;
   border-radius: var(--radius-sm);
-  padding: 6px 8px;
+  /* 4+7: на телефоне час = 56px (zoom 1) — время + имя + «№карты · абон» без обрубка по border. */
+  padding: 4px 7px;
   text-align: left;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 3px;
+  gap: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   box-sizing: border-box;
 }
