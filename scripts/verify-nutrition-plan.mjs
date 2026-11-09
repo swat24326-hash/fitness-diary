@@ -80,4 +80,14 @@ for (const meal of built.plan?.dayPlan ?? []) {
   ok(Boolean(meal.dishLabel), `${meal.label} has dish label`)
 }
 
+const teen = buildNutritionPlan(health, { ...survey, age: 13 })
+ok(teen.ok, `рацион для 13 лет: ${teen.errors?.join('; ') ?? ''}`)
+const child = buildNutritionPlan(
+  { height_cm: 155, current_weight_kg: 59.9, weight_kg: 59.9, sex: 'male', goal: 'снижение' },
+  { ...survey, age: 11 },
+)
+ok(child.ok, `рацион для 11 лет: ${child.errors?.join('; ') ?? ''}`)
+const noAge = buildNutritionPlan(health, { ...survey, age: undefined })
+ok(!noAge.ok && noAge.errors?.some((e) => /возраст/i.test(e)), 'без возраста — ошибка')
+
 process.exit(failed > 0 ? 1 : 0)

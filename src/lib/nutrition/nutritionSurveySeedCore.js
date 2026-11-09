@@ -1,8 +1,10 @@
 /**
  * Подстановка возраста и цели питания из карты клиента / «Здоровье»,
  * чтобы опросник рациона не дублировал уже известные поля.
+ *
+ * Возраст для рациона — любой полный год 0…120 (дети и подростки тоже).
+ * Не используем clamp пульса (5…100): иначе ДР ребёнка даёт «нет возраста».
  */
-import { ageYearsFromBirthDate } from '../hr/hrSessionAgg.js'
 import { parseHealthGoal } from '../health/healthGoalCore.js'
 
 /** Цель в анкете здоровья → цель питания (КБЖУ). */
@@ -24,7 +26,19 @@ export const HEALTH_GOAL_TO_NUTRITION = {
  * @returns {number|null}
  */
 export function nutritionAgeFromClient(client, asOfIso) {
-  return ageYearsFromBirthDate(client?.birth_date, asOfIso)
+  const b = String(client?.birth_date ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(b)) return null
+  const asOf = String(asOfIso ?? '').slice(0, 10)
+  const ref = /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? asOf : null
+  const today = ref ? new Date(`${ref}T12:00:00`) : new Date()
+  const [y, m, d] = b.split('-').map(Number)
+  const birth = new Date(y, m - 1, d)
+  if (Number.isNaN(birth.getTime())) return null
+  let age = today.getFullYear() - birth.getFullYear()
+  const md = today.getMonth() - birth.getMonth()
+  if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) age -= 1
+  if (age < 0 || age > 120) return null
+  return age
 }
 
 /**

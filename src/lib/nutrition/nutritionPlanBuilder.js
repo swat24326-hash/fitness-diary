@@ -106,7 +106,8 @@ export function isNutritionHealthReady(health) {
 
 export function validateSurveyForBuild(survey, catalogMap) {
   const errors = []
-  if (!survey.age || survey.age < 14 || survey.age > 90) errors.push('Укажите возраст (14–90)')
+  const age = Number(survey.age)
+  if (!Number.isFinite(age) || age < 0 || age > 120) errors.push('Укажите возраст')
   if (!survey.activityLevel) errors.push('Укажите активность')
   if (!survey.goalKind) errors.push('Укажите цель')
   if (!survey.mealsPerDay) errors.push('Укажите число приёмов пищи')

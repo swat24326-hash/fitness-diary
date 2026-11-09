@@ -56,6 +56,8 @@ ok(keepCustom.goalKind === 'gain_mass', 'без forceGoal сохраняем в�
 ok(keepCustom.age === 32, 'возраст всё равно обновляем из ДР')
 
 ok(nutritionAgeFromClient({ birth_date: null }, asOf) == null, 'нет ДР → возраста нет')
+ok(nutritionAgeFromClient({ birth_date: '2012-12-12' }, '2026-11-10') === 13, 'подросток 13 лет из ДР')
+ok(nutritionAgeFromClient({ birth_date: '2020-06-01' }, '2026-11-10') === 6, 'ребёнок 6 лет из ДР')
 
 // --- 2. Продукт: рацион в референтах, рецепты человеческие, неделя разная ---
 const catalog = buildNutritionCatalogMap([])
