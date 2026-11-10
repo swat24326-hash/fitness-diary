@@ -24,6 +24,10 @@ const clientAvatarApi = avatarApiOver(postClientMe)
  *   refreshing?: boolean
  *   onAddWeight?: (() => void) | null
  *   onAddMeasure?: (() => void) | null
+ *   asOf?: string
+ *   cycle?: object|null
+ *   onCycleChange?: ((cycle: object) => void) | null
+ *   openCycleRequest?: number
  * }} props
  */
 export function ClientMenu({
@@ -33,6 +37,10 @@ export function ClientMenu({
   refreshing = false,
   onAddWeight = null,
   onAddMeasure = null,
+  asOf = '',
+  cycle = null,
+  onCycleChange = null,
+  openCycleRequest = 0,
 }) {
   const [open, setOpen] = useState(false)
   const [warnOpen, setWarnOpen] = useState(false)
@@ -74,6 +82,10 @@ export function ClientMenu({
             refreshing={refreshing}
             onAddWeight={onAddWeight}
             onAddMeasure={onAddMeasure}
+            asOf={asOf}
+            cycle={cycle}
+            onCycleChange={onCycleChange}
+            openCycleRequest={openCycleRequest}
             close={close}
             onLogoutRequest={() => {
               setOpen(false)
@@ -105,6 +117,10 @@ export function ClientMenu({
  *   refreshing?: boolean
  *   onAddWeight?: (() => void) | null
  *   onAddMeasure?: (() => void) | null
+ *   asOf?: string
+ *   cycle?: object|null
+ *   onCycleChange?: ((cycle: object) => void) | null
+ *   openCycleRequest?: number
  *   close?: () => void
  * }} props
  */
@@ -116,6 +132,10 @@ export function ClientMenuItems({
   refreshing = false,
   onAddWeight = null,
   onAddMeasure = null,
+  asOf = '',
+  cycle = null,
+  onCycleChange = null,
+  openCycleRequest = 0,
   close = () => {},
 }) {
   const navigate = useNavigate()
@@ -160,7 +180,20 @@ export function ClientMenuItems({
   return (
     <>
       {clientName ? (
-        <ProfileMenuUser name={clientName} api={clientAvatarApi} cacheKey="client" layout="phone" settings={<ClientSettingsSection />} />
+        <ProfileMenuUser
+          name={clientName}
+          api={clientAvatarApi}
+          cacheKey="client"
+          layout="phone"
+          settings={
+            <ClientSettingsSection
+              asOf={asOf}
+              cycle={cycle}
+              onCycleChange={onCycleChange}
+              openCycleRequest={openCycleRequest}
+            />
+          }
+        />
       ) : null}
       {installer.mode !== 'none' ? (
         <button

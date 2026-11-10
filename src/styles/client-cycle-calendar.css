@@ -1,0 +1,240 @@
+/* Календарь тренировок + фазы цикла в /me — токены Ядра, touch ≥44px */
+
+.client-cycle-settings__hint {
+  margin: 0 var(--space) var(--space-2, 8px);
+  line-height: 1.35;
+}
+
+.client-cycle-cal__panel {
+  max-height: min(92dvh, 720px);
+}
+
+.client-cycle-cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  padding: 0 var(--space-2, 8px) var(--space-2, 8px);
+}
+
+.client-cycle-cal__nav strong {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.client-cycle-cal__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 0 var(--space-2, 8px);
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+  text-transform: lowercase;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.client-cycle-cal__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-2, 8px) var(--space-2, 8px);
+}
+
+.client-cycle-cal__week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.client-cycle-cal__cell {
+  position: relative;
+  min-height: 44px;
+  min-width: 0;
+  padding: 4px 2px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.client-cycle-cal__cell--empty {
+  background: transparent;
+  pointer-events: none;
+  min-height: 44px;
+}
+
+.client-cycle-cal__cell--period {
+  background: color-mix(in srgb, var(--danger) 22%, var(--bg-muted));
+}
+
+.client-cycle-cal__cell--follicular {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-muted));
+}
+
+.client-cycle-cal__cell--ovulation {
+  background: color-mix(in srgb, var(--hr-zone-easy) 20%, var(--bg-muted));
+}
+
+.client-cycle-cal__cell--luteal {
+  background: color-mix(in srgb, var(--warning) 16%, var(--bg-muted));
+}
+
+.client-cycle-cal__cell--today {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.client-cycle-cal__cell--selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.client-cycle-cal__cell:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 1px;
+}
+
+.client-cycle-cal__day {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-cycle-cal__marks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  min-height: 6px;
+}
+
+.client-cycle-cal__dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.client-cycle-cal__dot--done {
+  background: var(--accent);
+}
+
+.client-cycle-cal__dot--planned {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--accent-bright);
+}
+
+.client-cycle-cal__dot--noshow {
+  background: var(--warning);
+}
+
+.client-cycle-cal__dot--weight {
+  background: var(--text);
+  opacity: 0.9;
+}
+
+.client-cycle-cal__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px) var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-3, 12px);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.client-cycle-cal__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.client-cycle-cal__phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.client-cycle-cal__phase-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.client-cycle-cal__phase-swatch i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.client-cycle-cal__phase-swatch i.period {
+  background: color-mix(in srgb, var(--danger) 45%, var(--bg-muted));
+}
+.client-cycle-cal__phase-swatch i.follicular {
+  background: color-mix(in srgb, var(--accent) 35%, var(--bg-muted));
+}
+.client-cycle-cal__phase-swatch i.ovulation {
+  background: color-mix(in srgb, var(--hr-zone-easy) 45%, var(--bg-muted));
+}
+.client-cycle-cal__phase-swatch i.luteal {
+  background: color-mix(in srgb, var(--warning) 40%, var(--bg-muted));
+}
+
+.client-cycle-cal__setup {
+  margin-left: auto;
+  min-height: 44px;
+  font-size: 0.85rem;
+}
+
+.client-cycle-cal__detail {
+  margin: 0 var(--space-3, 12px) var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-soft);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+/* Плитка «Следующая» как кнопка — тот же glass-карточный вид, без «кнопочного» блеска */
+button.client-me-tile.client-me-tile--button {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  font: inherit;
+  color: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.client-me-tile.client-me-tile--button:active {
+  transform: scale(0.985);
+}
+
+button.client-me-tile.client-me-tile--button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.client-me-tile__hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-muted));
+}

@@ -23,6 +23,7 @@ import {
   pointsWord,
   trainingsWord,
 } from '../src/lib/client/clientMeUiCore.js'
+import { publicClientCycle } from '../src/lib/client/clientCycleCalendarCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -225,6 +226,22 @@ ok(
     formatCmDeltaPartsRu(-1.5).frac === ',5' &&
     formatCmDeltaPartsRu(0).int === '0',
   'дельта обмеров без лишнего ,0',
+)
+
+// --- Цикл (только клиентке, белый список) ---
+const cycleOff = publicClientCycle({ enabled: false, cycle_days: 28, last_period_start: '2026-01-01' })
+ok(cycleOff.enabled === false && !('last_period_start' in cycleOff), 'цикл выкл — без дат')
+const cycleOn = publicClientCycle({
+  enabled: true,
+  cycle_days: 28,
+  period_days: 5,
+  last_period_start: '2026-10-01',
+  client_id: 'secret',
+  updated_at: 'x',
+})
+ok(
+  [...keysDeep(cycleOn)].sort().join() === 'cycle_days,enabled,last_period_start,period_days',
+  'цикл вкл — только параметры, без client_id',
 )
 
 // --- SQL .contains() ---

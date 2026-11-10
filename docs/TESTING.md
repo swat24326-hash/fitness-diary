@@ -356,6 +356,7 @@
 | АЗ: готовность пилота (инструкторы + группа + session_visits) | `verify-client-az-pilot-ready.mjs` |
 | АЗ в `/me` (склейка DEV-превью + эргономика телефона) | экран — `clientAzMePreview` в `qa:screens` («клиент АЗ»); чеклист — [CLIENT_APP.md](./CLIENT_APP.md) |
 | `/me`: свой вес/обмеры (○), клуб ● только смотреть | `verify-client-progress-self.mjs`; экран — `clientProgressSelf` в `qa:screens` |
+| `/me`: календарь тренировок + упрощённый цикл | `verify-client-cycle-calendar.mjs`; экран — `clientCycleCalendar` в `qa:screens` («клиент календарь») |
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |
 | Клип-карта: match / holding / checklist / paste 1С | `verify-sale-clips.mjs` |

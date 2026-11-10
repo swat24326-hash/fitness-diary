@@ -1,7 +1,11 @@
-import { Bell, Volume2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Bell, CalendarDays, Volume2 } from 'lucide-react'
 import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
 import { useChatSoundSetting } from '../../hooks/useChatSoundSetting.js'
+import { publicClientCycle } from '../../lib/client/clientCycleCalendarCore.js'
+import { disableClientCycle, upsertClientCycle } from '../../lib/client/clientCycleService.js'
 import { useClientApp } from './ClientAppContext.jsx'
+import { ClientCycleSettingsSheet } from './ClientCycleSettingsSheet.jsx'
 
 const REMINDER_HINT = {
   install_first: 'На iPhone напоминания работают только в приложении со значка на экране «Домой». Установите его через меню.',
@@ -9,12 +13,55 @@ const REMINDER_HINT = {
   none: 'Напоминания пока недоступны на этом телефоне.',
 }
 
-/** Настройки клиента: напоминания, звуки, ссылки политики — в «Мой профиль» (☰). */
-export function ClientSettingsSection() {
+/**
+ * Настройки клиента: напоминания, звуки, цикл, ссылки политики — в «Мой профиль» (☰).
+ * @param {{
+ *   asOf?: string
+ *   cycle?: object|null
+ *   onCycleChange?: (cycle: object) => void
+ *   openCycleRequest?: number
+ * }} props
+ */
+export function ClientSettingsSection({ asOf = '', cycle = null, onCycleChange = null, openCycleRequest = 0 }) {
   const { push } = useClientApp()
   const sound = useChatSoundSetting('client')
   const on = push.mode === 'on'
   const canToggle = on || push.mode === 'off'
+  const pub = publicClientCycle(cycle)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (openCycleRequest > 0) {
+      setError('')
+      setSheetOpen(true)
+    }
+  }, [openCycleRequest])
+
+  const openSheet = () => {
+    setError('')
+    setSheetOpen(true)
+  }
+
+  const toggleCycle = async () => {
+    if (pub.enabled) {
+      setBusy(true)
+      setError('')
+      try {
+        const res = await disableClientCycle()
+        if (!res?.ok) {
+          setError(res?.error || 'Не удалось выключить')
+          return
+        }
+        onCycleChange?.(res.cycle ?? { enabled: false })
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+    openSheet()
+  }
 
   return (
     <>
@@ -67,7 +114,78 @@ export function ClientSettingsSection() {
           </button>
         </div>
       </section>
+      <section className="client-me-card">
+        <div className="client-settings__row">
+          <span className="client-settings__label">
+            <CalendarDays size={18} aria-hidden />
+            <span>
+              Отмечать цикл
+              <small className="client-me-muted">Только вы · в календаре тренировок</small>
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={pub.enabled}
+            aria-label="Отмечать цикл"
+            className={`client-switch${pub.enabled ? ' client-switch--on' : ''}`}
+            disabled={busy || !asOf}
+            onClick={() => void toggleCycle()}
+          >
+            <span className="client-switch__knob" />
+          </button>
+        </div>
+        {pub.enabled ? (
+          <button type="button" className="btn btn-ghost btn-touch" disabled={busy || !asOf} onClick={openSheet}>
+            Параметры цикла
+          </button>
+        ) : null}
+        {error ? (
+          <p className="client-onb__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </section>
       <LegalEntryLinks className="legal-entry-links--in-profile" />
+      {sheetOpen && asOf ? (
+        <ClientCycleSettingsSheet
+          asOf={asOf}
+          initial={cycle}
+          busy={busy}
+          error={error}
+          onClose={() => !busy && setSheetOpen(false)}
+          onSave={async (payload) => {
+            setBusy(true)
+            setError('')
+            try {
+              const res = await upsertClientCycle(payload)
+              if (!res?.ok) {
+                setError(res?.error || 'Не удалось сохранить')
+                return
+              }
+              onCycleChange?.(res.cycle ?? { enabled: true, ...payload })
+              setSheetOpen(false)
+            } finally {
+              setBusy(false)
+            }
+          }}
+          onDisable={async () => {
+            setBusy(true)
+            setError('')
+            try {
+              const res = await disableClientCycle()
+              if (!res?.ok) {
+                setError(res?.error || 'Не удалось выключить')
+                return
+              }
+              onCycleChange?.(res.cycle ?? { enabled: false })
+              setSheetOpen(false)
+            } finally {
+              setBusy(false)
+            }
+          }}
+        />
+      ) : null}
     </>
   )
 }

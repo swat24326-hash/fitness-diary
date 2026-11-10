@@ -27,9 +27,12 @@ function Card({ icon: Icon, title, lead = false, children }) {
 }
 
 /** Плитка: заголовок → значение → подпись → meta (полоска) → подвал. Одинаковые слоты на обеих. */
-function Tile({ icon: Icon, title, lead, tile }) {
-  return (
-    <section className={`client-me-card client-me-tile client-me-tile--${tile.tone}${lead ? ' client-me-card--lead' : ''}`}>
+function Tile({ icon: Icon, title, lead, tile, onOpen = null, openLabel = '', openHint = '' }) {
+  const className = `client-me-card client-me-tile client-me-tile--${tile.tone}${lead ? ' client-me-card--lead' : ''}${
+    onOpen ? ' client-me-tile--button' : ''
+  }`
+  const body = (
+    <>
       <h2 className="client-me-card__title">
         <Icon size={16} aria-hidden />
         <span className="client-me-tile__title-text">{title}</span>
@@ -48,17 +51,38 @@ function Tile({ icon: Icon, title, lead, tile }) {
           </div>
         ) : null}
       </div>
-      <p className="client-me-tile__foot">{tile.foot}</p>
-    </section>
+      <p className="client-me-tile__foot">
+        {tile.foot}
+        {onOpen && openHint ? <span className="client-me-tile__hint">{openHint}</span> : null}
+      </p>
+    </>
   )
+  if (onOpen) {
+    return (
+      <button type="button" className={className} onClick={onOpen} aria-label={openLabel || title}>
+        {body}
+      </button>
+    )
+  }
+  return <section className={className}>{body}</section>
 }
 
 export function ClientMembershipsCard({ memberships, today, lead }) {
   return <Tile icon={IdCard} title="Мой абонемент" lead={lead} tile={membershipTile(memberships, today)} />
 }
 
-export function ClientNextSessionCard({ session, today, lead }) {
-  return <Tile icon={CalendarClock} title="Следующая тренировка" lead={lead} tile={sessionTile(session, today)} />
+export function ClientNextSessionCard({ session, today, lead, onOpenCalendar = null }) {
+  return (
+    <Tile
+      icon={CalendarClock}
+      title="Следующая тренировка"
+      lead={lead}
+      tile={sessionTile(session, today)}
+      onOpen={onOpenCalendar}
+      openLabel="Открыть календарь тренировок"
+      openHint="Календарь"
+    />
+  )
 }
 
 /** Под плитками: продлить / следующий абон / при смеси залов — остальные во «Тренировках». */

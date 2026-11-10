@@ -114,6 +114,13 @@ export function clientMeHomePreviewSample() {
       can_redeem: true,
       unlock_on: null,
     },
+    /** Упрощённый цикл — только клиентка; в DEV-превью включён для календаря */
+    cycle: {
+      enabled: true,
+      cycle_days: 28,
+      period_days: 5,
+      last_period_start: '2026-10-01',
+    },
   }
 }
 

@@ -18,6 +18,7 @@ import {
   parseSelfProgressDate,
   parseSelfWeightKg,
 } from '../../../src/lib/client/clientProgressSelfCore.js'
+import { parseCycleSettingsInput, publicClientCycle } from '../../../src/lib/client/clientCycleCalendarCore.js'
 import { sanitizeClientPlanPayload, summarizeClientPlan } from '../../../src/lib/clientPlans/clientPlanCore.js'
 import { fakeJwt } from './fakeBackend.mjs'
 
@@ -154,6 +155,33 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
       return { status: 400, json: { error: 'Неизвестное действие' } }
     }
 
+    if (method !== 'GET' && String(body?.action ?? '').startsWith('cycle-')) {
+      state.client_cycle_settings ??= {}
+      const action = String(body.action)
+      if (action === 'cycle-get') {
+        return { status: 200, json: { ok: true, cycle: publicClientCycle(state.client_cycle_settings[clientId]) } }
+      }
+      if (action === 'cycle-disable') {
+        state.client_cycle_settings[clientId] = { enabled: false }
+        return { status: 200, json: { ok: true, cycle: { enabled: false } } }
+      }
+      if (action === 'cycle-upsert') {
+        const parsed = parseCycleSettingsInput(
+          {
+            enabled: true,
+            cycle_days: body.cycle_days,
+            period_days: body.period_days,
+            last_period_start: body.last_period_start,
+          },
+          today,
+        )
+        if (!parsed.ok) return { status: 400, json: { error: parsed.error } }
+        state.client_cycle_settings[clientId] = parsed.value
+        return { status: 200, json: { ok: true, cycle: publicClientCycle(parsed.value) } }
+      }
+      return { status: 400, json: { error: 'Неизвестное действие' } }
+    }
+
     if (method !== 'GET') return { status: 200, json: { ok: true } }
 
     const client = state.clients.find((c) => c.id === clientId)
@@ -173,6 +201,7 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
         ),
         next_session: pickNextClientSession(schedule, today, 0, names),
         progress: progressSlice().progress,
+        cycle: publicClientCycle(state.client_cycle_settings?.[clientId]),
         loyalty: null,
         plans: {
           homework: plans.find((p) => p.kind === 'homework') ? brief(plans.find((p) => p.kind === 'homework')) : null,

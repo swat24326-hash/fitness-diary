@@ -14,6 +14,7 @@
  * POST /api/client-me { action: 'membership-notice-read' } — прочитано оповещение об абонементе.
  * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' | 'story-react' } — реклама своего клуба.
  * POST /api/client-me { action: 'progress-weight-*' | 'progress-measure-*' } — свой вес/обмеры (○).
+ * POST /api/client-me { action: 'cycle-get' | 'cycle-upsert' | 'cycle-disable' } — упрощённый цикл (только себе).
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -33,6 +34,7 @@ import {
   loadClientMembershipNoticesSummary,
 } from './clientMembershipNoticeHandler.js'
 import { handleClientProgressSelfPost, isProgressSelfAction } from './clientProgressSelfHandler.js'
+import { handleClientCyclePost, isCycleAction } from './clientCycleHandler.js'
 import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
@@ -96,6 +98,8 @@ export async function clientMeHandler(req, res) {
       await handleClientStories(createServiceDataClient(), ctx, body, res)
     } else if (isProgressSelfAction(body?.action)) {
       await handleClientProgressSelfPost(createServiceDataClient(), ctx, body, res)
+    } else if (isCycleAction(body?.action)) {
+      await handleClientCyclePost(createServiceDataClient(), ctx, body, res)
     } else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }

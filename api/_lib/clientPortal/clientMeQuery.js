@@ -26,6 +26,7 @@ import { membershipVisitTrainerIds } from './clientMembershipVisitsCore.js'
 import { clubOpsMinutesNow } from './clientReminderCore.js'
 import { loadClientAzInstructorRows } from '../chat/chatStore.js'
 import { rows as inboxRows } from '../inbox/inboxStore.js'
+import { loadClientCycle } from './clientCycleHandler.js'
 
 async function rows(query) {
   const { data, error } = await query
@@ -163,7 +164,7 @@ export async function loadClientProgressSlice(db, clientId) {
 /** @param {{ id: string, name?: string, club_id: string, archived_at?: string|null }} client */
 export async function loadClientMe(db, client) {
   const today = clubOpsAsOfIso()
-  const [memberships, types, trainings, weights, measurements, next_session] = await Promise.all([
+  const [memberships, types, trainings, weights, measurements, next_session, cycle] = await Promise.all([
     loadLoyaltyMemberships(db, client.id),
     loadLoyaltyMembershipTypes(db, client.club_id),
     loadLoyaltyCompletedTrainings(db, client.id, '1900-01-01'),
@@ -184,6 +185,7 @@ export async function loadClientMe(db, client) {
         .limit(12),
     ),
     loadNextSession(db, client, today),
+    loadClientCycle(db, client.id),
   ])
   const visible = visibleClientMemberships(memberships, today)
   const [club, trainerNames] = await Promise.all([
@@ -201,6 +203,7 @@ export async function loadClientMe(db, client) {
     memberships: buildClientMemberships(memberships, types, trainings, today, trainerNames),
     next_session,
     progress: buildClientProgress(trainings, weights, measurements, today, memberships),
+    cycle,
     loyalty: await loadLoyalty(db, client, memberships, types, trainings, today),
   }
 }

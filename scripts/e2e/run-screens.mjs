@@ -11,6 +11,7 @@ import * as inputAfterOpen from './scenarios/trainerInputAfterOpen.mjs'
 import * as clientMe from './scenarios/clientMeApp.mjs'
 import * as clientAzMe from './scenarios/clientAzMePreview.mjs'
 import * as clientProgressSelf from './scenarios/clientProgressSelf.mjs'
+import * as clientCycleCalendar from './scenarios/clientCycleCalendar.mjs'
 import * as staffInbox from './scenarios/staffInbox.mjs'
 import * as clientChat from './scenarios/clientChat.mjs'
 import * as chatVoice from './scenarios/chatVoice.mjs'
@@ -41,7 +42,7 @@ import * as staffHeader from './scenarios/staffHeader.mjs'
 import * as profileAvatar from './scenarios/profileAvatar.mjs'
 import * as screenCache from './scenarios/screenCacheOffline.mjs'
 
-const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientAzMe, clientProgressSelf, clientSparkShake, staffInbox, clientChat, clientCardChatInvite, chatVoice, chatAttach, chatVideo, clientTrainerPlans, clientNutritionDays, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, azGroup, linkedStaff, settingsMenu, profileAvatar, screenCache]
+const SCENARIOS = [localDbBlocked, deviceHealth, staffHeader, offlineFinish, editCompletedDate, twoDrafts, inputAfterOpen, clientMe, clientAzMe, clientProgressSelf, clientCycleCalendar, clientSparkShake, staffInbox, clientChat, clientCardChatInvite, chatVoice, chatAttach, chatVideo, clientTrainerPlans, clientNutritionDays, homeworkAuto, healthScreening, adminHomeworkLibrary, trainerSchedule, trainerScheduleDesktop, adminSchedule, coachApp, coachSchedule, coachClients, coachContacts, staffDm, staffGroup, azGroup, linkedStaff, settingsMenu, profileAvatar, screenCache]
 
 const filter = process.argv[2]
 const picked = filter ? SCENARIOS.filter((s) => s.name.includes(filter)) : SCENARIOS
