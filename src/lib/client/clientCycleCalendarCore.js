@@ -1,13 +1,25 @@
 /**
  * Упрощённый женский цикл + разметка дней календаря /me (без React).
  * Фазы — расчёт по параметрам клиентки, не медпрогноз.
+ * Настройка цикла — только при sex=female из карты здоровья; male / пусто — нельзя.
  */
+import { normalizeHealthSex } from '../healthCardCore.js'
 
 export const CYCLE_DAYS_MIN = 21
 export const CYCLE_DAYS_MAX = 45
 export const PERIOD_DAYS_MIN = 1
 export const PERIOD_DAYS_MAX = 10
 export const CYCLE_DEFAULT = { cycle_days: 28, period_days: 5 }
+
+export const CYCLE_SEX_BLOCKED_RU = 'Цикл доступен, если в карте здоровья указан женский пол'
+
+/**
+ * Можно ли включать и сохранять цикл (только female).
+ * @param {unknown} sex
+ */
+export function clientCanConfigureCycle(sex) {
+  return normalizeHealthSex(sex) === 'female'
+}
 
 /** @typedef {'period'|'follicular'|'ovulation'|'luteal'} CyclePhase */
 /** @typedef {'done'|'planned'|'noshow'} TrainingMarker */

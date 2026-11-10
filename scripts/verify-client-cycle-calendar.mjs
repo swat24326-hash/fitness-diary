@@ -5,6 +5,7 @@
 import {
   buildCycleCalendarMonth,
   calendarMonthTitleRu,
+  clientCanConfigureCycle,
   collectClientTrainingMarkers,
   cyclePhaseForDay,
   parseCycleSettingsInput,
@@ -21,6 +22,11 @@ function ok(cond, msg) {
 }
 
 const TODAY = '2026-10-18'
+
+ok(clientCanConfigureCycle('female') === true, 'female — можно цикл')
+ok(clientCanConfigureCycle('male') === false, 'male — нельзя цикл')
+ok(clientCanConfigureCycle(null) === false, 'пол пуст — нельзя цикл')
+ok(clientCanConfigureCycle('M') === false, 'буква M не нормализуется')
 
 ok(parseCycleSettingsInput({ enabled: false }).ok === true, 'выкл — ок')
 ok(parseCycleSettingsInput({ enabled: true, cycle_days: 28, period_days: 5 }, TODAY).ok === false, 'без даты — отказ')

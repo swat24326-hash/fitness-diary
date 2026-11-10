@@ -9,7 +9,7 @@ export function clientMeHomePreviewSample() {
   const asOf = '2026-10-18'
   return {
     as_of: asOf,
-    client: { name: 'Мария Иванова', has_trainer: true },
+    client: { name: 'Мария Иванова', has_trainer: true, sex: 'female' },
     club: { name: 'Fit City' },
     next_session: {
       date: '2026-10-20',

@@ -70,6 +70,7 @@ export function ClientMePage() {
   }
 
   const cycle = cyclePatch ?? data?.cycle ?? { enabled: false }
+  const sex = data?.client?.sex ?? null
   const actions = (
     <span className="client-me__actions">
       <ClientNotificationsEntry
@@ -86,6 +87,7 @@ export function ClientMePage() {
         onAddWeight={() => setAddRequest('weight')}
         onAddMeasure={() => setAddRequest('measure')}
         asOf={data?.as_of || ''}
+        sex={sex}
         cycle={cycle}
         onCycleChange={setCyclePatch}
       />
@@ -148,6 +150,7 @@ export function ClientMePage() {
       {calendarOpen ? (
         <ClientTrainingCalendarSheet
           asOf={today}
+          sex={sex}
           cycle={cycle}
           memberships={data.memberships}
           nextSession={data.next_session}
@@ -159,6 +162,7 @@ export function ClientMePage() {
       {cycleSheetOpen ? (
         <ClientCycleSettingsSheet
           asOf={today}
+          sex={sex}
           initial={cycle}
           busy={cycleBusy}
           error={cycleError}
@@ -168,12 +172,10 @@ export function ClientMePage() {
             setCycleError('')
             try {
               const res = await upsertClientCycle(payload)
-              if (!res?.ok) {
-                setCycleError(res?.error || 'Не удалось сохранить')
-                return
-              }
               setCyclePatch(res.cycle ?? { enabled: true, ...payload })
               setCycleSheetOpen(false)
+            } catch (e) {
+              setCycleError(e?.message || 'Не удалось сохранить')
             } finally {
               setCycleBusy(false)
             }
@@ -183,12 +185,10 @@ export function ClientMePage() {
             setCycleError('')
             try {
               const res = await disableClientCycle()
-              if (!res?.ok) {
-                setCycleError(res?.error || 'Не удалось выключить')
-                return
-              }
               setCyclePatch(res.cycle ?? { enabled: false })
               setCycleSheetOpen(false)
+            } catch (e) {
+              setCycleError(e?.message || 'Не удалось выключить')
             } finally {
               setCycleBusy(false)
             }

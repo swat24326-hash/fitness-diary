@@ -3,10 +3,12 @@
  * Телефон: крупные дни ≥44px, спокойные заливки из токенов.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings2, X } from 'lucide-react'
 import {
+  CYCLE_SEX_BLOCKED_RU,
   buildCycleCalendarMonth,
   calendarMonthTitleRu,
+  clientCanConfigureCycle,
   cyclePhaseLabelRu,
   publicClientCycle,
   shiftCalendarMonth,
@@ -18,6 +20,7 @@ const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
 /**
  * @param {{
  *   asOf: string
+ *   sex?: 'male'|'female'|null
  *   cycle?: object|null
  *   memberships?: object|null
  *   nextSession?: object|null
@@ -28,6 +31,7 @@ const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
  */
 export function ClientTrainingCalendarSheet({
   asOf,
+  sex = null,
   cycle = null,
   memberships = null,
   nextSession = null,
@@ -39,6 +43,7 @@ export function ClientTrainingCalendarSheet({
   const [y, m] = start.split('-').map(Number)
   const [{ year, month }, setCursor] = useState({ year: y, month: m })
   const pub = publicClientCycle(cycle)
+  const canCycle = clientCanConfigureCycle(sex)
 
   useEffect(() => {
     const onKey = (e) => {
@@ -170,8 +175,15 @@ export function ClientTrainingCalendarSheet({
               <span className="client-me-muted">{grid.legendHint}</span>
             </div>
           ) : onOpenCycleSettings ? (
-            <button type="button" className="btn btn-ghost btn-touch client-cycle-cal__setup" onClick={onOpenCycleSettings}>
-              Настроить цикл
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon-square btn-touch client-cycle-cal__setup"
+              title={canCycle ? 'Настроить цикл' : CYCLE_SEX_BLOCKED_RU}
+              aria-label={canCycle ? 'Настроить цикл' : CYCLE_SEX_BLOCKED_RU}
+              disabled={!canCycle}
+              onClick={canCycle ? onOpenCycleSettings : undefined}
+            >
+              <Settings2 size={20} aria-hidden />
             </button>
           ) : null}
         </div>

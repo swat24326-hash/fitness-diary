@@ -27,6 +27,18 @@ import { clubOpsMinutesNow } from './clientReminderCore.js'
 import { loadClientAzInstructorRows } from '../chat/chatStore.js'
 import { rows as inboxRows } from '../inbox/inboxStore.js'
 import { loadClientCycle } from './clientCycleHandler.js'
+import { normalizeHealthSex } from '../../../src/lib/healthCardCore.js'
+
+async function loadClientSex(db, clientId) {
+  try {
+    const { data, error } = await db.from('health_cards').select('sex').eq('client_id', clientId).maybeSingle()
+    if (error) throw error
+    return normalizeHealthSex(data?.sex)
+  } catch (e) {
+    if (/health_cards|42P01|PGRST205|does not exist/i.test(String(e?.message ?? e?.code ?? ''))) return null
+    throw e
+  }
+}
 
 async function rows(query) {
   const { data, error } = await query
@@ -164,7 +176,7 @@ export async function loadClientProgressSlice(db, clientId) {
 /** @param {{ id: string, name?: string, club_id: string, archived_at?: string|null }} client */
 export async function loadClientMe(db, client) {
   const today = clubOpsAsOfIso()
-  const [memberships, types, trainings, weights, measurements, next_session, cycle] = await Promise.all([
+  const [memberships, types, trainings, weights, measurements, next_session, cycle, sex] = await Promise.all([
     loadLoyaltyMemberships(db, client.id),
     loadLoyaltyMembershipTypes(db, client.club_id),
     loadLoyaltyCompletedTrainings(db, client.id, '1900-01-01'),
@@ -186,6 +198,7 @@ export async function loadClientMe(db, client) {
     ),
     loadNextSession(db, client, today),
     loadClientCycle(db, client.id),
+    loadClientSex(db, client.id),
   ])
   const visible = visibleClientMemberships(memberships, today)
   const [club, trainerNames] = await Promise.all([
@@ -198,6 +211,8 @@ export async function loadClientMe(db, client) {
       name: String(client.name ?? ''),
       /** Есть персональный тренер ПЗ — без uuid (whitelist). Для вкладок, пока hall ещё не в кэше. */
       has_trainer: Boolean(String(client.trainer_id ?? '').trim()),
+      /** Из карты здоровья; для цикла в /me. male | female | null */
+      sex,
     },
     club: { name: cleanClubName(club.data?.name), manifest_url: clientManifestUrl(client.club_id) },
     memberships: buildClientMemberships(memberships, types, trainings, today, trainerNames),

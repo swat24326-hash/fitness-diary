@@ -243,6 +243,8 @@ ok(
   [...keysDeep(cycleOn)].sort().join() === 'cycle_days,enabled,last_period_start,period_days',
   'цикл вкл — только параметры, без client_id',
 )
+const clientKeys = keysDeep({ name: 'А', has_trainer: true, sex: 'female' })
+ok(clientKeys.has('sex') && !clientKeys.has('client_id'), 'в client уходит sex, не id')
 
 // --- SQL .contains() ---
 const q = createPgRestClient()

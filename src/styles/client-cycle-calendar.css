@@ -195,8 +195,16 @@
 
 .client-cycle-cal__setup {
   margin-left: auto;
-  min-height: 44px;
-  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.client-cycle-cal__setup:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.client-switch--muted {
+  opacity: 0.42;
 }
 
 .client-cycle-cal__detail {
