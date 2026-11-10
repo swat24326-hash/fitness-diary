@@ -13,8 +13,31 @@ function looksLikePhone(raw) {
 }
 
 /**
+ * Имена с окончанием как у фамилий (-ина / -ин): иначе «Марина», «Екатерина»
+ * ошибочно считаются фамилией.
+ */
+const GIVEN_NAME_LIKE_SURNAME = new Set(
+  [
+    'марина',
+    'екатерина',
+    'ирина',
+    'полина',
+    'ангелина',
+    'карина',
+    'галина',
+    'алина',
+    'милина',
+    'кристина',
+    'валентина',
+    'каталина',
+    'павлина',
+    'янина',
+  ].map((s) => s.replace(/ё/g, 'е')),
+)
+
+/**
  * Типичные русские фамилии по окончанию (Семенов, Смирнова, Ковальский…).
- * Имена вроде «Иван», «Мария», «Дмитрий» сюда не попадают.
+ * Имена вроде «Иван», «Мария», «Дмитрий», «Марина» сюда не попадают.
  * @param {string} token
  */
 export function looksLikeRussianSurname(token) {
@@ -22,8 +45,8 @@ export function looksLikeRussianSurname(token) {
     .trim()
     .toLowerCase()
     .replace(/ё/g, 'е')
-  if (t.length < 3) return false
-  return /(ов|ова|ев|ева|ин|ина|ын|ына|ский|ская|цкий|цкая|енко|ук|юк|ян|дзе)$/i.test(t)
+  if (t.length < 3 || GIVEN_NAME_LIKE_SURNAME.has(t)) return false
+  return /(ов|ова|ев|ева|ин|ина|ын|ына|ский|ская|цкий|цкая|енко|евич|ович|евна|овна|ук|юк|ян|дзе)$/i.test(t)
 }
 
 /**
@@ -52,20 +75,21 @@ export function resolveWelcomeGreetingName(raw) {
   const first = parts[0]
   const second = parts[1]
 
-  // «Фамилия Имя …» (как карточка клиента) → имя.
+  // «Фамилия Имя …» (как карточка клиента / Москва) → имя.
   if (looksLikeRussianSurname(first) && !looksLikeRussianSurname(second)) {
     return normalizeOutreachName(second)
   }
-  // «Имя Фамилия» → имя.
+  // «Имя Фамилия» (Клинцы) → имя.
   if (!looksLikeRussianSurname(first) && looksLikeRussianSurname(second)) {
     return normalizeOutreachName(first)
   }
-  // Оба / ни один не похожи на фамилию — берём второе (как в ФИО клуба).
-  if (!looksLikeRussianSurname(second)) {
-    return normalizeOutreachName(second)
-  }
+  // Неясно (редкая фамилия без типичного окончания) — первое слово: «Александр Кукареко», «Захар Шкурат».
+  // Ник+имя вроде «Алекса Артем» правим в карточке тренера, не эвристикой.
   if (!looksLikeRussianSurname(first)) {
     return normalizeOutreachName(first)
+  }
+  if (!looksLikeRussianSurname(second)) {
+    return normalizeOutreachName(second)
   }
   return ''
 }

@@ -51,9 +51,13 @@ const inst = {
   Любовь: 'Любовью',
 }
 for (const [name, want] of Object.entries(inst)) ok(trainerNameInstrumental(name) === want, `${name} → с ${want}`)
-ok(trainerNameInstrumental('Анна Петрова') === 'Анной', 'берём только имя')
+ok(trainerNameInstrumental('Анна Петрова') === 'Анной', 'Имя Фамилия — берём имя')
+ok(trainerNameInstrumental('Родивилов Артём') === 'Артёмом', 'Фамилия Имя — берём имя')
+ok(trainerNameInstrumental('Артём') === 'Артёмом', 'одно имя с ё')
+ok(trainerNameInstrumental('Лукашевич Ирина') === 'Ириной', 'фамилия на -евич')
 ok(trainerNameInstrumental('Anna') === null && trainerNameInstrumental('Нико') === null, 'не склоняем непонятное')
 ok(buildClientReminderBody({ startMinutes: H(18), trainerName: 'Анна' }) === 'Завтра в 18:00 — тренировка с Анной', 'текст владельца')
+ok(buildClientReminderBody({ startMinutes: H(19), trainerName: 'Артём' }) === 'Завтра в 19:00 — тренировка с Артёмом', 'карточка Брянска — с Артёмом')
 ok(buildClientReminderBody({ startMinutes: H(7, 30), trainerName: 'Нико' }) === 'Завтра в 07:30 — тренировка, тренер Нико', 'без склонения — «тренер Нико»')
 ok(buildClientReminderBody({ startMinutes: H(9), trainerName: '' }) === 'Завтра в 09:00 — тренировка', 'без тренера — только время')
 
@@ -138,10 +142,8 @@ function fakeDb(tables) {
   }
 }
 
-process.env.VAPID_PUBLIC_KEY = '[REDACTED]'
-process.env.VAPID_PRIVATE_KEY = '[REDACTED]'
-ok(!isWebPushConfigured(), 'заглушка вместо ключей — push не настроен, карточку не показываем')
-ok((await runClientReminders({ db: fakeDb({}), now: new Date('2026-10-07T16:00:00Z') })).skipped === 'vapid_not_configured', 'с заглушкой cron ничего не шлёт')
+ok(!isWebPushConfigured(), 'без ключей — push не настроен, карточку не показываем')
+ok((await runClientReminders({ db: fakeDb({}), now: new Date('2026-10-07T16:00:00Z') })).skipped === 'vapid_not_configured', 'без ключей cron ничего не шлёт')
 const vapid = webpush.generateVAPIDKeys()
 process.env.VAPID_PUBLIC_KEY = vapid.publicKey
 process.env.VAPID_PRIVATE_KEY = vapid.privateKey

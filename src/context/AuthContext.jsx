@@ -591,8 +591,8 @@ export function AuthProvider({ children }) {
   }, [applySession, refreshSessionOnWake, clearGhostSession])
 
   useEffect(() => {
-    const onWake = (ev) => {
-      if (!ev?.detail?.long || !user?.id) return
+    const onWake = () => {
+      if (!user?.id) return
       if (user.club_id || role === 'admin') return
       void refreshUserProfile()
     }

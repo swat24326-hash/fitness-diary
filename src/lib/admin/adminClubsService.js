@@ -42,26 +42,27 @@ export async function listClubsLocal() {
 const CLUB_REMOTE_MS = 7000
 const CLUB_VERIFY_MS = 4000
 
-/** Название клуба для UI (кэш → один запрос в Supabase). Тренеру не нужен полный pullClubs. */
+/** Название клуба для UI (кэш → один запрос в Supabase). Тренеру не нужен полный pullClubs. Пустой id → '' (шапка покажет «Клуб», не «—»). */
 export async function resolveClubDisplayName(clubId) {
   const cid = String(clubId ?? '').trim()
-  if (!cid) return '—'
+  if (!cid) return ''
   const local = (await listClubsLocal()).find((c) => String(c.id) === cid)
   const localName = local?.name?.trim()
-  if (localName) return localName
+  if (localName && localName !== '—') return localName
   if (!isSupabaseConfigured()) return cid
   try {
     const res = await withFastTimeout(
-      supabase.from('clubs').select('*').eq('id', cid).maybeSingle(),
+      supabase.from('clubs').select('id, name').eq('id', cid).maybeSingle(),
       CLUB_VERIFY_MS,
     )
-    if (!res.error && res.data?.name) {
+    const remoteName = String(res.data?.name ?? '').trim()
+    if (!res.error && remoteName && remoteName !== '—') {
       await putStore('clubs', res.data)
       clubsPulledAt = 0
-      return String(res.data.name).trim()
+      return remoteName
     }
   } catch {
-    /* сеть — покажем id */
+    /* сеть — ниже id */
   }
   return cid
 }

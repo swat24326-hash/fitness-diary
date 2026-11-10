@@ -16,6 +16,7 @@ import { useAdminClubContext } from './header/useAdminClubContext.js'
 import { IskraOrb } from './iskra/IskraOrb.jsx'
 import { productBrandDocumentTitle } from '../lib/productBrand.js'
 import { LOCAL_DATA_CHANGED, resolveClubDisplayName } from '../lib/dataAccess'
+import { staffHeaderClubTitle } from '../lib/headerClubTitleCore.js'
 import { HeaderStopwatch } from './HeaderStopwatch'
 import { HeaderHeartRate } from './HeaderHeartRate'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
@@ -141,12 +142,15 @@ export function AppHeader() {
       setTrainerClubLabel(null)
       return
     }
+    let alive = true
     const cid = String(user?.club_id ?? '').trim()
     if (!cid) {
-      setTrainerClubLabel('—')
-      return
+      setTrainerClubLabel('')
+      if (user?.id && supabaseReady) void refreshUserProfile()
+      return () => {
+        alive = false
+      }
     }
-    let alive = true
     const resolve = async () => {
       try {
         const name = await resolveClubDisplayName(cid)
@@ -164,7 +168,7 @@ export function AppHeader() {
       alive = false
       window.removeEventListener(LOCAL_DATA_CHANGED, onData)
     }
-  }, [isAdmin, user?.club_id])
+  }, [isAdmin, user?.id, user?.club_id, supabaseReady, refreshUserProfile])
 
   const isTrainer = !isAdmin && !isSalesManager && !isSupervisor && !!user
   const isDispatchInboxUser = (isTrainer || isSalesManager || isSupervisor) && !!user
@@ -303,9 +307,7 @@ export function AppHeader() {
   const headerClubTitle = isAdmin
     ? adminClubName ||
       (adminClub.loading && adminClub.clubs.length === 0 ? '…' : showAdminClubSelect ? 'Выберите клуб' : 'Все клубы')
-    : trainerClubLabel === null
-      ? '…'
-      : trainerClubLabel || '—'
+    : staffHeaderClubTitle(trainerClubLabel)
 
   useEffect(() => {
     if (isSalesManager) {

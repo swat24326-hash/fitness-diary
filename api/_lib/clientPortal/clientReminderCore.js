@@ -1,9 +1,11 @@
 /**
  * Напоминание клиенту о завтрашней тренировке (без БД и сети): окно отправки, тихие часы, текст, план.
  * Текст — только время и тренер: его видно на заблокированном экране.
+ * Имя тренера — как на splash: из «Фамилия Имя» / «Имя Фамилия» / «Алекса Артём» берём живое имя, не первое слово.
  */
 import { CLUB_OPS_TIMEZONE } from '../../../src/lib/dateRu.js'
 import { CLIENT_HOME } from '../../../src/lib/pwa/appHomePath.js'
+import { resolveWelcomeGreetingName } from '../../../src/lib/welcomeSplashGreeting.js'
 
 export const CLIENT_REMINDER_FROM_MIN = 19 * 60
 export const CLIENT_QUIET_FROM_MIN = 22 * 60
@@ -39,12 +41,19 @@ export function formatSlotTime(startMinutes) {
 const SIBILANT = /[жшчщц]$/i
 const FEMALE_SOFT = new Set(['любовь', 'нинель', 'ассоль'])
 
+/** Имя для «с …» / «тренер …»: не сырое первое слово ФИО. */
+export function trainerReminderGivenName(fullName) {
+  const smart = resolveWelcomeGreetingName(fullName)
+  if (smart) return smart
+  return String(fullName ?? '').trim().split(/\s+/)[0] ?? ''
+}
+
 /**
  * «с Анной», «с Сергеем». Только русские имена с понятным окончанием; иначе null —
  * тогда текст без склонения («тренер Ким»), чтобы не исказить имя.
  */
 export function trainerNameInstrumental(fullName) {
-  const name = String(fullName ?? '').trim().split(/\s+/)[0] ?? ''
+  const name = trainerReminderGivenName(fullName)
   if (!/^[А-ЯЁ][а-яё]+$/.test(name)) return null
   const lower = name.toLowerCase()
   const stem = name.slice(0, -1)
@@ -58,9 +67,9 @@ export function trainerNameInstrumental(fullName) {
 
 export function buildClientReminderBody({ startMinutes, trainerName }) {
   const head = `Завтра в ${formatSlotTime(startMinutes)} — тренировка`
-  const first = String(trainerName ?? '').trim().split(/\s+/)[0] ?? ''
+  const first = trainerReminderGivenName(trainerName)
   if (!first) return head
-  const inst = trainerNameInstrumental(first)
+  const inst = trainerNameInstrumental(trainerName)
   return inst ? `${head} с ${inst}` : `${head}, тренер ${first}`
 }
 
