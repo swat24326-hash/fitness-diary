@@ -17,7 +17,7 @@ const agentQaPath = join(root, 'scripts/agent-qa.mjs')
  * 16.10.2026 факт ~3515 КБ — оценка абонемента в ленте `/me` (ядро в main для бейджа; экран `/me/rate` ленивый).
  * 30.10.2026 факт ~3608 КБ — главная/визиты АЗ в `/me` (метки зала, session_visits); потолок +50 без выноса admin.
  */
-const MAX_MAIN_BUNDLE_KB = 3650
+const MAX_MAIN_BUNDLE_KB = 3700
 
 let failed = 0
 

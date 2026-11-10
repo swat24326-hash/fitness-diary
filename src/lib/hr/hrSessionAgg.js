@@ -4,6 +4,10 @@
  */
 
 import { normalizeHealthSex } from '../healthCardCore.js'
+import {
+  buildHrMinuteSeries,
+  hrTargetRangeFromMaxHr,
+} from './hrSessionInsightCore.js'
 
 /** Интервал записи сэмпла в буфер (мс). */
 export const HR_SAMPLE_INTERVAL_MS = 5000
@@ -198,6 +202,27 @@ export function normalizeHrSessionSnapshot(raw) {
         ? Math.round(Number(kcalRaw))
         : null
 
+  const maxHrRaw = Number(raw.max_hr)
+  const max_hr = Number.isFinite(maxHrRaw) && maxHrRaw > 0 ? Math.round(maxHrRaw) : null
+  const targetRaw = raw.target && typeof raw.target === 'object' ? raw.target : null
+  const targetLo = Number(targetRaw?.lo)
+  const targetHi = Number(targetRaw?.hi)
+  const target =
+    Number.isFinite(targetLo) &&
+    Number.isFinite(targetHi) &&
+    targetLo > 0 &&
+    targetHi >= targetLo
+      ? { lo: Math.round(targetLo), hi: Math.round(targetHi) }
+      : hrTargetRangeFromMaxHr(max_hr)
+
+  const seriesRaw = Array.isArray(raw.series) ? raw.series : null
+  const series = seriesRaw
+    ? seriesRaw
+        .map((n) => Math.round(Number(n)))
+        .filter((n) => Number.isFinite(n) && n > 0 && n <= 300)
+        .slice(0, 180)
+    : null
+
   return {
     avg: Math.round(avg),
     min: Math.round(min),
@@ -206,6 +231,9 @@ export function normalizeHrSessionSnapshot(raw) {
     samples_n: Number.isFinite(samples_n) && samples_n > 0 ? Math.round(samples_n) : null,
     kcal_est,
     zones,
+    max_hr,
+    target,
+    series: series && series.length >= 2 ? series : null,
     computed_at: raw.computed_at ? String(raw.computed_at) : null,
   }
 }
@@ -241,10 +269,16 @@ export function buildHrSessionSummary(samples, ctx = {}) {
         })
       : null
 
+  const target = hrTargetRangeFromMaxHr(maxHr)
+  const series = buildHrMinuteSeries(pruned)
+
   return normalizeHrSessionSnapshot({
     ...base,
     kcal_est,
     zones,
+    max_hr: maxHr,
+    target,
+    series,
     computed_at: new Date().toISOString(),
   })
 }
