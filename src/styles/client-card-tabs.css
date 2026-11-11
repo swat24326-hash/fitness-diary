@@ -1,4 +1,19 @@
-/* Вкладки карточки клиента: .card не «выплывает» заново на каждом переключении — иначе экран дёргается. */
-.client-card-tabpanel .card {
+/* Вкладки карточки клиента: без fade-in и без схлопывания высоты — иначе экран дёргается. */
+.client-card-tabs {
+  scroll-margin-top: 12px;
+}
+
+.client-card-tabpanel {
+  min-height: min(52vh, 560px);
+  overflow-anchor: none;
+}
+
+.client-card-tabpanel__keep[hidden] {
+  display: none !important;
+}
+
+.client-card-tabpanel .card,
+.client-card-tabpanel .loyalty-account,
+.client-card-tabpanel .diary-card {
   animation: none;
 }

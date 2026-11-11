@@ -195,6 +195,8 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
   const workoutPrefix = isAdmin ? '/admin/workouts' : isSupervisor ? '/club/workouts' : '/trainer/workouts'
   const [trainings, setTrainings] = useState([])
   const [memberships, setMemberships] = useState([])
+  // До первого чтения — не показывать «Нет тренировок» (мигает и дёргает вкладки карточки).
+  const [listReady, setListReady] = useState(false)
 
   const [dateSearch, setDateSearch] = useState('')
   const [focusSearch, setFocusSearch] = useState('')
@@ -207,6 +209,11 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
     const mine = [...(await ensureClientTrainingsCached(client.id))].sort(compareDiaryListOrder)
     setTrainings(mine)
     setMemberships(await listMemberships(client.id))
+    setListReady(true)
+  }, [client?.id])
+
+  useEffect(() => {
+    setListReady(false)
   }, [client?.id])
 
   useEffect(() => {
@@ -341,7 +348,14 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
         </div>
       </div>
 
-      {filtered.length === 0 && <p className="muted">Нет тренировок по заданным условиям.</p>}
+      {!listReady ? (
+        <p className="muted" role="status">
+          Загрузка дневника…
+        </p>
+      ) : null}
+      {listReady && filtered.length === 0 ? (
+        <p className="muted">Нет тренировок по заданным условиям.</p>
+      ) : null}
 
       <div className="diary-cards-grid">
         {filtered.map((t) => {

@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Dumbbell } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
+import { usePreserveElementViewportY } from '../../hooks/usePreserveElementViewportY.js'
 import { isOpenPnkClient, isPnkCardTabVisible } from '../../lib/pnk/pnkStagesCore.js'
 import { shouldShowLoyaltyUi } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
 import { ClientHomeworkPage } from './ClientHomeworkPage'
@@ -45,23 +47,36 @@ export function ClientCardMainTabs({
   statsInitialMode = null,
 }) {
   const pnkCtx = { healthCard, bzCompletedCount }
+  const loyaltyOk = tabOk(client, 'loyalty', pnkCtx)
+  const [loyaltyKept, setLoyaltyKept] = useState(false)
+  useEffect(() => {
+    if (tab === 'loyalty' && loyaltyOk) setLoyaltyKept(true)
+  }, [tab, loyaltyOk])
+  useEffect(() => {
+    setLoyaltyKept(false)
+  }, [client?.id])
+  const { elRef: tabsRef, observeRef: panelRef, capture: captureTabsY } = usePreserveElementViewportY(tab)
+  const selectTab = (id) => {
+    captureTabsY()
+    setTab(id)
+  }
   return (
     <>
-      <div className="tabs" role="tablist">
+      <div className="tabs client-card-tabs" role="tablist" ref={tabsRef}>
         {CARD_TABS.filter((t) => tabOk(client, t.id, pnkCtx)).map((t) => (
           <button
             key={t.id}
             type="button"
             className="tab"
             aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => selectTab(t.id)}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="client-card-tabpanel" role="tabpanel">
+      <div className="client-card-tabpanel" role="tabpanel" ref={panelRef}>
       {tab === 'health' && tabOk(client, 'health', pnkCtx) && (
         <ClientOverview
           client={client}
@@ -96,7 +111,16 @@ export function ClientCardMainTabs({
           membershipHall="pz"
         />
       )}
-      {tab === 'loyalty' && tabOk(client, 'loyalty', pnkCtx) && <ClientLoyaltySection client={client} />}
+      {/* После первого «Баллы» не размонтируем — повторный вход без «Загружаю…» и скачка высоты. */}
+      {loyaltyOk && (loyaltyKept || tab === 'loyalty') ? (
+        <div
+          className="client-card-tabpanel__keep"
+          hidden={tab !== 'loyalty'}
+          aria-hidden={tab !== 'loyalty'}
+        >
+          <ClientLoyaltySection client={client} />
+        </div>
+      ) : null}
       {tab === 'stats' && tabOk(client, 'stats', pnkCtx) && (
         <Statistics clientId={client.id} initialMode={statsInitialMode} />
       )}

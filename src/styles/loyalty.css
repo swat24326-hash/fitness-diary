@@ -6,6 +6,8 @@
   gap: 14px;
   margin-top: 12px;
   padding: 16px 16px 14px;
+  /* Пока «Загружаю…» — та же высота, что у блока с цифрами; иначе вкладка «Баллы» дёргает карточку. */
+  min-height: 17.5rem;
   border-radius: var(--radius-md, 16px);
   background:
     linear-gradient(

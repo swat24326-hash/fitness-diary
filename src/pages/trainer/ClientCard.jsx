@@ -118,7 +118,7 @@ export function ClientCard() {
           writeClientCardTabToSearchParams(next, t, { clearStatsMode: t !== 'stats' })
           return next
         },
-        { replace: true },
+        { replace: true, preventScrollReset: true },
       )
     },
     [setSearchParams],

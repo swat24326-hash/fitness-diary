@@ -267,6 +267,7 @@ run('membership paid_amount field', 'node', ['scripts/verify-membership-paid-amo
 run('desk client birth form', 'node', ['scripts/verify-desk-client-birth-form.mjs'])
 run('desk client form merge', 'node', ['scripts/verify-desk-client-form-merge.mjs'])
 run('client card identity edit access', 'node', ['scripts/verify-client-card-identity-edit-access.mjs'])
+run('preserve element viewport Y', 'node', ['scripts/verify-preserve-element-viewport-y.mjs'])
 run('deletion audit', 'node', ['scripts/verify-deletion-audit.mjs'])
 run('client hard delete confirm', 'node', ['scripts/verify-client-hard-delete-confirm.mjs'])
 run('client archive reason', 'node', ['scripts/verify-client-archive-reason.mjs'])

@@ -178,7 +178,8 @@
 | Импорт | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md), [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) |
 | Создание у тренера (анти-дубль) | `src/pages/trainer/TrainerClients.jsx` + `src/lib/trainer/trainerClientCreateGuardCore.js` — INC **K** 10-29 |
 | Карта уникальна в клубе | `salesClientMatchCore.js` (`assertClubCardAvailableForCreate`); онлайн `trainerClubCardCheck*`; push `api/_lib/clientCardUniquePushCore.js` + `trainer-pull?mode=card-check` — INC **K** 10-29-02 |
-| Verify | см. `scripts/verify-admin-clients-*.mjs` в [TESTING.md](./TESTING.md); `scripts/verify-trainer-client-create-guard.mjs`; `scripts/verify-client-card-unique.mjs` |
+| Вкладки карточки (не дёргать) | `ClientCardMainTabs.jsx` + `usePreserveElementViewportY.js` + `preserveElementViewportYCore.js` + `client-card-tabs.css`; дневник — `ClientDiaries.jsx` (`listReady`) — INC-2026-11-12-01 |
+| Verify | см. `scripts/verify-admin-clients-*.mjs` в [TESTING.md](./TESTING.md); `scripts/verify-trainer-client-create-guard.mjs`; `scripts/verify-client-card-unique.mjs`; `scripts/verify-preserve-element-viewport-y.mjs` |
 | Docs | INCIDENTS **K** |
 
 ### L — клубы, роли, управляющий
