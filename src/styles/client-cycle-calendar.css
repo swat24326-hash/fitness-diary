@@ -72,20 +72,28 @@
   min-height: 44px;
 }
 
+/* Фазы: разные чистые цвета, не близкие оттенки (читаются на тёмном фоне) */
+.client-cycle-cal {
+  --cycle-period: #ef4444;
+  --cycle-follicular: #22d3ee;
+  --cycle-ovulation: #3b82f6;
+  --cycle-luteal: #eab308;
+}
+
 .client-cycle-cal__cell--period {
-  background: color-mix(in srgb, var(--danger) 22%, var(--bg-muted));
+  background: color-mix(in srgb, var(--cycle-period) 48%, var(--bg-muted));
 }
 
 .client-cycle-cal__cell--follicular {
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg-muted));
+  background: color-mix(in srgb, var(--cycle-follicular) 42%, var(--bg-muted));
 }
 
 .client-cycle-cal__cell--ovulation {
-  background: color-mix(in srgb, var(--hr-zone-easy) 20%, var(--bg-muted));
+  background: color-mix(in srgb, var(--cycle-ovulation) 48%, var(--bg-muted));
 }
 
 .client-cycle-cal__cell--luteal {
-  background: color-mix(in srgb, var(--warning) 16%, var(--bg-muted));
+  background: color-mix(in srgb, var(--cycle-luteal) 46%, var(--bg-muted));
 }
 
 .client-cycle-cal__cell--today {
@@ -181,16 +189,16 @@
 }
 
 .client-cycle-cal__phase-swatch i.period {
-  background: color-mix(in srgb, var(--danger) 45%, var(--bg-muted));
+  background: var(--cycle-period);
 }
 .client-cycle-cal__phase-swatch i.follicular {
-  background: color-mix(in srgb, var(--accent) 35%, var(--bg-muted));
+  background: var(--cycle-follicular);
 }
 .client-cycle-cal__phase-swatch i.ovulation {
-  background: color-mix(in srgb, var(--hr-zone-easy) 45%, var(--bg-muted));
+  background: var(--cycle-ovulation);
 }
 .client-cycle-cal__phase-swatch i.luteal {
-  background: color-mix(in srgb, var(--warning) 40%, var(--bg-muted));
+  background: var(--cycle-luteal);
 }
 
 .client-cycle-cal__setup {
