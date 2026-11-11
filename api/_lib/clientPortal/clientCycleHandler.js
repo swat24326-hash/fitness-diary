@@ -1,29 +1,13 @@
 /**
  * POST /api/client-me { action: 'cycle-get' | 'cycle-upsert' | 'cycle-disable' }
- * Параметры цикла — только свой client_id; тренеру не отдаём.
+ * Параметры женского цикла — только свой client_id; тренеру не отдаём.
+ * Без проверки пола в карте здоровья — вкл/выкл клиент сам в профиле.
  */
 import { sendJson } from '../adminSupabase.js'
 import { clubOpsAsOfIso } from '../adminData/loyaltyAccountQuery.js'
-import {
-  CYCLE_SEX_BLOCKED_RU,
-  clientCanConfigureCycle,
-  parseCycleSettingsInput,
-  publicClientCycle,
-} from '../../../src/lib/client/clientCycleCalendarCore.js'
-import { normalizeHealthSex } from '../../../src/lib/healthCardCore.js'
+import { parseCycleSettingsInput, publicClientCycle } from '../../../src/lib/client/clientCycleCalendarCore.js'
 
 const SELECT = 'client_id, enabled, cycle_days, period_days, last_period_start, updated_at'
-
-async function loadClientSex(db, clientId) {
-  try {
-    const { data, error } = await db.from('health_cards').select('sex').eq('client_id', clientId).maybeSingle()
-    if (error) throw error
-    return normalizeHealthSex(data?.sex)
-  } catch (e) {
-    if (/health_cards|42P01|PGRST205|does not exist/i.test(String(e?.message ?? e?.code ?? ''))) return null
-    throw e
-  }
-}
 
 function isMissingTable(e) {
   return /client_cycle_settings|42P01|PGRST205|does not exist/i.test(String(e?.message ?? e?.code ?? ''))
@@ -54,11 +38,6 @@ function respond(res, cycle, extra = {}) {
 }
 
 async function upsertCycle(db, ctx, body, res) {
-  const sex = await loadClientSex(db, ctx.clientId)
-  if (!clientCanConfigureCycle(sex)) {
-    sendJson(res, 403, { error: CYCLE_SEX_BLOCKED_RU })
-    return
-  }
   const today = clubOpsAsOfIso()
   const parsed = parseCycleSettingsInput(
     {

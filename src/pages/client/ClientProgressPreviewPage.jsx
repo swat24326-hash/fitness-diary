@@ -79,7 +79,7 @@ function PreviewProgressMenu({ onAddWeight, onAddMeasure, onCycleSettings }) {
             }}
           >
             <CalendarDays size={18} aria-hidden />
-            Параметры цикла
+            Параметры женского цикла
           </button>
         </div>
       ) : null}
@@ -145,7 +145,6 @@ function ClientHomePreviewBody({ initial, note, showFromTrainer }) {
       {calendarOpen ? (
         <ClientTrainingCalendarSheet
           asOf={today}
-          sex={data.client?.sex ?? null}
           cycle={cycle}
           memberships={data.memberships}
           nextSession={data.next_session}
@@ -160,7 +159,6 @@ function ClientHomePreviewBody({ initial, note, showFromTrainer }) {
       {cycleSheetOpen ? (
         <ClientCycleSettingsSheet
           asOf={today}
-          sex={data.client?.sex ?? null}
           initial={cycle}
           onClose={() => setCycleSheetOpen(false)}
           onSave={(payload) => {

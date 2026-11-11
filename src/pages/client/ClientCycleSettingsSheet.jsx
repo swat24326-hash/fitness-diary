@@ -1,21 +1,14 @@
 /**
- * Шторка параметров цикла в /me (меню профиля).
- * При male / без пола в карте — «Сохранить» бледная и недоступна.
+ * Шторка параметров женского цикла в /me (меню профиля).
+ * Вкл/сохранение без привязки к полу в карте здоровья.
  */
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import {
-  CYCLE_DEFAULT,
-  CYCLE_SEX_BLOCKED_RU,
-  clientCanConfigureCycle,
-  parseCycleSettingsInput,
-  publicClientCycle,
-} from '../../lib/client/clientCycleCalendarCore.js'
+import { CYCLE_DEFAULT, parseCycleSettingsInput, publicClientCycle } from '../../lib/client/clientCycleCalendarCore.js'
 
 /**
  * @param {{
  *   asOf: string
- *   sex?: 'male'|'female'|null
  *   initial?: object|null
  *   busy?: boolean
  *   error?: string
@@ -26,7 +19,6 @@ import {
  */
 export function ClientCycleSettingsSheet({
   asOf,
-  sex = null,
   initial = null,
   busy = false,
   error = '',
@@ -35,7 +27,6 @@ export function ClientCycleSettingsSheet({
   onDisable,
 }) {
   const pub = publicClientCycle(initial)
-  const canSave = clientCanConfigureCycle(sex)
   const [cycleDays, setCycleDays] = useState(String(pub.cycle_days ?? CYCLE_DEFAULT.cycle_days))
   const [periodDays, setPeriodDays] = useState(String(pub.period_days ?? CYCLE_DEFAULT.period_days))
   const [start, setStart] = useState(String(pub.last_period_start ?? asOf).slice(0, 10))
@@ -52,10 +43,6 @@ export function ClientCycleSettingsSheet({
   const submit = async (e) => {
     e.preventDefault()
     setLocalError('')
-    if (!canSave) {
-      setLocalError(CYCLE_SEX_BLOCKED_RU)
-      return
-    }
     const parsed = parseCycleSettingsInput(
       {
         enabled: true,
@@ -77,32 +64,23 @@ export function ClientCycleSettingsSheet({
   }
 
   return (
-    <div className="client-progress-self" role="dialog" aria-modal="true" aria-label="Параметры цикла">
+    <div className="client-progress-self" role="dialog" aria-modal="true" aria-label="Параметры женского цикла">
       <button type="button" className="client-progress-self__backdrop" aria-label="Закрыть" onClick={onClose} disabled={busy} />
       <div className="client-progress-self__panel">
         <div className="client-progress-self__handle" aria-hidden />
         <header className="client-progress-self__head">
-          <h2>Цикл</h2>
+          <h2>Женский цикл</h2>
           <button type="button" className="client-progress-self__close btn-touch" aria-label="Закрыть" onClick={onClose} disabled={busy}>
             <X size={20} aria-hidden />
           </button>
         </header>
         <p className="client-me-muted client-cycle-settings__hint">
-          {canSave
-            ? 'Упрощённый расчёт по вашим параметрам. Данные видите только вы.'
-            : CYCLE_SEX_BLOCKED_RU}
+          Упрощённый расчёт по вашим параметрам. Данные видите только вы. Ориентир, не медсовет.
         </p>
         <form className="client-progress-self__form" onSubmit={(e) => void submit(e)}>
           <label className="client-progress-self__field">
             <span>Начало последних месячных</span>
-            <input
-              type="date"
-              value={start}
-              max={asOf}
-              disabled={busy || !canSave}
-              onChange={(e) => setStart(e.target.value)}
-              required={canSave}
-            />
+            <input type="date" value={start} max={asOf} disabled={busy} onChange={(e) => setStart(e.target.value)} required />
           </label>
           <label className="client-progress-self__field">
             <span>Длина цикла (дни)</span>
@@ -112,9 +90,9 @@ export function ClientCycleSettingsSheet({
               min={21}
               max={45}
               value={cycleDays}
-              disabled={busy || !canSave}
+              disabled={busy}
               onChange={(e) => setCycleDays(e.target.value)}
-              required={canSave}
+              required
             />
           </label>
           <label className="client-progress-self__field">
@@ -125,9 +103,9 @@ export function ClientCycleSettingsSheet({
               min={1}
               max={10}
               value={periodDays}
-              disabled={busy || !canSave}
+              disabled={busy}
               onChange={(e) => setPeriodDays(e.target.value)}
-              required={canSave}
+              required
             />
           </label>
           {localError || error ? (
@@ -135,17 +113,12 @@ export function ClientCycleSettingsSheet({
               {localError || error}
             </p>
           ) : null}
-          <button
-            type="submit"
-            className="btn btn-primary btn-touch"
-            disabled={busy || !canSave}
-            title={!canSave ? CYCLE_SEX_BLOCKED_RU : undefined}
-          >
+          <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
             {busy ? 'Сохраняем…' : 'Сохранить'}
           </button>
           {pub.enabled && onDisable ? (
             <button type="button" className="btn btn-ghost btn-touch" disabled={busy} onClick={() => void onDisable()}>
-              Выключить отметку цикла
+              Выключить женский цикл
             </button>
           ) : null}
         </form>

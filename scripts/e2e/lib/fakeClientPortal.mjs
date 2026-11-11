@@ -18,12 +18,7 @@ import {
   parseSelfProgressDate,
   parseSelfWeightKg,
 } from '../../../src/lib/client/clientProgressSelfCore.js'
-import {
-  CYCLE_SEX_BLOCKED_RU,
-  clientCanConfigureCycle,
-  parseCycleSettingsInput,
-  publicClientCycle,
-} from '../../../src/lib/client/clientCycleCalendarCore.js'
+import { parseCycleSettingsInput, publicClientCycle } from '../../../src/lib/client/clientCycleCalendarCore.js'
 import { normalizeHealthSex } from '../../../src/lib/healthCardCore.js'
 import { sanitizeClientPlanPayload, summarizeClientPlan } from '../../../src/lib/clientPlans/clientPlanCore.js'
 import { fakeJwt } from './fakeBackend.mjs'
@@ -172,9 +167,6 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
         return { status: 200, json: { ok: true, cycle: { enabled: false } } }
       }
       if (action === 'cycle-upsert') {
-        const card = (state.health_cards ?? []).find((h) => h.client_id === clientId)
-        const sex = normalizeHealthSex(card?.sex)
-        if (!clientCanConfigureCycle(sex)) return { status: 403, json: { error: CYCLE_SEX_BLOCKED_RU } }
         const parsed = parseCycleSettingsInput(
           {
             enabled: true,

@@ -25,7 +25,6 @@ const clientAvatarApi = avatarApiOver(postClientMe)
  *   onAddWeight?: (() => void) | null
  *   onAddMeasure?: (() => void) | null
  *   asOf?: string
- *   sex?: 'male'|'female'|null
  *   cycle?: object|null
  *   onCycleChange?: ((cycle: object) => void) | null
  *   openCycleRequest?: number
@@ -39,7 +38,6 @@ export function ClientMenu({
   onAddWeight = null,
   onAddMeasure = null,
   asOf = '',
-  sex = null,
   cycle = null,
   onCycleChange = null,
   openCycleRequest = 0,
@@ -85,7 +83,6 @@ export function ClientMenu({
             onAddWeight={onAddWeight}
             onAddMeasure={onAddMeasure}
             asOf={asOf}
-            sex={sex}
             cycle={cycle}
             onCycleChange={onCycleChange}
             openCycleRequest={openCycleRequest}
@@ -121,7 +118,6 @@ export function ClientMenu({
  *   onAddWeight?: (() => void) | null
  *   onAddMeasure?: (() => void) | null
  *   asOf?: string
- *   sex?: 'male'|'female'|null
  *   cycle?: object|null
  *   onCycleChange?: ((cycle: object) => void) | null
  *   openCycleRequest?: number
@@ -137,7 +133,6 @@ export function ClientMenuItems({
   onAddWeight = null,
   onAddMeasure = null,
   asOf = '',
-  sex = null,
   cycle = null,
   onCycleChange = null,
   openCycleRequest = 0,
@@ -193,7 +188,6 @@ export function ClientMenuItems({
           settings={
             <ClientSettingsSection
               asOf={asOf}
-              sex={sex}
               cycle={cycle}
               onCycleChange={onCycleChange}
               openCycleRequest={openCycleRequest}

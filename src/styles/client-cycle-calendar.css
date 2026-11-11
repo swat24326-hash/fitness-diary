@@ -217,6 +217,24 @@
   line-height: 1.35;
 }
 
+.client-cycle-cal__detail > p {
+  margin: 0;
+}
+
+.client-cycle-cal__hint {
+  margin-top: 0.35em;
+  font-size: 0.85em;
+}
+
+.client-cycle-cal__detail > p {
+  margin: 0;
+}
+
+.client-cycle-cal__hint {
+  margin-top: 0.35em;
+  font-size: 0.85em;
+}
+
 /* Плитка «Следующая» как кнопка — тот же glass-карточный вид, без «кнопочного» блеска */
 button.client-me-tile.client-me-tile--button {
   width: 100%;

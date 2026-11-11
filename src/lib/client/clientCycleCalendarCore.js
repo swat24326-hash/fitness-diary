@@ -1,25 +1,14 @@
 /**
  * Упрощённый женский цикл + разметка дней календаря /me (без React).
- * Фазы — расчёт по параметрам клиентки, не медпрогноз.
- * Настройка цикла — только при sex=female из карты здоровья; male / пусто — нельзя.
+ * Фазы и подсказки — расчёт по параметрам клиента, не медпрогноз.
+ * Вкл/выкл — в профиле /me, без привязки к полу в карте здоровья.
  */
-import { normalizeHealthSex } from '../healthCardCore.js'
 
 export const CYCLE_DAYS_MIN = 21
 export const CYCLE_DAYS_MAX = 45
 export const PERIOD_DAYS_MIN = 1
 export const PERIOD_DAYS_MAX = 10
 export const CYCLE_DEFAULT = { cycle_days: 28, period_days: 5 }
-
-export const CYCLE_SEX_BLOCKED_RU = 'Цикл доступен, если в карте здоровья указан женский пол'
-
-/**
- * Можно ли включать и сохранять цикл (только female).
- * @param {unknown} sex
- */
-export function clientCanConfigureCycle(sex) {
-  return normalizeHealthSex(sex) === 'female'
-}
 
 /** @typedef {'period'|'follicular'|'ovulation'|'luteal'} CyclePhase */
 /** @typedef {'done'|'planned'|'noshow'} TrainingMarker */
@@ -168,6 +157,18 @@ export function cyclePhaseLabelRu(phase) {
 }
 
 /**
+ * Короткая подсказка по нагрузке (ориентир, не медсовет).
+ * @param {CyclePhase|null|undefined} phase
+ */
+export function cyclePhaseTrainingHintRu(phase) {
+  if (phase === 'period') return 'Лёгкая нагрузка — слушайте самочувствие'
+  if (phase === 'follicular') return 'Обычно удобнее наращивать объём'
+  if (phase === 'ovulation') return 'Силы часто выше — без фанатизма'
+  if (phase === 'luteal') return 'Осторожнее с объёмом и тяжестями'
+  return ''
+}
+
+/**
  * @param {object|null|undefined} memberships
  * @param {{ date?: string }|null|undefined} nextSession
  * @returns {Map<string, TrainingMarker>}
@@ -220,7 +221,7 @@ export function buildCycleCalendarMonth(input) {
   const year = Number(input.year)
   const month = Number(input.month)
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-    return { year: 0, month: 0, weeks: [], legendHint: 'расчёт по вашим параметрам' }
+    return { year: 0, month: 0, weeks: [], legendHint: 'ориентир, не медсовет' }
   }
   const settings = publicClientCycle(input.settings)
   const trainings = collectClientTrainingMarkers(input.memberships, input.nextSession)
@@ -258,7 +259,7 @@ export function buildCycleCalendarMonth(input) {
     month,
     weeks,
     cycleEnabled: settings.enabled,
-    legendHint: 'расчёт по вашим параметрам',
+    legendHint: 'ориентир, не медсовет',
   }
 }
 

@@ -13,11 +13,7 @@ export function ClientSettingsPage() {
   return (
     <ClientMeShell actions={<ClientPageActions />} club={club}>
       <ClientPageTitle title="Настройки" />
-      <ClientSettingsSection
-        asOf={cached?.as_of || ''}
-        sex={cached?.client?.sex ?? null}
-        cycle={cached?.cycle ?? null}
-      />
+      <ClientSettingsSection asOf={cached?.as_of || ''} cycle={cached?.cycle ?? null} />
     </ClientMeShell>
   )
 }

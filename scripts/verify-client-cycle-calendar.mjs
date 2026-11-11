@@ -1,13 +1,13 @@
 /**
- * Цикл + календарь /me: фазы, маркеры тренировок/веса, валидация настроек.
+ * Женский цикл + календарь /me: фазы, подсказки, маркеры тренировок/веса, валидация настроек.
  * node scripts/verify-client-cycle-calendar.mjs
  */
 import {
   buildCycleCalendarMonth,
   calendarMonthTitleRu,
-  clientCanConfigureCycle,
   collectClientTrainingMarkers,
   cyclePhaseForDay,
+  cyclePhaseTrainingHintRu,
   parseCycleSettingsInput,
   publicClientCycle,
   shiftCalendarMonth,
@@ -22,11 +22,6 @@ function ok(cond, msg) {
 }
 
 const TODAY = '2026-10-18'
-
-ok(clientCanConfigureCycle('female') === true, 'female — можно цикл')
-ok(clientCanConfigureCycle('male') === false, 'male — нельзя цикл')
-ok(clientCanConfigureCycle(null) === false, 'пол пуст — нельзя цикл')
-ok(clientCanConfigureCycle('M') === false, 'буква M не нормализуется')
 
 ok(parseCycleSettingsInput({ enabled: false }).ok === true, 'выкл — ок')
 ok(parseCycleSettingsInput({ enabled: true, cycle_days: 28, period_days: 5 }, TODAY).ok === false, 'без даты — отказ')
@@ -75,6 +70,12 @@ ok(cyclePhaseForDay('2026-10-20', settings) === 'luteal', 'вторая поло
 ok(cyclePhaseForDay('2026-10-29', settings) === 'period', 'следующий цикл — снова месячные')
 ok(cyclePhaseForDay('2026-09-20', settings) === null, 'до старта — без фазы')
 
+ok(cyclePhaseTrainingHintRu('period').includes('Лёгкая'), 'подсказка месячные')
+ok(cyclePhaseTrainingHintRu('follicular').includes('объём'), 'подсказка фолликулярная')
+ok(cyclePhaseTrainingHintRu('ovulation').includes('Силы'), 'подсказка овуляция')
+ok(cyclePhaseTrainingHintRu('luteal').includes('Осторожнее'), 'подсказка лютеиновая')
+ok(cyclePhaseTrainingHintRu(null) === '', 'без фазы — пустая подсказка')
+
 const markers = collectClientTrainingMarkers(
   {
     current: [
@@ -104,6 +105,7 @@ const month = buildCycleCalendarMonth({
   todayIso: TODAY,
 })
 ok(month.weeks.length >= 5, 'сетка месяца')
+ok(month.legendHint.includes('не медсовет'), 'легенда — не медсовет')
 const day5 = month.weeks.flat().find((c) => c.iso === '2026-10-05')
 ok(day5?.phase === 'period' && day5.training === 'done' && day5.weightKg === 60.5, 'день: фаза+тренировка+вес')
 const day20 = month.weeks.flat().find((c) => c.iso === '2026-10-20')

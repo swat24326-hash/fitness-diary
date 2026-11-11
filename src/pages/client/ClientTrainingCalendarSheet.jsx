@@ -1,15 +1,14 @@
 /**
- * Шторка-календарь: тренировки, вес, фазы цикла (если включён).
+ * Шторка-календарь: тренировки, вес, фазы женского цикла (если включён).
  * Телефон: крупные дни ≥44px, спокойные заливки из токенов.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Settings2, X } from 'lucide-react'
 import {
-  CYCLE_SEX_BLOCKED_RU,
   buildCycleCalendarMonth,
   calendarMonthTitleRu,
-  clientCanConfigureCycle,
   cyclePhaseLabelRu,
+  cyclePhaseTrainingHintRu,
   publicClientCycle,
   shiftCalendarMonth,
 } from '../../lib/client/clientCycleCalendarCore.js'
@@ -20,7 +19,6 @@ const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
 /**
  * @param {{
  *   asOf: string
- *   sex?: 'male'|'female'|null
  *   cycle?: object|null
  *   memberships?: object|null
  *   nextSession?: object|null
@@ -31,7 +29,6 @@ const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
  */
 export function ClientTrainingCalendarSheet({
   asOf,
-  sex = null,
   cycle = null,
   memberships = null,
   nextSession = null,
@@ -43,7 +40,6 @@ export function ClientTrainingCalendarSheet({
   const [y, m] = start.split('-').map(Number)
   const [{ year, month }, setCursor] = useState({ year: y, month: m })
   const pub = publicClientCycle(cycle)
-  const canCycle = clientCanConfigureCycle(sex)
 
   useEffect(() => {
     const onKey = (e) => {
@@ -67,8 +63,12 @@ export function ClientTrainingCalendarSheet({
     [year, month, cycle, memberships, nextSession, weights, asOf],
   )
 
-  const [selectedIso, setSelectedIso] = useState(/** @type {string|null} */ (null))
+  const [selectedIso, setSelectedIso] = useState(() => {
+    const today = String(asOf ?? '').slice(0, 10)
+    return /^\d{4}-\d{2}-\d{2}$/.test(today) ? today : null
+  })
   const selected = grid.weeks.flat().find((c) => c.iso === selectedIso && c.inMonth) ?? null
+  const phaseHint = selected?.phase ? cyclePhaseTrainingHintRu(selected.phase) : ''
 
   return (
     <div className="client-progress-self client-cycle-cal" role="dialog" aria-modal="true" aria-label="Календарь тренировок">
@@ -159,7 +159,7 @@ export function ClientTrainingCalendarSheet({
             <i className="client-cycle-cal__dot client-cycle-cal__dot--weight" /> вес
           </span>
           {pub.enabled ? (
-            <div className="client-cycle-cal__phases" aria-label="Фазы цикла">
+            <div className="client-cycle-cal__phases" aria-label="Фазы женского цикла">
               <span className="client-cycle-cal__phase-swatch">
                 <i className="period" aria-hidden /> месячные
               </span>
@@ -178,10 +178,9 @@ export function ClientTrainingCalendarSheet({
             <button
               type="button"
               className="btn btn-ghost btn-icon-square btn-touch client-cycle-cal__setup"
-              title={canCycle ? 'Настроить цикл' : CYCLE_SEX_BLOCKED_RU}
-              aria-label={canCycle ? 'Настроить цикл' : CYCLE_SEX_BLOCKED_RU}
-              disabled={!canCycle}
-              onClick={canCycle ? onOpenCycleSettings : undefined}
+              title="Настроить женский цикл"
+              aria-label="Настроить женский цикл"
+              onClick={onOpenCycleSettings}
             >
               <Settings2 size={20} aria-hidden />
             </button>
@@ -189,18 +188,21 @@ export function ClientTrainingCalendarSheet({
         </div>
 
         {selected ? (
-          <p className="client-cycle-cal__detail" role="status">
-            <strong>{formatDateRu(selected.iso)}</strong>
-            {selected.phase ? ` · ${cyclePhaseLabelRu(selected.phase)}` : ''}
-            {selected.training === 'done'
-              ? ' · тренировка была'
-              : selected.training === 'planned'
-                ? ' · запланирована'
-                : selected.training === 'noshow'
-                  ? ' · неявка'
-                  : ''}
-            {selected.weightKg != null ? ` · ${String(selected.weightKg).replace('.', ',')} кг` : ''}
-          </p>
+          <div className="client-cycle-cal__detail" role="status">
+            <p>
+              <strong>{formatDateRu(selected.iso)}</strong>
+              {selected.phase ? ` · ${cyclePhaseLabelRu(selected.phase)}` : ''}
+              {selected.training === 'done'
+                ? ' · тренировка была'
+                : selected.training === 'planned'
+                  ? ' · запланирована'
+                  : selected.training === 'noshow'
+                    ? ' · неявка'
+                    : ''}
+              {selected.weightKg != null ? ` · ${String(selected.weightKg).replace('.', ',')} кг` : ''}
+            </p>
+            {phaseHint ? <p className="client-cycle-cal__hint client-me-muted">{phaseHint}</p> : null}
+          </div>
         ) : (
           <p className="client-cycle-cal__detail client-me-muted" role="note">
             Нажмите день — детали

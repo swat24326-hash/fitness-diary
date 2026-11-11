@@ -24,7 +24,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `nutrition_products` | `id` | Питание |
 | `homework_presets` | `id` | Шаблоны ДЗ |
 | `client_weight_entries` | `id` | Вес (`source` в т.ч. `client`) |
-| `client_cycle_settings` | `client_id` | Упрощённый цикл клиентки в `/me` (только через client-me) |
+| `client_cycle_settings` | `client_id` | Женский цикл в `/me` (вкл клиентом в профиле; только через client-me) |
 | `outreach_log` | `id` | Касания / Max-очередь (локальный журнал; кэш club SMS) |
 | `club_iskra_settings` | `club_id` | Локальный кэш **шаблонов** outreach (`outreach_templates` / SMS-шаблоны). Аккаунт **`moizvonki`** (в т.ч. api_key) живёт в **Postgres**; в API ключ не отдаём (`has_api_key`) — в IDB полный `moizvonki` не кэшируем |
 | `pnk_funnel_events` | `id` | Журнал ПНК |
@@ -107,7 +107,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке); **`source`**: `club` (тренер/карточка) \| `client` (клиент в `/me`) — миграция `20261113120000_client_progress_self.sql` |
 | **client_weight_entries** | История веса: `source` = `manual` \| `training` \| `baseline` \| `initial_adjust` \| **`client`** (клиент в `/me`, ○ на графике) |
-| **client_cycle_settings** | Параметры упрощённого цикла клиентки (`enabled`, `cycle_days` 21–45, `period_days` 1–10, `last_period_start`). Только `/api/client-me` (`cycle-*`); RLS без политик для anon/authenticated; в trainer-pull не попадает |
+| **client_cycle_settings** | Параметры женского цикла (`enabled`, `cycle_days` 21–45, `period_days` 1–10, `last_period_start`). Вкл/выкл в профиле без пола из карты здоровья. Только `/api/client-me` (`cycle-*`); RLS без политик для anon/authenticated; в trainer-pull не попадает |
 | **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь. `club_sales_plan.strategy_snapshot` (jsonb) — снимок playbook Стратегии |
 | **Оплаты (платёж)** | 📋 ТЗ — отдельная сущность ledger ещё **нет**; сейчас деньги дня = агрегаты `club_sales_daily` + мост Excel. Канон и фазы: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md). **Следующий L3** после правды платежа — касса **на клуб** (как `moizvonki`). |
 | **ИСКРА** | Settings, learning, dispatch — сервер + частичный кэш settings |

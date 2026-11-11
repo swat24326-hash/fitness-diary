@@ -44,16 +44,16 @@ export async function run(browser) {
     c.ok(await visible(page, 'Календарь'), 'шторка календаря')
     c.ok(await page.locator('.client-cycle-cal__grid').count().then((n) => n > 0), 'сетка месяца')
     c.ok(await visible(page, 'месячные'), 'легенда фаз цикла')
+    c.ok(await visible(page, 'ориентир, не медсовет'), 'оговорка не медсовет')
     await screenshot(page, 'client-cycle-calendar-open')
 
-    const cell = page.locator('.client-cycle-cal__cell:not(.client-cycle-cal__cell--empty)').first()
-    await cell.click()
-    c.ok(await page.locator('.client-cycle-cal__detail strong').count().then((n) => n > 0), 'детали дня')
+    c.ok(await page.locator('.client-cycle-cal__detail strong').count().then((n) => n > 0), 'детали дня (сегодня)')
+    c.ok(await page.locator('.client-cycle-cal__hint').count().then((n) => n > 0), 'подсказка по фазе')
 
     await page.locator('.client-cycle-cal .client-progress-self__close').click()
     await page.getByRole('button', { name: 'Меню' }).click()
-    await page.getByRole('button', { name: 'Параметры цикла' }).click()
-    c.ok(await visible(page, 'Длина цикла'), 'шторка параметров цикла')
+    await page.getByRole('button', { name: 'Параметры женского цикла' }).click()
+    c.ok(await visible(page, 'Длина цикла'), 'шторка параметров женского цикла')
     await screenshot(page, 'client-cycle-settings')
 
     c.ok(pageErrors.length === 0, `без JS-ошибок (${pageErrors[0] || ''})`)

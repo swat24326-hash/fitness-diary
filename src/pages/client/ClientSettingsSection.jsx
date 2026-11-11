@@ -2,11 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bell, CalendarDays, Volume2 } from 'lucide-react'
 import { LegalEntryLinks } from '../../components/legal/LegalEntryLinks.jsx'
 import { useChatSoundSetting } from '../../hooks/useChatSoundSetting.js'
-import {
-  CYCLE_SEX_BLOCKED_RU,
-  clientCanConfigureCycle,
-  publicClientCycle,
-} from '../../lib/client/clientCycleCalendarCore.js'
+import { publicClientCycle } from '../../lib/client/clientCycleCalendarCore.js'
 import { disableClientCycle, upsertClientCycle } from '../../lib/client/clientCycleService.js'
 import { useClientApp } from './ClientAppContext.jsx'
 import { ClientCycleSettingsSheet } from './ClientCycleSettingsSheet.jsx'
@@ -18,10 +14,9 @@ const REMINDER_HINT = {
 }
 
 /**
- * Настройки клиента: напоминания, звуки, цикл, ссылки политики — в «Мой профиль» (☰).
+ * Настройки клиента: напоминания, звуки, женский цикл, ссылки политики — в «Мой профиль» (☰).
  * @param {{
  *   asOf?: string
- *   sex?: 'male'|'female'|null
  *   cycle?: object|null
  *   onCycleChange?: (cycle: object) => void
  *   openCycleRequest?: number
@@ -29,7 +24,6 @@ const REMINDER_HINT = {
  */
 export function ClientSettingsSection({
   asOf = '',
-  sex = null,
   cycle = null,
   onCycleChange = null,
   openCycleRequest = 0,
@@ -39,7 +33,6 @@ export function ClientSettingsSection({
   const on = push.mode === 'on'
   const canToggle = on || push.mode === 'off'
   const pub = publicClientCycle(cycle)
-  const canCycle = clientCanConfigureCycle(sex)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -57,10 +50,6 @@ export function ClientSettingsSection({
   }
 
   const toggleCycle = async () => {
-    if (!canCycle && !pub.enabled) {
-      setError(CYCLE_SEX_BLOCKED_RU)
-      return
-    }
     if (pub.enabled) {
       setBusy(true)
       setError('')
@@ -133,28 +122,25 @@ export function ClientSettingsSection({
           <span className="client-settings__label">
             <CalendarDays size={18} aria-hidden />
             <span>
-              Отмечать цикл
-              <small className="client-me-muted">
-                {canCycle ? 'Только вы · в календаре тренировок' : CYCLE_SEX_BLOCKED_RU}
-              </small>
+              Женский цикл
+              <small className="client-me-muted">Только вы · в календаре тренировок</small>
             </span>
           </span>
           <button
             type="button"
             role="switch"
             aria-checked={pub.enabled}
-            aria-label="Отмечать цикл"
-            title={!canCycle && !pub.enabled ? CYCLE_SEX_BLOCKED_RU : undefined}
-            className={`client-switch${pub.enabled ? ' client-switch--on' : ''}${!canCycle && !pub.enabled ? ' client-switch--muted' : ''}`}
-            disabled={busy || !asOf || (!canCycle && !pub.enabled)}
+            aria-label="Женский цикл"
+            className={`client-switch${pub.enabled ? ' client-switch--on' : ''}`}
+            disabled={busy || !asOf}
             onClick={() => void toggleCycle()}
           >
             <span className="client-switch__knob" />
           </button>
         </div>
-        {pub.enabled && canCycle ? (
+        {pub.enabled ? (
           <button type="button" className="btn btn-ghost btn-touch" disabled={busy || !asOf} onClick={openSheet}>
-            Параметры цикла
+            Параметры женского цикла
           </button>
         ) : null}
         {error ? (
@@ -167,7 +153,6 @@ export function ClientSettingsSection({
       {sheetOpen && asOf ? (
         <ClientCycleSettingsSheet
           asOf={asOf}
-          sex={sex}
           initial={cycle}
           busy={busy}
           error={error}
