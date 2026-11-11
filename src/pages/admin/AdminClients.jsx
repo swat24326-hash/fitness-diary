@@ -1255,22 +1255,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           </div>
           <div className="sales-clients__actions">
             <Link
-              to={clientListsHref}
-              className="btn btn-ghost btn-sm btn-icon-square btn-touch"
-              title="Списки по залу и признаку"
-              aria-label="Списки клиентов"
-            >
-              <ListFilter size={16} aria-hidden />
-            </Link>
-            <Link
-              to={callLogHref}
-              className="btn btn-ghost btn-sm btn-icon-square btn-touch"
-              title="Журнал звонков клуба"
-              aria-label="Журнал звонков клуба"
-            >
-              <Phone size={16} aria-hidden />
-            </Link>
-            <Link
               to="/sales"
               replace
               className="btn btn-ghost btn-sm btn-icon-square btn-touch"

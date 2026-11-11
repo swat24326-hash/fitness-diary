@@ -132,6 +132,7 @@ export function AppHeader() {
   const salesReportActive = searchParams.get('tab') === 'report'
   const salesStatsActive = searchParams.get('tab') === 'stats'
   const salesAnalyticsActive = searchParams.get('tab') === 'analytics'
+  const salesClientsActive = location.pathname.startsWith('/sales/clients')
   const salesHomeActive =
     location.pathname === '/sales' && !salesReportActive && !salesStatsActive && !salesAnalyticsActive
 
@@ -441,6 +442,12 @@ export function AppHeader() {
             <NavLink to="/sales" end className={() => headerNavClass({ isActive: salesHomeActive })}>
               Главная
             </NavLink>
+            <NavLink to="/sales/clients" className={() => headerNavClass({ isActive: salesClientsActive })}>
+              <span className="app-header__nav-with-icon">
+                <UserCircle size={18} aria-hidden />
+                Клиенты
+              </span>
+            </NavLink>
             <NavLink to="/sales?tab=report" className={() => headerNavClass({ isActive: salesReportActive })}>
               Отчёт
             </NavLink>
@@ -661,6 +668,12 @@ export function AppHeader() {
                 <>
                   <NavLink to="/sales" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Главная
+                  </NavLink>
+                  <NavLink to="/sales/clients" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    <span className="app-header__nav-with-icon">
+                      <UserCircle size={18} aria-hidden />
+                      Клиенты
+                    </span>
                   </NavLink>
                   <NavLink to="/sales?tab=report" className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Отчёт
