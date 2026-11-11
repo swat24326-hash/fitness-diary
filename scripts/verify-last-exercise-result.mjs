@@ -1,6 +1,7 @@
 import {
   exerciseMatchesLookup,
   findLastExerciseResult,
+  listExerciseHistory,
   normExerciseNameForMatch,
 } from '../src/lib/lastExerciseResult.js'
 
@@ -115,5 +116,20 @@ const byName = findLastExerciseResult(
 ok(byName?.sets[0]?.weight_kg === '60', 'match by normalized name')
 
 ok(findLastExerciseResult([], { catalogExerciseId: catalogId }) === null, 'empty trainings')
+
+const hist = listExerciseHistory(trainings, { catalogExerciseId: catalogId })
+ok(hist.total === 2, 'history total skips draft')
+ok(hist.rows.length === 2, 'history rows')
+ok(hist.rows[0]?.trainingId === 't-new' && hist.rows[1]?.trainingId === 't-old', 'history newest first')
+
+const histLimited = listExerciseHistory(trainings, { catalogExerciseId: catalogId }, { limit: 1 })
+ok(histLimited.total === 2 && histLimited.rows.length === 1, 'history limit keeps total')
+ok(histLimited.rows[0]?.trainingId === 't-new', 'history limit takes newest')
+
+const histExcluded = listExerciseHistory(trainings, { catalogExerciseId: catalogId }, { excludeTrainingId: 't-new' })
+ok(histExcluded.total === 1 && histExcluded.rows[0]?.trainingId === 't-old', 'history exclude')
+
+ok(listExerciseHistory([], { catalogExerciseId: catalogId }).total === 0, 'history empty')
+ok(listExerciseHistory(trainings, {}).total === 0, 'history without lookup')
 
 process.exit(failed > 0 ? 1 : 0)

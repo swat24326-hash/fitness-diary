@@ -76,7 +76,17 @@ export async function run(browser) {
     /* DEV-превью: ● и ○ + шторка локально */
     await page.goto(`${ORIGIN}/me/home-preview`)
     c.ok(await visible(page, 'Мой прогресс'), 'превью: блок прогресса')
-    c.ok(await visible(page, 'Меню'), 'превью: меню ⋮')
+    /* Иконка ⋮ — только aria-label «Меню», getByText его не видит. */
+    c.ok(
+      await page
+        .getByRole('button', { name: 'Меню' })
+        .waitFor({ state: 'visible', timeout: 10_000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+      'превью: меню ⋮',
+    )
     const selfDots = page.locator('.client-me-spark__dot--self')
     c.ok((await selfDots.count()) >= 1, 'превью: есть ○ на графике')
     await openAddFromMenu(page, 'Добавить вес')

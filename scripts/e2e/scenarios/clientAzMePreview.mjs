@@ -70,9 +70,10 @@ export async function run(browser) {
     await page.goto(`${ORIGIN}/me/home-preview?az=1`)
     c.ok(await visible(page, 'Андреенко'), 'АЗ главная: имя клиента')
     c.ok(await visible(page, 'чистый АЗ'), 'АЗ главная: пометка превью')
-    const memAz = page.locator('section', { has: page.getByRole('heading', { name: 'Мой абонемент' }) })
+    const memAz = page.locator('.client-me-tile', { has: page.getByRole('heading', { name: 'Мой абонемент' }) })
     c.ok(/АЗ\s*·\s*Бокс/.test(((await memAz.textContent()) || '').replace(/\s+/g, ' ')), 'АЗ главная: метка зала на абонементе')
-    const nextAz = page.locator('section', { has: page.getByRole('heading', { name: 'Следующая тренировка' }) })
+    /* «Следующая» — button (календарь), не section. */
+    const nextAz = page.locator('.client-me-tile', { has: page.getByRole('heading', { name: 'Следующая тренировка' }) })
     c.ok(/Бокс\s*·\s*группа/.test(((await nextAz.textContent()) || '').replace(/\s+/g, ' ')), 'АЗ главная: «Следующая» = Бокс · группа')
     c.ok(!(await visible(page, 'Бонусы')), 'АЗ главная: блока «Бонусы» нет')
     const tabsAz = await tabLabels(page)

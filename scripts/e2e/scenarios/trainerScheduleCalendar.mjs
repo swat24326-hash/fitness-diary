@@ -177,11 +177,14 @@ export async function run(browser) {
     await scrollBoardTo(page, 9 * 60)
     await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 10:00"]').click()
     const dialog = page.getByRole('dialog')
+    await dialog.waitFor({ state: 'visible', timeout: 10_000 })
+    /* Категория — компактная кнопка, не ряд radio. */
     c.ok(
-      (await dialog.getByRole('radio', { name: 'Тренировка' }).getAttribute('aria-checked')) === 'true',
+      (await dialog.getByTestId('schedule-kind-trigger').getAttribute('aria-label')) === 'Категория: Тренировка',
       'новая запись: категория по умолчанию «Тренировка»',
     )
     await dialog.getByLabel(CLIENT_NAME).check()
+    await dialog.getByTestId('schedule-repeat-toggle').click()
     await dialog.getByLabel('Повторять каждую неделю').check()
     const summary = (await dialog.locator('.trainer-schedule-repeat__summary').textContent()) ?? ''
     c.ok(/Ещё 3 записи/.test(summary), `итог повтора «Ещё 3 записи…» (видно: ${summary.trim()})`)
@@ -212,7 +215,7 @@ export async function run(browser) {
     await screenshot(page, 'schedule-entry-view')
     await view.getByRole('button', { name: 'Изменить' }).click()
     c.ok(await view.getByRole('button', { name: 'Сохранить' }).isVisible(), 'карандаш «Изменить» открывает форму правки')
-    await view.getByRole('button', { name: 'Отмена' }).click()
+    await view.getByRole('button', { name: 'Закрыть' }).click()
 
     /* Перенос пальцем: 10:00 → 12:00 сегодня. */
     const cdp = await context.newCDPSession(page)
@@ -308,7 +311,9 @@ export async function run(browser) {
     await scrollBoardTo(page, 14 * 60)
     await page.locator('.trainer-schedule-day__hour-slot[aria-label$="в 15:00"]').click()
     const groupDialog = page.getByRole('dialog')
-    await groupDialog.getByRole('radio', { name: 'Групповое' }).click()
+    await groupDialog.waitFor({ state: 'visible', timeout: 10_000 })
+    await groupDialog.getByTestId('schedule-kind-trigger').click()
+    await groupDialog.getByRole('option', { name: 'Групповое' }).click()
     await groupDialog.getByTestId('schedule-direction').selectOption({ label: 'Бокс' })
     await groupDialog.getByRole('tab', { name: 'Заметка' }).click()
     await groupDialog.getByRole('textbox', { name: 'Текст' }).fill('Функционалка')

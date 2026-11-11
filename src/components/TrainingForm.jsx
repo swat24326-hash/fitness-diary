@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Info, List, Paperclip, Plus, Trash2 } from 'lucide-react'
+import { History, Info, List, Paperclip, Plus, Trash2 } from 'lucide-react'
 import { CloseButton } from './CloseButton'
 import { listExercises, listTrainingsForClient, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import { formatDateRu } from '../lib/dateRu'
-import { findLastExerciseResult } from '../lib/lastExerciseResult'
+import { findLastExerciseResult, listExerciseHistory } from '../lib/lastExerciseResult'
+import { ExerciseHistorySheet } from './trainer/ExerciseHistorySheet.jsx'
 import { stripDirectionControls } from '../lib/textInput'
 import {
   exerciseFormatAllowsLaterality,
@@ -116,6 +117,7 @@ export function TrainingForm({
     resolveTrainingFormStep({ trainingId: placeKey || null, exercises: value?.exercises }),
   )
   const [focusExerciseIdx, setFocusExerciseIdx] = useState(null)
+  const [exerciseHistoryOpen, setExerciseHistoryOpen] = useState(false)
   const [pickExerciseIdx, setPickExerciseIdx] = useState(null)
   const [pickSearch, setPickSearch] = useState('')
   const [pickFilterGroup, setPickFilterGroup] = useState('')
@@ -152,6 +154,7 @@ export function TrainingForm({
     setPickExerciseIdx(null)
     setPickSearch('')
     setSuggestOpenId(null)
+    setExerciseHistoryOpen(false)
     setFocusExerciseIdx(null)
 
     const place = nextKey ? recallTrainingFormPlace(nextKey) : null
@@ -279,6 +282,23 @@ export function TrainingForm({
       { excludeTrainingId: currentTrainingId },
     )
   }, [focusEx, clientTrainings, currentTrainingId])
+
+  const exerciseHistory = useMemo(() => {
+    if (!focusEx || !exerciseHistoryOpen) return { rows: [], total: 0 }
+    const catalogExerciseId = focusEx.catalog_exercise_id
+    const name = focusEx.name
+    if (!String(catalogExerciseId ?? '').trim() && !String(name ?? '').trim()) return { rows: [], total: 0 }
+    return listExerciseHistory(
+      clientTrainings,
+      { catalogExerciseId, name },
+      { excludeTrainingId: currentTrainingId, limit: 40 },
+    )
+  }, [focusEx, exerciseHistoryOpen, clientTrainings, currentTrainingId])
+
+  const closeFocusPop = () => {
+    setExerciseHistoryOpen(false)
+    setFocusExerciseIdx(null)
+  }
 
   const exerciseFormatButtons = (ex, exIdx) => {
     const fmt = normalizeExerciseFormat(ex.format, sessionFallback)
@@ -896,14 +916,14 @@ export function TrainingForm({
           role="dialog"
           aria-modal="true"
           aria-labelledby="focus-pop-title"
-          onClick={() => setFocusExerciseIdx(null)}
+          onClick={closeFocusPop}
         >
           <div className="training-focus-pop" onClick={(e) => e.stopPropagation()}>
             <div className="training-focus-pop__head">
               <h4 id="focus-pop-title" className="training-focus-pop__title">
                 Направленность / группа
               </h4>
-              <CloseButton onClick={() => setFocusExerciseIdx(null)} size={22} />
+              <CloseButton onClick={closeFocusPop} size={22} />
             </div>
             <p className="muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
               {focusEx.name?.trim() ? `Упражнение: ${focusEx.name}` : 'Без названия'}
@@ -933,9 +953,20 @@ export function TrainingForm({
             )}
             {lastExerciseResult ? (
               <div className="training-focus-pop__last" aria-label="Результаты прошлой тренировки">
-                <p className="training-focus-pop__last-title">
-                  Прошлый раз · {formatDateRu(lastExerciseResult.date)}
-                </p>
+                <div className="training-focus-pop__last-head">
+                  <p className="training-focus-pop__last-title">
+                    Прошлый раз · {formatDateRu(lastExerciseResult.date)}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon-square btn-touch"
+                    title="История по упражнению"
+                    aria-label="История по упражнению"
+                    onClick={() => setExerciseHistoryOpen(true)}
+                  >
+                    <History size={18} aria-hidden />
+                  </button>
+                </div>
                 {(lastExerciseResult.sets ?? []).map((st, setIdx) => (
                   <p key={setIdx} className="training-focus-pop__last-set muted">
                     {setIdx + 1}) {formatSetSummary(st, lastExerciseResult.format)}
@@ -962,6 +993,14 @@ export function TrainingForm({
           </div>
         </div>
       )}
+
+      <ExerciseHistorySheet
+        open={exerciseHistoryOpen && focusEx != null}
+        onClose={() => setExerciseHistoryOpen(false)}
+        exerciseName={focusEx?.name}
+        rows={exerciseHistory.rows}
+        total={exerciseHistory.total}
+      />
     </div>
   )
 }

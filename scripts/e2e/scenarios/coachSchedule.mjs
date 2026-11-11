@@ -310,7 +310,17 @@ export async function run(browser) {
     await scrollBoardTo(page, 17 * 60)
     const lockedFrom = await center(entryAt(page, '18:00'))
     await touchDrag(cdp, page, lockedFrom, { x: lockedFrom.x, y: lockedFrom.y + 60 * PX_PER_MIN })
-    c.ok(await page.getByText(/Тренировка по записи завершена/).isVisible(), 'завершённая тренировка — плашка, перенос не начат')
+    c.ok(
+      await page
+        .getByText(/Тренировка по записи завершена/)
+        .first()
+        .waitFor({ state: 'visible', timeout: 8_000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+      'завершённая тренировка — плашка, перенос не начат',
+    )
     c.ok(at(18 * 60).length === 1, 'сервер: завершённый слот остался на 18:00')
 
     /* Кожемякина: запись с 1 клиентом → Изменить → добавить второго — примечание не наезжает на список. */

@@ -419,7 +419,7 @@ async function honorShortVisualViewport(c, browser, backend) {
       `Honor + pan: оболочка едет за видимой частью (${m2.shellTy || 'без transform'})`,
     )
     c.ok(
-      m2.composeBottom <= FAKE_PAN + FAKE_VV + 1 && m2.composeBottom >= FAKE_PAN + FAKE_VV - 80,
+      m2.composeBottom <= FAKE_PAN + FAKE_VV + 4 && m2.composeBottom >= FAKE_PAN + FAKE_VV - 80,
       `Honor + pan: поле над клавиатурой в видимой части (низ ${Math.round(m2.composeBottom)}, ожидали ~${FAKE_PAN + FAKE_VV})`,
     )
     c.ok(

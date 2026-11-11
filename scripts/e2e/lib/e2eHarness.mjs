@@ -3,7 +3,7 @@
  * Ни один запрос не уходит наружу: облачные пути отвечает fakeBackend, смайлики Noto — с vite из
  * public/chat-emoji/ (зеркало); чужие хосты — abort.
  */
-import { spawn } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,7 +41,34 @@ async function waitForHttp(url, timeoutMs) {
   throw new Error(`Vite не поднялся за ${timeoutMs} мс: ${url}`)
 }
 
+/** Снять чужой процесс с E2E_PORT — иначе waitForHttp цепляется к зомби Vite и сценарии ловят 404/чужой бандл. */
+function freeE2ePort(port) {
+  try {
+    if (process.platform === 'win32') {
+      const out = execSync('netstat -ano', { encoding: 'utf8' })
+      const pids = new Set()
+      for (const line of out.split(/\r?\n/)) {
+        if (!line.includes(`:${port}`) || !/LISTENING/i.test(line)) continue
+        const pid = line.trim().split(/\s+/).pop()
+        if (pid && /^\d+$/.test(pid) && pid !== String(process.pid)) pids.add(pid)
+      }
+      for (const pid of pids) {
+        try {
+          execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' })
+        } catch {
+          /* уже мёртв */
+        }
+      }
+    } else {
+      execSync(`lsof -tiTCP:${port} -sTCP:LISTEN | xargs -r kill -9`, { stdio: 'ignore' })
+    }
+  } catch {
+    /* порт свободен */
+  }
+}
+
 export async function startDevServer() {
+  freeE2ePort(PORT)
   const child = spawn(
     process.execPath,
     [join(ROOT, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
@@ -52,11 +79,23 @@ export async function startDevServer() {
   child.stderr.on('data', (d) => (out += d))
   try {
     await waitForHttp(`${ORIGIN}/`, 60_000)
+    if (child.exitCode != null) {
+      throw new Error(`Vite завершился с кодом ${child.exitCode}`)
+    }
   } catch (e) {
     child.kill()
     throw new Error(`${e.message}\n${out}`)
   }
-  return { stop: () => child.kill() }
+  return {
+    stop: () => {
+      try {
+        child.kill()
+      } catch {
+        /* ignore */
+      }
+      freeE2ePort(PORT)
+    },
+  }
 }
 
 /** Управляемый navigator.onLine: тест «выключает интернет», не ломая загрузку модулей с dev-сервера. */
