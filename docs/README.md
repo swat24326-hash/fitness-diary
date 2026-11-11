@@ -121,6 +121,7 @@
 | Файл | Статус | Назначение |
 |------|--------|------------|
 | [METRICS_TEXTBOOK.md](./METRICS_TEXTBOOK.md) | ✅ учебник | Все цифры Ядра простым языком: статистика, продажи, финансы, фильтры клиентов |
+| [TRAINER_USER_GUIDE.md](./TRAINER_USER_GUIDE.md) | ✅ для зала | Инструкция с нуля: планшет + телефон тренера + клиент `/me` · HTML/PDF: [TRAINER_CLIENT_USER_GUIDE.html](./TRAINER_CLIENT_USER_GUIDE.html) / [.pdf](./TRAINER_CLIENT_USER_GUIDE.pdf) |
 | [PNK_FUNNEL.md](./PNK_FUNNEL.md) | ✅ в проде | Воронка ПНК: менеджер → тренер → KPI |
 | [COACH_QUALITY.md](./COACH_QUALITY.md) | ✅ MVP | Качество ведения тренера: care / depth / хвосты базы |
 | [CLIENT_RETENTION.md](./CLIENT_RETENTION.md) | 📋 фаза 0 | Удержание и жизнь клиента: cohort M+3, renewal, archive, reactivation |

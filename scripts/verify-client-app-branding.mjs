@@ -56,8 +56,9 @@ ok(m.icons[0]?.purpose === 'maskable', 'API manifest: maskable первым')
     'статика manifest-client: есть maskable-подложка (INC-2026-11-03-02)',
   )
 }
-ok(buildClientManifest('').name === CLIENT_APP_FALLBACK_NAME, 'клуб без названия — «Результат Плюс»')
-ok(buildClientManifest(null).name === CLIENT_APP_FALLBACK_NAME, 'клуб не найден — «Результат Плюс»')
+ok(buildClientManifest('').name === CLIENT_APP_FALLBACK_NAME, 'клуб без названия — запасное «Ядро»')
+ok(buildClientManifest(null).name === CLIENT_APP_FALLBACK_NAME, 'клуб не найден — запасное «Ядро»')
+ok(CLIENT_APP_FALLBACK_NAME === 'Ядро', 'запасное имя клиента = продукт «Ядро»')
 ok(!/Ядро/.test(JSON.stringify(m)), 'в manifest клиента нет имени продукта')
 ok(cleanClubName('Фитнес\n  клуб   «Сила»') === 'Фитнес клуб «Сила»', 'пробелы и переносы схлопываются')
 ok(cleanClubName('x'.repeat(80)).length === 40, 'длинное название обрезается')

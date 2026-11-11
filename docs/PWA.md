@@ -7,8 +7,8 @@
 | Поверхность | `start_url` / маршрут | Кто |
 |-------------|----------------------|-----|
 | Зал / сотрудник (основной PWA) | `manifest.json` → `/` | `StartHubPage`: Сотрудник (логин на месте). Кнопка «Мобильное приложение» раскрывает Тренер→`/coach` и Клиент→`/me`. Запасной прямой вход — `/login`. |
-| Клиент | `manifest-client.json` → `/me` (+ API клуба); icons any+maskable | Не ставить ярлык на `/`. Без maskable — голый знак на Android. |
-| Тренер на телефоне | `manifest-coach.json` → `/coach`; icons any+maskable | То же: свой scope, не смешивать с хабом. Экран/клавиатура iPhone — [§ visualViewport /coach](#visualviewport-coach-iphone). |
+| Клиент | `manifest-client.json` → `/me` (+ API клуба); icons any+maskable | Не ставить ярлык на `/`. Без maskable — голый знак на Android. Имя значка: **клуб** после входа; запасное до клуба — «Ядро». |
+| Тренер на телефоне | `manifest-coach.json` → `/coach`; icons any+maskable | То же: свой scope, не смешивать с хабом. Имя значка — клуб (запасное «Ядро · тренер»). Экран/клавиатура iPhone — [§ visualViewport /coach](#visualviewport-coach-iphone). |
 
 Цепочка splash: `#yadro-boot-splash` → хаб или роль → после входа сотрудника `AppWelcomeSplash` (как раньше). Обновление PWA на `/` и `/login` — `immediate` (`appUpdatePolicy.js`).
 

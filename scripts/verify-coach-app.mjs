@@ -125,7 +125,7 @@ ok(coachManifestUrl(CLUB) === `/api/coach?manifest=${CLUB}` && coachManifestUrl(
 const mf = buildCoachManifest('  Фитнес   Лайф ')
 ok(mf.name === 'Фитнес Лайф' && mf.short_name === 'Фитнес Лайф', 'значок называется как клуб')
 ok(mf.start_url === '/coach' && mf.scope === '/coach' && mf.id === '/coach/', 'значок открывает приложение тренера, не клиента и не планшет')
-ok(buildCoachManifest('').name === 'Результат Плюс · тренер', 'клуб без названия — «Результат Плюс · тренер»')
+ok(buildCoachManifest('').name === 'Ядро · тренер', 'клуб без названия — «Ядро · тренер»')
 ok(buildCoachClub(CLUB, 'Фитнес Лайф')?.manifest_url === coachManifestUrl(CLUB) && buildCoachClub('', 'X') === null, 'клуб для телефона: название и manifest')
 const denyAuth = async (_req, res) => {
   res.statusCode = 401
