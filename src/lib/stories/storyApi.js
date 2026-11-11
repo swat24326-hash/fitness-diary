@@ -1,4 +1,4 @@
-/** Реклама клуба в сторис. Только онлайн — очередь sync не трогаем. */
+/** Сторис сети (выкладка в свой клуб, лента всем). Только онлайн — очередь sync не трогаем. */
 import { postClientMe } from '../client/clientSession.js'
 import { coachRequest } from '../coach/coachSession.js'
 import { CHAT_VIDEO_FETCH_MS } from '../chat/chatVideoTransport.js'

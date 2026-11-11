@@ -97,9 +97,10 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
   }, [load])
 
   const stories = pack?.stories ?? []
+  const ownClubId = pack?.own_club_id || clubId || null
   const groups = useMemo(
-    () => groupClubStoryAuthors(stories, { myUserId: pack?.me }),
-    [stories, pack?.me],
+    () => groupClubStoryAuthors(stories, { myUserId: pack?.me, ownClubId }),
+    [stories, pack?.me, ownClubId],
   )
   const openGroup = groups.find((g) => g.author_id === openAuthorId) ?? null
   const openAuthorIndex = groups.findIndex((g) => g.author_id === openAuthorId)
@@ -137,16 +138,18 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
         ) : null}
         {groups.map((group) => {
           const title = group.mine ? 'Вы' : group.author_name
+          const clubHint = !group.mine && !group.same_club && group.club_name ? group.club_name : ''
           const views = group.views
           const initials = chatInitials(group.author_name) || '?'
+          const label = clubHint ? `${title} · ${clubHint}` : title
           return (
             <button
               key={group.author_id}
               type="button"
               className={`stories-rail__person${group.mine ? ' is-mine' : ''}`}
               onClick={() => setOpenAuthorId(group.author_id)}
-              aria-label={group.unseen ? `${title}, есть новое` : title}
-              title={group.mine && views != null ? `${title}, ${views} просмотров` : title}
+              aria-label={group.unseen ? `${label}, есть новое` : label}
+              title={group.mine && views != null ? `${title}, ${views} просмотров` : label}
             >
               <span className="stories-rail__circle">
                 <StoryRing stories={group.stories} />
@@ -158,6 +161,7 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
                 </span>
               </span>
               <span className="stories-rail__name">{title}</span>
+              {clubHint ? <small className="stories-rail__club">{clubHint}</small> : null}
               {group.mine && views != null ? <small className="stories-rail__views">{views}</small> : null}
             </button>
           )
@@ -226,7 +230,7 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
                     return
                   }
                   api
-                    .ban(authorId, clubId || pack?.club_id)
+                    .ban(authorId, openGroup.club_id || clubId || pack?.club_id)
                     .then(() => {
                       setOpenAuthorId(null)
                       load()
@@ -240,7 +244,7 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
               ? (authorId) => {
                   if (!window.confirm('Снова разрешить этому сотруднику выкладывать сторис?')) return
                   api
-                    .unban(authorId, clubId || pack?.club_id)
+                    .unban(authorId, openGroup.club_id || clubId || pack?.club_id)
                     .then(() => load())
                     .catch((e) => setError(e?.message || STORY_OFFLINE_RU))
                 }

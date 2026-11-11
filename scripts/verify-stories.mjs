@@ -50,6 +50,9 @@ import {
   storyVideoSecOk,
   storyViewerKey,
   storyViewerPublic,
+  canViewNetworkStories,
+  storyAuthorNetworkVisible,
+  storyVisibleToViewer,
   viewClubId,
 } from '../src/lib/stories/storyClubCore.js'
 import {
@@ -133,9 +136,35 @@ ok(publishClubId({ kind: 'supervisor', ownClubId: CLUB }).clubId === CLUB, 'уп
 ok(publishClubId({ kind: 'supervisor', ownClubId: CLUB, requestedClubId: OTHER }).error === STORY_OTHER_CLUB_RU, 'управляющий не пишет в чужой клуб')
 ok(publishClubId({ kind: 'admin', requestedClubId: CLUB }).clubId === CLUB, 'админ выбирает клуб')
 ok(publishClubId({ kind: 'admin' }).error === STORY_PICK_CLUB_RU, 'админ без клуба — отказ')
-ok(viewClubId({ kind: 'staff', ownClubId: CLUB, requestedClubId: OTHER }).error === STORY_OTHER_CLUB_RU, 'сотрудник не видит чужой клуб')
-ok(viewClubId({ kind: 'staff', ownClubId: CLUB }).clubId === CLUB, 'сотрудник видит свой клуб')
-ok(viewClubId({ kind: 'admin', requestedClubId: OTHER }).clubId === OTHER, 'админ смотрит выбранный клуб')
+ok(viewClubId({ kind: 'staff', ownClubId: CLUB, requestedClubId: OTHER }).error === STORY_OTHER_CLUB_RU, 'бан/модерация — не чужой клуб')
+ok(viewClubId({ kind: 'staff', ownClubId: CLUB }).clubId === CLUB, 'модерация — свой клуб')
+ok(viewClubId({ kind: 'admin', requestedClubId: OTHER }).clubId === OTHER, 'админ модерирует выбранный клуб')
+ok(canViewNetworkStories({ kind: 'staff', ownClubId: CLUB }).ok, 'сотрудник открывает ленту')
+ok(canViewNetworkStories({ kind: 'admin' }).ok, 'админ открывает ленту без клуба')
+ok(!canViewNetworkStories({ kind: 'staff', ownClubId: '' }).ok, 'без клуба ленту не открываем')
+ok(storyAuthorNetworkVisible('trainer') && storyAuthorNetworkVisible('тренер'), 'инструктор — аудитория сеть')
+ok(
+  !storyAuthorNetworkVisible('supervisor') &&
+    !storyAuthorNetworkVisible('admin') &&
+    !storyAuthorNetworkVisible('sales_manager'),
+  'руководство и менеджер — не сеть',
+)
+ok(
+  storyVisibleToViewer({ storyClubId: OTHER, authorNetwork: true, viewerOwnClubId: CLUB, viewerKind: 'staff' }),
+  'кадр инструктора чужого клуба виден',
+)
+ok(
+  !storyVisibleToViewer({ storyClubId: OTHER, authorNetwork: false, viewerOwnClubId: CLUB, viewerKind: 'staff' }),
+  'акция руководства чужого клуба скрыта',
+)
+ok(
+  storyVisibleToViewer({ storyClubId: CLUB, authorNetwork: false, viewerOwnClubId: CLUB, viewerKind: 'staff' }),
+  'акция своего клуба видна своим',
+)
+ok(
+  storyVisibleToViewer({ storyClubId: OTHER, authorNetwork: false, viewerOwnClubId: null, viewerKind: 'admin' }),
+  'админ видит акцию любого клуба',
+)
 
 console.log('бан')
 ok(
@@ -318,14 +347,31 @@ ok(canRemoveClubStory('staff', { authorId: CLUB, userId: CLUB }) && canRemoveClu
 ok(canSeeClubStoryViewers({ authorId: CLUB, userId: CLUB }) && !canSeeClubStoryViewers({ authorId: OTHER, userId: CLUB }), 'кто смотрел — только у своих')
 const rails = groupClubStoryAuthors(
   [
-    { id: '1', author_id: OTHER, author_name: 'Админ', seen: true, views: 9 },
-    { id: '2', author_id: CLUB, author_name: 'Тренер', seen: false, views: 3 },
-    { id: '3', author_id: OTHER, author_name: 'Админ', seen: false, views: 1 },
+    { id: '1', author_id: OTHER, author_name: 'Админ', club_id: CLUB, seen: true, views: 9 },
+    { id: '2', author_id: CLUB, author_name: 'Тренер', club_id: CLUB, seen: false, views: 3 },
+    { id: '3', author_id: OTHER, author_name: 'Админ', club_id: CLUB, seen: false, views: 1 },
   ],
-  { myUserId: CLUB },
+  { myUserId: CLUB, ownClubId: CLUB },
 )
 ok(rails.length === 2 && rails[0].mine && rails[0].author_id === CLUB && rails[0].views === 3, 'свои кружок слева, просмотры свои')
 ok(rails[1].author_id === OTHER && rails[1].stories.length === 2 && rails[1].views == null && rails[1].unseen, 'чужой кружок без чужих просмотров')
+const netRails = groupClubStoryAuthors(
+  [
+    { id: 'a', author_id: USER_A, author_name: 'Чужой', club_id: OTHER, club_name: 'Север', seen: false },
+    { id: 'b', author_id: USER_B, author_name: 'Свой клуб', club_id: CLUB, club_name: 'Юг', seen: true },
+    { id: 'c', author_id: CLUB, author_name: 'Я', club_id: CLUB, seen: false, views: 1 },
+  ],
+  { myUserId: CLUB, ownClubId: CLUB },
+)
+ok(
+  netRails[0].mine &&
+    netRails[1].author_id === USER_B &&
+    netRails[1].same_club &&
+    netRails[2].author_id === USER_A &&
+    !netRails[2].same_club &&
+    netRails[2].club_name === 'Север',
+  'ряд: свои → свой клуб → другие клубы сети',
+)
 
 if (failed) {
   console.error(`\nverify-stories: ${failed} fail`)

@@ -1,7 +1,6 @@
 /**
- * Реклама клуба в сторис. Свои сторис людей нет.
- * Список и выкладка — сотрудник (admin-data / телефон тренера) и клиент своего клуба (только смотреть).
- * Бан на выкладку — только admin / supervisor.
+ * Сторис: инструктор — лента сети; акции руководства/менеджера — только свой клуб.
+ * Выкладка и бан — в своём клубе. Список — сотрудник и клиент (клиент только смотрит).
  */
 import { randomUUID } from 'node:crypto'
 import { loadInChunks } from '../batchCore.js'
@@ -28,8 +27,10 @@ import {
   canRemoveClubStory,
   canSeeClubStoryViewers,
   canSetStoryClientOffer,
+  canViewNetworkStories,
   isStoryStorageKey,
   publishClubId,
+  storyAuthorNetworkVisible,
   storyCaptionOk,
   storyExpiresAt,
   storyFramesOk,
@@ -44,6 +45,7 @@ import {
   storyVideoSecOk,
   storyViewerKey,
   storyViewerPublic,
+  storyVisibleToViewer,
   viewClubId,
 } from '../../../src/lib/stories/storyClubCore.js'
 
@@ -95,7 +97,7 @@ async function bannedAuthorIds(db, clubId, authorIds) {
   }
 }
 
-async function viewerNames(db, clubId, viewRows) {
+async function viewerNames(db, viewRows) {
   const staffIds = []
   const clientIds = []
   for (const row of viewRows) {
@@ -105,14 +107,32 @@ async function viewerNames(db, clubId, viewRows) {
   }
   const [users, clients] = await Promise.all([
     loadInChunks([...new Set(staffIds)], (part) => rows(db.from('users').select('id, name').in('id', part))),
-    loadInChunks([...new Set(clientIds)], (part) =>
-      rows(db.from('clients').select('id, name').eq('club_id', clubId).in('id', part)),
-    ),
+    loadInChunks([...new Set(clientIds)], (part) => rows(db.from('clients').select('id, name').in('id', part))),
   ])
   const names = {}
   for (const user of users) names[`u:${String(user.id).toLowerCase()}`] = user.name
   for (const client of clients) names[`c:${String(client.id).toLowerCase()}`] = client.name
   return names
+}
+
+async function clubNameMap(db, clubIds) {
+  const ids = [...new Set(clubIds.map((id) => String(id ?? '').toLowerCase()).filter((id) => storyUuid(id)))]
+  if (!ids.length) return new Map()
+  const list = await loadInChunks(ids, (part) => rows(db.from('clubs').select('id, name').in('id', part)))
+  const map = new Map()
+  for (const club of list) map.set(String(club.id).toLowerCase(), String(club.name ?? '').trim() || 'Клуб')
+  return map
+}
+
+/** Ключи `clubId:userId` — бан выкладки в конкретном клубе. */
+async function bannedAuthorKeys(db, clubIds, authorIds) {
+  const clubs = [...new Set(clubIds.map((id) => String(id ?? '').toLowerCase()).filter((id) => storyUuid(id)))]
+  const keys = new Set()
+  for (const clubId of clubs) {
+    const banned = await bannedAuthorIds(db, clubId, authorIds)
+    for (const userId of banned) keys.add(`${clubId}:${userId}`)
+  }
+  return keys
 }
 
 async function authorMeta(db, authorIds) {
@@ -127,31 +147,66 @@ async function authorMeta(db, authorIds) {
     map.set(id, {
       name: String(user.name ?? '').trim() || 'Сотрудник',
       kind: storyStaffKind(user.role),
+      network: storyAuthorNetworkVisible(user.role),
       photo: avatarPhotoUrl(user.avatar_key, 'staff', id),
     })
   }
   return map
 }
 
+async function assertStoryReadable(db, story, { kind, ownClubId }) {
+  if (!story || !liveRow(story, Date.now())) return { ok: false, status: 404, error: STORY_GONE_RU }
+  const access = canViewNetworkStories({ kind, ownClubId })
+  if (!access.ok) return { ok: false, status: 403, error: access.error }
+  const authors = await authorMeta(db, [story.author_id])
+  const meta = authors.get(String(story.author_id ?? '').toLowerCase())
+  if (
+    !storyVisibleToViewer({
+      storyClubId: story.club_id,
+      authorNetwork: Boolean(meta?.network),
+      viewerOwnClubId: ownClubId,
+      viewerKind: kind,
+    })
+  ) {
+    return { ok: false, status: 403, error: STORY_OTHER_CLUB_RU }
+  }
+  return { ok: true }
+}
+
 function liveRow(row, now) {
   return storyIsLive({ expiresAt: row.expires_at, removedAt: row.removed_at }, now)
 }
 
-async function listClubStories(db, clubId, viewerKey, opts) {
-  const { kind, userId } = opts
+async function listNetworkStories(db, viewerKey, opts) {
+  const { kind, userId, ownClubId } = opts
   const now = Date.now()
-  const stories = (
+  const ownClub = String(ownClubId ?? '').trim().toLowerCase()
+  const raw = (
     await rows(
       db
         .from('club_stories')
-        .select('id, label, cta, expires_at, removed_at, author_id, created_at')
-        .eq('club_id', clubId)
+        .select('id, club_id, label, cta, expires_at, removed_at, author_id, created_at')
         .is('removed_at', null)
         .gt('expires_at', new Date(now).toISOString())
         .order('created_at', { ascending: false })
-        .limit(40),
+        .limit(100),
     )
   ).filter((row) => liveRow(row, now))
+  if (!raw.length) return []
+  const authors = await authorMeta(
+    db,
+    raw.map((s) => s.author_id),
+  )
+  const stories = raw
+    .filter((s) =>
+      storyVisibleToViewer({
+        storyClubId: s.club_id,
+        authorNetwork: Boolean(authors.get(String(s.author_id ?? '').toLowerCase())?.network),
+        viewerOwnClubId: ownClub,
+        viewerKind: kind,
+      }),
+    )
+    .slice(0, 60)
   if (!stories.length) return []
   const ids = stories.map((s) => s.id)
   const frames = await rows(
@@ -185,7 +240,7 @@ async function listClubStories(db, clubId, viewerKey, opts) {
       viewRows = await rows(db.from('club_story_views').select('story_id, user_key, seen_at').in('story_id', ownIds))
     }
   }
-  const names = ownIds.length ? await viewerNames(db, clubId, viewRows) : {}
+  const names = ownIds.length ? await viewerNames(db, viewRows) : {}
   const viewersOf = new Map()
   for (const row of viewRows) {
     const list = viewersOf.get(row.story_id) ?? []
@@ -204,22 +259,30 @@ async function listClubStories(db, clubId, viewerKey, opts) {
     })
     byStory.set(frame.story_id, list)
   }
-  const authors = await authorMeta(
+  const clubs = await clubNameMap(
     db,
-    stories.map((s) => s.author_id),
+    stories.map((s) => s.club_id),
   )
   const moderate = canModerateClubStoryPublish(kind)
+  const banClubs =
+    kind === 'admin'
+      ? stories.map((s) => s.club_id)
+      : kind === 'supervisor' && ownClub
+        ? [ownClub]
+        : []
   const banned = moderate
-    ? await bannedAuthorIds(
+    ? await bannedAuthorKeys(
         db,
-        clubId,
+        banClubs,
         stories.map((s) => s.author_id),
       )
     : new Set()
   return stories.map((s) => {
     const authorId = String(s.author_id ?? '').toLowerCase()
+    const clubId = String(s.club_id ?? '').toLowerCase()
     const meta = authors.get(authorId)
-    const authorBanned = banned.has(authorId)
+    const authorBanned = banned.has(`${clubId}:${authorId}`)
+    const canModerateThis = kind === 'admin' || (kind === 'supervisor' && clubId === ownClub)
     const banCheck = canBanClubStoryAuthor(kind, {
       targetKind: meta?.kind ?? 'staff',
       targetUserId: authorId,
@@ -228,6 +291,9 @@ async function listClubStories(db, clubId, viewerKey, opts) {
     const ownViews = canSeeClubStoryViewers({ authorId, userId })
     return {
       id: s.id,
+      club_id: clubId,
+      club_name: clubs.get(clubId) ?? null,
+      network: Boolean(meta?.network),
       label: s.label,
       label_ru: storyLabelRu(s.label),
       cta: s.cta,
@@ -248,9 +314,9 @@ async function listClubStories(db, clubId, viewerKey, opts) {
         : {}),
       ...(moderate
         ? {
-            author_banned: authorBanned,
-            can_ban: banCheck.ok && !authorBanned,
-            can_unban: banCheck.ok && authorBanned,
+            author_banned: canModerateThis ? authorBanned : false,
+            can_ban: canModerateThis && banCheck.ok && !authorBanned,
+            can_unban: canModerateThis && banCheck.ok && authorBanned,
           }
         : {}),
       frames: byStory.get(s.id) ?? [],
@@ -290,23 +356,30 @@ async function listBannedPublishers(db, clubId) {
 export async function handleStaffStoriesGet(ctx, query, res) {
   try {
     const kind = storyStaffKind(ctx.roleNorm)
-    const club = viewClubId({ kind, ownClubId: ctx.profile?.club_id, requestedClubId: query?.club_id })
-    if (!club.ok) return fail(res, 400, club.error)
-    const banned = await isPublishBanned(ctx.supabaseAdmin, club.clubId, ctx.user.id)
-    const canPublish = canPublishClubStoryNow(kind, banned)
+    const ownClubId = ctx.profile?.club_id
+    const access = canViewNetworkStories({ kind, ownClubId })
+    if (!access.ok) return fail(res, 400, access.error)
+    const publishCtx = publishClubId({ kind, ownClubId, requestedClubId: query?.club_id })
+    const publishClub = publishCtx.ok ? publishCtx.clubId : null
+    const banned = publishClub ? await isPublishBanned(ctx.supabaseAdmin, publishClub, ctx.user.id) : true
+    const canPublish = Boolean(publishClub) && canPublishClubStoryNow(kind, banned)
     const moderate = canModerateClubStoryPublish(kind)
-    const items = await listClubStories(ctx.supabaseAdmin, club.clubId, storyViewerKey('staff', ctx.user.id), {
+    const items = await listNetworkStories(ctx.supabaseAdmin, storyViewerKey('staff', ctx.user.id), {
       kind,
       userId: ctx.user.id,
+      ownClubId,
     })
     const payload = {
-      club_id: club.clubId,
+      club_id: publishClub,
+      own_club_id: storyUuid(ownClubId) ? String(ownClubId).toLowerCase() : null,
       can_publish: canPublish,
       can_set_offer: canSetStoryClientOffer(ctx.roleNorm),
       me: ctx.user.id,
       stories: items,
     }
-    if (moderate) payload.banned_publishers = await listBannedPublishers(ctx.supabaseAdmin, club.clubId)
+    if (moderate && publishClub) {
+      payload.banned_publishers = await listBannedPublishers(ctx.supabaseAdmin, publishClub)
+    }
     sendJson(res, 200, payload)
   } catch (e) {
     if (missingTable(e)) return fail(res, 503, STORY_UNAVAILABLE_RU)
@@ -323,7 +396,6 @@ export async function handleStaffStoriesPost(ctx, body, res, put = putVoice) {
     if (op === 'ban-publish') return banPublish(ctx, body, res, true)
     if (op === 'unban-publish') return banPublish(ctx, body, res, false)
     if (op === 'react') return reactStory(ctx.supabaseAdmin, body, storyViewerKey('staff', ctx.user.id), res, {
-      clubId: null,
       userId: ctx.user.id,
       ownClubId: ctx.profile?.club_id,
       kind: storyStaffKind(ctx.roleNorm),
@@ -339,21 +411,26 @@ export async function handleStaffStoriesPost(ctx, body, res, put = putVoice) {
 export async function handleClientStories(db, ctx, body, res) {
   const action = String(body?.action ?? '')
   const clubId = String(ctx.client?.club_id ?? '').trim()
-  if (!storyUuid(clubId)) return fail(res, 403, STORY_OTHER_CLUB_RU)
+  const access = canViewNetworkStories({ kind: 'staff', ownClubId: clubId })
+  if (!access.ok) return fail(res, 403, access.error)
   try {
     if (action === 'story-list') {
-      const stories = await listClubStories(db, clubId, storyViewerKey('client', ctx.clientId), {
+      const stories = await listNetworkStories(db, storyViewerKey('client', ctx.clientId), {
         kind: null,
         userId: null,
+        ownClubId: clubId,
       })
-      sendJson(res, 200, { stories })
+      sendJson(res, 200, { stories, own_club_id: String(clubId).toLowerCase() })
       return
     }
-    if (action === 'story-seen') return markSeen(db, body?.id, storyViewerKey('client', ctx.clientId), res, clubId)
-    if (action === 'story-frame') return sendFrame(db, body, res, clubId)
+    if (action === 'story-seen') {
+      return clientStoryMedia(db, 'seen', body, storyViewerKey('client', ctx.clientId), clubId, res)
+    }
+    if (action === 'story-frame') {
+      return clientStoryMedia(db, 'frame', body, storyViewerKey('client', ctx.clientId), clubId, res)
+    }
     if (action === 'story-react') {
       return reactStory(db, body, storyViewerKey('client', ctx.clientId), res, {
-        clubId,
         userId: ctx.clientId,
         ownClubId: clubId,
         kind: 'staff',
@@ -367,16 +444,20 @@ export async function handleClientStories(db, ctx, body, res) {
 }
 
 async function staffStoryMedia(ctx, op, body, res) {
+  const kind = storyStaffKind(ctx.roleNorm)
   const story = await loadStory(ctx.supabaseAdmin, body?.id)
-  if (!story || !liveRow(story, Date.now())) return fail(res, op === 'frame' ? 410 : 404, STORY_GONE_RU)
-  const club = viewClubId({
-    kind: storyStaffKind(ctx.roleNorm),
-    ownClubId: ctx.profile?.club_id,
-    requestedClubId: story.club_id,
-  })
-  if (!club.ok) return fail(res, 403, club.error)
-  if (op === 'seen') return markSeen(ctx.supabaseAdmin, story.id, storyViewerKey('staff', ctx.user.id), res, story.club_id)
-  return sendFrame(ctx.supabaseAdmin, body, res, story.club_id)
+  const gate = await assertStoryReadable(ctx.supabaseAdmin, story, { kind, ownClubId: ctx.profile?.club_id })
+  if (!gate.ok) return fail(res, op === 'frame' && gate.status === 404 ? 410 : gate.status, gate.error)
+  if (op === 'seen') return markSeen(ctx.supabaseAdmin, story.id, storyViewerKey('staff', ctx.user.id), res)
+  return sendFrame(ctx.supabaseAdmin, body, res)
+}
+
+async function clientStoryMedia(db, op, body, viewerKey, clubId, res) {
+  const story = await loadStory(db, body?.id)
+  const gate = await assertStoryReadable(db, story, { kind: 'staff', ownClubId: clubId })
+  if (!gate.ok) return fail(res, op === 'frame' && gate.status === 404 ? 410 : gate.status, gate.error)
+  if (op === 'seen') return markSeen(db, story.id, viewerKey, res)
+  return sendFrame(db, body, res)
 }
 
 async function finishPublish(ctx, clubId, prepared, put, res, meta = {}) {
@@ -419,12 +500,14 @@ async function finishPublish(ctx, clubId, prepared, put, res, meta = {}) {
     console.warn('[stories]', e?.message || e)
     return fail(res, 502, 'Не получилось выложить — попробуйте ещё раз')
   }
-  const stories = await listClubStories(db, clubId, storyViewerKey('staff', ctx.user.id), {
+  const stories = await listNetworkStories(db, storyViewerKey('staff', ctx.user.id), {
     kind,
     userId: ctx.user.id,
+    ownClubId: ctx.profile?.club_id,
   })
   sendJson(res, 200, {
     club_id: clubId,
+    own_club_id: storyUuid(ctx.profile?.club_id) ? String(ctx.profile.club_id).toLowerCase() : null,
     can_publish: true,
     can_set_offer: canSetStoryClientOffer(ctx.roleNorm),
     me: ctx.user.id,
@@ -482,8 +565,6 @@ async function removeStory(ctx, body, res) {
   const db = ctx.supabaseAdmin
   const story = await loadStory(db, body?.id)
   if (!story || !liveRow(story, Date.now())) return fail(res, 404, STORY_GONE_RU)
-  const club = viewClubId({ kind, ownClubId: ctx.profile?.club_id, requestedClubId: story.club_id })
-  if (!club.ok || club.clubId !== story.club_id) return fail(res, 403, STORY_OTHER_CLUB_RU)
   if (!canRemoveClubStory(kind, { authorId: story.author_id, userId: ctx.user.id })) return fail(res, 403, STORY_FORBIDDEN_RU)
   const frames = await rows(db.from('club_story_frames').select('storage_key').eq('story_id', story.id))
   const { error } = await db.from('club_stories').update({ removed_at: new Date().toISOString() }).eq('id', story.id)
@@ -556,23 +637,19 @@ async function banPublish(ctx, body, res, ban) {
   sendJson(res, 200, { ok: true, banned: ban })
 }
 
-async function markSeen(db, id, viewerKey, res, clubId) {
-  const story = await loadStory(db, id)
-  if (!story || !liveRow(story, Date.now())) return fail(res, 404, STORY_GONE_RU)
-  if (clubId && story.club_id !== clubId) return fail(res, 403, STORY_OTHER_CLUB_RU)
+async function markSeen(db, id, viewerKey, res) {
   const { error } = await db.from('club_story_views').upsert(
-    { story_id: story.id, user_key: viewerKey, seen_at: new Date().toISOString() },
+    { story_id: id, user_key: viewerKey, seen_at: new Date().toISOString() },
     { onConflict: 'story_id,user_key' },
   )
   if (error) throw error
   sendJson(res, 200, { ok: true })
 }
 
-async function reactStory(db, body, viewerKey, res, { clubId, userId, ownClubId, kind }) {
+async function reactStory(db, body, viewerKey, res, { userId, ownClubId, kind }) {
   const story = await loadStory(db, body?.id)
-  if (!story || !liveRow(story, Date.now())) return fail(res, 404, STORY_GONE_RU)
-  const club = viewClubId({ kind, ownClubId, requestedClubId: clubId || story.club_id })
-  if (!club.ok || club.clubId !== story.club_id) return fail(res, 403, club.ok ? STORY_OTHER_CLUB_RU : club.error)
+  const gate = await assertStoryReadable(db, story, { kind, ownClubId })
+  if (!gate.ok) return fail(res, gate.status, gate.error)
   if (String(story.author_id ?? '').toLowerCase() === String(userId ?? '').toLowerCase()) {
     return fail(res, 400, STORY_REACT_OWN_RU)
   }
@@ -608,11 +685,10 @@ async function reactStory(db, body, viewerKey, res, { clubId, userId, ownClubId,
   sendJson(res, 200, { ok: true, reaction: next.emoji })
 }
 
-async function sendFrame(db, body, res, clubId) {
+async function sendFrame(db, body, res) {
   if (!storyUuid(body?.id) || !storyUuid(body?.frame_id)) return fail(res, 400, STORY_BAD_RU)
   const story = await loadStory(db, body.id)
   if (!story || !liveRow(story, Date.now())) return fail(res, 410, STORY_GONE_RU)
-  if (clubId && story.club_id !== clubId) return fail(res, 403, STORY_OTHER_CLUB_RU)
   const { data, error } = await db
     .from('club_story_frames')
     .select('storage_key, mime')

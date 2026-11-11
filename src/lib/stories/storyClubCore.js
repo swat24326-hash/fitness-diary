@@ -1,5 +1,5 @@
 /**
- * Реклама клуба в сторис: кто выкладывает, чей клуб, срок, кадры.
+ * Сторис: выкладка в свой клуб; аудитория — инструктор на всю сеть, руководство только свой клуб.
  * Свои сторис людей здесь нет. Без React и базы.
  */
 
@@ -7,12 +7,14 @@ import {
   USERS_ADMIN_ROLES,
   USERS_SALES_MANAGER_ROLES,
   USERS_SUPERVISOR_ROLES,
+  USERS_TRAINER_ROLES,
 } from '../userRoleConstants.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ADMIN = new Set(USERS_ADMIN_ROLES)
 const SUPERVISOR = new Set(USERS_SUPERVISOR_ROLES)
 const SALES = new Set(USERS_SALES_MANAGER_ROLES)
+const TRAINER = new Set(USERS_TRAINER_ROLES)
 
 export const STORY_LABELS = Object.freeze(['news', 'promo'])
 export const STORY_CTA = Object.freeze(['none', 'chat', 'membership'])
@@ -123,7 +125,8 @@ export function publishClubId({ kind, ownClubId, requestedClubId }) {
 }
 
 /**
- * Клуб, чью рекламу человек смотрит.
+ * Клуб для модерации выкладки (бан) и контекста «свой клуб» у админа.
+ * Смотреть сторис сети — {@link canViewNetworkStories}, не эта функция.
  * @returns {{ ok: true, clubId: string } | { ok: false, error: string }}
  */
 export function viewClubId({ kind, ownClubId, requestedClubId }) {
@@ -136,6 +139,33 @@ export function viewClubId({ kind, ownClubId, requestedClubId }) {
   if (!storyUuid(own)) return { ok: false, error: STORY_NO_CLUB_RU }
   if (asked && asked !== own) return { ok: false, error: STORY_OTHER_CLUB_RU }
   return { ok: true, clubId: own }
+}
+
+/**
+ * Открыть ленту сторис (свой клуб + кадры инструкторов сети).
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+export function canViewNetworkStories({ kind, ownClubId }) {
+  if (kind === 'admin') return { ok: true }
+  if (!storyUuid(ownClubId)) return { ok: false, error: STORY_NO_CLUB_RU }
+  return { ok: true }
+}
+
+/** Инструктор (тренер): кадр видят все клубы сети. Руководство / менеджер — только свой клуб. */
+export function storyAuthorNetworkVisible(role) {
+  return TRAINER.has(String(role ?? '').trim().toLowerCase())
+}
+
+/**
+ * Видна ли сторис зрителю.
+ * Админ сети — всё. Кадр инструктора — всем с доступом к ленте. Остальное — только свой клуб.
+ */
+export function storyVisibleToViewer({ storyClubId, authorNetwork, viewerOwnClubId, viewerKind }) {
+  if (viewerKind === 'admin') return true
+  if (authorNetwork) return true
+  const club = String(storyClubId ?? '').trim().toLowerCase()
+  const own = String(viewerOwnClubId ?? '').trim().toLowerCase()
+  return Boolean(club && own && club === own)
 }
 
 export function storyDaysOk(days) {
@@ -261,29 +291,39 @@ export function canSeeClubStoryViewers({ authorId, userId }) {
 
 /**
  * Кружки в ряду: один автор — один кружок (как в Telegram).
- * Свои слева, дальше непросмотренные, потом остальные.
- * @returns {{ author_id: string, author_name: string, author_photo: string|null, mine: boolean, unseen: boolean, views: number|null, stories: object[] }[]}
+ * Свои слева, дальше свой клуб, потом остальные клубы сети; внутри — непросмотренные раньше.
+ * @returns {{ author_id: string, author_name: string, author_photo: string|null, club_id: string|null, club_name: string|null, mine: boolean, same_club: boolean, unseen: boolean, views: number|null, stories: object[] }[]}
  */
-export function groupClubStoryAuthors(stories, { myUserId } = {}) {
+export function groupClubStoryAuthors(stories, { myUserId, ownClubId } = {}) {
   const me = String(myUserId ?? '').trim().toLowerCase()
+  const ownClub = String(ownClubId ?? '').trim().toLowerCase()
   const order = []
   const map = new Map()
   for (const story of stories ?? []) {
     const id = String(story?.author_id ?? '').trim().toLowerCase()
     if (!id) continue
+    const clubId = String(story?.club_id ?? '').trim().toLowerCase() || null
     let group = map.get(id)
     if (!group) {
       group = {
         author_id: id,
         author_name: String(story?.author_name ?? '').trim() || 'Сотрудник',
         author_photo: story?.author_photo || null,
+        club_id: clubId,
+        club_name: story?.club_name || null,
         mine: Boolean(me && id === me),
+        same_club: Boolean(ownClub && clubId && clubId === ownClub),
         stories: [],
       }
       map.set(id, group)
       order.push(group)
-    } else if (!group.author_photo && story?.author_photo) {
-      group.author_photo = story.author_photo
+    } else {
+      if (!group.author_photo && story?.author_photo) group.author_photo = story.author_photo
+      if (!group.club_name && story?.club_name) group.club_name = story.club_name
+      if (!group.club_id && clubId) {
+        group.club_id = clubId
+        group.same_club = Boolean(ownClub && clubId === ownClub)
+      }
     }
     group.stories.push(story)
   }
@@ -293,10 +333,11 @@ export function groupClubStoryAuthors(stories, { myUserId } = {}) {
       ? group.stories.reduce((sum, s) => sum + (Number(s.views) || 0), 0)
       : null
   }
+  const byUnseen = (a, b) => Number(b.unseen) - Number(a.unseen)
   const mine = order.filter((g) => g.mine)
-  const rest = order.filter((g) => !g.mine)
-  rest.sort((a, b) => Number(b.unseen) - Number(a.unseen))
-  return [...mine, ...rest]
+  const sameClub = order.filter((g) => !g.mine && g.same_club).sort(byUnseen)
+  const other = order.filter((g) => !g.mine && !g.same_club).sort(byUnseen)
+  return [...mine, ...sameClub, ...other]
 }
 
 export function storyViewerKey(side, id) {

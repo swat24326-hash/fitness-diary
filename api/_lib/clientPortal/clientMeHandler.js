@@ -12,7 +12,7 @@
  * POST /api/client-me { action: 'plan-list' | 'plan-item' } — задание от тренера и рацион (../clientPlans/clientPlansClientHandler.js).
  * POST /api/client-me { action: 'rating-get' | 'rating-answer' | 'rating-dismiss' } — оценка после абонемента (../clientRatings/clientRatingHandler.js).
  * POST /api/client-me { action: 'membership-notice-read' } — прочитано оповещение об абонементе.
- * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' | 'story-react' } — реклама своего клуба.
+ * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' | 'story-react' } — сторис сети (все клубы).
  * POST /api/client-me { action: 'progress-weight-*' | 'progress-measure-*' } — свой вес/обмеры (○).
  * POST /api/client-me { action: 'cycle-get' | 'cycle-upsert' | 'cycle-disable' } — упрощённый цикл (только себе).
  */
