@@ -364,7 +364,7 @@ export function AdminMultiHallClientCardSection({
                 onChange={(iso) => setField('birth_date', iso)}
               />
             </label>
-            {hallTab === 'pz' && !omitPzPane ? (
+            {hallTab === 'pz' ? (
               <AdminMultiHallTrainerField
                 clubId={resolvedClubId}
                 value={form.trainer_id}

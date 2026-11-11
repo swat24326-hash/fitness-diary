@@ -145,19 +145,121 @@
       display: grid; place-items: center; box-shadow: var(--shadow); font-size: 18px;
     }
     .back-top:hover { text-decoration: none; }
+    /* PDF / печать: белый лист, без неонового emerald приложения.
+       Chrome при print-to-pdf выбеливает фон, а #2effb8 остаётся — на бумаге это ядовито. */
     @media print {
-      body { background: #fff; color: #111; font-size: 12pt; }
-      .hero, .toc, .mini, .path, .callout, footer { background: #fff !important; border-color: #ccc !important; box-shadow: none !important; }
-      p, li, td, .hero p, .lead { color: #222 !important; }
-      strong, h1, h2, h3, h4 { color: #111 !important; }
-      .part-label, .hero__brand, .num, a { color: #0a7d5c !important; }
-      .back-top { display: none; }
-      h2.part { break-before: page; border-top: none; }
-      h2.part:first-of-type { break-before: avoid; }
+      :root {
+        --bg: #fff;
+        --bg-subtle: #fff;
+        --bg-card: #fff;
+        --bg-elevated: #f7f7f7;
+        --border: #d8d8d8;
+        --border-soft: #ececec;
+        --text: #111;
+        --text-muted: #333;
+        --accent: #111;
+        --accent-bright: #111;
+        --accent-glow: transparent;
+        --warning: #666;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body {
+        background: #fff !important;
+        color: #111 !important;
+        font-size: 11.5pt;
+        line-height: 1.55;
+      }
+      .wrap { max-width: none; padding: 0; }
+      .hero, .toc, .mini, .path, .callout, footer, .card-row .mini {
+        background: #fff !important;
+        border: 1px solid #d8d8d8 !important;
+        box-shadow: none !important;
+        filter: none !important;
+        backdrop-filter: none !important;
+      }
+      .callout { border-left: 3px solid #111 !important; background: #f5f5f5 !important; }
+      .callout--warn { border-left-color: #555 !important; background: #f3f3f3 !important; }
+      .mark, .hero__brand, .part-label, .toc .group, h3 .num, a,
+      .chip--accent, .toc a, .toc a:hover {
+        color: #111 !important;
+      }
+      .mark { filter: none !important; }
+      .chip, .chip--accent {
+        background: #f3f3f3 !important;
+        border-color: #cfcfcf !important;
+        color: #222 !important;
+      }
+      p, li, td, th, .hero p, .hero__sub, .lead, .toc > p, .mini p, footer {
+        color: #222 !important;
+      }
+      strong, h1, h2, h3, h4, .path h4, .mini h4 { color: #111 !important; }
+      th { color: #555 !important; }
+      table th, table td { border-bottom-color: #e0e0e0 !important; }
+      .back-top { display: none !important; }
+      h2.part {
+        break-before: auto;
+        border-top: 1px solid #ddd;
+        padding-top: 14px;
+        margin-top: 28px;
+      }
+      .path, .callout, .mini { break-inside: avoid; }
     }
   </style>
 </head>
-<body>
+<body class="doc-print">
+  <!-- class=doc-print: спокойная печатная палитра (PDF). Экранный neon emerald Ядра сюда не тащим. -->
+  <style>
+    /* Отдельный контур для PDF-документа: чёрный текст на белом, без #2effb8 */
+    body.doc-print {
+      --bg: #fafafa;
+      --bg-subtle: #f4f4f4;
+      --bg-card: #ffffff;
+      --bg-elevated: #ffffff;
+      --border: #e2e2e2;
+      --border-soft: #ececec;
+      --text: #111111;
+      --text-muted: #3a3a3a;
+      --accent: #111111;
+      --accent-bright: #111111;
+      --accent-glow: transparent;
+      --warning: #5c5c5c;
+      --shadow: 0 1px 2px rgba(0,0,0,0.04);
+      background: #fafafa !important;
+      color: #111 !important;
+    }
+    body.doc-print .mark { filter: none; color: #111; }
+    body.doc-print .hero__brand,
+    body.doc-print .part-label,
+    body.doc-print .toc .group,
+    body.doc-print h3 .num,
+    body.doc-print a { color: #111; }
+    body.doc-print .chip--accent {
+      color: #222;
+      border-color: #cfcfcf;
+      background: #f0f0f0;
+    }
+    body.doc-print .callout {
+      border-left-color: #111;
+      background: #f3f3f3;
+    }
+    body.doc-print .callout--warn {
+      border-left-color: #666;
+      background: #f0f0f0;
+    }
+    body.doc-print .hero,
+    body.doc-print .toc,
+    body.doc-print .mini,
+    body.doc-print .path,
+    body.doc-print footer {
+      background: #fff;
+      border-color: #e2e2e2;
+      box-shadow: var(--shadow);
+      backdrop-filter: none;
+    }
+  </style>
   <div class="wrap" id="top">
 
     <header class="hero">
