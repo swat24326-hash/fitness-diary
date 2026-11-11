@@ -318,6 +318,8 @@ Glance **не** класть в тело `trainer-pull` (pull уже тяжёл�
 
 Стили: `src/styles/loyalty.css`. Офлайн: last-good + «списание только в сети».
 
+Вкладка карточки (`useClientLoyalty`): **не** перечитывать account на событие `loyalty-glance` — его шлёт сам GET account после записи IDB; иначе вечный цикл и тряска UI. Обновление после Sync (`sync-complete`) и после списания (`reload` из UI) — да. Gate: `loyaltyAccountReloadGateCore.js`.
+
 ---
 
 ## 11. Контуры — не ломать

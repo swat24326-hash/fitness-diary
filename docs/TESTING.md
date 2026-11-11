@@ -132,6 +132,7 @@
 | Лояльность: штамп при complete | `verify-loyalty-persist.mjs` (неявка, ккал не из `kcal_est`, абон не трогаем) |
 | Лояльность API (доступ, 403/409, не в sync) | `verify-loyalty-api.mjs` |
 | Лояльность UI (чип/вкладка, ПНК, пачки 80, не в pull) | `verify-loyalty-ui.mjs` |
+| Вкладка Баллы: не reload на `loyalty-glance` (иначе тряска) | `verify-loyalty-account-reload-gate.mjs` |
 | Лояльность: списание и журнал | `verify-loyalty-redeem.mjs` (офлайн disabled, роли, не sync) |
 | Лояльность: архив / переезд клуба | `verify-loyalty-archive.mjs` (`burn_archive` / `club_move`, тексты, не выдумываем 0) |
 | Лояльность: тумблер и ставки клуба | `verify-loyalty-settings.mjs` (интервалы, confirm, Структура `?tab=loyalty`) |
