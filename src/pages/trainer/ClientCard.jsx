@@ -962,7 +962,10 @@ export function ClientCard() {
             ) : null}
             {isOpenPnkClient(client) ? null : (
               <>
-                <ClientAppInviteButton client={client} disabled={isArchived} />
+                {/* QR/приглашение уже в desk-блоке сверху при multi-hall — не дублируем у ФИО. */}
+                {isMultiHallCard ? null : (
+                  <ClientAppInviteButton client={client} disabled={isArchived} />
+                )}
                 {chatLinks}
               </>
             )}
