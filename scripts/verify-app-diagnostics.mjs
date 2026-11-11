@@ -130,6 +130,20 @@ assert.ok(humanLine.includes('Вес'), 'weight table label')
 assert.ok(humanLine.includes('Сеть недоступна'), 'last_error in queue line')
 assert.ok(humanLine.includes('скоро снимется'), 'drop warning at 10+ retries')
 
+const trainingStuck = formatSyncQueueLineHuman(
+  {
+    table_name: 'trainings',
+    operation: 'update',
+    retry_count: 421,
+    last_error: 'Тренировка не найдена',
+    data: { client_id: 'c1' },
+  },
+  0,
+  { clientNames: { c1: 'Бабченко' } },
+)
+assert.ok(trainingStuck.includes('попыток 421'), 'training retry count shown')
+assert.ok(!trainingStuck.includes('скоро снимется'), 'trainings kept after retries — no false drop note')
+
 const networkQueueFix = resolveQuickFixes({
   errors: [],
   queue: [{ table_name: 'trainings', operation: 'insert', retry_count: 5, last_error: 'Failed to fetch' }],

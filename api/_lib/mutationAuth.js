@@ -772,7 +772,20 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         .select('trainer_id, client_id, club_id')
         .eq('id', tid)
         .maybeSingle()
-      if (!t) return op === 'delete' ? { ok: true } : { ok: false, error: 'Тренировка не найдена' }
+      if (!t) {
+        if (op === 'delete') return { ok: true }
+        // Копия / «Закончить» до insert: update пустой → pushRecordCore сделает insert.
+        if (op === 'update') {
+          if (String(payload.trainer_id) !== String(user.id)) {
+            return { ok: false, error: 'Тренировка должна быть вашей' }
+          }
+          if (payload.client_id && !(await canAccessClient(ctx, payload.client_id))) {
+            return { ok: false, error: 'Нет доступа к клиенту' }
+          }
+          return trainerClubCheck(ctx, payload, payload.client_id, null)
+        }
+        return { ok: false, error: 'Тренировка не найдена' }
+      }
       if (String(t.trainer_id) !== String(user.id)) return { ok: false, error: 'Нет доступа' }
       if (op === 'update') {
         if (

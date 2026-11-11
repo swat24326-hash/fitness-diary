@@ -107,6 +107,15 @@ await run('правка клиента без club_id', true, 'clients', 'update
 await run('новая тренировка', true, 'trainings', 'insert', { id: U(92), trainer_id: T1, client_id: C1, club_id: A }, null, { maxCalls: 1 })
 await run('новая тренировка с club_id: null', true, 'trainings', 'insert', { id: U(93), trainer_id: T1, client_id: C1, club_id: null })
 await run('«Закончить»: update draft → completed', true, 'trainings', 'update', { id: TR1, trainer_id: T1, client_id: C1, club_id: A, status: 'completed' }, TR1, { maxCalls: 1 })
+await run(
+  'update без строки в облаке (копия / гонка) → разрешить insert на сервере',
+  true,
+  'trainings',
+  'update',
+  { id: U(97), trainer_id: T1, client_id: C1, club_id: A, status: 'completed' },
+  U(97),
+  { maxCalls: 2 },
+)
 await run('тренировка клиенту из прежнего клуба (перевод тренера)', true, 'trainings', 'insert', { id: U(94), trainer_id: T1, client_id: C_OLD, club_id: OLD }, null, { maxCalls: 2 })
 await run('правка старой тренировки со старым клубом', true, 'trainings', 'update', { id: TR_OLD, trainer_id: T1, client_id: C_OLD, club_id: OLD }, TR_OLD, { maxCalls: 1 })
 await run('списание абонемента (update used_trainings)', true, 'memberships', 'update', { id: M1, client_id: C1, club_id: A, used_trainings: 3 }, M1, { maxCalls: 2 })
@@ -121,6 +130,14 @@ await run('перенос своей тренировки в чужой клуб
 await run('абонемент в чужой клуб', false, 'memberships', 'insert', { id: U(82), client_id: C1, club_id: B })
 await run('перенос абонемента в чужой клуб (update)', false, 'memberships', 'update', { id: M1, club_id: B }, M1)
 await run('тренировка чужому клиенту', false, 'trainings', 'insert', { id: U(83), trainer_id: T1, client_id: C2, club_id: A })
+await run(
+  'update без строки чужому клиенту',
+  false,
+  'trainings',
+  'update',
+  { id: U(84), trainer_id: T1, client_id: C2, club_id: A, status: 'completed' },
+  U(84),
+)
 await run('смена клуба своего клиента', false, 'clients', 'update', { club_id: B }, C1)
 
 console.log('другие роли не задеты')

@@ -9,6 +9,7 @@ import { getClientBundleId, getClientBuildTimeIso, getClientBuildTimeLabel, getC
 import { getAppUpdatePending } from './appUpdateState.js'
 import { isQueueAuthStuck } from './syncAuthStuck.js'
 import { readIdentityCacheLatest } from './userIdentityCache.js'
+import { shouldDropExhaustedSyncRetry } from './syncFlushResult.js'
 
 function isRecoverableSyncErrorForFixes(e) {
   return isRecoverableTransientError(e)
@@ -253,7 +254,11 @@ export function formatSyncQueueLineHuman(item, index, meta = {}) {
   const retryNote = retries > 0 ? ` · попыток ${retries}` : ''
   const errText = truncateQueueError(item?.last_error)
   const errNote = errText ? ` · ${errText}` : ''
-  const dropNote = retries >= 10 ? ' · скоро снимется из очереди' : ''
+  // Тренировки/абоны после 12 попыток не снимаем — не пугать «скоро снимется».
+  const dropNote = shouldDropExhaustedSyncRetry({ ...item, retry_count: Math.max(retries, 12) })
+    && retries >= 10
+    ? ' · скоро снимется из очереди'
+    : ''
   return `${n}. ${table}: ${op}${clientNote}${retryNote}${errNote}${dropNote}`
 }
 

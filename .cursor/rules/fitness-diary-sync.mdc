@@ -19,7 +19,7 @@ alwaysApply: false
 | Код | Действие |
 |-----|----------|
 | 403 нет доступа к клиенту/типам | `markRecordSynced`, **не** re-enqueue |
-| 404 training | drop из очереди |
+| «тренировка не найдена» (update без строки) | не drop: auth пускает upsert / очередь → insert (`promoteTrainingUpdateNotFoundToInsert`) |
 | 401 / 5xx / сеть | retry, запись в очереди |
 | 409 duplicate | считать synced |
 

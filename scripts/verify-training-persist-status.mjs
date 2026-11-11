@@ -15,6 +15,7 @@ import {
   trainingDraftPushRequiresDraftRowFilter,
   shouldEnqueueTrainingAsInsert,
   shouldInsertTrainingAfterEmptyUpdate,
+  promoteTrainingUpdateNotFoundToInsert,
 } from '../src/lib/trainingPersistStatusCore.js'
 
 let failed = 0
@@ -105,6 +106,22 @@ ok(
   !shouldInsertTrainingAfterEmptyUpdate({ operation: 'insert', updatedRow: null, existingRow: null }),
   'insert path does not re-enter empty-update',
 )
+{
+  const promoted = promoteTrainingUpdateNotFoundToInsert(
+    { table_name: 'trainings', operation: 'update', remote_id: 't1', data: { id: 't1', client_id: 'c1' }, retry_count: 3 },
+    403,
+    'Тренировка не найдена',
+  )
+  ok(promoted?.operation === 'insert' && promoted?.remote_id == null, '404/403 not found → queue insert')
+  ok(
+    !promoteTrainingUpdateNotFoundToInsert(
+      { table_name: 'trainings', operation: 'update', remote_id: 't1', data: { id: 't1' } },
+      403,
+      'Нет доступа',
+    ),
+    'other 403 stays update',
+  )
+}
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

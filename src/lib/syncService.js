@@ -30,6 +30,7 @@ import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncP
 import { stampTrainingUpdatedAt } from './trainingUpdatedAtCore.js'
 import { syncQueueSortKey, splitSyncPushWaves } from './syncQueuePriorityCore.js'
 import { isDeferrablePushFailure, judgeFlushDrain } from './syncFlushResult.js'
+import { promoteTrainingUpdateNotFoundToInsert } from './trainingPersistStatusCore.js'
 
 export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave, judgeFlushDrain } from './syncFlushResult'
 
@@ -519,6 +520,13 @@ async function processOneSyncQueueItem(item) {
       }
     }
     return { ok: true }
+  }
+
+  const promoted = promoteTrainingUpdateNotFoundToInsert(item, pushedViaApi.status, err)
+  if (promoted) {
+    const db = await getDb()
+    await db.put('sync_queue', promoted)
+    return processOneSyncQueueItem(promoted)
   }
 
   throw new Error(err)

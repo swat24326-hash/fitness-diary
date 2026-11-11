@@ -14,7 +14,7 @@
 | Зона | Файлы | Зачем |
 |------|--------|--------|
 | Запись + очередь | `src/lib/syncService.js` (`saveLocalWithSync`); реэкспорт в `src/lib/dataAccess.js` | Любая локальная запись с push |
-| Очередь flush / pull | `src/lib/syncService.js`, `src/lib/syncFlushResult.js`, `src/lib/syncLocalRecords.js` | Sync в шапке |
+| Очередь flush / pull | `src/lib/syncService.js`, `src/lib/syncFlushResult.js`, `src/lib/syncLocalRecords.js`; update без строки → `promoteTrainingUpdateNotFoundToInsert` + `insertTrainingIfUpdateMissed` (`mutationAuth` / `pushRecordCore`) | Sync в шапке; INC **C** 11-11-04 |
 | Pull не затирает pending | `src/lib/localDb.js` (`putStoreUnlessPendingSync`), `src/lib/syncPullGuardCore.js` (`cloudPutAllowedOnPull`), `src/lib/syncFlushResult.js` (`shouldPreserveLocalRowOnPull`) | INC **C** |
 | IDB stores | `src/lib/localDb.js` | Версия схемы — [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) |
 | Push API | `api/push-record.js`, `api/push-records.js`, `api/_lib/pushRecordCore.js`, `api/_lib/mutationAuth.js` | Серверный allowlist |

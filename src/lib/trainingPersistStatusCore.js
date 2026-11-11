@@ -101,3 +101,24 @@ export function shouldInsertTrainingAfterEmptyUpdate(p = {}) {
   if (p.existingRow && typeof p.existingRow === 'object') return false
   return true
 }
+
+/**
+ * Сервер ответил «тренировка не найдена» на update — в очереди переписать на insert
+ * (копия / гонка: insert ещё не доехал, а «Закончить» уже шлёт update).
+ * @param {{ table_name?: string, operation?: string, remote_id?: string | null, data?: object } | null | undefined} item
+ * @param {number | string | null | undefined} status
+ * @param {string | null | undefined} errorMessage
+ * @returns {object | null} новый элемент очереди или null
+ */
+export function promoteTrainingUpdateNotFoundToInsert(item, status, errorMessage) {
+  if (!item || String(item.table_name ?? '') !== 'trainings') return null
+  if (String(item.operation ?? '') !== 'update') return null
+  const code = Number(status)
+  if (code !== 403 && code !== 404) return null
+  const msg = String(errorMessage ?? '').toLowerCase()
+  if (!msg.includes('тренировка не найдена')) return null
+  const data = item.data && typeof item.data === 'object' ? { ...item.data } : {}
+  const id = String(data.id ?? item.remote_id ?? '').trim()
+  if (id && !data.id) data.id = id
+  return { ...item, operation: 'insert', remote_id: null, data, last_error: null }
+}
