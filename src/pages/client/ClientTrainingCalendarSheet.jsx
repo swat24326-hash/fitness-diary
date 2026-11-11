@@ -3,7 +3,7 @@
  * Телефон: крупные дни ≥44px, спокойные заливки из токенов.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Settings2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import {
   buildCycleCalendarMonth,
   calendarMonthTitleRu,
@@ -17,6 +17,7 @@ import { formatDateRu } from '../../lib/dateRu.js'
 const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
 
 /**
+ * Календарь только смотрит фазы. Вкл/параметры женского цикла — в профиле.
  * @param {{
  *   asOf: string
  *   cycle?: object|null
@@ -24,7 +25,6 @@ const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
  *   nextSession?: object|null
  *   weights?: object[]|null
  *   onClose: () => void
- *   onOpenCycleSettings?: () => void
  * }} props
  */
 export function ClientTrainingCalendarSheet({
@@ -34,7 +34,6 @@ export function ClientTrainingCalendarSheet({
   nextSession = null,
   weights = null,
   onClose,
-  onOpenCycleSettings,
 }) {
   const start = asOf?.slice(0, 10) || '2026-01-01'
   const [y, m] = start.split('-').map(Number)
@@ -174,16 +173,6 @@ export function ClientTrainingCalendarSheet({
               </span>
               <span className="client-me-muted">{grid.legendHint}</span>
             </div>
-          ) : onOpenCycleSettings ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon-square btn-touch client-cycle-cal__setup"
-              title="Настроить женский цикл"
-              aria-label="Настроить женский цикл"
-              onClick={onOpenCycleSettings}
-            >
-              <Settings2 size={20} aria-hidden />
-            </button>
           ) : null}
         </div>
 

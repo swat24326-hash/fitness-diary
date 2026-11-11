@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Save } from 'lucide-react'
 import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCore.js'
 import { ackSavedDeskField, mergeDeskClientFormField } from '../../lib/admin/deskClientFormMergeCore.js'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
@@ -17,6 +16,8 @@ import {
 import { notifyAdminClientsBrowseStorageChanged } from '../../lib/admin/adminClientsListReloadCore.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
+import { useAdminClientIdentityEdit } from '../../hooks/useAdminClientIdentityEdit.js'
+import { AdminClientIdentityEditActions } from './AdminClientIdentityEditActions.jsx'
 import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
 import { AdminClientHallLifecycleActions } from './AdminClientHallLifecycleActions.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
@@ -207,7 +208,31 @@ export function AdminMultiHallClientCardSection({
     }))
   }, [client])
 
+  const resetIdentityDirty = () => {
+    birthDirtyRef.current = false
+    nameDirtyRef.current = false
+    phoneDirtyRef.current = false
+    cardDirtyRef.current = false
+    trainerDirtyRef.current = false
+    savedBirthRef.current = undefined
+    savedNameRef.current = undefined
+    savedPhoneRef.current = undefined
+    savedCardRef.current = undefined
+    savedTrainerRef.current = undefined
+  }
+
+  const { identityEditing, beginEdit, cancelEdit, finishEdit } = useAdminClientIdentityEdit({
+    clientId: String(client?.id ?? ''),
+    form,
+    setForm,
+    onCancelRestore: () => {
+      resetIdentityDirty()
+      setError('')
+    },
+  })
+
   const setField = (key, value) => {
+    if (!identityEditing) return
     if (key === 'birth_date') birthDirtyRef.current = true
     if (key === 'name') nameDirtyRef.current = true
     if (key === 'phone') phoneDirtyRef.current = true
@@ -220,7 +245,7 @@ export function AdminMultiHallClientCardSection({
 
   const save = async (e) => {
     e?.preventDefault?.()
-    if (!client?.id) return
+    if (!client?.id || !identityEditing) return
     const name = formatClientName(form.name)
     if (!name) {
       setError('Укажите ФИО')
@@ -307,6 +332,7 @@ export function AdminMultiHallClientCardSection({
         clientId: client.id,
         clubId: client.club_id,
       })
+      finishEdit()
       onSaved?.({ cloudFlushed: shouldCloudHydrateAfterCriticalSave(flush, warn) })
     } catch (err) {
       setError(err?.message || 'Не удалось сохранить')
@@ -325,13 +351,17 @@ export function AdminMultiHallClientCardSection({
       </div>
 
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
-        <div className="admin-desk-client-card__identity">
+        <div
+          className={`admin-desk-client-card__identity${identityEditing ? '' : ' admin-desk-client-card__identity--readonly'}`}
+        >
           <label className="admin-desk-client-card__name-field">
             ФИО
             <input
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
-              required
+              required={identityEditing}
+              readOnly={!identityEditing}
+              disabled={identityEditing && busy}
               autoComplete="name"
               spellCheck={false}
             />
@@ -344,6 +374,8 @@ export function AdminMultiHallClientCardSection({
                 onChange={(e) => setField('phone', e.target.value)}
                 inputMode="tel"
                 autoComplete="tel"
+                readOnly={!identityEditing}
+                disabled={identityEditing && busy}
               />
             </label>
             <label>
@@ -352,6 +384,8 @@ export function AdminMultiHallClientCardSection({
                 value={form.card_number}
                 onChange={(e) => setField('card_number', e.target.value)}
                 inputMode="numeric"
+                readOnly={!identityEditing}
+                disabled={identityEditing && busy}
               />
             </label>
             <label>
@@ -361,6 +395,7 @@ export function AdminMultiHallClientCardSection({
                 allowEmpty
                 birthDate
                 aria-label="Дата рождения"
+                disabled={!identityEditing || busy}
                 onChange={(iso) => setField('birth_date', iso)}
               />
             </label>
@@ -369,7 +404,7 @@ export function AdminMultiHallClientCardSection({
                 clubId={resolvedClubId}
                 value={form.trainer_id}
                 onChange={(id) => setField('trainer_id', id)}
-                disabled={busy}
+                disabled={!identityEditing || busy}
                 listScope={trainerListScope}
                 onCatalogChange={(list) => {
                   trainersCatalogRef.current = list
@@ -382,18 +417,22 @@ export function AdminMultiHallClientCardSection({
                 memberships={memberships}
                 clubId={resolvedClubId}
                 onChanged={onSaved}
-                disabled={busy}
+                disabled={!identityEditing || busy}
               />
             ) : null}
           </div>
         </div>
         {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
-        <div className="admin-desk-client-card__actions">
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            <Save size={18} aria-hidden /> {busy ? 'Сохраняю…' : 'Сохранить'}
-          </button>
-          <ClientAppInviteButton client={client} disabled={Boolean(client?.archived_at)} />
-        </div>
+        <AdminClientIdentityEditActions
+          editing={identityEditing}
+          busy={busy}
+          onBeginEdit={() => {
+            setError('')
+            beginEdit()
+          }}
+          onCancel={cancelEdit}
+          extra={<ClientAppInviteButton client={client} disabled={Boolean(client?.archived_at)} />}
+        />
       </form>
 
       <AdminClientHallTabs

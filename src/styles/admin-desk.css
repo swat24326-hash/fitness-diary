@@ -75,6 +75,20 @@
   background: color-mix(in srgb, var(--bg, #0f0f0f) 72%, transparent);
 }
 
+.admin-desk-client-card__identity--readonly input,
+.admin-desk-client-card__identity--readonly select {
+  cursor: default;
+  border-color: color-mix(in srgb, var(--border, #444) 55%, transparent);
+  background: color-mix(in srgb, var(--bg, #0f0f0f) 55%, transparent);
+  color: color-mix(in srgb, var(--text, #eee) 92%, transparent);
+}
+
+.admin-desk-client-card__identity--readonly input:focus,
+.admin-desk-client-card__identity--readonly select:focus {
+  border-color: color-mix(in srgb, var(--border, #444) 55%, transparent);
+  box-shadow: none;
+}
+
 .admin-desk-client-card__name-field {
   display: flex;
   flex-direction: column;
@@ -310,6 +324,17 @@
 .admin-desk-mem-date__cal:hover {
   color: var(--accent-bright, #e8a838);
   border-color: color-mix(in srgb, var(--accent-bright, #e8a838) 45%, transparent);
+}
+
+.admin-desk-mem-date--disabled > input[type='text'] {
+  cursor: default;
+  opacity: 0.92;
+}
+
+.admin-desk-mem-date--disabled .admin-desk-mem-date__cal {
+  cursor: default;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .admin-desk-mem-date__native {

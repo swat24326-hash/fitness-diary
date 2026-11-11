@@ -150,10 +150,6 @@ function ClientHomePreviewBody({ initial, note, showFromTrainer }) {
           nextSession={data.next_session}
           weights={data.progress?.weights}
           onClose={() => setCalendarOpen(false)}
-          onOpenCycleSettings={() => {
-            setCalendarOpen(false)
-            setCycleSheetOpen(true)
-          }}
         />
       ) : null}
       {cycleSheetOpen ? (

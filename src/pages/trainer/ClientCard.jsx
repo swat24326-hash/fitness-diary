@@ -72,6 +72,7 @@ import {
   normalizeClientCardTab,
   writeClientCardTabToSearchParams,
 } from '../../lib/clientCardTabsCore.js'
+import { clientCardHeaderAllowsIdentityEdit } from '../../lib/admin/clientCardIdentityEditAccessCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
@@ -511,7 +512,13 @@ export function ClientCard() {
     { shouldRun: shouldReloadTrainerClientStats },
   )
 
+  const canEditViaHeaderPencil = clientCardHeaderAllowsIdentityEdit({
+    isTrainer,
+    canManageClubClients,
+  })
+
   const openEdit = () => {
+    if (!canEditViaHeaderPencil) return
     if (isArchived) {
       alert('Клиент в архиве. Чтобы редактировать и вести тренировки — сначала нажмите «Вернуть из архива».')
       return
@@ -941,9 +948,18 @@ export function ClientCard() {
                 Отказ ПНК
               </span>
             ) : null}
-            <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
-              <Pencil size={16} aria-hidden />
-            </button>
+            {canEditViaHeaderPencil ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon-square"
+                aria-label="Редактировать данные клиента"
+                title="Редактировать"
+                onClick={openEdit}
+                disabled={isArchived}
+              >
+                <Pencil size={16} aria-hidden />
+              </button>
+            ) : null}
             {isOpenPnkClient(client) ? null : (
               <>
                 <ClientAppInviteButton client={client} disabled={isArchived} />

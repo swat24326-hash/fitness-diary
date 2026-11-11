@@ -344,6 +344,7 @@
 | Смена тренера ПЗ: клуб / lite / карта формы / каскад абонов | `verify-client-trainer-reassign.mjs` |
 | Desk: очистка ДР без отката при hydrate | `verify-desk-client-birth-form.mjs` |
 | Desk: телефон / № карты / ФИО / ack Save / hydrate после flush | `verify-desk-client-form-merge.mjs` |
+| Карандаш у ФИО в шапке — только тренер (не админ/менеджер/управляющий) | `verify-client-card-identity-edit-access.mjs` |
 | Архив: подвкладки ПЗ / ТЗ / АЗ | `verify-admin-clients-archive-hall.mjs` |
 | Списки клиентов (зал × признак × архив-период) | `verify-client-lists-query.mjs` |
 | АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |

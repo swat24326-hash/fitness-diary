@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Save } from 'lucide-react'
 import { saveLocalWithSync } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
@@ -9,6 +8,8 @@ import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCor
 import { ackSavedDeskField, mergeDeskClientFormField } from '../../lib/admin/deskClientFormMergeCore.js'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
+import { useAdminClientIdentityEdit } from '../../hooks/useAdminClientIdentityEdit.js'
+import { AdminClientIdentityEditActions } from './AdminClientIdentityEditActions.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskAzInstructorsSection } from './AdminDeskAzInstructorsSection.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
@@ -109,7 +110,29 @@ export function AdminDeskClientCardSection({
     }))
   }, [client])
 
+  const resetIdentityDirty = () => {
+    birthDirtyRef.current = false
+    nameDirtyRef.current = false
+    phoneDirtyRef.current = false
+    cardDirtyRef.current = false
+    savedBirthRef.current = undefined
+    savedNameRef.current = undefined
+    savedPhoneRef.current = undefined
+    savedCardRef.current = undefined
+  }
+
+  const { identityEditing, beginEdit, cancelEdit, finishEdit } = useAdminClientIdentityEdit({
+    clientId: String(client?.id ?? ''),
+    form,
+    setForm,
+    onCancelRestore: () => {
+      resetIdentityDirty()
+      setError('')
+    },
+  })
+
   const setField = (key, value) => {
+    if (!identityEditing) return
     if (key === 'birth_date') birthDirtyRef.current = true
     if (key === 'name') nameDirtyRef.current = true
     if (key === 'phone') phoneDirtyRef.current = true
@@ -120,7 +143,7 @@ export function AdminDeskClientCardSection({
 
   const save = async (e) => {
     e?.preventDefault?.()
-    if (!client?.id) return
+    if (!client?.id || !identityEditing) return
     const name = formatClientName(form.name)
     if (!name) {
       setError('Укажите ФИО')
@@ -178,6 +201,7 @@ export function AdminDeskClientCardSection({
         card_number: savedCard,
         birth_date: savedBirth,
       }))
+      finishEdit()
       dispatchLocalDataChanged()
       onSaved?.()
     } catch (err) {
@@ -202,13 +226,17 @@ export function AdminDeskClientCardSection({
       </div>
 
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
-        <div className="admin-desk-client-card__identity">
+        <div
+          className={`admin-desk-client-card__identity${identityEditing ? '' : ' admin-desk-client-card__identity--readonly'}`}
+        >
           <label className="admin-desk-client-card__name-field">
             ФИО
             <input
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
-              required
+              required={identityEditing}
+              readOnly={!identityEditing}
+              disabled={identityEditing && busy}
               autoComplete="name"
               spellCheck={false}
             />
@@ -221,6 +249,8 @@ export function AdminDeskClientCardSection({
                 onChange={(e) => setField('phone', e.target.value)}
                 inputMode="tel"
                 autoComplete="tel"
+                readOnly={!identityEditing}
+                disabled={identityEditing && busy}
               />
             </label>
             <label>
@@ -229,11 +259,18 @@ export function AdminDeskClientCardSection({
                 value={form.card_number}
                 onChange={(e) => setField('card_number', e.target.value)}
                 inputMode="numeric"
+                readOnly={!identityEditing}
+                disabled={identityEditing && busy}
               />
             </label>
             <label>
               Зал
-              <select value={form.desk_hall} onChange={(e) => setField('desk_hall', e.target.value)} required>
+              <select
+                value={form.desk_hall}
+                onChange={(e) => setField('desk_hall', e.target.value)}
+                required={identityEditing}
+                disabled={!identityEditing || busy}
+              >
                 <option value="">Выберите…</option>
                 <option value="tz">ТЗ</option>
                 <option value="az">АЗ</option>
@@ -246,6 +283,7 @@ export function AdminDeskClientCardSection({
                 allowEmpty
                 birthDate
                 aria-label="Дата рождения"
+                disabled={!identityEditing || busy}
                 onChange={(iso) => setField('birth_date', iso)}
               />
             </label>
@@ -255,18 +293,22 @@ export function AdminDeskClientCardSection({
                 memberships={memberships}
                 clubId={clubId}
                 onChanged={onSaved}
-                disabled={busy}
+                disabled={!identityEditing || busy}
               />
             ) : null}
           </div>
         </div>
         {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
-        <div className="admin-desk-client-card__actions">
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            <Save size={18} aria-hidden /> {busy ? 'Сохраняю…' : 'Сохранить'}
-          </button>
-          <ClientAppInviteButton client={client} disabled={Boolean(client?.archived_at)} />
-        </div>
+        <AdminClientIdentityEditActions
+          editing={identityEditing}
+          busy={busy}
+          onBeginEdit={() => {
+            setError('')
+            beginEdit()
+          }}
+          onCancel={cancelEdit}
+          extra={<ClientAppInviteButton client={client} disabled={Boolean(client?.archived_at)} />}
+        />
       </form>
 
       <AdminDeskMembershipLedger

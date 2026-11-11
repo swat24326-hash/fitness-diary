@@ -5,7 +5,6 @@ import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { clientMeLeadCard } from '../../lib/client/clientMeHighlightsCore.js'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
-import { disableClientCycle, upsertClientCycle } from '../../lib/client/clientCycleService.js'
 import { ClientMenu } from './ClientMenu.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
 import { clientAttention } from './ClientTabs.jsx'
@@ -23,7 +22,6 @@ import { ClientNotificationsEntry } from './ClientNotificationsEntry.jsx'
 import { ClientOnboardingBanner } from './ClientOnboardingBanner.jsx'
 import { ClientSignInPanel } from './ClientSignInPanel.jsx'
 import { ClientTrainingCalendarSheet } from './ClientTrainingCalendarSheet.jsx'
-import { ClientCycleSettingsSheet } from './ClientCycleSettingsSheet.jsx'
 import { useClientMe } from './useClientMe.js'
 import { useSparkRebuild } from './useSparkRebuild.js'
 import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
@@ -39,9 +37,6 @@ export function ClientMePage() {
   const [cyclePatch, setCyclePatch] = useState(null)
   const [addRequest, setAddRequest] = useState(/** @type {null | 'weight' | 'measure'} */ (null))
   const [calendarOpen, setCalendarOpen] = useState(false)
-  const [cycleSheetOpen, setCycleSheetOpen] = useState(false)
-  const [cycleBusy, setCycleBusy] = useState(false)
-  const [cycleError, setCycleError] = useState('')
   const consumeAddRequest = useCallback(() => setAddRequest(null), [])
   useEffect(() => {
     setProgressPatch(null)
@@ -108,11 +103,6 @@ export function ClientMePage() {
   const sessionFirst = clientMeLeadCard(data) === 'session'
   const progress = progressPatch ?? data.progress
   const openCalendar = () => setCalendarOpen(true)
-  const openCycleFromCalendar = () => {
-    setCalendarOpen(false)
-    setCycleError('')
-    setCycleSheetOpen(true)
-  }
 
   return (
     <ClientMeShell actions={actions} club={data.club} tabs attention={clientAttention(data)}>
@@ -153,42 +143,6 @@ export function ClientMePage() {
           nextSession={data.next_session}
           weights={progress?.weights}
           onClose={() => setCalendarOpen(false)}
-          onOpenCycleSettings={openCycleFromCalendar}
-        />
-      ) : null}
-      {cycleSheetOpen ? (
-        <ClientCycleSettingsSheet
-          asOf={today}
-          initial={cycle}
-          busy={cycleBusy}
-          error={cycleError}
-          onClose={() => !cycleBusy && setCycleSheetOpen(false)}
-          onSave={async (payload) => {
-            setCycleBusy(true)
-            setCycleError('')
-            try {
-              const res = await upsertClientCycle(payload)
-              setCyclePatch(res.cycle ?? { enabled: true, ...payload })
-              setCycleSheetOpen(false)
-            } catch (e) {
-              setCycleError(e?.message || 'Не удалось сохранить')
-            } finally {
-              setCycleBusy(false)
-            }
-          }}
-          onDisable={async () => {
-            setCycleBusy(true)
-            setCycleError('')
-            try {
-              const res = await disableClientCycle()
-              setCyclePatch(res.cycle ?? { enabled: false })
-              setCycleSheetOpen(false)
-            } catch (e) {
-              setCycleError(e?.message || 'Не удалось выключить')
-            } finally {
-              setCycleBusy(false)
-            }
-          }}
         />
       ) : null}
     </ClientMeShell>

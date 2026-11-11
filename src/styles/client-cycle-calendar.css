@@ -201,20 +201,6 @@
   background: var(--cycle-luteal);
 }
 
-.client-cycle-cal__setup {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.client-cycle-cal__setup:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-}
-
-.client-switch--muted {
-  opacity: 0.42;
-}
-
 .client-cycle-cal__detail {
   margin: 0 var(--space-3, 12px) var(--space-3, 12px);
   padding: var(--space-2, 8px) var(--space-3, 12px);

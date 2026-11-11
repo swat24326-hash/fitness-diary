@@ -16,6 +16,7 @@ import {
  *   'aria-label'?: string,
  *   allowEmpty?: boolean,
  *   birthDate?: boolean,
+ *   disabled?: boolean,
  * }} props
  */
 export function AdminDeskMemDateField({
@@ -24,6 +25,7 @@ export function AdminDeskMemDateField({
   'aria-label': ariaLabel = 'Дата',
   allowEmpty = false,
   birthDate = false,
+  disabled = false,
 }) {
   const yearOpts = useMemo(() => (birthDate ? birthDateYearBounds() : { minYear: 1990, maxYear: 2100 }), [birthDate])
   const iso = parseFlexibleDateToIso(value, yearOpts) || ''
@@ -59,17 +61,21 @@ export function AdminDeskMemDateField({
   }
 
   return (
-    <div className="admin-desk-mem-date">
+    <div className={`admin-desk-mem-date${disabled ? ' admin-desk-mem-date--disabled' : ''}`}>
       <input
         type="text"
         inputMode="numeric"
         autoComplete="off"
         placeholder="дд.мм.гггг"
         value={text}
+        disabled={disabled}
+        readOnly={disabled}
         onFocus={() => {
+          if (disabled) return
           focusedRef.current = true
         }}
         onChange={(e) => {
+          if (disabled) return
           const masked = maskRuDateDigitsInput(e.target.value)
           setText(masked)
           const parsed = parseFlexibleDateToIso(masked, yearOpts)
@@ -83,9 +89,11 @@ export function AdminDeskMemDateField({
         }}
         onBlur={(e) => {
           focusedRef.current = false
+          if (disabled) return
           commitText(e.target.value)
         }}
         onKeyDown={(e) => {
+          if (disabled) return
           if (e.key === 'Enter') {
             e.preventDefault()
             commitText(e.currentTarget.value)
@@ -98,7 +106,11 @@ export function AdminDeskMemDateField({
         className="admin-desk-mem-date__cal"
         title="Календарь"
         aria-label={`${ariaLabel}: открыть календарь`}
-        onClick={() => openNativeDatePicker(nativeRef.current)}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return
+          openNativeDatePicker(nativeRef.current)
+        }}
       >
         <Calendar size={16} aria-hidden />
       </button>
@@ -111,7 +123,9 @@ export function AdminDeskMemDateField({
         max={birthDate ? `${yearOpts.maxYear}-12-31` : undefined}
         tabIndex={-1}
         aria-hidden
+        disabled={disabled}
         onChange={(e) => {
+          if (disabled) return
           const v = String(e.target.value || '').slice(0, 10)
           // Пустой type=date часто стреляет сам при программной подстановке ISO — не затираем текст.
           if (!v) return
