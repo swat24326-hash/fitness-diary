@@ -55,7 +55,7 @@ export function ClientCardMainTabs({
   useEffect(() => {
     setLoyaltyKept(false)
   }, [client?.id])
-  const { elRef: tabsRef, observeRef: panelRef, capture: captureTabsY } = usePreserveElementViewportY(tab)
+  const { elRef: tabsRef, capture: captureTabsY } = usePreserveElementViewportY(tab)
   const selectTab = (id) => {
     captureTabsY()
     setTab(id)
@@ -76,7 +76,7 @@ export function ClientCardMainTabs({
         ))}
       </div>
 
-      <div className="client-card-tabpanel" role="tabpanel" ref={panelRef}>
+      <div className="client-card-tabpanel" role="tabpanel">
       {tab === 'health' && tabOk(client, 'health', pnkCtx) && (
         <ClientOverview
           client={client}
