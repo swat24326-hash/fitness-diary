@@ -170,6 +170,8 @@ CREATE TABLE memberships (
   paid_amount NUMERIC(12, 2) NULL CHECK (paid_amount IS NULL OR paid_amount >= 0),
   session_visits JSONB NOT NULL DEFAULT '[]'::jsonb,
   hall TEXT NOT NULL DEFAULT 'pz' CHECK (hall IN ('pz', 'tz', 'az')),
+  duration_unit TEXT CHECK (duration_unit IS NULL OR duration_unit IN ('months', 'days')),
+  duration_count NUMERIC CHECK (duration_count IS NULL OR duration_count > 0),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
