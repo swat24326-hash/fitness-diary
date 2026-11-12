@@ -3,6 +3,8 @@
  * start_date / end_date в БД NOT NULL — пустые значения нельзя слать как null.
  */
 
+import { normalizeMembershipDuration } from './membership/membershipPackageDurationCore.js'
+
 function isoDateOrEmpty(value) {
   const s = String(value ?? '').trim().slice(0, 10)
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''
@@ -104,6 +106,25 @@ export function normalizeMembershipPushPayload(payload, { insert = false } = {})
     }
   } else if (insert) {
     next.hall = 'pz'
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(next, 'duration_unit') ||
+    Object.prototype.hasOwnProperty.call(next, 'duration_count')
+  ) {
+    const unitRaw = next.duration_unit
+    const countRaw = next.duration_count
+    if (unitRaw == null || unitRaw === '' || countRaw == null || countRaw === '') {
+      next.duration_unit = null
+      next.duration_count = null
+    } else {
+      const dur = normalizeMembershipDuration(unitRaw, countRaw)
+      if (!dur) {
+        return { ok: false, error: 'Длительность пакета: месяцы (в т.ч. 1.5) или дни > 0' }
+      }
+      next.duration_unit = dur.unit
+      next.duration_count = dur.count
+    }
   }
 
   return { ok: true, data: next }

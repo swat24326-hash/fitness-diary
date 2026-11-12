@@ -18,8 +18,16 @@ import {
   suspiciousLowTotalConfirmMessageRu,
   validateMembershipTotalAgainstUsed,
 } from '../lib/membership/membershipTotalGuardCore.js'
-import { defaultMembershipEndIso, formatDateRu, todayLocalIso } from '../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
+import {
+  MEMBERSHIP_DURATION_PRESET_CUSTOM,
+  inferMembershipDurationDays,
+  membershipDurationFromPreset,
+  membershipPackageEndOrDefaultIso,
+  membershipShiftEndIso,
+  readMembershipDurationSnapshot,
+} from '../lib/membership/membershipPackageDurationCore.js'
 import { buildMembershipDeleteConfirmCopy } from '../lib/membershipDeleteCore'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
 import { findPnkTrialMembershipType, isPnkTrialTypeRow } from '../lib/pnk/pnkTrialTrainingCore'
@@ -32,8 +40,34 @@ import { ModalHeader } from './ModalHeader'
 import { useAuth } from '../context/AuthContext'
 import { AdminMembershipPaidAmountField } from './admin/AdminMembershipPaidAmountField.jsx'
 import { paidAmountFromMembershipForm } from '../lib/admin/membershipPaidAmountCore.js'
+import { MembershipDurationFields } from './membership/MembershipDurationFields.jsx'
 import { MembershipHistoryCard } from './membership/MembershipHistoryCard.jsx'
 import { notifyAdminClientsBrowseStorageChanged } from '../lib/admin/adminClientsListReloadCore.js'
+
+const EMPTY_NEW_FORM = {
+  start_date: '',
+  end_date: '',
+  total_trainings: 12,
+  membership_type_id: '',
+  paid_amount: '',
+  duration_preset: '1',
+  duration_days: '47',
+  end_manual: false,
+}
+
+function endFromFormDuration(start, preset, days) {
+  const dur = membershipDurationFromPreset(preset, days)
+  return membershipPackageEndOrDefaultIso(start, dur?.unit, dur?.count)
+}
+
+function durationSnapshotForSave(form) {
+  const start = String(form.start_date || '').slice(0, 10)
+  const end = String(form.end_date || '').slice(0, 10)
+  if (form.end_manual) {
+    return inferMembershipDurationDays(start, end)
+  }
+  return membershipDurationFromPreset(form.duration_preset, form.duration_days)
+}
 
 function newId() {
   return crypto.randomUUID()
@@ -56,13 +90,7 @@ export function MembershipManager({
   const { user } = useAuth()
   const [items, setItems] = useState([])
   const [selectedId, setSelectedId] = useState(null)
-  const [form, setForm] = useState({
-    start_date: '',
-    end_date: '',
-    total_trainings: 12,
-    membership_type_id: '',
-    paid_amount: '',
-  })
+  const [form, setForm] = useState(() => ({ ...EMPTY_NEW_FORM }))
   const [edit, setEdit] = useState({
     start_date: '',
     end_date: '',
@@ -157,13 +185,17 @@ export function MembershipManager({
     const activeCount = membershipTypes.filter((t) => t.is_active !== false).length
     if (activeCount === 0) void reloadTypes({ force: true })
     const picked = pickDefaultTypeId(membershipTypes)
-    setForm((f) => ({
-      ...f,
-      start_date: f.start_date || todayIso,
-      end_date: f.end_date || defaultMembershipEndIso(f.start_date || todayIso),
+    const start = todayIso
+    setForm({
+      ...EMPTY_NEW_FORM,
+      start_date: start,
+      end_date: endFromFormDuration(start, '1', '47'),
       total_trainings: picked.total,
       membership_type_id: picked.id,
-    }))
+      duration_preset: '1',
+      duration_days: '47',
+      end_manual: false,
+    })
   }, [membershipTypes, reloadTypes, pickDefaultTypeId, todayIso])
 
   useEffect(() => {
@@ -294,9 +326,16 @@ export function MembershipManager({
     const now = new Date().toISOString()
     const today = todayLocalIso()
     const start = String(form.start_date || today).slice(0, 10)
-    const end = String(form.end_date || defaultMembershipEndIso(start)).slice(0, 10)
+    const dur = durationSnapshotForSave({ ...form, start_date: start })
+    const end = String(
+      form.end_date || membershipPackageEndOrDefaultIso(start, dur?.unit, dur?.count),
+    ).slice(0, 10)
     if (end < start) {
       alert('Дата окончания не может быть раньше начала')
+      return
+    }
+    if (form.duration_preset === MEMBERSHIP_DURATION_PRESET_CUSTOM && !dur) {
+      alert('Укажите число дней пакета (например 47)')
       return
     }
     let paid_amount = null
@@ -336,6 +375,10 @@ export function MembershipManager({
       hall: hallFilter,
       created_at: now,
     }
+    if (dur) {
+      row.duration_unit = dur.unit
+      row.duration_count = dur.count
+    }
     if (showPaidAmount) row.paid_amount = paid_amount
     await saveLocalWithSync('memberships', row, { table_name: 'memberships', operation: 'insert', remote_id: null })
     try {
@@ -344,7 +387,7 @@ export function MembershipManager({
       console.warn('[membership] ensure open hall', e?.message ?? e)
     }
     setSelectedId(id)
-    setForm({ start_date: '', end_date: '', total_trainings: 12, membership_type_id: '', paid_amount: '' })
+    setForm({ ...EMPTY_NEW_FORM })
     await notify()
     setNewOpen(false)
   }
@@ -437,6 +480,20 @@ export function MembershipManager({
       end_date: end,
       total_trainings: totalTrainings,
       membership_type_id: nextTypeId || null,
+    }
+    const snap = readMembershipDurationSnapshot(selected)
+    const expectedFromSnap = snap
+      ? membershipPackageEndOrDefaultIso(start, snap.unit, snap.count)
+      : ''
+    if (snap && expectedFromSnap && end === expectedFromSnap) {
+      patch.duration_unit = snap.unit
+      patch.duration_count = snap.count
+    } else {
+      const inferred = inferMembershipDurationDays(start, end)
+      if (inferred) {
+        patch.duration_unit = inferred.unit
+        patch.duration_count = inferred.count
+      }
     }
     if (showPaidAmount) {
       if (String(edit.paid_amount ?? '').trim() !== '' && paidAmountFromMembershipForm(edit.paid_amount) == null) {
@@ -636,7 +693,10 @@ export function MembershipManager({
                       setForm((f) => ({
                         ...f,
                         start_date: start,
-                        end_date: start ? defaultMembershipEndIso(start) : f.end_date,
+                        end_manual: false,
+                        end_date: start
+                          ? endFromFormDuration(start, f.duration_preset, f.duration_days)
+                          : f.end_date,
                       }))
                     }}
                   />
@@ -645,12 +705,42 @@ export function MembershipManager({
                     type="date"
                     value={form.end_date}
                     aria-label="Дата окончания"
-                    onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, end_date: e.target.value, end_manual: true }))
+                    }
                   />
                 </div>
-                <p className="muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.35 }}>
-                  Подсказка: срок — календарный месяц (с того же числа: 24 → 24), не «+30 дней».
-                </p>
+                <MembershipDurationFields
+                  startDate={form.start_date}
+                  preset={form.duration_preset}
+                  customDays={form.duration_days}
+                  onPresetChange={(preset) => {
+                    setForm((f) => {
+                      const start = f.start_date
+                      return {
+                        ...f,
+                        duration_preset: preset,
+                        end_manual: false,
+                        end_date: start
+                          ? endFromFormDuration(start, preset, f.duration_days)
+                          : f.end_date,
+                      }
+                    })
+                  }}
+                  onCustomDaysChange={(days) => {
+                    setForm((f) => {
+                      const start = f.start_date
+                      return {
+                        ...f,
+                        duration_days: days,
+                        end_manual: false,
+                        end_date: start
+                          ? endFromFormDuration(start, f.duration_preset, days)
+                          : f.end_date,
+                      }
+                    })
+                  }}
+                />
                 <input
                   className="input"
                   type="number"
@@ -712,7 +802,27 @@ export function MembershipManager({
                 <div className="grid grid-2" style={{ gap: 8 }}>
                   <div className="field" style={{ margin: 0 }}>
                     <label className="label">Начало</label>
-                    <input className="input" type="date" value={edit.start_date} onChange={(e) => setEdit((s) => ({ ...s, start_date: e.target.value }))} />
+                    <input
+                      className="input"
+                      type="date"
+                      value={edit.start_date}
+                      onChange={(e) => {
+                        const start = e.target.value
+                        setEdit((s) => {
+                          const snap = selected ? readMembershipDurationSnapshot(selected) : null
+                          const nextEnd = snap
+                            ? membershipPackageEndOrDefaultIso(start, snap.unit, snap.count)
+                            : selected
+                              ? membershipShiftEndIso({ ...selected, start_date: s.start_date, end_date: s.end_date }, start)
+                              : s.end_date
+                          return {
+                            ...s,
+                            start_date: start,
+                            end_date: start && nextEnd ? nextEnd : s.end_date,
+                          }
+                        })
+                      }}
+                    />
                   </div>
                   <div className="field" style={{ margin: 0 }}>
                     <label className="label">Окончание</label>
@@ -831,7 +941,9 @@ export function MembershipManager({
                             {' '}
                             · использовано{' '}
                             <strong style={{ color: broken ? 'var(--warning, #f59e0b)' : 'var(--text)' }}>
-                              {used}/{total}
+                              {broken
+                                ? `${used}/${total}`
+                                : `${used}/${total} · осталось ${Math.max(0, total - used)}`}
                             </strong>
                             {broken ? (
                               <span style={{ color: 'var(--warning, #f59e0b)' }}>
@@ -874,8 +986,14 @@ export function MembershipManager({
 
                     <div className="membership-view__footer">
                       {Number.isFinite(total) && total > 0 ? (
-                        <span className="membership-view__usage-chip" aria-live="polite">
-                          {used}/{total}
+                        <span
+                          className="membership-view__usage-chip"
+                          aria-live="polite"
+                          title={broken ? undefined : `Осталось ${Math.max(0, total - used)}`}
+                        >
+                          {broken
+                            ? `${used}/${total}`
+                            : `${used}/${total} · осталось ${Math.max(0, total - used)}`}
                         </span>
                       ) : null}
                       <button

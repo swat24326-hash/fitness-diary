@@ -13,6 +13,7 @@ import '../../styles/membership-early-activate.css'
  *     from: { start: string, end: string },
  *     to: { start: string, end: string },
  *     daysShift: number,
+ *     durationLabel?: string,
  *     warnFar?: boolean,
  *   } | null,
  *   busy?: boolean,
@@ -85,6 +86,7 @@ export function EarlyMembershipActivateSheet({
           {isLate
             ? 'Клиент пришёл после даты старта. Срок абонемента сдвинется от первой тренировки на ту же длину — затем можно начать занятие.'
             : 'Клиент пришёл раньше планового старта. Срок абонемента сдвинется на ту же длину — затем можно начать тренировку.'}
+          {proposal.durationLabel ? ` Длительность пакета: ${proposal.durationLabel}.` : ''}
         </p>
 
         <div className="membership-early-activate-sheet__dates">

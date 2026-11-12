@@ -112,7 +112,11 @@ export function MembershipHistoryCard({
                     title={broken ? membershipBrokenTotalHintRu() : undefined}
                     style={broken ? { color: 'var(--warning, #f59e0b)', fontWeight: 600 } : undefined}
                   >
-                    {usedEff}/{m.total_trainings ?? '—'}
+                    {Number.isFinite(totalN) && totalN > 0
+                      ? broken
+                        ? `${usedEff}/${totalN}`
+                        : `${usedEff}/${totalN} · осталось ${Math.max(0, totalN - usedEff)}`
+                      : `${usedEff}/${m.total_trainings ?? '—'}`}
                     {broken ? (
                       <span className="muted" style={{ display: 'block', fontSize: 11, fontWeight: 500 }}>
                         {membershipBrokenTotalHintRu()}

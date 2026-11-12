@@ -72,6 +72,21 @@ ok(prop.to.start === '2026-07-13' && prop.to.end === '2026-08-13', 'shift preser
 ok(prop.daysShift === 1, 'shift 1 day')
 ok(prop.warnFar === false, '1 day not far')
 
+const monthSnap = {
+  id: 'mMonths',
+  start_date: '2026-07-20',
+  end_date: '2026-08-20',
+  duration_unit: 'months',
+  duration_count: 1,
+  total_trainings: 8,
+  used_trainings: 0,
+}
+const propMonth = proposeEarlyMembershipActivation(monthSnap, today)
+ok(
+  propMonth.ok && propMonth.to.start === today && propMonth.to.end === '2026-08-13',
+  'early with months snapshot: 13→13 next month',
+)
+
 const far = proposeEarlyMembershipActivation(
   { ...upcoming, start_date: '2026-08-01', end_date: '2026-09-01' },
   today,

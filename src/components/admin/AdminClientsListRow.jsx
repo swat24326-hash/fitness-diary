@@ -51,10 +51,7 @@ import { AdminClientListAbonFact } from './AdminClientListAbonFact.jsx'
 import { AdminClientHallStack } from './AdminClientHallStack.jsx'
 import { buildClientCardNavSeed } from '../../lib/admin/clientWorkspaceScopeCore.js'
 import { resolveClientListMembershipTypeCode } from '../../lib/admin/clientListMembershipTypeCore.js'
-import {
-  lastTrainingDateFromMap,
-  remainingTrainingsOnMembership,
-} from '../../lib/admin/adminClientsListRowHelpers.js'
+import { lastTrainingDateFromMap } from '../../lib/admin/adminClientsListRowHelpers.js'
 
 /**
  * Строка списка клиентов админа / менеджера / управляющего.
@@ -247,7 +244,7 @@ export function AdminClientsListRow({
                       срок {formatDateRu(factExpiredLeft.end_date)}
                       <span className="td-client-fact__sub">
                         {' '}
-                        · осталось {remainingTrainingsOnMembership(factExpiredLeft, clientTrainings) ?? '—'}
+                        · {membershipUsageLabel(factExpiredLeft, clientTrainings)}
                       </span>
                     </>
                   ) : (
@@ -336,7 +333,7 @@ export function AdminClientsListRow({
                       срок {formatDateRu(expiredLeft.end_date)}
                       <span className="td-client-fact__sub">
                         {' '}
-                        · осталось {remainingTrainingsOnMembership(expiredLeft, clientTrainings) ?? '—'}
+                        · {membershipUsageLabel(expiredLeft, clientTrainings)}
                       </span>
                     </>
                   ) : (

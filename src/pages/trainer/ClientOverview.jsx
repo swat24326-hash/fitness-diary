@@ -43,7 +43,12 @@ import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { MeasureReading } from '../../components/measures/MeasureReading'
 import { MeasureHistoryModal } from '../../components/measures/MeasureHistoryModal'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { explainInactiveMembership, pickUsableMembershipForDate, countedUsedTrainingsOnMembership } from '../../lib/membershipRules'
+import {
+  explainInactiveMembership,
+  pickUsableMembershipForDate,
+  countedUsedTrainingsOnMembership,
+  membershipUsageLabel,
+} from '../../lib/membershipRules'
 
 export function ClientOverview({
   client,
@@ -162,11 +167,6 @@ export function ClientOverview({
     const t = active.total_trainings
     return Math.min(100, Math.round((u / t) * 100))
   }, [active, clientTrainings])
-
-  const activeUsedCount = useMemo(
-    () => (active ? countedUsedTrainingsOnMembership(active, clientTrainings) : 0),
-    [active, clientTrainings],
-  )
 
   const currentWeightKg = useMemo(() => getHealthCurrentWeightKg(health), [health])
   const initialWeightKg = useMemo(() => getHealthInitialWeightKg(health), [health])
@@ -386,9 +386,7 @@ export function ClientOverview({
             </p>
             <p style={{ margin: '4px 0 10px' }}>
               Использовано тренировок:{' '}
-              <strong>
-                {activeUsedCount} / {active.total_trainings ?? '—'}
-              </strong>
+              <strong>{membershipUsageLabel(active, clientTrainings)}</strong>
             </p>
             <div
               role="progressbar"

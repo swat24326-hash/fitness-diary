@@ -196,7 +196,8 @@ export function applyDeskAzSessionVisitRemove(membership, visitId) {
 export function formatDeskAzSessionUsageRu(membership) {
   const u = deskAzSessionUsage(membership)
   if (!(u.total > 0)) return '—'
-  return `${u.used} из ${u.total}`
+  const left = Math.max(0, u.total - u.used)
+  return `${u.used} из ${u.total} · осталось ${left}`
 }
 
 /**

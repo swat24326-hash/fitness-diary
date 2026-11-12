@@ -1,9 +1,14 @@
-import { formatDateRu, todayLocalIso, addDaysToIso } from './dateRu.js'
+import { formatDateRu, todayLocalIso } from './dateRu.js'
 import {
   compareTrainingsChronological,
   stampTrainingCompletedAt,
   trainingChronologyInstant,
 } from './membership/trainingChronologyCore.js'
+import {
+  formatMembershipDurationLabel,
+  membershipShiftEndIso,
+  readMembershipDurationSnapshot,
+} from './membership/membershipPackageDurationCore.js'
 
 export { compareTrainingsChronological, stampTrainingCompletedAt, trainingChronologyInstant }
 
@@ -230,14 +235,15 @@ export function proposeEarlyMembershipActivation(membership, activateOnIso) {
   if (fromStart <= activateOn) return { ok: false, error: 'already_started' }
   if (!membershipHasRemaining(membership)) return { ok: false, error: 'depleted' }
 
-  const periodDays = membershipPeriodDayCount(membership)
-  if (!periodDays || periodDays < 1) return { ok: false, error: 'bad_period' }
-
   const toStart = activateOn
-  const toEnd = addDaysToIso(toStart, periodDays - 1)
+  const toEnd = membershipShiftEndIso(membership, toStart)
+  if (!toEnd || toEnd < toStart) return { ok: false, error: 'bad_period' }
+  const periodDays = membershipPeriodDayCount({ start_date: toStart, end_date: toEnd })
+  if (!periodDays || periodDays < 1) return { ok: false, error: 'bad_period' }
   const daysShift = isoCalendarDaysDiff(fromStart, activateOn)
   if (daysShift == null) return { ok: false, error: 'bad_date' }
 
+  const snap = readMembershipDurationSnapshot(membership)
   return {
     ok: true,
     membershipId: String(membership.id),
@@ -245,6 +251,7 @@ export function proposeEarlyMembershipActivation(membership, activateOnIso) {
     to: { start: toStart, end: toEnd },
     daysShift,
     periodDays,
+    durationLabel: snap ? formatMembershipDurationLabel(snap) : '',
     warnFar: daysShift > EARLY_ACTIVATE_WARN_SHIFT_DAYS,
   }
 }
@@ -298,11 +305,11 @@ export function proposeLateMembershipStart(membership, activateOnIso, opts = {})
   if (daysShift == null || daysShift < 1) return { ok: false, error: 'bad_date' }
   if (daysShift > LATE_START_MAX_SHIFT_DAYS) return { ok: false, error: 'too_late' }
 
-  const periodDays = membershipPeriodDayCount(membership)
-  if (!periodDays || periodDays < 1) return { ok: false, error: 'bad_period' }
-
   const toStart = activateOn
-  const toEnd = addDaysToIso(toStart, periodDays - 1)
+  const toEnd = membershipShiftEndIso(membership, toStart)
+  if (!toEnd || toEnd < toStart) return { ok: false, error: 'bad_period' }
+  const periodDays = membershipPeriodDayCount({ start_date: toStart, end_date: toEnd })
+  if (!periodDays || periodDays < 1) return { ok: false, error: 'bad_period' }
   const nextPeriod = { start_date: toStart, end_date: toEnd }
   const selfId = String(membership.id)
   const others = opts.otherMemberships ?? []
@@ -313,6 +320,7 @@ export function proposeLateMembershipStart(membership, activateOnIso, opts = {})
     }
   }
 
+  const snap = readMembershipDurationSnapshot(membership)
   return {
     ok: true,
     membershipId: selfId,
@@ -320,6 +328,7 @@ export function proposeLateMembershipStart(membership, activateOnIso, opts = {})
     to: { start: toStart, end: toEnd },
     daysShift,
     periodDays,
+    durationLabel: snap ? formatMembershipDurationLabel(snap) : '',
     warnFar: false,
   }
 }
@@ -656,8 +665,14 @@ export function countedUsedTrainingsOnMembership(membership, clientTrainings) {
   return completedTrainingsOnMembership(membership, clientTrainings).length
 }
 
-/** Текст «used/total» для списка клиентов. */
-export function membershipUsageLabel(membership, clientTrainings) {
+/**
+ * Текст «used/total · осталось N» для списков клиентов / абонов / coach.
+ * Одна подпись для админа, управляющего, менеджера и тренера — без второго формата.
+ * @param {object|null|undefined} membership
+ * @param {object[]|null|undefined} clientTrainings
+ * @param {{ withRemaining?: boolean }} [opts] — withRemaining=false только для очень плотных чипов (по умолчанию true)
+ */
+export function membershipUsageLabel(membership, clientTrainings, opts = {}) {
   if (!membership) return '—'
   const usedDiary = countedUsedTrainingsOnMembership(membership, clientTrainings)
   const usedStored = Number(membership.used_trainings ?? 0)
@@ -668,6 +683,10 @@ export function membershipUsageLabel(membership, clientTrainings) {
   // Лимит меньше факта дневника (опечатка total) — сразу видно в списке.
   if (Number.isFinite(totalN) && totalN > 0 && used > totalN) {
     return `${base} · лимит!`
+  }
+  const withRemaining = opts.withRemaining !== false
+  if (withRemaining && Number.isFinite(totalN) && totalN > 0) {
+    return `${base} · осталось ${Math.max(0, totalN - used)}`
   }
   return base
 }

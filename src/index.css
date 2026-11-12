@@ -7628,7 +7628,9 @@ body:has(.training-form--suggest-open) .training-actions-row {
 }
 
 .membership-view__usage-chip {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(100%, 16rem);
   padding: 0.35rem 0.65rem;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -7637,6 +7639,8 @@ body:has(.training-form--suggest-open) .training-actions-row {
   color: var(--accent-bright, #2effb8);
   background: rgba(46, 255, 184, 0.12);
   border: 1px solid rgba(46, 255, 184, 0.28);
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .membership-view__body {

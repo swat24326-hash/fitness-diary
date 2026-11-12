@@ -169,6 +169,7 @@
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
 | Список клиентов: код типа абона (Dm/El) | `verify-client-list-membership-type.mjs` |
 | Ранняя / поздняя активация абона (сдвиг дат, дневник vs used, overlap, inspect) | `verify-membership-early-activate.mjs` |
+| Длительность пакета (1 мес с числа на число, 1.5 = +1 мес +14д, 47 дней, сдвиг/push) | `verify-membership-package-duration.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Push веса: FK training_id | `verify-client-weight-push.mjs` |
 | Reconcile `used_trainings` по дневнику | `verify-membership-used-reconcile.mjs` |

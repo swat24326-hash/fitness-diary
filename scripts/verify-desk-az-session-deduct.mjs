@@ -87,7 +87,7 @@ const full = {
 }
 ok(!canDeductDeskAzSession(full, '2026-08-04').ok, 'depleted blocked')
 
-ok(formatDeskAzSessionUsageRu(d1.membership) === '1 из 10', 'usage label')
+ok(formatDeskAzSessionUsageRu(d1.membership) === '1 из 10 · осталось 9', 'usage label')
 ok(deskAzSessionUsage({ used_trainings: 3, session_visits: [], total_trainings: 8 }).undatedUsed === 3, 'undated')
 
 const clients = [{ id: 'c1', desk_hall: 'az' }, { id: 'c2', desk_hall: 'tz' }]

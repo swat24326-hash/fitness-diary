@@ -465,7 +465,6 @@ export function AdminDeskMembershipLedger({
                   {usage && usage.total > 0 ? (
                     <span className="admin-desk-mem-card__usage muted">
                       занято {formatDeskAzSessionUsageRu(m)}
-                      {usage.remaining != null ? ` · осталось ${usage.remaining}` : ''}
                     </span>
                   ) : null}
                 </div>

@@ -135,6 +135,7 @@
 | UI абона | `src/components/MembershipManager.jsx` |
 | Reconcile used | `src/lib/membership/membershipUsedReconcileCore.js` (`applyMembershipUsedReconcilePlan`); планшет — `membershipUsedReconcile.js`; телефон «Клиенты» — `api/_lib/coach/coachClientsHandler.js` — INC-2026-11-04-01 |
 | Сдвиг дат | `src/lib/trainer/membershipStartShiftService.js` |
+| Длительность пакета (1 / 1.5 мес, N дней) | `src/lib/membership/membershipPackageDurationCore.js` → create `MembershipManager` / `MembershipDurationFields`; сдвиг в `membershipRules.proposeEarly*` |
 | Gate draft / copy | `src/lib/trainer/trainingMembershipDraftGateCore.js`, `trainingMembershipDraftGateService.js`, `TrainingPage.jsx` |
 | Дата /new (не вчера из durable) | `src/lib/trainer/trainingNewDraftDateCore.js` — INC **H** 09-16 |
 | Verify | `scripts/verify-membership-total-guard.mjs`, `scripts/verify-training-membership-link.mjs`, `scripts/verify-training-membership-draft-gate.mjs`, `scripts/verify-membership-used-reconcile.mjs`, `scripts/verify-trainer-schedule-client-info.mjs` |

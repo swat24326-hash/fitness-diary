@@ -66,6 +66,23 @@ const label = membershipUsageLabel(mem, trainings)
 ok(label.includes('5/1'), 'usage label 5/1')
 ok(label.includes('лимит'), 'usage label marks broken')
 
+const okMem = {
+  id: 'm2',
+  start_date: '2026-07-01',
+  end_date: '2026-08-31',
+  total_trainings: 17,
+  used_trainings: 11,
+}
+ok(membershipUsageLabel(okMem, []) === '11/17 · осталось 6', 'usage label remaining')
+ok(
+  membershipUsageLabel(okMem, [], { withRemaining: false }) === '11/17',
+  'usage label compact without remaining',
+)
+ok(
+  membershipUsageLabel({ ...okMem, used_trainings: 17 }, []) === '17/17 · осталось 0',
+  'usage label remaining 0',
+)
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

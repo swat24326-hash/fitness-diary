@@ -192,6 +192,7 @@ run('training chronology N/M', 'node', ['scripts/verify-training-chronology.mjs'
 run('membership total guard', 'node', ['scripts/verify-membership-total-guard.mjs'])
 run('membership delete confirm', 'node', ['scripts/verify-membership-delete.mjs'])
 run('membership early/late activate', 'node', ['scripts/verify-membership-early-activate.mjs'])
+run('membership package duration', 'node', ['scripts/verify-membership-package-duration.mjs'])
 run('date ru calendar month', 'node', ['scripts/verify-date-ru.mjs'])
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
 run('club stats hall', 'node', ['scripts/verify-club-stats-hall.mjs'])

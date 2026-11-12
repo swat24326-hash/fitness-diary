@@ -49,7 +49,8 @@ export function pickMembershipForScheduleCardLabel(memberships, dateIso) {
 }
 
 /**
- * Подпись «5/13» — та же правда, что список клиентов (`membershipUsageLabel`).
+ * Подпись визитов в плитке ежедневника: компакт «5/13» (без «осталось» — строка метаданных и так длинная).
+ * Та же правда used/total, что список клиентов; остаток там пишется полной подписью.
  * Без дневника = только поле used_trainings; с дневником = max(поле, completed).
  * Без лимита занятий — пусто.
  * @param {object|null|undefined} membership
@@ -58,7 +59,7 @@ export function pickMembershipForScheduleCardLabel(memberships, dateIso) {
 export function scheduleMembershipVisitsLabel(membership, clientTrainings) {
   const total = Number(membership?.total_trainings ?? 0)
   if (!(total > 0)) return ''
-  const label = membershipUsageLabel(membership, clientTrainings ?? [])
+  const label = membershipUsageLabel(membership, clientTrainings ?? [], { withRemaining: false })
   return label && label !== '—' ? label : ''
 }
 
