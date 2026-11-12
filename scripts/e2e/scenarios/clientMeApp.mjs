@@ -33,7 +33,11 @@ function visible(page, text) {
 
 /** Плитка «Мой абонемент»: «2 из 8» + «списано» (в сиде 2 завершённые тренировки). */
 async function membershipShows(page, re) {
-  const tile = page.locator('section', { has: page.getByRole('heading', { name: 'Мой абонемент' }) })
+  // .first(): под нагрузкой полного qa:screens бывает >1 section с этим заголовком —
+  // textContent() тогда падает в strict mode, catch давал '' и ложный провал офлайна.
+  const tile = page
+    .locator('section', { has: page.getByRole('heading', { name: 'Мой абонемент' }) })
+    .first()
   const until = Date.now() + 10_000
   while (Date.now() < until) {
     const text = ((await tile.textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ')

@@ -22,9 +22,9 @@ const PHONE = {
 const QUESTION = 'Завтра можно перенести на вечер?'
 const REPLY = 'Да, давайте в 19:00'
 
-function reaches(locator, state = 'visible') {
+function reaches(locator, state = 'visible', timeoutMs = 10_000) {
   return locator
-    .waitFor({ state, timeout: 10_000 })
+    .waitFor({ state, timeout: timeoutMs })
     .then(() => true)
     .catch(() => false)
 }
@@ -249,19 +249,26 @@ async function runIconHandoff(browser, c) {
     await banner.getByRole('button', { name: 'Как?' }).click()
     c.ok(await reaches(banner.getByText('Откройте значок «E2E клуб»')), 'значок: подсказка в Safari (над Ежедневником) с названием клуба')
     const withToken = await page
-      .waitForURL((u) => u.searchParams.has('h'), { timeout: 10_000 })
+      .waitForURL((u) => u.searchParams.has('h'), { timeout: 20_000 })
       .then(() => page.url())
       .catch(() => '')
     c.ok(Boolean(withToken), 'значок: адрес в Safari несёт вход для значка')
     c.ok((await page.locator('meta[name="apple-mobile-web-app-title"]').getAttribute('content')) === 'E2E клуб', 'значок: имя на iPhone — название клуба')
     await screenshot(page, 'coach-install-hint')
 
+    // Без токена в URL значок не войдёт — не подставляем голый /coach (ложный «не открылся»).
     const iconPage = await icon.newPage()
-    await iconPage.goto(withToken || `${ORIGIN}/coach`)
-    c.ok(await reaches(slot10(iconPage)), 'значок: открылся сразу с Ежедневником, без логина')
-    c.ok(coach.state.devices.length === 1, 'значок: тот же разрешённый телефон, админу не нужно разрешать снова')
-    c.ok(!new URL(iconPage.url()).searchParams.has('h'), 'значок: вход убран из адреса')
-    c.ok(coach.state.invites.some((i) => i.kind === 'handoff' && i.used_at), 'значок: приглашение погашено')
+    if (!withToken) {
+      c.ok(false, 'значок: открылся сразу с Ежедневником, без логина')
+      c.ok(false, 'значок: вход убран из адреса')
+      c.ok(false, 'значок: приглашение погашено')
+    } else {
+      await iconPage.goto(withToken)
+      c.ok(await reaches(slot10(iconPage), 'visible', 20_000), 'значок: открылся сразу с Ежедневником, без логина')
+      c.ok(coach.state.devices.length === 1, 'значок: тот же разрешённый телефон, админу не нужно разрешать снова')
+      c.ok(!new URL(iconPage.url()).searchParams.has('h'), 'значок: вход убран из адреса')
+      c.ok(coach.state.invites.some((i) => i.kind === 'handoff' && i.used_at), 'значок: приглашение погашено')
+    }
     c.ok(!(await iconPage.getByRole('region', { name: 'Значок на экран «Домой»' }).isVisible()), 'значок: подсказки установки в значке нет')
 
     await banner.getByRole('button', { name: 'Готово' }).click()
@@ -288,10 +295,17 @@ async function runQrJoin(browser, c) {
   const page = await context.newPage()
   try {
     await page.goto(`${ORIGIN}/coach/join#t=${token}`)
-    c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'QR: второй телефон без пароля сразу ждёт «Разрешить»')
+    // Под нагрузкой полного qa:screens redeem+экран pending иногда >10 с.
+    c.ok(
+      await reaches(page.getByText('Телефон ждёт разрешения'), 'visible', 20_000),
+      'QR: второй телефон без пароля сразу ждёт «Разрешить»',
+    )
     c.ok(new URL(page.url()).hash === '', 'QR: код убран из адресной строки')
     await page.reload()
-    c.ok(await reaches(page.getByText('Телефон ждёт разрешения')), 'QR: после перезагрузки ждёт дальше, код помнится')
+    c.ok(
+      await reaches(page.getByText('Телефон ждёт разрешения'), 'visible', 20_000),
+      'QR: после перезагрузки ждёт дальше, код помнится',
+    )
     await screenshot(page, 'coach-qr-pending')
 
     coach.setPhoneStatus('approved')
