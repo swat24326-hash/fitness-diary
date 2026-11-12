@@ -49,8 +49,7 @@ export function pickMembershipForScheduleCardLabel(memberships, dateIso) {
 }
 
 /**
- * Подпись визитов в плитке ежедневника: компакт «5/13» (без «осталось» — строка метаданных и так длинная).
- * Та же правда used/total, что список клиентов; остаток там пишется полной подписью.
+ * Подпись визитов в ежедневнике: «2/18 · осталось 16» — та же правда, что список клиентов.
  * Без дневника = только поле used_trainings; с дневником = max(поле, completed).
  * Без лимита занятий — пусто.
  * @param {object|null|undefined} membership
@@ -59,13 +58,13 @@ export function pickMembershipForScheduleCardLabel(memberships, dateIso) {
 export function scheduleMembershipVisitsLabel(membership, clientTrainings) {
   const total = Number(membership?.total_trainings ?? 0)
   if (!(total > 0)) return ''
-  const label = membershipUsageLabel(membership, clientTrainings ?? [], { withRemaining: false })
+  const label = membershipUsageLabel(membership, clientTrainings ?? [])
   return label && label !== '—' ? label : ''
 }
 
 /**
  * @param {{ cardNumber?: string, membershipLabel?: string, visitsLabel?: string, endsOnLabel?: string, membershipEnded?: boolean }} info
- * @returns {string} «№123 · Vip 2 · 5/13 · до 31.12.2026» или «… · закончился»
+ * @returns {string} «№123 · Vip 1 · 2/18 · осталось 16 · до 15.01.2027» или «… · закончился»
  */
 export function formatScheduleClientCardMeta(info = {}) {
   const card = String(info.cardNumber ?? '').trim()

@@ -178,9 +178,13 @@
   font-size: 0.85rem;
   font-weight: 500;
   min-width: 0;
+  /* «осталось N» удлиняет строку — до 2 строк, без обрезки середины */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.35;
   color: var(--text-muted);
 }
 

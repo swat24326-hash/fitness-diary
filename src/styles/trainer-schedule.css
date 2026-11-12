@@ -1342,9 +1342,13 @@
 .trainer-schedule-modal__client-meta {
   font-size: 0.8rem;
   font-weight: 500;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.35;
 }
 
 .trainer-schedule-modal__clients-empty {

@@ -48,7 +48,10 @@ ok(
 )
 ok(formatScheduleClientCardMeta({ endsOnLabel: 'до 01.01.2027' }) === 'до 01.01.2027', 'meta ends-on only')
 
-ok(scheduleMembershipVisitsLabel({ total_trainings: 13, used_trainings: 5 }) === '5/13', 'visits 5/13')
+ok(
+  scheduleMembershipVisitsLabel({ total_trainings: 13, used_trainings: 5 }) === '5/13 · осталось 8',
+  'visits 5/13 · осталось 8',
+)
 ok(scheduleMembershipVisitsLabel({ total_trainings: 0, used_trainings: 0 }) === '', 'visits unlimited empty')
 const lazMem = {
   id: 'm-laz',
@@ -64,10 +67,13 @@ const lazDiary = Array.from({ length: 12 }, (_, i) => ({
   data: { membership_id: 'm-laz' },
 }))
 ok(
-  scheduleMembershipVisitsLabel(lazMem, lazDiary) === '12/38',
-  'visits: effective used max(поле 9, дневник 12)',
+  scheduleMembershipVisitsLabel(lazMem, lazDiary) === '12/38 · осталось 26',
+  'visits: effective used max(поле 9, дневник 12) + remaining',
 )
-ok(scheduleMembershipVisitsLabel(lazMem, []) === '9/38', 'visits: без дневника — только поле')
+ok(
+  scheduleMembershipVisitsLabel(lazMem, []) === '9/38 · осталось 29',
+  'visits: без дневника — только поле + remaining',
+)
 ok(scheduleMembershipEndsOnLabel('2026-12-31') === 'до 31.12.2026', 'ends-on label')
 ok(scheduleMembershipEndsOnLabel('') === '', 'ends-on empty')
 ok(scheduleMembershipEndsOnLabel('bad') === '', 'ends-on bad')
@@ -108,14 +114,18 @@ const mems = {
 }
 const info = buildScheduleClientInfoById(clients, mems, types, '2026-10-17')
 ok(info.c1?.cardNumber === '4521' && info.c1?.membershipLabel === 'ТЗ', 'info: card + type')
-ok(info.c1?.visitsLabel === '1/10' && info.c1?.membershipEnded === false, 'info: visits active')
+ok(info.c1?.visitsLabel === '1/10 · осталось 9' && info.c1?.membershipEnded === false, 'info: visits active')
 ok(info.c1?.endsOnLabel === 'до 31.12.2026', 'info: active ends-on')
 ok(info.c2?.membershipLabel === '' && info.c2?.endsOnLabel === '', 'info: no membership')
-ok(info.c3?.membershipLabel === 'R3+' && info.c3?.visitsLabel === '5/13', 'info: last ended type+visits')
+ok(
+  info.c3?.membershipLabel === 'R3+' && info.c3?.visitsLabel === '5/13 · осталось 8',
+  'info: last ended type+visits',
+)
 ok(info.c3?.membershipEnded === true, 'info: ended flag')
 ok(info.c3?.endsOnLabel === 'до 05.09.2026', 'info: ended ends-on')
 ok(
-  formatScheduleClientCardMeta(info.c3) === '№5597 · R3+ · 5/13 · до 05.09.2026 · закончился',
+  formatScheduleClientCardMeta(info.c3) ===
+    '№5597 · R3+ · 5/13 · осталось 8 · до 05.09.2026 · закончился',
   'abaeva-style meta',
 )
 
@@ -142,10 +152,14 @@ const lazTrainings = {
   })),
 }
 const lazInfo = buildScheduleClientInfoById(lazClients, lazMems, lazTypes, '2026-11-04', lazTrainings)
-ok(lazInfo['c-laz']?.visitsLabel === '12/38', 'info: Лазутко effective 12/38 при поле 9')
+ok(
+  lazInfo['c-laz']?.visitsLabel === '12/38 · осталось 26',
+  'info: Лазутко effective 12/38 при поле 9',
+)
 ok(lazInfo['c-laz']?.membershipLabel === 'Vip 3', 'info: Vip 3')
 ok(
-  buildScheduleClientInfoById(lazClients, lazMems, lazTypes, '2026-11-04')['c-laz']?.visitsLabel === '9/38',
+  buildScheduleClientInfoById(lazClients, lazMems, lazTypes, '2026-11-04')['c-laz']?.visitsLabel ===
+    '9/38 · осталось 29',
   'info: без дневника остаётся поле 9/38',
 )
 
@@ -156,7 +170,10 @@ const entry = { client_ids: ['c1'], title: '' }
 const names = { c1: 'Листратенко Валентин Юрьевич' }
 const wide = buildScheduleEntryClientRows(entry, names, info, { short: false, withMeta: true })
 ok(wide.length === 1 && wide[0].name === 'Листратенко Валентин Юрьевич', 'rows: full name on wide')
-ok(wide[0].meta === '№4521 · ТЗ · 1/10 · до 31.12.2026', 'rows: meta with visits and ends-on on wide')
+ok(
+  wide[0].meta === '№4521 · ТЗ · 1/10 · осталось 9 · до 31.12.2026',
+  'rows: meta with visits and ends-on on wide',
+)
 const narrow = buildScheduleEntryClientRows(entry, names, info, { short: true, withMeta: false })
 ok(narrow[0].name === 'Листратенко В. Ю.' && narrow[0].meta === '', 'rows: short without meta in narrow')
 ok(
