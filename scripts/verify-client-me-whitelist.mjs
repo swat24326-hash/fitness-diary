@@ -9,6 +9,7 @@ import {
   buildClientLoyalty,
   buildClientMemberships,
   buildClientProgress,
+  listUpcomingClientSessions,
   pickNextClientSession,
 } from '../api/_lib/clientPortal/clientMeCore.js'
 import { buildMembershipVisits, membershipVisitTrainerIds } from '../api/_lib/clientPortal/clientMembershipVisitsCore.js'
@@ -96,6 +97,9 @@ ok(pickNextClientSession(entries, TODAY, 9 * 60 + 30, names)?.time === '09:00–
 ok(pickNextClientSession(entries, TODAY, 23 * 60, names)?.trainer_name === null, 'неизвестный тренер — без имени')
 ok(pickNextClientSession([], TODAY, 0, names) === null, 'нет слотов')
 ok(pickNextClientSession([{ day_date: '2026-10-01', start_minutes: 0 }], TODAY, 0, names) === null, 'прошлые дни не берём')
+const upcomingSessions = listUpcomingClientSessions(entries, TODAY, 12 * 60, names)
+ok(upcomingSessions.length === 2 && upcomingSessions[0]?.time === '18:00–19:00' && upcomingSessions[1]?.date === '2026-10-09', 'календарь: все будущие слоты')
+ok(upcomingSessions.every((s) => !('title' in s) && !('trainer_id' in s)), 'upcoming без заметок и id')
 
 // --- Прогресс ---
 const progress = buildClientProgress(
@@ -204,7 +208,7 @@ ok(loy?.points === 150 && Object.keys(loy).sort().join() === 'can_redeem,enabled
 ok(buildClientLoyalty({ enabled: false, points: 50 })?.enabled === false, 'выключена, но баллы остались — показываем')
 
 // --- Белый список целиком ---
-const all = keysDeep({ memberships: ms, next_session: next, progress, loyalty: loy })
+const all = keysDeep({ memberships: ms, next_session: next, upcoming_sessions: upcomingSessions, progress, loyalty: loy })
 const leaked = FORBIDDEN.filter((k) => all.has(k))
 ok(leaked.length === 0, `запрещённые поля не уходят${leaked.length ? `: ${leaked.join(', ')}` : ''}`)
 ok(!JSON.stringify({ ms, progress }).includes('секрет тренера'), 'заметки тренера не попадают в ответ')

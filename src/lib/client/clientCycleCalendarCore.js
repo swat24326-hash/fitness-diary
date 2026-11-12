@@ -171,9 +171,10 @@ export function cyclePhaseTrainingHintRu(phase) {
 /**
  * @param {object|null|undefined} memberships
  * @param {{ date?: string }|null|undefined} nextSession
+ * @param {Array<{ date?: string }>|null|undefined} [upcomingSessions]
  * @returns {Map<string, TrainingMarker>}
  */
-export function collectClientTrainingMarkers(memberships, nextSession) {
+export function collectClientTrainingMarkers(memberships, nextSession, upcomingSessions) {
   /** @type {Map<string, TrainingMarker>} */
   const byDate = new Map()
   const rows = [...(memberships?.current ?? []), memberships?.last_ended].filter(Boolean)
@@ -184,8 +185,15 @@ export function collectClientTrainingMarkers(memberships, nextSession) {
       byDate.set(d, v.no_show ? 'noshow' : 'done')
     }
   }
-  const planned = parseCycleIsoDate(nextSession?.date)
-  if (planned && !byDate.has(planned)) byDate.set(planned, 'planned')
+  const plannedList = Array.isArray(upcomingSessions) && upcomingSessions.length
+    ? upcomingSessions
+    : nextSession
+      ? [nextSession]
+      : []
+  for (const session of plannedList) {
+    const planned = parseCycleIsoDate(session?.date)
+    if (planned && !byDate.has(planned)) byDate.set(planned, 'planned')
+  }
   return byDate
 }
 
@@ -213,6 +221,7 @@ export function collectWeightByDay(weights) {
  *   settings?: object|null
  *   memberships?: object|null
  *   nextSession?: object|null
+ *   upcomingSessions?: Array<{ date?: string }>|null
  *   weights?: object[]|null
  *   todayIso?: string
  * }} input
@@ -224,7 +233,7 @@ export function buildCycleCalendarMonth(input) {
     return { year: 0, month: 0, weeks: [], legendHint: 'ориентир, не медсовет' }
   }
   const settings = publicClientCycle(input.settings)
-  const trainings = collectClientTrainingMarkers(input.memberships, input.nextSession)
+  const trainings = collectClientTrainingMarkers(input.memberships, input.nextSession, input.upcomingSessions)
   const weights = collectWeightByDay(input.weights)
   const today = parseCycleIsoDate(input.todayIso)
 

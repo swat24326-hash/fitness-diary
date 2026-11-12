@@ -141,6 +141,7 @@ export function ClientMePage() {
           cycle={cycle}
           memberships={data.memberships}
           nextSession={data.next_session}
+          upcomingSessions={data.upcoming_sessions}
           weights={progress?.weights}
           onClose={() => setCalendarOpen(false)}
         />

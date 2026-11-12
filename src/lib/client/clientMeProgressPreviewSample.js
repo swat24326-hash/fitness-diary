@@ -15,7 +15,39 @@ export function clientMeHomePreviewSample() {
       date: '2026-10-20',
       time: '13:00–14:00',
       trainer_name: 'Марина Попова',
+      kind: 'personal',
+      direction_name: null,
     },
+    upcoming_sessions: [
+      {
+        date: '2026-10-20',
+        time: '13:00–14:00',
+        trainer_name: 'Марина Попова',
+        kind: 'personal',
+        direction_name: null,
+      },
+      {
+        date: '2026-10-27',
+        time: '13:00–14:00',
+        trainer_name: 'Марина Попова',
+        kind: 'personal',
+        direction_name: null,
+      },
+      {
+        date: '2026-11-03',
+        time: '13:00–14:00',
+        trainer_name: 'Марина Попова',
+        kind: 'personal',
+        direction_name: null,
+      },
+      {
+        date: '2026-11-10',
+        time: '13:00–14:00',
+        trainer_name: 'Марина Попова',
+        kind: 'personal',
+        direction_name: null,
+      },
+    ],
     memberships: {
       current: [
         {
@@ -142,6 +174,29 @@ export function clientMeHomeAzPreviewSample() {
       kind: 'group',
       direction_name: 'Бокс',
     },
+    upcoming_sessions: [
+      {
+        date: '2026-10-31',
+        time: '19:00–20:00',
+        trainer_name: 'Олег',
+        kind: 'group',
+        direction_name: 'Бокс',
+      },
+      {
+        date: '2026-11-07',
+        time: '19:00–20:00',
+        trainer_name: 'Олег',
+        kind: 'group',
+        direction_name: 'Бокс',
+      },
+      {
+        date: '2026-11-14',
+        time: '19:00–20:00',
+        trainer_name: 'Олег',
+        kind: 'group',
+        direction_name: 'Бокс',
+      },
+    ],
     progress: {
       ...base.progress,
       visits_total: 5,

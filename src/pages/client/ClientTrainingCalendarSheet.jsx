@@ -23,6 +23,7 @@ const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
  *   cycle?: object|null
  *   memberships?: object|null
  *   nextSession?: object|null
+ *   upcomingSessions?: object[]|null
  *   weights?: object[]|null
  *   onClose: () => void
  * }} props
@@ -32,6 +33,7 @@ export function ClientTrainingCalendarSheet({
   cycle = null,
   memberships = null,
   nextSession = null,
+  upcomingSessions = null,
   weights = null,
   onClose,
 }) {
@@ -56,10 +58,11 @@ export function ClientTrainingCalendarSheet({
         settings: cycle,
         memberships,
         nextSession,
+        upcomingSessions,
         weights,
         todayIso: asOf,
       }),
-    [year, month, cycle, memberships, nextSession, weights, asOf],
+    [year, month, cycle, memberships, nextSession, upcomingSessions, weights, asOf],
   )
 
   const [selectedIso, setSelectedIso] = useState(() => {

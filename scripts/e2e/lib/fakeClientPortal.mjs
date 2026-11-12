@@ -7,7 +7,7 @@ import { CLIENT_INVITE_BAD_RU } from '../../../api/_lib/clientPortal/clientAuthC
 import {
   buildClientMemberships,
   buildClientProgress,
-  pickNextClientSession,
+  listUpcomingClientSessions,
 } from '../../../api/_lib/clientPortal/clientMeCore.js'
 import { cleanClubName, clientManifestUrl } from '../../../api/_lib/clientPortal/clientManifestCore.js'
 import { buildClientTrainingView } from '../../../api/_lib/clientPortal/clientTrainingViewCore.js'
@@ -188,6 +188,7 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
     const client = state.clients.find((c) => c.id === clientId)
     const club = state.clubs.find((c) => c.id === client.club_id)
     const health = (state.health_cards ?? []).find((h) => h.client_id === clientId)
+    const upcoming_sessions = listUpcomingClientSessions(schedule, today, 0, names)
     return {
       status: 200,
       json: {
@@ -201,7 +202,8 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
           today,
           names,
         ),
-        next_session: pickNextClientSession(schedule, today, 0, names),
+        next_session: upcoming_sessions[0] ?? null,
+        upcoming_sessions,
         progress: progressSlice().progress,
         cycle: publicClientCycle(state.client_cycle_settings?.[clientId]),
         loyalty: null,

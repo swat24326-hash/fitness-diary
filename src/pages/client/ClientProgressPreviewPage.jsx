@@ -148,6 +148,7 @@ function ClientHomePreviewBody({ initial, note, showFromTrainer }) {
           cycle={cycle}
           memberships={data.memberships}
           nextSession={data.next_session}
+          upcomingSessions={data.upcoming_sessions}
           weights={data.progress?.weights}
           onClose={() => setCalendarOpen(false)}
         />

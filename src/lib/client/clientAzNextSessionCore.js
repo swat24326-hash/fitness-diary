@@ -43,6 +43,8 @@ export function isScheduleEntryUpcoming(entry, today, nowMinutes) {
 }
 
 /**
+ * Все будущие слоты клиента (персоналка + свои группы АЗ), по времени.
+ * Плитка «Следующая» берёт первый; календарь — все даты.
  * @param {{
  *   personalEntries?: object[],
  *   groupEntries?: object[],
@@ -52,15 +54,15 @@ export function isScheduleEntryUpcoming(entry, today, nowMinutes) {
  *   trainerNameById?: Map<string, string>|Record<string, string>,
  *   directionNameById?: Map<string, string>|Record<string, string>,
  * }} input
- * @returns {{
+ * @returns {Array<{
  *   date: string,
  *   time: string,
  *   trainer_name: string|null,
  *   kind: 'personal'|'group',
  *   direction_name: string|null,
- * } | null}
+ * }>}
  */
-export function pickClientNextSession(input) {
+export function listClientUpcomingSessions(input) {
   const today = day(input?.today)
   const nowMinutes = Number(input?.nowMinutes) || 0
   const nameMap = toMap(input?.trainerNameById)
@@ -96,16 +98,24 @@ export function pickClientNextSession(input) {
       day(a.entry.day_date).localeCompare(day(b.entry.day_date)) ||
       Number(a.entry.start_minutes) - Number(b.entry.start_minutes),
   )
-  const next = candidates[0]
-  if (!next) return null
-  const trainerId = String(next.entry.trainer_id ?? '')
-  return {
-    date: day(next.entry.day_date),
-    time: formatScheduleTimeRange(next.entry),
-    trainer_name: nameMap.get(trainerId) || null,
-    kind: next.kind,
-    direction_name: next.directionId ? dirMap.get(next.directionId) || null : null,
-  }
+  return candidates.map(({ entry, kind, directionId }) => {
+    const trainerId = String(entry.trainer_id ?? '')
+    return {
+      date: day(entry.day_date),
+      time: formatScheduleTimeRange(entry),
+      trainer_name: nameMap.get(trainerId) || null,
+      kind,
+      direction_name: directionId ? dirMap.get(directionId) || null : null,
+    }
+  })
+}
+
+/**
+ * @param {Parameters<typeof listClientUpcomingSessions>[0]} input
+ * @returns {ReturnType<typeof listClientUpcomingSessions>[number] | null}
+ */
+export function pickClientNextSession(input) {
+  return listClientUpcomingSessions(input)[0] ?? null
 }
 
 /**

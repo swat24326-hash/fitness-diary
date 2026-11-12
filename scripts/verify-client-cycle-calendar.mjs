@@ -88,10 +88,16 @@ const markers = collectClientTrainingMarkers(
     ],
   },
   { date: '2026-10-20' },
+  [{ date: '2026-10-20' }, { date: '2026-10-27' }],
 )
 ok(markers.get('2026-10-05') === 'done', 'тренировка была')
 ok(markers.get('2026-10-10') === 'noshow', 'неявка')
 ok(markers.get('2026-10-20') === 'planned', 'следующая — planned')
+ok(markers.get('2026-10-27') === 'planned', 'дальнейшая запись — planned')
+ok(
+  collectClientTrainingMarkers({ current: [] }, { date: '2026-10-20' }).get('2026-10-20') === 'planned',
+  'без списка upcoming — fallback на next_session',
+)
 
 const month = buildCycleCalendarMonth({
   year: 2026,
@@ -101,6 +107,7 @@ const month = buildCycleCalendarMonth({
     current: [{ visits: [{ date: '2026-10-05', no_show: false }] }],
   },
   nextSession: { date: '2026-10-20' },
+  upcomingSessions: [{ date: '2026-10-20' }, { date: '2026-10-27' }],
   weights: [{ date: '2026-10-05', kg: 60.5 }],
   todayIso: TODAY,
 })
@@ -110,6 +117,8 @@ const day5 = month.weeks.flat().find((c) => c.iso === '2026-10-05')
 ok(day5?.phase === 'period' && day5.training === 'done' && day5.weightKg === 60.5, 'день: фаза+тренировка+вес')
 const day20 = month.weeks.flat().find((c) => c.iso === '2026-10-20')
 ok(day20?.training === 'planned' && day20.phase === 'luteal', 'следующая тренировка на лютеиновой')
+const day27 = month.weeks.flat().find((c) => c.iso === '2026-10-27')
+ok(day27?.training === 'planned', 'вторая будущая в том же месяце')
 const todayCell = month.weeks.flat().find((c) => c.iso === TODAY)
 ok(todayCell?.isToday === true, 'сегодня отмечен')
 

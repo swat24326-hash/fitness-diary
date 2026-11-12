@@ -7,6 +7,7 @@ import {
   clientNextSessionFootRu,
   coerceScheduleDirectionTypeId,
   isScheduleEntryUpcoming,
+  listClientUpcomingSessions,
   pickClientNextSession,
 } from '../src/lib/client/clientAzNextSessionCore.js'
 import { sessionTile } from '../src/lib/client/clientMeTilesCore.js'
@@ -101,6 +102,19 @@ const nextGroup = pickClientNextSession({
 ok(nextGroup?.kind === 'group' && nextGroup.date === '2026-10-31', 'ближе группа АЗ, не чужие направления')
 ok(nextGroup?.direction_name === 'Бокс' && nextGroup.trainer_name === 'Олег', 'имя направления и инструктора')
 ok(clientNextSessionFootRu(nextGroup) === 'Бокс · группа', 'подпись группы')
+
+const allUpcoming = listClientUpcomingSessions({
+  personalEntries: personal,
+  groupEntries: groups,
+  azLinks,
+  today: TODAY,
+  nowMinutes: 12 * 60,
+  trainerNameById: names,
+  directionNameById: dirs,
+})
+ok(allUpcoming.length === 2, 'календарь: группа + персоналка, без чужих направлений')
+ok(allUpcoming[0]?.date === '2026-10-31' && allUpcoming[1]?.date === '2026-11-02', 'порядок по дате')
+ok(allUpcoming[0] === nextGroup || allUpcoming[0]?.date === nextGroup?.date, 'первая = next_session')
 
 const nextPersonal = pickClientNextSession({
   personalEntries: personal,

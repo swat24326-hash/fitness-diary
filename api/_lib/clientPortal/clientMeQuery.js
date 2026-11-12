@@ -16,7 +16,7 @@ import {
   buildClientLoyalty,
   buildClientMemberships,
   buildClientProgress,
-  pickNextClientSession,
+  listUpcomingClientSessions,
   visibleClientMemberships,
 } from './clientMeCore.js'
 import { clientAzInstructorPeerIds } from '../../../src/lib/chat/clientAzChatCore.js'
@@ -57,7 +57,11 @@ async function loadDirectionNames(db, ids) {
   }
 }
 
-async function loadNextSession(db, client, today) {
+/** Горизонт слотов для календаря /me: ~год при 1–2× в неделю. */
+const UPCOMING_PERSONAL_LIMIT = 64
+const UPCOMING_GROUP_LIMIT = 80
+
+async function loadUpcomingSessions(db, client, today) {
   const clientId = client.id
   let azLinks = []
   try {
@@ -84,7 +88,7 @@ async function loadNextSession(db, client, today) {
         .gte('day_date', today)
         .order('day_date', { ascending: true })
         .order('start_minutes', { ascending: true })
-        .limit(20),
+        .limit(UPCOMING_PERSONAL_LIMIT),
     ),
     instructorIds.length && azDirectionIds.length
       ? rows(
@@ -98,7 +102,7 @@ async function loadNextSession(db, client, today) {
             .gte('day_date', today)
             .order('day_date', { ascending: true })
             .order('start_minutes', { ascending: true })
-            .limit(40),
+            .limit(UPCOMING_GROUP_LIMIT),
         )
       : Promise.resolve([]),
   ])
@@ -107,11 +111,17 @@ async function loadNextSession(db, client, today) {
   const trainerIds = [...personal, ...groups].map((e) => String(e.trainer_id))
   const nameDirectionIds = [...azLinks, ...groups].map((r) => r.direction_type_id)
   const [names, dirNames] = await Promise.all([loadTrainerNames(db, trainerIds), loadDirectionNames(db, nameDirectionIds)])
-  return pickNextClientSession(personal, today, clubOpsMinutesNow(), names, {
+  const opts = {
     groupEntries: groups,
     azLinks,
     directionNameById: dirNames,
-  })
+  }
+  const nowMinutes = clubOpsMinutesNow()
+  const upcoming_sessions = listUpcomingClientSessions(personal, today, nowMinutes, names, opts)
+  return {
+    next_session: upcoming_sessions[0] ?? null,
+    upcoming_sessions,
+  }
 }
 
 /** @returns {Promise<Map<string, string>>} только имя — без телефонов и ролей */
@@ -176,7 +186,7 @@ export async function loadClientProgressSlice(db, clientId) {
 /** @param {{ id: string, name?: string, club_id: string, archived_at?: string|null }} client */
 export async function loadClientMe(db, client) {
   const today = clubOpsAsOfIso()
-  const [memberships, types, trainings, weights, measurements, next_session, cycle, sex] = await Promise.all([
+  const [memberships, types, trainings, weights, measurements, schedule, cycle, sex] = await Promise.all([
     loadLoyaltyMemberships(db, client.id),
     loadLoyaltyMembershipTypes(db, client.club_id),
     loadLoyaltyCompletedTrainings(db, client.id, '1900-01-01'),
@@ -196,7 +206,7 @@ export async function loadClientMe(db, client) {
         .order('date', { ascending: false })
         .limit(12),
     ),
-    loadNextSession(db, client, today),
+    loadUpcomingSessions(db, client, today),
     loadClientCycle(db, client.id),
     loadClientSex(db, client.id),
   ])
@@ -216,7 +226,8 @@ export async function loadClientMe(db, client) {
     },
     club: { name: cleanClubName(club.data?.name), manifest_url: clientManifestUrl(client.club_id) },
     memberships: buildClientMemberships(memberships, types, trainings, today, trainerNames),
-    next_session,
+    next_session: schedule.next_session,
+    upcoming_sessions: schedule.upcoming_sessions,
     progress: buildClientProgress(trainings, weights, measurements, today, memberships),
     cycle,
     loyalty: await loadLoyalty(db, client, memberships, types, trainings, today),

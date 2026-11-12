@@ -9,7 +9,10 @@ import {
   isCalendarUnlimitedMembership,
   isoCalendarDaysDiff,
 } from '../../../src/lib/membershipRules.js'
-import { pickClientNextSession } from '../../../src/lib/client/clientAzNextSessionCore.js'
+import {
+  listClientUpcomingSessions,
+  pickClientNextSession,
+} from '../../../src/lib/client/clientAzNextSessionCore.js'
 import { membershipHallMarkRu } from '../../../src/lib/client/clientHomeHallCore.js'
 import {
   CLUB_WEIGHT_ENTRY_SOURCES,
@@ -98,6 +101,24 @@ export function buildClientMemberships(memberships, types, trainings, today, tra
  */
 export function pickNextClientSession(entries, today, nowMinutes, trainerNameById, opts = {}) {
   return pickClientNextSession({
+    personalEntries: entries,
+    groupEntries: opts.groupEntries,
+    azLinks: opts.azLinks,
+    today,
+    nowMinutes,
+    trainerNameById,
+    directionNameById: opts.directionNameById,
+  })
+}
+
+/**
+ * Все будущие слоты для календаря /me (та же фильтрация, что у «Следующей»).
+ * @param {object[]} entries
+ * @param {Map<string, string>} trainerNameById
+ * @param {{ groupEntries?: object[], azLinks?: object[], directionNameById?: Map<string, string> }} [opts]
+ */
+export function listUpcomingClientSessions(entries, today, nowMinutes, trainerNameById, opts = {}) {
+  return listClientUpcomingSessions({
     personalEntries: entries,
     groupEntries: opts.groupEntries,
     azLinks: opts.azLinks,
@@ -199,4 +220,13 @@ export function buildClientLoyalty(snapshot) {
   }
 }
 
-export const CLIENT_ME_KEYS = ['client', 'club', 'memberships', 'next_session', 'progress', 'loyalty', 'as_of']
+export const CLIENT_ME_KEYS = [
+  'client',
+  'club',
+  'memberships',
+  'next_session',
+  'upcoming_sessions',
+  'progress',
+  'loyalty',
+  'as_of',
+]
