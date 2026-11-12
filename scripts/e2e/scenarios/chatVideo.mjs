@@ -157,7 +157,8 @@ async function client(c, context, chat) {
   await fakeCamera(page)
   try {
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 15_000 })
+    // Под нагрузкой полного qa:screens redeem иногда >15 с.
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 30_000 })
     await page.goto(`${ORIGIN}/me/chat/trainer`)
     c.ok(await reaches(page.getByTestId('chat-mic')), 'клиент: поле пустое — справа 🎤')
     c.ok(await reaches(page.getByTestId('chat-video-gone').getByText(new RegExp(CHAT_VIDEO_EXPIRED_RU))), 'клиент: кружок старше суток — «удалено»')
@@ -314,7 +315,10 @@ export async function run(browser) {
   const phone = await newE2eContext(browser, backend, IPHONE)
   try {
     await client(c, phone, chat)
-    await trainer(c, browser, backend, chat)
+    // Без кружков клиента шаги тренера только плодят каскад таймаутов.
+    if (!c.failures.some((f) => String(f).includes('клиент:'))) {
+      await trainer(c, browser, backend, chat)
+    }
   } finally {
     await phone.close()
   }

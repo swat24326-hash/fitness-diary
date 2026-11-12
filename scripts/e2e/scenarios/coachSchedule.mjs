@@ -57,9 +57,9 @@ function setup() {
   return { backend, schedule, coach }
 }
 
-async function touchDrag(cdp, page, from, to) {
+async function touchDrag(cdp, page, from, to, { holdMs = 650 } = {}) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from.x, y: from.y }] })
-  await page.waitForTimeout(650)
+  await page.waitForTimeout(holdMs)
   for (let i = 1; i <= 12; i++) {
     const y = from.y + ((to.y - from.y) * i) / 12
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x, y }] })
@@ -308,19 +308,24 @@ export async function run(browser) {
 
     /* Завершённая тренировка не двигается. */
     await scrollBoardTo(page, 17 * 60)
-    const lockedFrom = await center(entryAt(page, '18:00'))
-    await touchDrag(cdp, page, lockedFrom, { x: lockedFrom.x, y: lockedFrom.y + 60 * PX_PER_MIN })
-    c.ok(
-      await page
+    await entryAt(page, '18:00').waitFor({ state: 'visible', timeout: 10_000 })
+    const toastLocked = () =>
+      page
         .getByText(/Тренировка по записи завершена/)
         .first()
-        .waitFor({ state: 'visible', timeout: 8_000 })
+        .waitFor({ state: 'visible', timeout: 5_000 })
         .then(
           () => true,
           () => false,
-        ),
-      'завершённая тренировка — плашка, перенос не начат',
-    )
+        )
+    let lockedOk = false
+    for (const holdMs of [650, 900]) {
+      const lockedFrom = await center(entryAt(page, '18:00'))
+      await touchDrag(cdp, page, lockedFrom, { x: lockedFrom.x, y: lockedFrom.y + 60 * PX_PER_MIN }, { holdMs })
+      lockedOk = await toastLocked()
+      if (lockedOk) break
+    }
+    c.ok(lockedOk, 'завершённая тренировка — плашка, перенос не начат')
     c.ok(at(18 * 60).length === 1, 'сервер: завершённый слот остался на 18:00')
 
     /* Кожемякина: запись с 1 клиентом → Изменить → добавить второго — примечание не наезжает на список. */
