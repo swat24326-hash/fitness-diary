@@ -83,6 +83,16 @@ export async function run(browser) {
       () => new Set([...globalThis.document.querySelectorAll('.trainer-clients-chip')].map((el) => Math.round(el.getBoundingClientRect().top))).size,
     )
     c.ok(chipRows === 2, `чипы в две строки (строк: ${chipRows})`)
+    const compactH = await page.evaluate(() => {
+      const chip = globalThis.document.querySelector('.trainer-clients-chip')
+      const search = globalThis.document.querySelector('.coach-clients__search')
+      return {
+        chip: Math.round(chip?.getBoundingClientRect().height ?? 0),
+        search: Math.round(search?.getBoundingClientRect().height ?? 0),
+      }
+    })
+    c.ok(compactH.chip > 0 && compactH.chip <= 48, `чип компактный при списке (h=${compactH.chip})`)
+    c.ok(compactH.search > 0 && compactH.search <= 56, `поиск компактный при списке (h=${compactH.search})`)
 
     const names = await page.locator('.coach-client__name').allInnerTexts()
     c.ok(names.length === 3, `свои активные — 3 строки (видно: ${names.join(', ')})`)
@@ -97,6 +107,18 @@ export async function run(browser) {
       const want = Number((await chip(label).getAttribute('aria-label')).split(': ')[1])
       const got = await rows.count()
       c.ok(want === got, `чип «${label}»: цифра ${want} = строк ${got}`)
+      if (want === 0) {
+        const emptyH = await page.evaluate(() => {
+          const chipEl = globalThis.document.querySelector('.trainer-clients-chip')
+          const search = globalThis.document.querySelector('.coach-clients__search')
+          return {
+            chip: Math.round(chipEl?.getBoundingClientRect().height ?? 0),
+            search: Math.round(search?.getBoundingClientRect().height ?? 0),
+          }
+        })
+        c.ok(emptyH.chip <= 48, `пустой «${label}»: чип не раздулся (h=${emptyH.chip})`)
+        c.ok(emptyH.search <= 56, `пустой «${label}»: поиск не раздулся (h=${emptyH.search})`)
+      }
       if (label !== 'Все') await chip(label).click()
     }
     await chip('Истекает').click()

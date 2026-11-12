@@ -1,9 +1,12 @@
 /* «Клиенты» на телефоне тренера (/coach/clients): поиск, чипы фильтров одной лентой, строки, шторка абонементов. */
 
-/* minmax(0, 1fr) — лента чипов листается внутри себя, а не растягивает страницу вбок. */
+/* minmax(0, 1fr) — лента чипов листается внутри себя, а не растягивает страницу вбок.
+   align-content: start — иначе при пустом фильтре свободная высота main растягивает
+   поиск и чипы в «квадраты» (при «Все» со списком места нет — баг незаметен). */
 .coach-clients {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   gap: 10px;
   min-width: 0;
   max-width: 100%;
@@ -19,8 +22,12 @@
 .coach-clients__search {
   display: flex;
   align-items: center;
-  gap: 8px;
+  align-self: stretch;
+  box-sizing: border-box;
+  height: 48px;
   min-height: 48px;
+  max-height: 48px;
+  gap: 8px;
   padding: 0 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -44,6 +51,8 @@
 .coach-clients .trainer-clients-filters {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-content: start;
+  align-items: start;
   gap: 6px;
   margin: 0;
   padding: 0;
@@ -63,10 +72,14 @@
 .coach-clients .trainer-clients-chip {
   grid-column: span 4;
   order: 2;
+  box-sizing: border-box;
   justify-content: center;
   gap: 4px;
+  width: 100%;
   min-width: 0;
+  height: 40px;
   min-height: 40px;
+  max-height: 40px;
   padding: 6px 4px;
   border-radius: 10px;
   font-size: 0.8rem;
