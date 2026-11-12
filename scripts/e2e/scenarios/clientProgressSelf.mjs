@@ -24,11 +24,11 @@ const IPHONE = {
 }
 const INVITE = 'e2e-progress-self-invite'
 
-function visible(page, text) {
+function visible(page, text, timeoutMs = 10_000) {
   return page
     .getByText(text)
     .first()
-    .waitFor({ timeout: 10_000 })
+    .waitFor({ timeout: timeoutMs })
     .then(
       () => true,
       () => false,
@@ -98,10 +98,12 @@ export async function run(browser) {
     /* Живой /me через invite */
     await page.goto('about:blank')
     await page.goto(`${ORIGIN}/me/join#t=${INVITE}`)
-    c.ok(await visible(page, 'Мой прогресс'), 'после входа — прогресс')
+    // Под нагрузкой полного qa:screens redeem+hydrate иногда >10 с.
+    await page.waitForURL(`${ORIGIN}/me/`, { timeout: 30_000 }).catch(() => null)
+    c.ok(await visible(page, 'Мой прогресс', 20_000), 'после входа — прогресс')
     const menuBtn = page.getByRole('button', { name: 'Меню' })
     c.ok(
-      await menuBtn.waitFor({ state: 'visible', timeout: 10_000 }).then(
+      await menuBtn.waitFor({ state: 'visible', timeout: 20_000 }).then(
         () => true,
         () => false,
       ),
