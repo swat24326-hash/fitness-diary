@@ -7,6 +7,7 @@ import { loadInChunks } from '../batchCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { checkAttachBytes, checkAttachUpload } from '../../../src/lib/chat/chatAttachCore.js'
 import { checkVideoUpload } from '../../../src/lib/chat/chatVideoCore.js'
+import { storyVideoApplyFaststart } from '../../../src/lib/stories/storyMp4FaststartCore.js'
 import { deleteVoice, putVoice, getVoice } from '../chat/chatVoiceStorage.js'
 import { signStoryMediaToken, storyMediaSrcPath } from './storyMediaTokenCore.js'
 import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
@@ -549,11 +550,12 @@ async function publishStoryVideo(ctx, body, res, put) {
   if (await isPublishBanned(ctx.supabaseAdmin, club.clubId, ctx.user.id)) return fail(res, 403, STORY_BANNED_RU)
   const caption = storyCaptionOk(body?.caption)
   if (!caption.ok) return fail(res, 400, STORY_BAD_RU)
-  const bytes = body?.video?.buffer
-  const upload = checkVideoUpload({ bytes, sec: body?.video?.sec, maxBytes: STORY_VIDEO_MAX_BYTES })
+  const raw = body?.video?.buffer
+  const upload = checkVideoUpload({ bytes: raw, sec: body?.video?.sec, maxBytes: STORY_VIDEO_MAX_BYTES })
   if (!upload.ok || !storyVideoSecOk(upload.sec) || !storyVideoBytesOk(upload.bytes)) {
     return fail(res, upload.ok ? 400 : upload.status || 400, STORY_VIDEO_BAD_RU)
   }
+  const bytes = Buffer.from(storyVideoApplyFaststart(raw, upload.mime))
   return finishPublish(
     ctx,
     club.clubId,

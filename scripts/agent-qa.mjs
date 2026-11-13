@@ -151,6 +151,7 @@ run('stories (инструктор — сеть, акции — свой клу�
 run('story rail expand (телефон: компакт → pull)', 'node', ['scripts/verify-story-rail-expand.mjs'])
 run('story reel (iPhone: видео не рвёт полоска на 5 с)', 'node', ['scripts/verify-story-reel.mjs'])
 run('story media Range / stream URL', 'node', ['scripts/verify-story-media-range.mjs'])
+run('story mp4 faststart (moov перед mdat)', 'node', ['scripts/verify-story-mp4-faststart.mjs'])
 run('legal page close (крестик, без аэропорта ссылок)', 'node', ['scripts/verify-legal-page-close.mjs'])
 run('nav page switch (жест назад, replace, возврат с legal)', 'node', ['scripts/verify-nav-page-switch.mjs'])
 run('nav back replace (алиас page-switch)', 'node', ['scripts/verify-nav-back-replace.mjs'])

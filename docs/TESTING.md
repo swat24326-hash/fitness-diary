@@ -222,6 +222,7 @@
 | Сторис клуба: сотрудники выкладывают, бан выкладки, реакции, срок сутки без кнопки, один кадр за выкладку, ключ файла | `verify-stories.mjs` |
 | Сторис на телефоне: компакт → pull вниз → snap, ось vs горизонтальный pan | `verify-story-rail-expand.mjs` |
 | Сторис просмотр: видео не листает полоска на 5 с; кадр через blob URL | `verify-story-reel.mjs` |
+| Сторис MP4: faststart (moov перед mdat, patch stco) | `verify-story-mp4-faststart.mjs` |
 | Приложение клиента, лента «Уведомления»: из `plans` + `ratings`, kinds homework_sent / nutrition_sent / rate_*, unread, deep_link, aria | `verify-client-notifications.mjs` |
 | Оповещение «абонемент заканчивается»: окно ≤5 дней, текст с клубом, дедуп, unread/read в ленте | `verify-client-membership-notices.mjs` |
 | Оценка после последней тренировки абонемента: триггер used≥total, score 1…5 шаг 0,5, тексты, push URL, лента | `verify-client-ratings.mjs` |

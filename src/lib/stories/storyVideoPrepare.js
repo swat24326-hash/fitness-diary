@@ -8,6 +8,7 @@ import {
   STORY_VIDEO_MIN_SEC,
 } from './storyClubCore.js'
 import { baseVideoMime } from '../chat/chatVideoCore.js'
+import { storyVideoApplyFaststart } from './storyMp4FaststartCore.js'
 
 function probeSec(file) {
   return new Promise((resolve, reject) => {
@@ -41,12 +42,19 @@ export async function prepareStoryVideo(file, opts = {}) {
   if (!sec) sec = await probeSec(file)
   if (sec < STORY_VIDEO_MIN_SEC) throw new Error(STORY_VIDEO_BAD_RU)
   if (sec > STORY_VIDEO_MAX_SEC) throw new Error(STORY_VIDEO_LONG_RU)
+  const raw = new Uint8Array(await file.arrayBuffer())
+  const fixed = storyVideoApplyFaststart(raw, mime)
+  const changed =
+    fixed.byteLength !== raw.byteLength ||
+    fixed.byteOffset !== raw.byteOffset ||
+    fixed.buffer !== raw.buffer
+  const outBlob = changed ? new Blob([fixed], { type: mime }) : file
   return {
     kind: 'video',
-    blob: file,
+    blob: outBlob,
     mime,
     sec,
-    bytes: file.size,
-    previewUrl: URL.createObjectURL(file),
+    bytes: outBlob.size,
+    previewUrl: URL.createObjectURL(outBlob),
   }
 }
