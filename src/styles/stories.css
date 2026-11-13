@@ -39,8 +39,13 @@
 
 .stories-rail--pull .stories-rail__row {
   gap: var(--stories-gap-row);
-  /* Компакт: можно скроллить страницу сквозь ряд; pull вниз забирает JS после LOCK */
+  /* Не у верха: страница листается сквозь ряд */
   touch-action: pan-x pan-y;
+}
+
+/* У верха в компакте: вертикаль у JS (pull как в Telegram), иначе браузер съедает жест */
+.stories-rail--pull.is-compact.is-at-top .stories-rail__row {
+  touch-action: pan-x;
 }
 
 /* Раскрытый ряд — только горизонталь авторов; вертикаль отдаём .client-me */
@@ -77,6 +82,10 @@
   touch-action: pan-x pan-y;
 }
 
+.stories-rail--pull.is-compact.is-at-top .stories-rail__person {
+  touch-action: pan-x;
+}
+
 .stories-rail--pull.is-expanded .stories-rail__person {
   touch-action: pan-x;
 }
@@ -105,6 +114,10 @@
   min-width: var(--stories-slot);
   min-height: var(--stories-slot);
   touch-action: pan-x pan-y;
+}
+
+.stories-rail--pull.is-compact.is-at-top .stories-rail__add.btn-touch {
+  touch-action: pan-x;
 }
 
 .stories-rail--pull.is-expanded .stories-rail__add.btn-touch {

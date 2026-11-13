@@ -24,10 +24,16 @@ function msgrModeNear(el) {
 }
 
 /**
+ * Скроллер страницы: на /me это `.client-me`, не document (overflow:hidden на html).
  * @param {Element | null | undefined} el
  * @returns {Element | Document}
  */
 function scrollParentOf(el) {
+  const me = el?.closest?.('.client-me')
+  if (me) {
+    const oy = window.getComputedStyle(me).overflowY
+    if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return me
+  }
   let n = el?.parentElement
   while (n && n !== document.body) {
     const stil = window.getComputedStyle(n)
@@ -41,15 +47,16 @@ function scrollParentOf(el) {
 }
 
 /**
- * Компакт/pull ряда сторис на телефоне. На планшете и мониторе — всегда раскрыт.
- * Скролл /me важнее: жест только на ряду, только вниз, только пока ряд не раскрыт.
- * @returns {{ ref: (el: HTMLElement | null) => void, phone: boolean, progress: number, style: React.CSSProperties | undefined }}
+ * Компакт/pull как в Telegram: мелкие → потянуть вниз → крупные с именами.
+ * У верха компакта вертикаль забирает ряд (touch-action: pan-x), иначе скролл /me.
+ * @returns {{ ref: (el: HTMLElement | null) => void, phone: boolean, progress: number, atTop: boolean, style: React.CSSProperties | undefined }}
  */
 export function useStoryRailExpand() {
   const [railEl, setRailEl] = useState(/** @type {HTMLElement | null} */ (null))
   const [phone, setPhone] = useState(false)
-  /** 0 — компакт по умолчанию (телефон /me); монитор в applySurface поднимет до 1 */
+  /** 0 — компакт (телефон); не телефон → 1 */
   const [progress, setProgress] = useState(0)
+  const [atTop, setAtTop] = useState(true)
   const progressRef = useRef(0)
   const phoneRef = useRef(false)
   progressRef.current = progress
@@ -65,6 +72,7 @@ export function useStoryRailExpand() {
       setPhone(false)
       progressRef.current = 0
       setProgress(0)
+      setAtTop(true)
       return undefined
     }
 
@@ -78,9 +86,6 @@ export function useStoryRailExpand() {
       if (!next) {
         progressRef.current = 1
         setProgress(1)
-      } else if (progressRef.current > 1) {
-        progressRef.current = 0
-        setProgress(0)
       }
     }
     applySurface()
@@ -95,7 +100,13 @@ export function useStoryRailExpand() {
     /** @type {{ x: number, y: number, from: number, axis: 'none' | 'pull' | 'pan-x' | 'scroll', pulling: boolean } | null} */
     let gesture = null
 
+    const syncAtTop = () => {
+      setAtTop(storyRailExpandAtTop(scroller.scrollTop || 0))
+    }
+    syncAtTop()
+
     const onScroll = () => {
+      syncAtTop()
       if (progressRef.current < 1) return
       if (storyRailExpandStayOpen({ scrollTop: scroller.scrollTop || 0, expanded: true })) return
       progressRef.current = 0
@@ -104,7 +115,6 @@ export function useStoryRailExpand() {
 
     const onStart = (e) => {
       if (!e.touches?.[0]) return
-      // Раскрытый ряд не трогаем — иначе preventDefault убивает скролл /me
       if (!storyRailExpandCanPull(progressRef.current)) {
         gesture = null
         return
@@ -190,5 +200,5 @@ export function useStoryRailExpand() {
   }, [phone, railEl])
 
   const style = phone ? { ['--stories-expand']: String(progress) } : undefined
-  return { ref, phone, progress, style }
+  return { ref, phone, progress, atTop, style }
 }
