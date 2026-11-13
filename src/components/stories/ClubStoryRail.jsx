@@ -144,7 +144,7 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
   }
 
   const railClass = expand.phone
-    ? `stories-rail stories-rail--pull${expand.progress >= 1 ? ' is-expanded' : ' is-compact'}${expand.atTop ? ' is-at-top' : ''}`
+    ? `stories-rail stories-rail--pull${expand.progress >= 1 ? ' is-expanded' : ' is-compact'}`
     : 'stories-rail'
 
   return (
