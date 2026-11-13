@@ -276,10 +276,11 @@
   touch-action: pan-y;
 }
 
-.msgr--phone .chat-folders,
-.msgr--phone .stories-rail__row {
+.msgr--phone .chat-folders {
   touch-action: pan-x;
 }
+
+/* Ряд сторис на телефоне: pan-x + pan-y (компакт → pull) — см. stories.css .stories-rail--pull */
 
 .msgr--phone .msgr__thread {
   min-height: 0;

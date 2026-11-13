@@ -30,6 +30,7 @@ import { AvatarPhoto } from '../profile/AvatarPhoto.jsx'
 import { StoryCompose } from './StoryCompose.jsx'
 import { StoryRing } from './StoryRing.jsx'
 import { StoryViewer } from './StoryViewer.jsx'
+import { useStoryRailExpand } from './useStoryRailExpand.js'
 
 const API = {
   staff: {
@@ -71,6 +72,7 @@ const API = {
 export function ClubStoryRail({ channel = 'staff', clubId = null }) {
   const navigate = useNavigate()
   const api = API[channel]
+  const expand = useStoryRailExpand()
   const [pack, setPack] = useState(null)
   const [error, setError] = useState('')
   const [openAuthorId, setOpenAuthorId] = useState(null)
@@ -122,8 +124,12 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
     api.seen(id).catch(() => {})
   }
 
+  const railClass = expand.phone
+    ? `stories-rail stories-rail--pull${expand.progress >= 1 ? ' is-expanded' : ' is-compact'}`
+    : 'stories-rail'
+
   return (
-    <div className="stories-rail">
+    <div ref={expand.ref} className={railClass} style={expand.style}>
       <div className="stories-rail__row">
         {canPublish ? (
           <button

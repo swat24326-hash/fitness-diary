@@ -10,6 +10,15 @@
   min-width: 0;
 }
 
+/* Телефон: компакт → pull. --stories-expand 0..1 задаёт хук. */
+.stories-rail--pull {
+  --stories-expand: 0;
+  --stories-slot: calc(48px + 28px * var(--stories-expand));
+  --stories-face: calc(40px + 24px * var(--stories-expand));
+  --stories-gap-row: calc(8px + 4px * var(--stories-expand));
+  --stories-gap-person: calc(2px + 4px * var(--stories-expand));
+}
+
 .stories-rail__row {
   display: flex;
   flex-wrap: nowrap;
@@ -26,6 +35,12 @@
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   padding-bottom: 4px;
+}
+
+.stories-rail--pull .stories-rail__row {
+  gap: var(--stories-gap-row);
+  /* Вертикаль для pull + горизонталь для авторов — ось решает JS */
+  touch-action: pan-x pan-y;
 }
 
 .stories-rail__row::-webkit-scrollbar {
@@ -50,6 +65,13 @@
   touch-action: pan-x;
 }
 
+.stories-rail--pull .stories-rail__person {
+  width: var(--stories-slot);
+  min-width: var(--stories-slot);
+  gap: var(--stories-gap-person);
+  touch-action: pan-x pan-y;
+}
+
 .stories-rail__add.btn-touch {
   box-sizing: border-box;
   flex: 0 0 auto;
@@ -68,6 +90,14 @@
   touch-action: pan-x;
 }
 
+.stories-rail--pull .stories-rail__add.btn-touch {
+  width: var(--stories-slot);
+  height: var(--stories-slot);
+  min-width: var(--stories-slot);
+  min-height: var(--stories-slot);
+  touch-action: pan-x pan-y;
+}
+
 .stories-view__close.btn-touch {
   width: 48px;
   height: 48px;
@@ -82,6 +112,11 @@
   height: 76px;
   display: grid;
   place-items: center;
+}
+
+.stories-rail--pull .stories-rail__circle {
+  width: var(--stories-slot);
+  height: var(--stories-slot);
 }
 
 .stories-rail__ring {
@@ -118,6 +153,11 @@
   z-index: 1;
 }
 
+.stories-rail--pull .stories-rail__face {
+  width: var(--stories-face);
+  height: var(--stories-face);
+}
+
 .stories-rail__person.is-mine .stories-rail__face {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
 }
@@ -128,6 +168,10 @@
   line-height: 1;
   letter-spacing: 0.02em;
   color: var(--text);
+}
+
+.stories-rail--pull .stories-rail__initials {
+  font-size: calc(0.75rem + 0.1875rem * var(--stories-expand));
 }
 
 .stories-rail__name {
@@ -143,6 +187,13 @@
   word-break: break-word;
 }
 
+.stories-rail--pull .stories-rail__name {
+  max-width: var(--stories-slot);
+  opacity: var(--stories-expand);
+  max-height: calc(2.4em * var(--stories-expand));
+  pointer-events: none;
+}
+
 .stories-rail__club,
 .stories-rail__views {
   margin-top: -2px;
@@ -154,6 +205,19 @@
   font-weight: 500;
   color: var(--text-muted);
   text-align: center;
+}
+
+.stories-rail--pull .stories-rail__club,
+.stories-rail--pull .stories-rail__views {
+  max-width: var(--stories-slot);
+  opacity: var(--stories-expand);
+  max-height: calc(1.2em * var(--stories-expand));
+  margin-top: calc(-2px * var(--stories-expand));
+  pointer-events: none;
+}
+
+.stories-rail--pull .stories-rail__ring circle {
+  stroke-width: calc(2.5px + 0.5px * var(--stories-expand));
 }
 
 @keyframes stories-ring-in {
