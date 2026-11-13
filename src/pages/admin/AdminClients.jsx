@@ -67,7 +67,11 @@ import {
   peekAdminClientsListMemory,
   writeAdminClientsListMemory,
 } from '../../lib/admin/adminClientsListMemoryCache.js'
-import { invalidateAdminClientsBrowseGlanceCaches } from '../../lib/admin/adminClientsListReloadCore.js'
+import {
+  invalidateAdminClientsBrowseGlanceCaches,
+  nextAdminClientsListSource,
+  shouldShowAdminClientsDeviceSourceMeta,
+} from '../../lib/admin/adminClientsListReloadCore.js'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { adminClientListsPath } from '../../lib/admin/clientListsPathsCore.js'
@@ -184,6 +188,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [lifecycleReady, setLifecycleReady] = useState(false)
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
+  /** После ответа облака в этом reload — иначе «С устройства» мигает при peek и двигает поиск. */
+  const [listSourceSettled, setListSourceSettled] = useState(false)
   const [fallback, setFallback] = useState(null)
   const [cloudNeedsClub, setCloudNeedsClub] = useState(false)
   const [listTruncated, setListTruncated] = useState(false)
@@ -216,6 +222,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
       setBusy(true)
+      setListSourceSettled(false)
       setLifecycleReady(false)
     }
     try {
@@ -244,7 +251,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           setNoTabletTrainerIds(new Set(mem?.noTabletTrainerIds ?? []))
           setHoldingTrainerIds(new Set(mem?.holdingTrainerIds ?? []))
           setListTruncated(!!(peekLocal?.truncated ?? mem?.truncated))
-          setSource(peekLocal?.clients?.length ? 'local' : mem?.source || 'local')
+          setSource((prev) =>
+            nextAdminClientsListSource(
+              prev,
+              peekLocal?.clients?.length ? 'local' : mem?.source || 'local',
+              { silent },
+            ),
+          )
           setFallback(null)
           setCloudNeedsClub(false)
           setListReady(true)
@@ -278,7 +291,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           if (peek.clients?.length) {
             setClients(peek.clients)
             setListTruncated(!!peek.truncated)
-            setSource('local')
+            setSource((prev) => nextAdminClientsListSource(prev, 'local', { silent }))
             setFallback(null)
             setCloudNeedsClub(false)
             setMemByClient(mapPeek)
@@ -310,8 +323,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         ])
       setListTruncated(!!trunc)
       setCloudNeedsClub(!!need)
-      setSource(src)
+      setSource((prev) => nextAdminClientsListSource(prev, src || 'remote', { silent: false }))
       setFallback(fallbackReason ?? null)
+      setListSourceSettled(true)
 
       const nm = {}
       for (const u of trainers) {
@@ -357,10 +371,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       setLastTrainingByClient({})
       setPageTrainings([])
       setTrainerNameById({})
-      setSource('local')
+      setSource((prev) => nextAdminClientsListSource(prev, 'local', { silent }))
       setFallback(null)
       setCloudNeedsClub(false)
       setListTruncated(false)
+      setListSourceSettled(true)
       if (club) invalidateAdminClientsBrowseGlanceCaches(club)
     } finally {
       setListReady(true)
@@ -1409,7 +1424,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           <p className="muted admin-clients-workspace__note">
             Не удалось подтянуть список из облака — показан локальный кэш. Нажмите обновить.
           </p>
-        ) : !cloudNeedsClub && source !== 'remote' && source !== 'admin_api' ? (
+        ) : shouldShowAdminClientsDeviceSourceMeta({
+            settled: listSourceSettled,
+            source,
+            cloudNeedsClub,
+          }) ? (
           <p className="muted admin-clients-workspace__meta">
             С <strong>устройства</strong> (IndexedDB).
             {!club ? (clubBound ? ' Нужен club_id в профиле.' : ' Выберите клуб в шапке.') : null}

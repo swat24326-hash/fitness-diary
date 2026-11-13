@@ -120,3 +120,28 @@ export function notifyClientHallLifecycleChanged(clientId, opts = {}) {
     clubId: opts.clubId,
   })
 }
+
+/**
+ * Тихий reload не должен откатывать source на local — иначе мигает «С устройства»
+ * и строка поиска прыгает вверх-вниз.
+ * @param {string} prev
+ * @param {string} next
+ * @param {{ silent?: boolean }} [opts]
+ */
+export function nextAdminClientsListSource(prev, next, opts = {}) {
+  const p = String(prev ?? '').trim()
+  const n = String(next ?? '').trim() || 'local'
+  if (opts.silent && (p === 'admin_api' || p === 'remote') && n === 'local') return p
+  return n
+}
+
+/**
+ * Надпись «С устройства» — только когда загрузка облака уже завершилась и остались на local.
+ * @param {{ settled?: boolean, source?: string, cloudNeedsClub?: boolean }} p
+ */
+export function shouldShowAdminClientsDeviceSourceMeta(p = {}) {
+  if (p.settled !== true) return false
+  if (p.cloudNeedsClub) return false
+  const src = String(p.source ?? '').trim()
+  return src !== 'admin_api' && src !== 'remote'
+}

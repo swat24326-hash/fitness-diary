@@ -6,6 +6,10 @@ import {
   isAdminClientsCardPathname,
   shouldHydrateAdminClientsSearchFromUrl,
 } from '../src/lib/admin/adminClientsKeepAliveCore.js'
+import {
+  nextAdminClientsListSource,
+  shouldShowAdminClientsDeviceSourceMeta,
+} from '../src/lib/admin/adminClientsListReloadCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -40,6 +44,39 @@ ok(
 ok(
   shouldHydrateAdminClientsSearchFromUrl(false, true) === false,
   'не hydrate q когда список скрыт карточкой',
+)
+
+ok(
+  nextAdminClientsListSource('admin_api', 'local', { silent: true }) === 'admin_api',
+  'silent peek не откатывает admin_api → local',
+)
+ok(
+  nextAdminClientsListSource('remote', 'local', { silent: true }) === 'remote',
+  'silent peek не откатывает remote → local',
+)
+ok(
+  nextAdminClientsListSource('admin_api', 'local', { silent: false }) === 'local',
+  'полный reload может поставить local',
+)
+ok(
+  nextAdminClientsListSource('local', 'admin_api', { silent: true }) === 'admin_api',
+  'silent принимает облако',
+)
+ok(
+  shouldShowAdminClientsDeviceSourceMeta({ settled: false, source: 'local' }) === false,
+  'meta скрыта до ответа облака',
+)
+ok(
+  shouldShowAdminClientsDeviceSourceMeta({ settled: true, source: 'admin_api' }) === false,
+  'meta скрыта при admin_api',
+)
+ok(
+  shouldShowAdminClientsDeviceSourceMeta({ settled: true, source: 'local' }) === true,
+  'meta только после settled + local',
+)
+ok(
+  shouldShowAdminClientsDeviceSourceMeta({ settled: true, source: 'local', cloudNeedsClub: true }) === false,
+  'meta скрыта при cloudNeedsClub',
 )
 
 if (failed) {
