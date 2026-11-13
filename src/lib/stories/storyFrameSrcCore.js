@@ -1,13 +1,18 @@
 /**
- * Кадр сторис для <img>/<video>: blob: URL вместо data: (Safari/iPhone рвёт data: у видео).
+ * Кадр сторис для <img>/<video>: blob: URL.
+ * Видео приходит Blob с API; фото — base64 в JSON (маленькое).
  */
 
 /**
- * @param {{ mime?: string, data?: string }} file base64 из story-frame
+ * @param {{ mime?: string, data?: string, blob?: Blob }} file
  * @returns {string} object URL — вызвать URL.revokeObjectURL после использования
  */
 export function storyFrameObjectUrl(file) {
   const mime = String(file?.mime || 'application/octet-stream')
+  if (file?.blob instanceof Blob) {
+    const blob = file.blob.type ? file.blob : new Blob([file.blob], { type: mime })
+    return URL.createObjectURL(blob)
+  }
   const raw = String(file?.data || '')
   const bin = atob(raw)
   const bytes = new Uint8Array(bin.length)

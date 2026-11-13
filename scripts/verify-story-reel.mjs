@@ -25,8 +25,11 @@ ok(storyMimeIsVideo('video/mp4'), 'mime video')
 
 const tiny = Buffer.from([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70]).toString('base64')
 const url = storyFrameObjectUrl({ mime: 'video/mp4', data: tiny })
-ok(String(url).startsWith('blob:'), 'кадр — blob URL')
+ok(String(url).startsWith('blob:'), 'кадр из base64 — blob URL')
 revokeStoryFrameUrl(url)
+const fromBlob = storyFrameObjectUrl({ mime: 'video/mp4', blob: new Blob([Uint8Array.from([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70])], { type: 'video/mp4' }) })
+ok(String(fromBlob).startsWith('blob:'), 'кадр из Blob API — blob URL')
+revokeStoryFrameUrl(fromBlob)
 revokeStoryFrameUrl('data:video/mp4;base64,xx')
 
 console.log('OK verify-story-reel')

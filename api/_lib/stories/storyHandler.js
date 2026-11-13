@@ -43,6 +43,7 @@ import {
   storyStaffKind,
   storyStorageKey,
   storyUuid,
+  storyMimeIsVideo,
   storyVideoBytesOk,
   storyVideoSecOk,
   storyViewerKey,
@@ -707,5 +708,14 @@ async function sendFrame(db, body, res) {
     return fail(res, 502, 'Не получилось загрузить')
   }
   if (!bytes) return fail(res, 410, STORY_GONE_RU)
+  // Видео — сырыми байтами (как кружок в чате): base64 в JSON на iPhone грузится 10–15+ с.
+  if (storyMimeIsVideo(data.mime)) {
+    res.statusCode = 200
+    res.setHeader('Content-Type', String(data.mime))
+    res.setHeader('Content-Length', String(bytes.length))
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.end(bytes)
+    return
+  }
   sendJson(res, 200, { data: bytes.toString('base64'), mime: data.mime })
 }

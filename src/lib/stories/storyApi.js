@@ -79,7 +79,7 @@ export function reactStaffStory(id, emoji) {
 }
 
 export function fetchStaffStoryFrame(id, frameId) {
-  return inboxApiCall('stories', 'POST', {}, { op: 'frame', id, frame_id: frameId })
+  return inboxApiCall('stories', 'POST', {}, { op: 'frame', id, frame_id: frameId }, { timeoutMs: CHAT_VIDEO_FETCH_MS })
 }
 
 export function fetchCoachStories() {
@@ -148,7 +148,7 @@ export function reactCoachStory(id, emoji) {
 }
 
 export function fetchCoachStoryFrame(id, frameId) {
-  return coachRequest({}, { op: 'story-frame', id, frame_id: frameId })
+  return coachRequest({}, { op: 'story-frame', id, frame_id: frameId }, { timeoutMs: CHAT_VIDEO_FETCH_MS })
 }
 
 export function fetchClientStories() {
@@ -164,5 +164,5 @@ export function reactClientStory(id, emoji) {
 }
 
 export function fetchClientStoryFrame(id, frameId) {
-  return postClientMe({ action: 'story-frame', id, frame_id: frameId })
+  return postClientMe({ action: 'story-frame', id, frame_id: frameId }, { timeoutMs: CHAT_VIDEO_FETCH_MS })
 }
