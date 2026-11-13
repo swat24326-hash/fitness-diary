@@ -31,6 +31,8 @@ export function AdminClientsSearchBar({
           className="admin-clients-search-input"
           type="search"
           autoComplete="off"
+          spellCheck={false}
+          enterKeyHint="search"
           placeholder={phoneMode ? 'Фамилия или телефон…' : 'Фамилия или номер карты…'}
           aria-label={phoneMode ? 'Поиск по фамилии или телефону' : 'Поиск по фамилии или номеру карты'}
           value={query}
@@ -66,6 +68,8 @@ export function AdminClientsSearchBar({
             className="admin-clients-search-input"
             type="search"
             autoComplete="off"
+            spellCheck={false}
+            enterKeyHint="search"
             placeholder="Тренер: ФИО…"
             aria-label="Поиск по закреплённому тренеру"
             value={trainerQuery}

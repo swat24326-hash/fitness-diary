@@ -33,3 +33,13 @@ export function isAdminClientsCardPathname(pathname, listBasePath) {
   if (!rest || rest.includes('/')) return false
   return true
 }
+
+/**
+ * Подтянуть q/trainer из URL только когда список снова стал видимым (назад с карточки).
+ * Нельзя на каждый searchParams от своего keystroke — гонка с setQuery дёргает строку ввода.
+ * @param {boolean} listUiActive
+ * @param {boolean} wasActive
+ */
+export function shouldHydrateAdminClientsSearchFromUrl(listUiActive, wasActive) {
+  return Boolean(listUiActive) && !wasActive
+}

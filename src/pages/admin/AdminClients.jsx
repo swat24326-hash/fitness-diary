@@ -20,6 +20,7 @@ import { AzDayWriteoffRoll } from '../../components/admin/AzDayWriteoffRoll.jsx'
 import { listDeskAzDayWriteoffs } from '../../lib/admin/deskAzSessionDeductCore.js'
 import { removeDeskAzSessionVisit } from '../../lib/admin/deskAzSessionDeductService.js'
 import { AdminClientsSearchBar } from '../../components/admin/AdminClientsSearchBar.jsx'
+import { shouldHydrateAdminClientsSearchFromUrl } from '../../lib/admin/adminClientsKeepAliveCore.js'
 import {
   deleteClientAndAllData,
   listAdminClientsForClub,
@@ -444,9 +445,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
     setArchiveHallFilter(normalizeArchiveHallFilter(searchParams.get('archiveHall')))
     setListPage(parseAdminClientsListPage(searchParams.get('page')))
+    /* q / trainer — не из URL на каждый keystroke: иначе гонка с setQuery и строка «дёргается». */
+  }, [searchParams, setSearchParams, listUiActive])
+
+  /** Поиск из URL только при возврате со карточки (keepalive), не при своём patchListSearch. */
+  const listWasActiveRef = useRef(listUiActive)
+  useEffect(() => {
+    const wasActive = listWasActiveRef.current
+    listWasActiveRef.current = listUiActive
+    if (!shouldHydrateAdminClientsSearchFromUrl(listUiActive, wasActive)) return
     setQuery(String(searchParams.get('q') ?? ''))
     setTrainerQuery(String(searchParams.get('trainer') ?? ''))
-  }, [searchParams, setSearchParams, listUiActive])
+  }, [listUiActive, searchParams])
 
   const patchListSearch = useCallback(
     (mutate, { resetPage = false } = {}) => {

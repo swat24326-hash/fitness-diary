@@ -4,6 +4,7 @@
 import {
   adminClientsListBasePath,
   isAdminClientsCardPathname,
+  shouldHydrateAdminClientsSearchFromUrl,
 } from '../src/lib/admin/adminClientsKeepAliveCore.js'
 
 let failed = 0
@@ -27,6 +28,19 @@ ok(!isAdminClientsCardPathname('/admin/clients/c1/extra', admin), 'nested not ca
 ok(!isAdminClientsCardPathname('/admin/statistics', admin), 'other page')
 ok(isAdminClientsCardPathname('/sales/clients/abc', '/sales/clients'), 'sales card')
 ok(!isAdminClientsCardPathname('/sales/clients', '/sales/clients'), 'sales list')
+
+ok(
+  shouldHydrateAdminClientsSearchFromUrl(true, false) === true,
+  'hydrate q при возврате на список',
+)
+ok(
+  shouldHydrateAdminClientsSearchFromUrl(true, true) === false,
+  'не hydrate q пока список уже открыт (иначе дёргается ввод)',
+)
+ok(
+  shouldHydrateAdminClientsSearchFromUrl(false, true) === false,
+  'не hydrate q когда список скрыт карточкой',
+)
 
 if (failed) {
   console.error(`\n${failed} failed`)

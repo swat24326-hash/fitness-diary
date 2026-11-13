@@ -5978,13 +5978,18 @@ body:has(.training-form--suggest-open) .training-actions-row {
 
 .admin-clients-workspace__search {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  /* Фиксированные доли — auto-fit прыгал при появлении нативного clear у type=search. */
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.14);
   transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+
+.admin-clients-workspace__search:not(:has(.admin-clients-search-cell + .admin-clients-search-cell)) {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .admin-clients-workspace__search:focus-within {
@@ -6014,10 +6019,23 @@ body:has(.training-form--suggest-open) .training-actions-row {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  padding: 10px 8px 10px 0;
+  padding: 0 8px 0 0;
+  height: 44px;
+  line-height: 44px;
   font: inherit;
   font-size: 0.95rem;
   color: var(--text);
+  /* Chrome: крестик type=search сжимает поле и дёргает текст относительно иконок. */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.admin-clients-search-cell .admin-clients-search-input::-webkit-search-decoration,
+.admin-clients-search-cell .admin-clients-search-input::-webkit-search-cancel-button,
+.admin-clients-search-cell .admin-clients-search-input::-webkit-search-results-button,
+.admin-clients-search-cell .admin-clients-search-input::-webkit-search-results-decoration {
+  display: none;
+  -webkit-appearance: none;
 }
 
 .admin-clients-search-cell .admin-clients-search-input:focus {
@@ -6027,6 +6045,7 @@ body:has(.training-form--suggest-open) .training-actions-row {
 .admin-clients-search-cell .admin-clients-search-input::placeholder {
   color: var(--text-muted);
   opacity: 0.88;
+  line-height: 44px;
 }
 
 .admin-clients-workspace__search .admin-clients-search-cell {
