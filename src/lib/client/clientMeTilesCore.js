@@ -57,10 +57,23 @@ export function membershipTile(memberships, todayIso) {
       tone: m.status === 'upcoming' ? 'muted' : 'ok',
     }
   }
+  const remaining =
+    m.remaining == null ? Math.max(0, Number(m.total) - used) : Math.max(0, Number(m.remaining) || 0)
+  /* 0 списано: крупно остаток — иначе АЗ/новый пакет выглядит как «всё по нулям» (INC-2026-11-13-04). */
+  if (used === 0 && m.status === 'active') {
+    return {
+      hero: String(remaining),
+      unit: `из ${m.total}`,
+      caption: withMembershipHallCaption('осталось', m),
+      foot,
+      bar: membershipBarPercent(m),
+      tone: 'ok',
+    }
+  }
   return {
     hero: String(used),
     unit: `из ${m.total}`,
-    caption: withMembershipHallCaption(`${trainingsWord(used)} списано`, m),
+    caption: withMembershipHallCaption(`списано ${used} ${trainingsWord(used)}`, m),
     foot,
     bar: membershipBarPercent(m),
     tone: m.status === 'upcoming' ? 'muted' : 'ok',

@@ -44,8 +44,8 @@ async function loadDirectionNames(db, directionIds) {
   const ids = [...new Set((directionIds ?? []).map((id) => String(id ?? '').trim()).filter(Boolean))]
   if (!ids.length) return new Map()
   try {
-    const types = await rows(db.from('membership_types').select('id, name').in('id', ids))
-    return new Map(types.map((t) => [String(t.id), String(t.name ?? '').trim()]))
+    const types = await rows(db.from('membership_types').select('id, code').in('id', ids))
+    return new Map(types.map((t) => [String(t.id), String(t.code ?? '').trim()]))
   } catch {
     return new Map()
   }

@@ -143,13 +143,18 @@ ok(lastVisitWidget(null).value === '—', 'нет даты — прочерк')
 
 // --- Плитки: одна схема «значение → подпись → подвал» ---
 const mt = membershipTile({ current: [mem({ total: 50, used: 6, remaining: 44, end_date: '2027-01-27' })] }, TODAY)
-ok(mt.hero === '6' && mt.unit === 'из 50' && mt.caption === 'ПЗ · тренировок списано' && mt.foot === 'До 27.01.2027' && mt.bar === 12, 'плитка абонемента: 6 из 50 списано, до даты, полоска')
-ok(membershipTile({ current: [mem({ used: 1, remaining: 9 })] }, TODAY).caption === 'ПЗ · тренировка списано', 'склонение в подписи')
+ok(mt.hero === '6' && mt.unit === 'из 50' && mt.caption === 'ПЗ · списано 6 тренировок' && mt.foot === 'До 27.01.2027' && mt.bar === 12, 'плитка абонемента: 6 из 50 списано, до даты, полоска')
+ok(membershipTile({ current: [mem({ used: 1, remaining: 9 })] }, TODAY).caption === 'ПЗ · списано 1 тренировка', 'склонение в подписи')
 ok(
   membershipTile({ current: [mem({ hall: 'az', hall_mark: 'АЗ · Бокс', used: 5, remaining: 7, total: 12 })] }, TODAY).caption ===
-    'АЗ · Бокс · тренировок списано',
+    'АЗ · Бокс · списано 5 тренировок',
   'метка АЗ на плитке',
 )
+const azFresh = membershipTile(
+  { current: [mem({ hall: 'az', hall_mark: 'АЗ · R2+', total: 3, used: 0, remaining: 3, days_left: 3, end_date: '2026-11-16' })] },
+  TODAY,
+)
+ok(azFresh.hero === '3' && azFresh.unit === 'из 3' && azFresh.caption === 'АЗ · R2+ · осталось' && azFresh.foot === 'До 16.11.2026', 'АЗ без списаний — остаток, не ноль')
 const dep = membershipTile({ current: [mem({ status: 'depleted', used: 10, remaining: 0, total: 10 })] }, TODAY)
 ok(dep.hero === '10' && dep.unit === 'из 10' && dep.tone === 'warn' && dep.bar === 100 && dep.foot === 'Продлить можно в клубе', 'исчерпан — 10 из 10')
 const unl = membershipTile({ current: [mem({ total: null, remaining: null, days_left: 12, end_date: '2026-10-19' })] }, TODAY)

@@ -50,8 +50,9 @@ async function loadDirectionNames(db, ids) {
   const unique = [...new Set((ids ?? []).map((id) => String(id ?? '').trim()).filter(Boolean))]
   if (!unique.length) return new Map()
   try {
-    const types = await inboxRows(db.from('membership_types').select('id, name').in('id', unique))
-    return new Map(types.map((t) => [String(t.id), String(t.name ?? '').trim()]))
+    /* В схеме только code (name нет) — как coachSchedule / INC-2026-10-17-04. */
+    const types = await inboxRows(db.from('membership_types').select('id, code').in('id', unique))
+    return new Map(types.map((t) => [String(t.id), String(t.code ?? '').trim()]))
   } catch {
     return new Map()
   }
