@@ -26,6 +26,8 @@ import {
 } from '../../lib/stories/storyApi.js'
 import { chatInitials } from '../../lib/chat/chatUiCore.js'
 import { groupClubStoryAuthors, STORY_OFFLINE_RU } from '../../lib/stories/storyClubCore.js'
+import { warmStoryFrame } from '../../lib/stories/storyFrameWarmCache.js'
+import { storyWarmTargets } from '../../lib/stories/storyWarmTargetsCore.js'
 import { AvatarPhoto } from '../profile/AvatarPhoto.jsx'
 import { StoryCompose } from './StoryCompose.jsx'
 import { StoryRing } from './StoryRing.jsx'
@@ -104,6 +106,20 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
     () => groupClubStoryAuthors(stories, { myUserId: pack?.me, ownClubId }),
     [stories, pack?.me, ownClubId],
   )
+
+  useEffect(() => {
+    if (!groups.length || !api.frame) return undefined
+    let alive = true
+    for (const target of storyWarmTargets(groups)) {
+      warmStoryFrame(target.frameId, () => api.frame(target.storyId, target.frameId)).catch(() => {
+        if (!alive) return
+      })
+    }
+    return () => {
+      alive = false
+    }
+  }, [groups, api.frame])
+
   const openGroup = groups.find((g) => g.author_id === openAuthorId) ?? null
   const openAuthorIndex = groups.findIndex((g) => g.author_id === openAuthorId)
   const bannedPublishers = Array.isArray(pack?.banned_publishers) ? pack.banned_publishers : []

@@ -31,6 +31,7 @@ export function StoryViewer({
   const [reactBusy, setReactBusy] = useState(false)
   const [mineById, setMineById] = useState(() => Object.fromEntries(stories.map((s) => [s.id, s.my_reaction ?? null])))
   const [needsTap, setNeedsTap] = useState(false)
+  const [muted, setMuted] = useState(true)
   const mediaRef = useRef(null)
   const {
     index,
@@ -42,11 +43,13 @@ export function StoryViewer({
     error,
     fillSec,
     fillReady,
+    openGuard,
     dragY,
     playing,
     bindZone,
     onFillEnd,
     onVideoMeta,
+    onVideoPlaying,
     onVideoEnded,
   } = useStoryReel({
     flat,
@@ -69,6 +72,7 @@ export function StoryViewer({
 
   useEffect(() => {
     setNeedsTap(false)
+    setMuted(true)
   }, [shown?.frameId])
 
   useEffect(() => {
@@ -78,11 +82,23 @@ export function StoryViewer({
       el.pause()
       return
     }
+    el.muted = true
     const run = el.play()
     if (run && typeof run.then === 'function') {
-      run.then(() => setNeedsTap(false)).catch(() => setNeedsTap(true))
+      run
+        .then(() => {
+          setNeedsTap(false)
+          try {
+            el.muted = false
+            setMuted(false)
+          } catch {
+            /* Safari может оставить muted */
+          }
+          onVideoPlaying()
+        })
+        .catch(() => setNeedsTap(true))
     }
-  }, [paused, shown?.frameId, fillReady])
+  }, [paused, shown?.frameId, fillReady, onVideoPlaying])
 
   if (!current) return null
   const cta = current.story.cta
@@ -107,8 +123,18 @@ export function StoryViewer({
   const tapToPlay = () => {
     const el = mediaRef.current
     if (!el || el.tagName !== 'VIDEO') return
+    el.muted = true
     el.play()
-      .then(() => setNeedsTap(false))
+      .then(() => {
+        setNeedsTap(false)
+        try {
+          el.muted = false
+          setMuted(false)
+        } catch {
+          /* ignore */
+        }
+        onVideoPlaying()
+      })
       .catch(() => setNeedsTap(true))
   }
 
@@ -116,12 +142,13 @@ export function StoryViewer({
 
   return createPortal(
     <div
-      className={`stories-view${paused || needsTap ? ' is-paused' : ''}${dragY ? ' is-drag' : ''}`}
+      className={`stories-view${paused || needsTap ? ' is-paused' : ''}${dragY ? ' is-drag' : ''}${openGuard ? ' is-open-guard' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={current.story.author_name || current.story.label_ru}
       style={dragY ? { transform: `translate3d(0, ${dragY}px, 0)`, opacity: Math.max(0.45, 1 - dragY / 220) } : undefined}
       onClick={(e) => {
+        if (openGuard) return
         if (e.target === e.currentTarget) onClose()
       }}
     >
@@ -166,10 +193,11 @@ export function StoryViewer({
                 src={shown.src}
                 autoPlay
                 playsInline
-                muted={false}
+                muted={muted}
                 preload="auto"
                 onLoadedMetadata={(e) => onVideoMeta(e.currentTarget.duration)}
-                onEnded={onVideoEnded}
+                onPlaying={onVideoPlaying}
+                onEnded={(e) => onVideoEnded(e.currentTarget)}
                 onError={() => setNeedsTap(true)}
               />
             ) : (

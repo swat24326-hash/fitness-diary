@@ -1654,6 +1654,12 @@ video.stories-view__frame {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Тап по кружку на iPhone не должен сразу попасть в «далее» и закрыть сторис */
+.stories-view.is-open-guard .stories-view__prev,
+.stories-view.is-open-guard .stories-view__next {
+  pointer-events: none;
+}
+
 .stories-view__prev,
 .stories-view__next {
   position: absolute;

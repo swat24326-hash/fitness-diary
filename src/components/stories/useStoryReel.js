@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { STORY_PHOTO_SEC, storyMimeIsVideo } from '../../lib/stories/storyClubCore.js'
+import { warmStoryFrame } from '../../lib/stories/storyFrameWarmCache.js'
 import { revokeStoryFrameUrl, storyFrameObjectUrl } from '../../lib/stories/storyFrameSrcCore.js'
 import { storySwipeIntent } from '../../lib/stories/storyGestureCore.js'
-import { storyReelAdvanceOnFill, storyReelFillSec } from '../../lib/stories/storyReelCore.js'
+import {
+  STORY_OPEN_GUARD_MS,
+  storyReelAcceptVideoEnded,
+  storyReelAdvanceOnFill,
+  storyReelFillSec,
+  storyReelOpenBlocked,
+} from '../../lib/stories/storyReelCore.js'
 
 const HOLD_MS = 280
 const SLIDE_MS = 420
@@ -13,7 +20,7 @@ function toCached(frameId, storyId, file) {
     frameId,
     storyId,
     src,
-    mime: file.mime,
+    mime: file.mime || file.blob?.type || null,
     sec: file.sec ?? null,
   }
 }
@@ -32,6 +39,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   const [error, setError] = useState('')
   const [fillSec, setFillSec] = useState(/** @type {number | null} */ (STORY_PHOTO_SEC))
   const [dragY, setDragY] = useState(0)
+  const [openGuard, setOpenGuard] = useState(true)
   const cache = useRef(new Map())
   const shownRef = useRef(null)
   const dirRef = useRef('forward')
@@ -41,6 +49,8 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   const holdAt = useRef(0)
   const suppressClick = useRef(false)
   const ended = useRef(-1)
+  const videoStarted = useRef(false)
+  const guardUntil = useRef(Date.now() + STORY_OPEN_GUARD_MS)
   const ptr = useRef({ x: 0, y: 0, dragging: false })
   onCloseRef.current = onClose
   onPeerRef.current = onPeer
@@ -48,6 +58,13 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   const current = flat[index]
   const frameId = current?.frame.id
   const storyId = current?.story.id
+
+  useEffect(() => {
+    guardUntil.current = Date.now() + STORY_OPEN_GUARD_MS
+    setOpenGuard(true)
+    const t = setTimeout(() => setOpenGuard(false), STORY_OPEN_GUARD_MS)
+    return () => clearTimeout(t)
+  }, [])
 
   const reveal = useCallback((next) => {
     const prev = shownRef.current
@@ -60,6 +77,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     }
     shownRef.current = next
     setShown(next)
+    videoStarted.current = false
     setFillSec(storyReelFillSec({ mime: next.mime, sec: next.sec, photoSec: STORY_PHOTO_SEC }))
   }, [])
 
@@ -73,7 +91,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     }
     let alive = true
     setError('')
-    loadFrame(storyId, frameId)
+    warmStoryFrame(frameId, () => loadFrame(storyId, frameId))
       .then((file) => {
         const next = toCached(frameId, storyId, file)
         const old = cache.current.get(frameId)
@@ -93,7 +111,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     const next = flat[index + 1]
     if (!next || cache.current.has(next.frame.id)) return undefined
     let alive = true
-    loadFrame(next.story.id, next.frame.id)
+    warmStoryFrame(next.frame.id, () => loadFrame(next.story.id, next.frame.id))
       .then((file) => {
         if (!alive) return
         const id = next.frame.id
@@ -128,6 +146,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   }, [])
 
   stepRef.current = (delta) => {
+    if (storyReelOpenBlocked(Date.now(), guardUntil.current)) return
     const next = index + delta
     if (next >= flat.length) {
       if (onPeerRef.current?.(1)) return
@@ -154,6 +173,13 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   }, [])
 
   const finishPtr = (e) => {
+    if (storyReelOpenBlocked(Date.now(), guardUntil.current)) {
+      setDragY(0)
+      ptr.current.dragging = false
+      suppressClick.current = true
+      setPaused(false)
+      return
+    }
     const dx = e.clientX - ptr.current.x
     const dy = e.clientY - ptr.current.y
     setDragY(0)
@@ -183,6 +209,10 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
 
   const bindZone = (delta) => ({
     onPointerDown: (e) => {
+      if (storyReelOpenBlocked(Date.now(), guardUntil.current)) {
+        suppressClick.current = true
+        return
+      }
       holdAt.current = performance.now()
       ptr.current = { x: e.clientX, y: e.clientY, dragging: true }
       setPaused(true)
@@ -207,7 +237,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
       setPaused(false)
     },
     onClick: () => {
-      if (suppressClick.current) {
+      if (suppressClick.current || storyReelOpenBlocked(Date.now(), guardUntil.current)) {
         suppressClick.current = false
         return
       }
@@ -228,11 +258,27 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     if (n != null) setFillSec(n)
   }
 
-  const onVideoEnded = () => {
-    if (ended.current === index) return
-    ended.current = index
-    stepRef.current(1)
-  }
+  const onVideoPlaying = useCallback(() => {
+    videoStarted.current = true
+  }, [])
+
+  const onVideoEnded = useCallback(
+    (el) => {
+      if (ended.current === index) return
+      if (
+        !storyReelAcceptVideoEnded({
+          currentTime: el?.currentTime,
+          duration: el?.duration,
+          hasStarted: videoStarted.current,
+        })
+      ) {
+        return
+      }
+      ended.current = index
+      stepRef.current(1)
+    },
+    [index],
+  )
 
   const fillReady = fillSec != null && fillSec >= 1
 
@@ -246,11 +292,13 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     error,
     fillSec,
     fillReady,
+    openGuard,
     dragY,
     playing: Boolean(shown && shown.frameId === frameId && !error),
     bindZone,
     onFillEnd,
     onVideoMeta,
+    onVideoPlaying,
     onVideoEnded,
   }
 }
