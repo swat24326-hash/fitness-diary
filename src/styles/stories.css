@@ -39,8 +39,13 @@
 
 .stories-rail--pull .stories-rail__row {
   gap: var(--stories-gap-row);
-  /* Вертикаль для pull + горизонталь для авторов — ось решает JS */
+  /* Компакт: можно скроллить страницу сквозь ряд; pull вниз забирает JS после LOCK */
   touch-action: pan-x pan-y;
+}
+
+/* Раскрытый ряд — только горизонталь авторов; вертикаль отдаём .client-me */
+.stories-rail--pull.is-expanded .stories-rail__row {
+  touch-action: pan-x;
 }
 
 .stories-rail__row::-webkit-scrollbar {
@@ -72,6 +77,10 @@
   touch-action: pan-x pan-y;
 }
 
+.stories-rail--pull.is-expanded .stories-rail__person {
+  touch-action: pan-x;
+}
+
 .stories-rail__add.btn-touch {
   box-sizing: border-box;
   flex: 0 0 auto;
@@ -96,6 +105,10 @@
   min-width: var(--stories-slot);
   min-height: var(--stories-slot);
   touch-action: pan-x pan-y;
+}
+
+.stories-rail--pull.is-expanded .stories-rail__add.btn-touch {
+  touch-action: pan-x;
 }
 
 .stories-view__close.btn-touch {

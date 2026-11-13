@@ -1,14 +1,17 @@
 /**
- * Компакт → pull сторис на телефоне: пороги, ось, snap, скролл.
+ * Компакт → pull сторис на телефоне: пороги, ось, snap, скролл /me.
  */
 import {
   STORY_RAIL_COLLAPSE_SCROLL_PX,
   STORY_RAIL_DEAD_PX,
+  STORY_RAIL_LOCK_PX,
   STORY_RAIL_PULL_PX,
   STORY_RAIL_SNAP,
   clamp01,
   storyRailExpandAtTop,
   storyRailExpandAxis,
+  storyRailExpandBlockScroll,
+  storyRailExpandCanPull,
   storyRailExpandIsPhone,
   storyRailExpandProgress,
   storyRailExpandSnap,
@@ -24,6 +27,7 @@ function ok(cond, msg) {
 }
 
 ok(STORY_RAIL_PULL_PX > STORY_RAIL_DEAD_PX, 'pull дальше dead')
+ok(STORY_RAIL_LOCK_PX > STORY_RAIL_DEAD_PX, 'lock дальше dead')
 ok(STORY_RAIL_SNAP > 0 && STORY_RAIL_SNAP < 1, 'snap внутри 0..1')
 
 ok(clamp01(-1) === 0 && clamp01(2) === 1 && clamp01(0.5) === 0.5, 'clamp01')
@@ -38,8 +42,18 @@ ok(storyRailExpandIsPhone({ width: MSGR_PHONE_MAX, msgrMode: null }), 'ровн�
 
 ok(storyRailExpandAxis({ dx: 0, dy: 0 }) === 'none', 'шум — none')
 ok(storyRailExpandAxis({ dx: 2, dy: 2 }) === 'none', 'внутри dead — none')
+ok(storyRailExpandAxis({ dx: 5, dy: 15 }) === 'none', 'вниз меньше lock — ещё none (не крадём скролл)')
+ok(storyRailExpandAxis({ dx: 5, dy: STORY_RAIL_LOCK_PX }) === 'pull', 'вниз до lock — pull')
 ok(storyRailExpandAxis({ dx: 5, dy: 40 }) === 'pull', 'вниз — pull')
+ok(storyRailExpandAxis({ dx: 5, dy: -40 }) === 'scroll', 'вверх — скролл страницы')
 ok(storyRailExpandAxis({ dx: 40, dy: 5 }) === 'pan-x', 'вбок — pan-x')
+
+ok(storyRailExpandCanPull(0) && storyRailExpandCanPull(0.5), 'компакт/середина — можно pull')
+ok(!storyRailExpandCanPull(1), 'раскрыт — нельзя pull (скролл /me)')
+
+ok(storyRailExpandBlockScroll({ axis: 'pull', dy: 20 }), 'тянем вниз — block')
+ok(!storyRailExpandBlockScroll({ axis: 'pull', dy: -20 }), 'вверх — не block')
+ok(!storyRailExpandBlockScroll({ axis: 'scroll', dy: -20 }), 'scroll — не block')
 
 ok(storyRailExpandProgress({ dy: 0, from: 0 }) === 0, 'без движения — 0')
 ok(storyRailExpandProgress({ dy: STORY_RAIL_PULL_PX, from: 0 }) === 1, 'полный pull — 1')
