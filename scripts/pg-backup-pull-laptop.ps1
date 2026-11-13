@@ -25,17 +25,26 @@ New-Item -ItemType Directory -Force $dir | Out-Null
 function Say($msg) { $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm') $msg"; Add-Content -Path $log -Value $line -Encoding UTF8; Write-Host $line }
 
 try {
-  $remote = 'sudo bash -c ''set -e; f=$(ls -1t /var/backups/fitness-diary/daily/fd-*.dump | head -1); t=/tmp/fd-pull.gpg; gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-file /etc/fitness-diary/backup.pass --symmetric --cipher-algo AES256 -o $t $f; chown ubuntu $t; chmod 600 $t; echo $(basename $f) $(sha256sum $t | cut -c1-64)'''
+  # rm до gpg: иначе хвост прошлой попытки (владелец ubuntu) даёт Permission denied при повторном шифровании.
+  $remote = 'sudo bash -c ''set -e; f=$(ls -1t /var/backups/fitness-diary/daily/fd-*.dump | head -1); t=/tmp/fd-pull.gpg; rm -f $t; gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-file /etc/fitness-diary/backup.pass --symmetric --cipher-algo AES256 -o $t $f; chown ubuntu $t; chmod 600 $t; echo $(basename $f) $(sha256sum $t | cut -c1-64)'''
   $info = ssh -i $key -o BatchMode=yes -o ConnectTimeout=20 $vm $remote
   if ($LASTEXITCODE -ne 0 -or -not $info) { throw 'сервер не подготовил копию (ssh / gpg)' }
   $name, $sha = "$info".Trim() -split '\s+'
+  if (-not $name -or -not $sha) { throw 'сервер вернул пустое имя или checksum' }
   $part = Join-Path $dir "$name.gpg.part"
-  scp -q -i $key -o BatchMode=yes "${vm}:/tmp/fd-pull.gpg" $part
-  if ($LASTEXITCODE -ne 0) { throw 'не скачался файл (scp)' }
-  ssh -i $key -o BatchMode=yes $vm 'rm -f /tmp/fd-pull.gpg' | Out-Null
-  if ((Get-FileHash $part -Algorithm SHA256).Hash.ToLower() -ne $sha) { Remove-Item $part; throw 'контрольная сумма не совпала — файл повреждён' }
+  Remove-Item $part -ErrorAction SilentlyContinue
+  $scpOk = $false
+  foreach ($try in 1..3) {
+    scp -q -i $key -o BatchMode=yes -o ConnectTimeout=30 "${vm}:/tmp/fd-pull.gpg" $part
+    if ($LASTEXITCODE -eq 0 -and (Test-Path $part) -and (Get-Item $part).Length -gt 0) { $scpOk = $true; break }
+    Start-Sleep -Seconds (2 * $try)
+  }
+  if (-not $scpOk) { throw 'не скачался файл (scp)' }
+  ssh -i $key -o BatchMode=yes $vm 'sudo rm -f /tmp/fd-pull.gpg' | Out-Null
+  if ((Get-FileHash $part -Algorithm SHA256).Hash.ToLower() -ne $sha) { Remove-Item $part -ErrorAction SilentlyContinue; throw 'контрольная сумма не совпала — файл повреждён' }
   Move-Item -Force $part (Join-Path $dir "$name.gpg")
   Get-ChildItem $dir -Filter 'fd-*.dump.gpg' | Sort-Object Name -Descending | Select-Object -Skip $keep | Remove-Item
+  Get-ChildItem $dir -Filter 'fd-*.dump.gpg.part' | Remove-Item -ErrorAction SilentlyContinue
   $kb = [math]::Round((Get-Item (Join-Path $dir "$name.gpg")).Length / 1KB)
   Say "ок $name.gpg ${kb} КБ, копий в папке: $((Get-ChildItem $dir -Filter 'fd-*.dump.gpg').Count)"
 } catch {
