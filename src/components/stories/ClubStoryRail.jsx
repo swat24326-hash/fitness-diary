@@ -110,11 +110,14 @@ export function ClubStoryRail({ channel = 'staff', clubId = null }) {
   useEffect(() => {
     if (!groups.length || !api.frame) return undefined
     let alive = true
-    for (const target of storyWarmTargets(groups)) {
-      warmStoryFrame(target.frameId, () => api.frame(target.storyId, target.frameId)).catch(() => {
+    // Подряд, не параллельно: иначе 2–3 видео делят канал и первый кадр на S23 ждёт 5–7 с
+    const targets = storyWarmTargets(groups, { maxAuthors: 2, maxFrames: 1 })
+    ;(async () => {
+      for (const target of targets) {
         if (!alive) return
-      })
-    }
+        await warmStoryFrame(target.frameId, () => api.frame(target.storyId, target.frameId)).catch(() => {})
+      }
+    })()
     return () => {
       alive = false
     }

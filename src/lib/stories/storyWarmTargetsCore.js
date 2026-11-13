@@ -1,10 +1,12 @@
 /**
- * Какие кадры греть до открытия кружка (как прогрев в Telegram, без стрима API).
+ * Какие кадры греть до открытия кружка.
+ * По умолчанию один автор: параллельный прогрев 3 тяжёлых видео делит канал
+ * (на S23 «Загружаем…» 5–7 с, на быстром Wi‑Fi iPhone — мгновенно).
  * @param {{ stories?: { id: string, seen?: boolean, frames?: { id: string }[] }[] }[]} groups
  * @param {{ maxAuthors?: number, maxFrames?: number }} [opts]
  * @returns {{ storyId: string, frameId: string }[]}
  */
-export function storyWarmTargets(groups, { maxAuthors = 3, maxFrames = 1 } = {}) {
+export function storyWarmTargets(groups, { maxAuthors = 1, maxFrames = 1 } = {}) {
   const out = []
   const seen = new Set()
   const authors = Math.max(0, Number(maxAuthors) || 0)

@@ -1,13 +1,18 @@
 /**
- * Кадр сторис для <img>/<video>: blob: URL.
- * Видео приходит Blob с API; фото — base64 в JSON (маленькое).
+ * Кадр сторис для <img>/<video>: stream URL (видео) или blob: (фото / запасной путь).
  */
+import { storyMediaIsStreamFile } from './storyMediaRangeCore.js'
 
 /**
- * @param {{ mime?: string, data?: string, blob?: Blob }} file
- * @returns {string} object URL — вызвать URL.revokeObjectURL после использования
+ * @param {{ mime?: string, data?: string, blob?: Blob, src?: string, stream?: boolean }} file
+ * @returns {string} URL для src — blob: нужно revoke; /api/story-media — нет
  */
 export function storyFrameObjectUrl(file) {
+  if (storyMediaIsStreamFile(file)) {
+    const src = String(file.src)
+    if (src.startsWith('/')) return src
+    if (src.startsWith('https://') || src.startsWith('http://') || src.startsWith('blob:')) return src
+  }
   const mime = String(file?.mime || 'application/octet-stream')
   if (file?.blob instanceof Blob) {
     const blob = file.blob.type ? file.blob : new Blob([file.blob], { type: mime })

@@ -49,6 +49,59 @@ export async function getVoice(key) {
   return Buffer.from(await res.arrayBuffer())
 }
 
+/**
+ * Кусок файла для Range (сторис-видео).
+ * @param {string} key
+ * @param {{ start: number, end?: number | null } | null} range null — целиком; end null — с start до конца
+ * @returns {Promise<{ bytes: Buffer, size: number, start: number, end: number } | null>}
+ */
+export async function getVoiceSlice(key, range) {
+  if (chatVoiceStorageMode() === 'memory') {
+    const all = memory.get(key)
+    if (!all) return null
+    const size = all.length
+    if (!range) return { bytes: Buffer.from(all), size, start: 0, end: size - 1 }
+    const start = Math.max(0, Math.floor(range.start))
+    const end =
+      range.end == null || !Number.isFinite(range.end)
+        ? size - 1
+        : Math.min(size - 1, Math.floor(range.end))
+    if (start > end || start >= size) return null
+    return { bytes: Buffer.from(all.subarray(start, end + 1)), size, start, end }
+  }
+  const headers = { 'X-YaCloud-SubjectToken': await metadataIamToken() }
+  if (range) {
+    const start = Math.max(0, Math.floor(range.start))
+    headers.Range =
+      range.end == null || !Number.isFinite(range.end)
+        ? `bytes=${start}-`
+        : `bytes=${start}-${Math.floor(range.end)}`
+  }
+  const res = await fetch(objectUrl(key), {
+    headers,
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  })
+  if (res.status === 404) return null
+  if (!res.ok && res.status !== 206) throw new Error(`voice_get_http_${res.status}`)
+  const bytes = Buffer.from(await res.arrayBuffer())
+  const cr = String(res.headers.get('content-range') || '')
+  const m = /^bytes\s+(\d+)-(\d+)\/(\d+)$/i.exec(cr)
+  if (m) {
+    return {
+      bytes,
+      start: Number(m[1]),
+      end: Number(m[2]),
+      size: Number(m[3]),
+    }
+  }
+  const size = Number(res.headers.get('content-length')) || bytes.length
+  if (range) {
+    const start = Math.max(0, Math.floor(range.start))
+    return { bytes, size: Math.max(size, start + bytes.length), start, end: start + bytes.length - 1 }
+  }
+  return { bytes, size, start: 0, end: size - 1 }
+}
+
 /** Удалить файл (старое фото профиля); уже нет — не ошибка. */
 export async function deleteVoice(key) {
   if (chatVoiceStorageMode() === 'memory') {

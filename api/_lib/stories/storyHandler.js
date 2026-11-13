@@ -8,6 +8,7 @@ import { sendJson } from '../adminSupabase.js'
 import { checkAttachBytes, checkAttachUpload } from '../../../src/lib/chat/chatAttachCore.js'
 import { checkVideoUpload } from '../../../src/lib/chat/chatVideoCore.js'
 import { deleteVoice, putVoice, getVoice } from '../chat/chatVoiceStorage.js'
+import { signStoryMediaToken, storyMediaSrcPath } from './storyMediaTokenCore.js'
 import { avatarPhotoUrl } from '../../../src/lib/profile/avatarCore.js'
 import {
   STORY_BAD_RU,
@@ -700,6 +701,35 @@ async function sendFrame(db, body, res) {
     .maybeSingle()
   if (error) throw error
   if (!data || !isStoryStorageKey(data.storage_key)) return fail(res, 410, STORY_GONE_RU)
+  // Видео: только JWT-URL (байты качает <video> с Range). Не тянем файл на API заранее.
+  if (storyMimeIsVideo(data.mime)) {
+    const secret = String(process.env.JWT_SECRET || '').trim()
+    const token = secret
+      ? signStoryMediaToken({ key: data.storage_key, mime: data.mime }, secret)
+      : null
+    if (token) {
+      sendJson(res, 200, {
+        stream: true,
+        src: storyMediaSrcPath(token),
+        mime: String(data.mime).split(';')[0].trim(),
+      })
+      return
+    }
+    let bytes
+    try {
+      bytes = await getVoice(data.storage_key)
+    } catch (e) {
+      console.warn('[stories]', e?.message || e)
+      return fail(res, 502, 'Не получилось загрузить')
+    }
+    if (!bytes) return fail(res, 410, STORY_GONE_RU)
+    res.statusCode = 200
+    res.setHeader('Content-Type', String(data.mime))
+    res.setHeader('Content-Length', String(bytes.length))
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.end(bytes)
+    return
+  }
   let bytes
   try {
     bytes = await getVoice(data.storage_key)
@@ -708,14 +738,5 @@ async function sendFrame(db, body, res) {
     return fail(res, 502, 'Не получилось загрузить')
   }
   if (!bytes) return fail(res, 410, STORY_GONE_RU)
-  // Видео — сырыми байтами (как кружок в чате): base64 в JSON на iPhone грузится 10–15+ с.
-  if (storyMimeIsVideo(data.mime)) {
-    res.statusCode = 200
-    res.setHeader('Content-Type', String(data.mime))
-    res.setHeader('Content-Length', String(bytes.length))
-    res.setHeader('Cache-Control', 'private, no-store')
-    res.end(bytes)
-    return
-  }
   sendJson(res, 200, { data: bytes.toString('base64'), mime: data.mime })
 }
