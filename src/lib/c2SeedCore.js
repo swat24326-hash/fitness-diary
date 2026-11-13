@@ -111,3 +111,21 @@ export function buildC2StaffRow({ login, role, name, clubId, id, passwordHash })
 
 /** Порядок вставки по внешним ключам. */
 export const C2_SEED_TABLE_ORDER = ['clubs', 'users', 'membership_types', 'clients', 'memberships']
+
+/**
+ * Строки файла `.c2-seed-credentials` (login\\tpassword).
+ * @param {{ login: string, key?: string }[]} staff
+ * @param {Record<string, string>} passwordsByKeyOrLogin ключ staff.key или login → пароль
+ */
+export function c2SeedCredentialsLines(staff, passwordsByKeyOrLogin) {
+  const map = passwordsByKeyOrLogin ?? {}
+  return (staff ?? [])
+    .map((s) => {
+      const login = String(s?.login ?? '').trim()
+      if (!login) return null
+      const pass = map[s.key] ?? map[login]
+      if (!pass) return null
+      return `${login}\t${pass}`
+    })
+    .filter(Boolean)
+}

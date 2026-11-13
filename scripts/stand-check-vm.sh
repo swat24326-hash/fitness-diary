@@ -23,5 +23,10 @@ for _ in $(seq 1 15); do
   sleep 2
   curl -fsS -o /dev/null http://127.0.0.1:8080/api/health && break
 done
+# Файл паролей не в git: если пропал после stop/HDD — перевыпустить для c2-* (база уже засеяна)
+if [[ ! -f "$APP/.c2-seed-credentials" ]]; then
+  echo "стенд: нет .c2-seed-credentials — обновляю пароли c2-*"
+  as_app node --env-file=.env scripts/c2-refresh-credentials.mjs || fail "credentials"
+fi
 as_app node scripts/stand-smoke.mjs || { journalctl -u os-hybrid -n 30 --no-pager; fail "smoke"; }
 echo "stand-check: ок $(as_app git rev-parse HEAD) (${SECONDS} с)"

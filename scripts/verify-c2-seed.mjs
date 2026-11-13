@@ -9,6 +9,7 @@ import {
   C2_SEED_EXERCISES,
   C2_SEED_STAFF,
   C2_SEED_TABLE_ORDER,
+  c2SeedCredentialsLines,
   c2SeedGuardError,
 } from '../src/lib/c2SeedCore.js'
 
@@ -67,6 +68,11 @@ ok(Boolean(buildC2StaffRow({ ...base, login: 'dmitry', clubId: null }).error), '
 ok(C2_SEED_EXERCISES.length >= 5, 'есть базовые упражнения')
 ok(C2_SEED_EXERCISES.every((e) => e.name && e.muscle_group), 'у упражнения имя и группа (NOT NULL)')
 ok(new Set(C2_SEED_EXERCISES.map((e) => e.name)).size === C2_SEED_EXERCISES.length, 'имена упражнений уникальны (UNIQUE)')
+
+const credLines = c2SeedCredentialsLines(C2_SEED_STAFF, { admin: 'a', trainer: 't', sales: 's', supervisor: 'v' })
+ok(credLines.length === C2_SEED_STAFF.length, 'credentials: строка на каждого сотрудника')
+ok(credLines[0] === 'c2-admin\ta' && credLines.every((l) => /^\S+\t\S+$/.test(l)), 'credentials: login\\tpassword')
+ok(c2SeedCredentialsLines(C2_SEED_STAFF, { admin: 'only' }).length === 1, 'credentials: без пароля — строка пропускается')
 
 if (failed) process.exit(1)
 console.log('verify-c2-seed: all passed')

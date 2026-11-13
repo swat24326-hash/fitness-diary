@@ -77,5 +77,9 @@ systemctl enable os-hybrid >/dev/null
 cd "$APP"
 sudo -u osapp npm ci --no-audit --no-fund --loglevel=error
 sudo -u osapp node --env-file=.env scripts/pg-migrate-all.mjs --with-policies | tail -3
-[[ -f "$APP/.c2-seed-credentials" ]] || sudo -u osapp node --env-file=.env scripts/c2-seed-staging.mjs
+if [[ ! -f "$APP/.c2-seed-credentials" ]]; then
+  # Пустая база → полный seed; уже засеяна, файл потерян → только пароли
+  sudo -u osapp node --env-file=.env scripts/c2-seed-staging.mjs \
+    || sudo -u osapp node --env-file=.env scripts/c2-refresh-credentials.mjs
+fi
 echo "stand-setup: ок $(sudo -u osapp git log --oneline -1)"
