@@ -48,13 +48,12 @@ function scrollParentOf(el) {
 
 /**
  * Компакт/pull как в Telegram: мелкие → потянуть вниз → крупные с именами.
- * У верха компакта вертикаль забирает ряд (touch-action: pan-x), иначе скролл /me.
+ * Рано preventDefault на вниз у верха — иначе страница уезжает на 2px и жест рвётся.
  * @returns {{ ref: (el: HTMLElement | null) => void, phone: boolean, progress: number, atTop: boolean, style: React.CSSProperties | undefined }}
  */
 export function useStoryRailExpand() {
   const [railEl, setRailEl] = useState(/** @type {HTMLElement | null} */ (null))
   const [phone, setPhone] = useState(false)
-  /** 0 — компакт (телефон); не телефон → 1 */
   const [progress, setProgress] = useState(0)
   const [atTop, setAtTop] = useState(true)
   const progressRef = useRef(0)
@@ -140,6 +139,21 @@ export function useStoryRailExpand() {
       }
       const dx = e.touches[0].clientX - gesture.x
       const dy = e.touches[0].clientY - gesture.y
+
+      // Рано забрать вертикаль у страницы — до того как scrollTop уедет и жест убьётся
+      if (
+        storyRailExpandBlockScroll({
+          axis: gesture.axis,
+          dy,
+          dx,
+          atTop: true,
+          canPull: true,
+        }) &&
+        e.cancelable
+      ) {
+        e.preventDefault()
+      }
+
       if (gesture.axis === 'none') {
         const axis = storyRailExpandAxis({ dx, dy })
         if (axis === 'none') return
@@ -159,15 +173,9 @@ export function useStoryRailExpand() {
         gesture = null
         return
       }
-      if (!storyRailExpandAtTop(scroller.scrollTop) && gesture.from < 1) {
-        gesture = null
-        return
-      }
+      // Не рвать жест, если страница уже сдвинулась на 1–2px — иначе кружки «навсегда мелкие»
       gesture.pulling = true
       const next = storyRailExpandProgress({ dy, from: gesture.from })
-      if (storyRailExpandBlockScroll({ axis: 'pull', dy }) && e.cancelable) {
-        e.preventDefault()
-      }
       progressRef.current = next
       setProgress(next)
     }

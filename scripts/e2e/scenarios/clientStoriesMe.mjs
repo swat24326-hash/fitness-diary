@@ -61,7 +61,33 @@ export async function run(browser) {
 
     const ring = page.getByRole('button', { name: `${AUTHOR}, есть новое` })
     c.ok(await ring.waitFor({ timeout: 10_000 }).then(() => true, () => false), 'на главной — кружок сторис с новым')
+
+    const rail = page.locator('.stories-rail--pull').first()
+    c.ok(await rail.waitFor({ timeout: 5_000 }).then(() => true, () => false), 'ряд в режиме компакт/pull (телефон)')
+    await page.evaluate(() => {
+      const el = globalThis.document.querySelector('.client-me')
+      if (el) el.scrollTop = 0
+    })
+    const compactW = await page.locator('.stories-rail__circle').first().evaluate((el) => el.getBoundingClientRect().width)
+    const box = await rail.boundingBox()
+    const from = { x: box.x + 36, y: box.y + 20 }
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
+    for (let i = 1; i <= 12; i += 1) {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: from.x, y: from.y + i * 8 }],
+      })
+      await page.waitForTimeout(16)
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await page.waitForTimeout(200)
+    const expanded = await rail.evaluate((el) => el.classList.contains('is-expanded'))
+    const bigW = await page.locator('.stories-rail__circle').first().evaluate((el) => el.getBoundingClientRect().width)
+    c.ok(expanded, 'потянуть вниз по ряду — is-expanded')
+    c.ok(bigW > compactW + 8, `кружок вырос ${Math.round(compactW)} → ${Math.round(bigW)}`)
     await screenshot(page, 'client-stories-rail')
+
     await ring.click()
 
     const dialog = page.getByRole('dialog', { name: AUTHOR })

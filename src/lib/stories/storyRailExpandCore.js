@@ -11,10 +11,10 @@ export const STORY_RAIL_SNAP = 0.45
 /** Ниже — удержание/шум, не жест. */
 export const STORY_RAIL_DEAD_PX = 10
 /**
- * Пока палец не ушёл вниз дальше — не забираем жест (иначе iOS после preventDefault
- * уже не даст проскроллить страницу этим же касанием).
+ * Порог «это тяга вниз». Раньше 22px — страница успевала уехать, жест рвался.
+ * Чуть выше dead, чтобы не путать с тапом.
  */
-export const STORY_RAIL_LOCK_PX = 22
+export const STORY_RAIL_LOCK_PX = 12
 /** Скролл ниже — снова компакт. */
 export const STORY_RAIL_COLLAPSE_SCROLL_PX = 24
 
@@ -104,9 +104,15 @@ export function storyRailExpandCanPull(progress) {
 }
 
 /**
- * preventDefault только на зафиксированной тяге вниз.
- * @param {{ axis: string, dy: number }} p
+ * preventDefault: зафиксированная тяга или уже явное вниз у верха (пока ось none),
+ * иначе iOS/Android успевают начать скролл и touchmove становится не-cancelable.
+ * @param {{ axis: string, dy: number, dx?: number, atTop?: boolean, canPull?: boolean }} p
  */
-export function storyRailExpandBlockScroll({ axis, dy }) {
-  return axis === 'pull' && (Number(dy) || 0) > 0
+export function storyRailExpandBlockScroll({ axis, dy, dx = 0, atTop = true, canPull = true }) {
+  const y = Number(dy) || 0
+  if (y <= 0) return false
+  if (axis === 'pull') return true
+  if (!canPull || !atTop || axis === 'pan-x' || axis === 'scroll') return false
+  const ax = Math.abs(Number(dx) || 0)
+  return y >= STORY_RAIL_DEAD_PX && y >= ax
 }
