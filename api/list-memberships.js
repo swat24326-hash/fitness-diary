@@ -1,8 +1,9 @@
 /**
  * Абонементы всех клиентов клуба + lifecycle направлений (админ / менеджер своего клуба).
- * GET ?club_id=<uuid>
- * Ответ: { memberships, client_hall_lifecycle, … } — lifecycle опционален (старый клиент игнорит).
+ * GET ?club_id=<uuid>[&updated_since=ISO]
+ * Ответ: { memberships, client_ids, membership_ids, server_time, client_hall_lifecycle, … }
  */
+import { publicDbErrorMessage } from './_lib/dbErrorPublicCore.js'
 import { requireAdminOrSalesManager, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import {
@@ -10,9 +11,33 @@ import {
   LIST_CLIENT_HALL_LIFECYCLE_MAX,
   LIST_CLIENT_AZ_INSTRUCTORS_MAX,
 } from './_lib/apiLimits.js'
+import {
+  LIST_MEMBERSHIPS_SELECT,
+  parseUpdatedSinceQuery,
+} from './_lib/adminClientsListSelectCore.js'
 
 const PAGE = 500
-const IN_CHUNK = 80
+
+async function loadIdsPaged(supabaseAdmin, table, clubId, selectCols = 'id') {
+  const ids = []
+  let from = 0
+  for (;;) {
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select(selectCols)
+      .eq('club_id', clubId)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) return { error, ids: null }
+    const rows = data ?? []
+    for (const r of rows) {
+      if (r?.id) ids.push(r.id)
+    }
+    if (rows.length < PAGE) break
+    from += PAGE
+  }
+  return { error: null, ids }
+}
 
 async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')
@@ -37,53 +62,61 @@ async function handler(req, res) {
     return
   }
 
+  const sinceParsed = parseUpdatedSinceQuery(req.query?.updated_since ?? req.query?.updatedSince)
+  if (!sinceParsed.ok) {
+    sendJson(res, 400, { error: sinceParsed.error })
+    return
+  }
+  const updatedSince = sinceParsed.since
+
   const ctx = await requireAdminOrSalesManager(req, res, rawClub)
   if (!ctx) return
 
   const { supabaseAdmin } = ctx
-  const clientIds = []
-  let from = 0
+  const server_time = new Date().toISOString()
 
-  for (;;) {
-    const { data, error } = await supabaseAdmin
-      .from('clients')
-      .select('id')
-      .eq('club_id', rawClub)
-      .range(from, from + PAGE - 1)
-    if (error) {
-      sendJson(res, 400, { error: error.message })
-      return
-    }
-    const rows = data ?? []
-    for (const r of rows) {
-      if (r?.id) clientIds.push(r.id)
-    }
-    if (rows.length < PAGE) break
-    from += PAGE
+  const clientIdLoad = await loadIdsPaged(supabaseAdmin, 'clients', rawClub)
+  if (clientIdLoad.error) {
+    sendJson(res, 400, { error: publicDbErrorMessage(clientIdLoad.error, 'list-memberships') })
+    return
   }
+  const client_ids = clientIdLoad.ids
+
+  const membershipIdLoad = await loadIdsPaged(supabaseAdmin, 'memberships', rawClub)
+  if (membershipIdLoad.error) {
+    sendJson(res, 400, { error: publicDbErrorMessage(membershipIdLoad.error, 'list-memberships') })
+    return
+  }
+  const membership_ids = membershipIdLoad.ids
 
   const memberships = []
   let truncated = false
-  for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
-    const chunk = clientIds.slice(i, i + IN_CHUNK)
-    if (!chunk.length) continue
+  let from = 0
+  for (;;) {
     if (memberships.length >= LIST_MEMBERSHIPS_MAX) {
       truncated = true
       break
     }
-    const { data, error } = await supabaseAdmin.from('memberships').select('*').in('client_id', chunk)
+    let q = supabaseAdmin
+      .from('memberships')
+      .select(LIST_MEMBERSHIPS_SELECT)
+      .eq('club_id', rawClub)
+    if (updatedSince) q = q.gt('updated_at', updatedSince)
+    const { data, error } = await q.order('id', { ascending: true }).range(from, from + PAGE - 1)
     if (error) {
-      sendJson(res, 400, { error: error.message })
+      sendJson(res, 400, { error: publicDbErrorMessage(error, 'list-memberships') })
       return
     }
-    for (const row of data ?? []) {
-      if (memberships.length >= LIST_MEMBERSHIPS_MAX) {
-        truncated = true
-        break
-      }
-      memberships.push(row)
+    const rows = data ?? []
+    const room = LIST_MEMBERSHIPS_MAX - memberships.length
+    if (rows.length > room) {
+      memberships.push(...rows.slice(0, room))
+      truncated = true
+      break
     }
-    if (truncated) break
+    memberships.push(...rows)
+    if (rows.length < PAGE) break
+    from += PAGE
   }
 
   /** Жизнь по залам — тот же pull, без новой Vercel-функции. */
@@ -155,6 +188,10 @@ async function handler(req, res) {
     count: memberships.length,
     club_id: rawClub,
     truncated,
+    server_time,
+    client_ids,
+    membership_ids,
+    ...(updatedSince ? { updated_since: updatedSince } : {}),
     client_hall_lifecycle,
     client_hall_lifecycle_count: client_hall_lifecycle.length,
     client_hall_lifecycle_truncated: lifecycleTruncated,

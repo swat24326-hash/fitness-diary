@@ -101,8 +101,11 @@ ok(/cancelled/.test(uiSrc), 'archive/active pulls honour cancel on tab switch')
 
 const adminSrc = read('src/lib/admin/adminClientsListService.js')
 ok(
-  /mode === 'active' \? await reconcileAdminClubCache/.test(adminSrc),
-  'admin: prune only on active pull (archive merge-only)',
+  /pullClubClientsAndMembershipsViaApi/.test(adminSrc) &&
+    /if \(mode === 'all'\)/.test(adminSrc) &&
+    /reconcileAdminClubCache/.test(adminSrc) &&
+    !/mode === 'archive'[\s\S]{0,120}reconcileAdminClubCache/.test(adminSrc),
+  'admin: prune on active/all; archive merge-only (A2 pullClub…)',
 )
 
 if (failed) {

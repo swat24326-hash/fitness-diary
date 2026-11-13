@@ -138,12 +138,15 @@ export async function fetchTrainersViaAdminApi(opts = {}) {
 /**
  * GET /api/list-clients?club_id=… — null если маршрута нет.
  * Постраничная загрузка (offset/limit) — не держим 50k строк в одном ответе.
- * @returns {Promise<{ clients: object[], count: number, truncated?: boolean } | null>}
+ * @param {string} clubId
+ * @param {{ mode?: 'active'|'archive'|'all', updatedSince?: string }} [opts]
+ * @returns {Promise<{ clients: object[], count: number, truncated?: boolean, client_ids?: string[], server_time?: string } | null>}
  */
 export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
   const mode = String(opts?.mode ?? 'active') // active | archive | all
+  const updatedSince = String(opts?.updatedSince ?? '').trim()
 
   const token = await getAccessTokenForAdminApi()
   if (!token) {
@@ -155,6 +158,8 @@ export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
   const all = []
   let offset = 0
   let truncated = false
+  let client_ids
+  let server_time
   let lastErr
 
   for (;;) {
@@ -164,6 +169,7 @@ export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
     qs.set('limit', String(PAGE))
     if (mode === 'archive') qs.set('archived', '1')
     if (mode === 'all') qs.set('include_archived', '1')
+    if (updatedSince) qs.set('updated_since', updatedSince)
     const url = `${apiOrigin()}/api/list-clients?${qs.toString()}`
 
     let page = null
@@ -212,30 +218,45 @@ export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
     const rows = Array.isArray(page.clients) ? page.clients : []
     all.push(...rows)
     if (page.truncated === true) truncated = true
+    if (Array.isArray(page.client_ids) && client_ids == null) client_ids = page.client_ids
+    if (page.server_time && !server_time) server_time = String(page.server_time)
     if (!page.has_more || rows.length < PAGE || truncated) break
     offset += PAGE
   }
 
-  return { clients: all, count: all.length, truncated }
+  return {
+    clients: all,
+    count: all.length,
+    truncated,
+    ...(client_ids ? { client_ids } : {}),
+    ...(server_time ? { server_time } : {}),
+  }
 }
 
 /**
  * GET /api/list-memberships?club_id=… — null если маршрута нет.
  * Вместе с абонами — client_hall_lifecycle и client_az_instructors клуба (если сервер отдаёт).
- * @returns {Promise<{ memberships: object[], client_hall_lifecycle: object[], client_az_instructors?: object[], count: number, truncated?: boolean } | null>}
+ * @param {string} clubId
+ * @param {{ updatedSince?: string }} [opts]
+ * @returns {Promise<{ memberships: object[], client_hall_lifecycle: object[], client_az_instructors?: object[], count: number, truncated?: boolean, client_ids?: string[], membership_ids?: string[], server_time?: string } | null>}
  */
-export async function fetchMembershipsForClubViaAdminApi(clubId) {
+export async function fetchMembershipsForClubViaAdminApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
+  const updatedSince = String(opts?.updatedSince ?? '').trim()
 
   const token = await getAccessTokenForAdminApi()
   if (!token) {
     throw new Error('Нет сессии администратора — войдите снова.')
   }
 
+  const qs = new URLSearchParams()
+  qs.set('club_id', cid)
+  if (updatedSince) qs.set('updated_since', updatedSince)
+
   let res
   try {
-    res = await fetch(`${apiOrigin()}/api/list-memberships?club_id=${encodeURIComponent(cid)}`, {
+    res = await fetch(`${apiOrigin()}/api/list-memberships?${qs.toString()}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
       credentials: 'same-origin',
@@ -257,6 +278,9 @@ export async function fetchMembershipsForClubViaAdminApi(clubId) {
       truncated: Boolean(data.truncated),
       client_hall_lifecycle_truncated: Boolean(data.client_hall_lifecycle_truncated),
       client_az_instructors_truncated: Boolean(data.client_az_instructors_truncated),
+      ...(Array.isArray(data.client_ids) ? { client_ids: data.client_ids } : {}),
+      ...(Array.isArray(data.membership_ids) ? { membership_ids: data.membership_ids } : {}),
+      ...(data.server_time ? { server_time: String(data.server_time) } : {}),
     }
   }
 

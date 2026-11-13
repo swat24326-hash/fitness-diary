@@ -119,3 +119,51 @@ export function membershipIdsToPruneForClients(
   }
   return out
 }
+
+/**
+ * Prune по полному набору id абонов клуба (A2 delta: строки неполные, ids полные).
+ * @param {string[]} clientIds
+ * @param {object[]} localMemberships
+ * @param {string[]|Set<string>} remoteMembershipIds
+ * @param {Set<string>|string[]|null} pendingMembershipIds
+ * @param {{ nowMs?: number, graceMs?: number, truncated?: boolean }} [opts]
+ * @returns {string[]}
+ */
+export function membershipIdsToPruneByRemoteIds(
+  clientIds,
+  localMemberships,
+  remoteMembershipIds,
+  pendingMembershipIds,
+  opts = {},
+) {
+  if (shouldSkipClientMembershipsOrphanPrune(opts)) return []
+  const clientSet = new Set((clientIds ?? []).map((c) => String(c ?? '').trim()).filter(Boolean))
+  if (!clientSet.size) return []
+
+  const remoteIds =
+    remoteMembershipIds instanceof Set
+      ? remoteMembershipIds
+      : new Set((remoteMembershipIds ?? []).map((id) => String(id ?? '').trim()).filter(Boolean))
+
+  const pending =
+    pendingMembershipIds instanceof Set
+      ? pendingMembershipIds
+      : new Set((pendingMembershipIds ?? []).map(String).filter(Boolean))
+
+  const nowMs = Number(opts.nowMs) || Date.now()
+  const graceMs = opts.graceMs ?? MEMBERSHIP_ORPHAN_PRUNE_GRACE_MS
+
+  const out = []
+  for (const m of localMemberships ?? []) {
+    const cid = String(m?.client_id ?? '').trim()
+    if (!cid || !clientSet.has(cid)) continue
+    const id = String(m?.id ?? '').trim()
+    if (!id) continue
+    if (m?.synced === false) continue
+    if (isMembershipWithinOrphanPruneGrace(m, nowMs, graceMs)) continue
+    if (remoteIds.has(id)) continue
+    if (pending.has(id)) continue
+    out.push(id)
+  }
+  return out
+}

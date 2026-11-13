@@ -165,7 +165,8 @@ function friendlyClientsDbError(error) {
 }
 
 /**
- * clients в проде без колонки updated_at. avatar_key и статус (status_*) ставит только сам клиент (/api/client-me):
+ * updated_at на clients/memberships двигает только триггер БД (A2 delta) — клиентский штамп не принимаем.
+ * avatar_key и статус (status_*) ставит только сам клиент (/api/client-me):
  * копия строки на планшете могла устареть и затёрла бы новое фото или статус.
  * trainer_chat_since ставит только триггер БД при смене trainer_id — с планшета не принимаем.
  */

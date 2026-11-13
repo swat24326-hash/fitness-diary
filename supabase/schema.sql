@@ -77,6 +77,7 @@ CREATE TABLE clients (
   pnk_created_at TIMESTAMPTZ,
   desk_hall TEXT CHECK (desk_hall IS NULL OR desk_hall IN ('tz', 'az')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT clients_trainer_or_desk_hall_chk CHECK (
     trainer_id IS NOT NULL
     OR desk_hall IN ('tz', 'az')
@@ -88,6 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_clients_club_id ON clients (club_id);
 CREATE INDEX IF NOT EXISTS idx_clients_club_archived_at ON clients (club_id, archived_at);
 CREATE INDEX IF NOT EXISTS idx_clients_club_desk_hall ON clients (club_id, desk_hall)
   WHERE desk_hall IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_clients_club_updated_at ON clients (club_id, updated_at DESC);
 
 -- ------------------------------------------------------------
 -- Типы абонементов (справочник клуба)
@@ -172,7 +174,8 @@ CREATE TABLE memberships (
   hall TEXT NOT NULL DEFAULT 'pz' CHECK (hall IN ('pz', 'tz', 'az')),
   duration_unit TEXT CHECK (duration_unit IS NULL OR duration_unit IN ('months', 'days')),
   duration_count NUMERIC CHECK (duration_count IS NULL OR duration_count > 0),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_memberships_client_id ON memberships (client_id);
@@ -180,6 +183,7 @@ CREATE INDEX IF NOT EXISTS idx_memberships_club_id ON memberships (club_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_membership_type_id ON memberships (membership_type_id)
   WHERE membership_type_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_memberships_client_hall ON memberships (client_id, hall);
+CREATE INDEX IF NOT EXISTS idx_memberships_club_updated_at ON memberships (club_id, updated_at DESC);
 
 -- ------------------------------------------------------------
 -- Справочник упражнений

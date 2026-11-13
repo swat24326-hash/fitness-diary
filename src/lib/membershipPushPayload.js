@@ -21,7 +21,7 @@ export function normalizeMembershipPushPayload(payload, { insert = false } = {})
   }
 
   const next = { ...payload }
-  // В public.memberships нет updated_at — локальные поля ломают PostgREST schema cache.
+  // updated_at двигает только триггер БД (A2) — клиентский штамп не пушим.
   delete next.updated_at
 
   for (const key of ['start_date', 'end_date']) {

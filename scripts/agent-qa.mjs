@@ -127,6 +127,7 @@ run('az group pin (закреп, кто прочитал)', 'node', ['scripts/ve
 run('staff columns (админ: клубы столбцами)', 'node', ['scripts/verify-staff-columns.mjs'])
 run('linked staff (тренер он же управляющий)', 'node', ['scripts/verify-linked-staff.mjs'])
 run('batch + pg pool size', 'node', ['scripts/verify-batch-core.mjs'])
+run('admin clients delta (A2 watermark/prune)', 'node', ['scripts/verify-admin-clients-delta.mjs'])
 run('ops alerts vk', 'node', ['scripts/verify-ops-alerts.mjs'])
 run('chat text links (сайты, почта, телефоны)', 'node', ['scripts/verify-chat-text-links.mjs'])
 run('chat seen (прочитано на экране)', 'node', ['scripts/verify-chat-seen.mjs'])

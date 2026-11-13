@@ -1,6 +1,6 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-10-07. Новое действие — сначала `admin-data?action=`; отдельный файл — для отдельного контура (как приложение клиента `client-*`).
+**Актуально:** 2026-11-14. Новое действие — сначала `admin-data?action=`; отдельный файл — для отдельного контура (как приложение клиента `client-*`).
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
 Ядро: **`api/_lib/`** (не `api/lib/`). Точный роутинг ролей — `api/admin-data.js` (таблица ниже — ориентир; при сомнении смотреть handler).
@@ -12,7 +12,7 @@
 | Endpoint | Назначение |
 |----------|------------|
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
-| `/api/list-memberships` | Абонементы **всех** клиентов клуба + `client_hall_lifecycle` + `client_az_instructors` того же клуба — **только admin / sales_manager** своего клуба. **Тренер не вызывает** (403): абонементы и lifecycle на планшете — `/api/trainer-pull` |
+| `/api/list-memberships` | Абонементы **всех** клиентов клуба + `client_hall_lifecycle` + `client_az_instructors` того же клуба — **только admin / sales_manager** своего клуба. Query: `club_id`, опционально `updated_since` (ISO) — только строки с `updated_at` новее (CAPACITY A2). Ответ: узкие поля абонов, `membership_ids` + `client_ids` (полные лёгкие списки для prune), `server_time`, `truncated`. **Тренер не вызывает** (403): абонементы и lifecycle на планшете — `/api/trainer-pull` |
 | `/api/trainer-pull` | Pull на планшет тренера: клиенты, **memberships** (своих клиентов), health_cards, trainings (опц. `skip_trainings=1`), `client_plans` — отметки отправленного «В приложение» за 45 дней (`sent_at`, `client_seen_at`, без `payload`), `homework_auto` — настройки авто-ДЗ своих клиентов, `health_screenings` — анкеты здоровья своих клиентов, `homework_library` — правки библиотеки ДЗ сети. После успеха без ожидания пишет `device_health.last_pull_ok_at` по `x-device-id` (центр сбоев). `mode=card-check&card=` — перед созданием клиента: занята ли карта в клубе (в т.ч. у другого тренера); ответ `{ ok, conflict, error?, client? }` |
 | `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). Тренер (`clients` / `trainings` / `memberships`, insert и update): указанный `club_id` = клуб профиля, своего клиента или самой строки, иначе **403**; пустой не меняется (`trainerPushClubBindingCore.js`). `challenges` (тренер, управляющий): клуб строки в базе по id и указанный `club_id` = клуб профиля, иначе **403** «Челлендж другого клуба» (`challengePushClubCore.js`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |
@@ -20,7 +20,7 @@
 После ответа `push-record(s)` по успешным строкам `trainings` (завершённая, не «Списание») сервер **фоном** проверяет автоопросы «после 10-й тренировки» (`api/_lib/inbox/inboxMilestoneJob.js`): ответ тренеру не ждёт, сбой — только в лог, очередь не трогает. [INBOX.md](./INBOX.md)
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path. За 15 мин: 10 неудач на «логин + IP», 30 на логин со всех IP (кроме IP, с которого по логину уже входили), 100 на IP → **429** + `Retry-After` («Подождите N мин.») — `authRateLimitCore.js`. IP — правый адрес `X-Forwarded-For` от Caddy на localhost (Caddy перезаписывает заголовок), иначе адрес сокета. |
 | `/api/me-profile` | Профиль текущего пользователя. POST `action: avatar-get` / `avatar-set` (`data` — base64 JPEG/PNG/WebP до 200 КБ) / `avatar-delete` / `avatar-status` (`emoji` из набора или `null` — убрать, `duration`: `1h` / `today` / `3d` / `week` / `forever`) → `{ photo, ready, status }` — своё фото профиля и смайлик-статус (те же действия: `/api/coach` `op: avatar-*`, `/api/client-me` `action: avatar-*`). GET `?avatar=<ключ>` без входа — файл фото (ключ случайный, выдают только списки переписки; кэш `private, immutable`) — [CHAT.md](./CHAT.md) «Фото профиля» |
-| `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба) |
+| `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба). Query: `club_id`, `offset`/`limit`, `archived` / `include_archived`, опционально `updated_since` (ISO, CAPACITY A2). Ответ: узкие поля списка (не `*`), `client_ids` (на первой странице / без пагинации), `server_time`, `truncated` / `has_more`. Карточка — `/api/get-client` |
 | `/api/list-trainers` | Список тренеров (admin / trainer; sales_manager — только свой клуб) |
 | `/api/get-client` | Один клиент (admin / trainer свои / sales_manager своего клуба). Query: `client_id`, опционально `scope=full\|glance` (glance — клиент + абоны, без дневника; desk ТЗ/АЗ и lite-ПЗ без планшета) |
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
