@@ -6,6 +6,7 @@
 import { formatClientName } from '../clientNameFormat.js'
 import { normalizeSalesCardNumber, normalizeSalesPhoneDigits } from './salesClientMatchCore.js'
 import { matchMembershipTypeByExcelLabel } from '../priceList/priceListCore.js'
+import { normalizeTrainerNameKey, trainerNameTokensKey } from './pzTrainingsReportImportCore.js'
 
 /** Слова, на которых обрываем ФИО / имя тренера в одной строке с другими полями. */
 const NAME_STOP =
@@ -262,50 +263,94 @@ export function parseEveningInboundText(raw) {
 
 /**
  * Найти тренера по подсказке из текста (фамилия / часть имени).
+ * Сначала полное ФИО без порядка слов (клип «Кожемякина Анжелика» ↔ карточка «Анжелика Кожемякина»),
+ * иначе точная фамилия. Нельзя: «Кожемякина».startsWith(«Кожемякин») — ловит супруга/однофамильца.
  * @param {object[]} trainers
  * @param {string} hint
  * @returns {{ status: 'none'|'one'|'conflict', trainer?: object, matches: object[], reason: string }}
  */
 export function matchTrainerByNameHint(trainers, hint) {
-  const q = String(hint ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
+  const q = normalizeTrainerNameKey(hint)
   if (!q || q.length < 2) {
     return { status: 'none', matches: [], reason: 'Нет имени тренера в тексте' }
   }
-  const list = (trainers ?? []).filter((t) => t && !String(t.name ?? '').toLowerCase().includes('не назначен'))
-  const tokens = q.split(/\s+/).filter(Boolean)
-  const surname = tokens[0] || q
-  const matches = list.filter((t) => {
-    const n = String(t.name ?? '')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-    if (!n) return false
-    if (n === q || n.includes(q) || q.includes(n)) return true
-    const parts = n.split(/\s+/)
-    if (parts.some((part) => part === surname || part.startsWith(surname) || surname.startsWith(part))) {
-      return true
-    }
-    return tokens.length > 1 && tokens.every((tok) => parts.some((p) => p.startsWith(tok) || tok.startsWith(p)))
+  const list = (trainers ?? []).filter((t) => {
+    const n = String(t?.name ?? '').toLowerCase()
+    return Boolean(t && n && !n.includes('не назначен'))
   })
-  if (matches.length === 1) {
-    return {
-      status: 'one',
-      trainer: matches[0],
-      matches,
-      reason: `Тренер: ${matches[0].name}`,
-    }
+
+  const asOne = (trainer) => ({
+    status: 'one',
+    trainer,
+    matches: [trainer],
+    reason: `Тренер: ${trainer.name}`,
+  })
+  const asConflict = (matches) => ({
+    status: 'conflict',
+    matches,
+    reason: `Несколько тренеров похожи на «${hint}» — выберите вручную`,
+  })
+  const asNone = () => ({
+    status: 'none',
+    matches: [],
+    reason: `Тренер «${hint}» не найден в клубе — выберите из списка`,
+  })
+
+  const exact = list.filter((t) => normalizeTrainerNameKey(t.name) === q)
+  if (exact.length === 1) return asOne(exact[0])
+  if (exact.length > 1) return asConflict(exact)
+
+  const hintTokKey = trainerNameTokensKey(q)
+  if (hintTokKey.includes(' ')) {
+    const byTokens = list.filter((t) => {
+      const nk = trainerNameTokensKey(t.name)
+      return nk.includes(' ') && nk === hintTokKey
+    })
+    if (byTokens.length === 1) return asOne(byTokens[0])
+    if (byTokens.length > 1) return asConflict(byTokens)
   }
-  if (matches.length > 1) {
-    return {
-      status: 'conflict',
-      matches,
-      reason: `Несколько тренеров похожи на «${hint}» — выберите вручную`,
+
+  const tokens = q.split(' ').filter(Boolean)
+  const surname = tokens[0]
+
+  /** Часть имени = токен (не startsWith: Кожемякин ≠ Кожемякина). */
+  const nameParts = (t) => normalizeTrainerNameKey(t.name).split(' ').filter(Boolean)
+  const byExactSurname = list.filter((t) => nameParts(t).some((p) => p === surname))
+
+  if (tokens.length > 1) {
+    const byAllExact = byExactSurname.filter((t) => {
+      const parts = nameParts(t)
+      return tokens.every((tok) => parts.some((p) => p === tok))
+    })
+    if (byAllExact.length === 1) return asOne(byAllExact[0])
+    if (byAllExact.length > 1) return asConflict(byAllExact)
+
+    if (byExactSurname.length === 1) return asOne(byExactSurname[0])
+    if (byExactSurname.length > 1) {
+      const rest = tokens.slice(1)
+      const narrowed = byExactSurname.filter((t) => {
+        const parts = nameParts(t)
+        return rest.every(
+          (tok) =>
+            tok.length >= 3 &&
+            parts.some((p) => p === tok || p.startsWith(tok) || (tok.startsWith(p) && p.length >= 4)),
+        )
+      })
+      if (narrowed.length === 1) return asOne(narrowed[0])
+      return asConflict(byExactSurname)
     }
+    return asNone()
   }
-  return { status: 'none', matches: [], reason: `Тренер «${hint}» не найден в клубе — выберите из списка` }
+
+  if (byExactSurname.length === 1) return asOne(byExactSurname[0])
+  if (byExactSurname.length > 1) return asConflict(byExactSurname)
+
+  // Одна фамилия/фрагмент: только «часть начинается с подсказки» (короткий ввод), не наоборот.
+  const byPrefix = list.filter((t) => nameParts(t).some((p) => p.startsWith(q)))
+  if (byPrefix.length === 1) return asOne(byPrefix[0])
+  if (byPrefix.length > 1) return asConflict(byPrefix)
+
+  return asNone()
 }
 
 /**

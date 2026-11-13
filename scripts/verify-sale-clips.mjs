@@ -256,6 +256,17 @@ ok(parsed.reason && parsed.reason.length > 5, 'evening tip reason')
 
   const tm = matchTrainerByNameHint([{ id: 'a', name: 'Лисицын Кирилл' }, { id: 'b', name: 'Лисицын Пётр' }], 'Лисицын')
   ok(tm.status === 'conflict', 'trainer hint conflict on same surname')
+
+  const clubTrainers = [
+    { id: 'koz-f', name: 'Анжелика Кожемякина' },
+    { id: 'koz-m', name: 'Кожемякин Иван' },
+  ]
+  const koz = matchTrainerByNameHint(clubTrainers, 'Кожемякина Анжелика')
+  ok(koz.status === 'one' && koz.trainer?.id === 'koz-f', 'clip FIO vs card order: Кожемякина ≠ Кожемякин')
+  const kozOnly = matchTrainerByNameHint(clubTrainers, 'Кожемякина')
+  ok(kozOnly.status === 'one' && kozOnly.trainer?.id === 'koz-f', 'exact feminine surname alone')
+  const kozM = matchTrainerByNameHint(clubTrainers, 'Кожемякин')
+  ok(kozM.status === 'one' && kozM.trainer?.id === 'koz-m', 'exact masculine surname alone')
 }
 
 {
