@@ -1468,6 +1468,25 @@ video.stories-view__frame {
   pointer-events: none;
 }
 
+/* iPhone: autoplay со звуком после загрузки кадра часто блокируется — кнопка поверх кадра */
+.stories-view__tap-play {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: var(--radius-md, 12px);
+  background: color-mix(in srgb, var(--bg, #111) 78%, transparent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
 .stories-view__frame.is-frame {
   animation: stories-fade 0.22s var(--ease-out);
 }

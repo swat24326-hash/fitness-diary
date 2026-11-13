@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { STORY_PHOTO_SEC, storyMimeIsVideo } from '../../lib/stories/storyClubCore.js'
+import { revokeStoryFrameUrl, storyFrameObjectUrl } from '../../lib/stories/storyFrameSrcCore.js'
 import { storySwipeIntent } from '../../lib/stories/storyGestureCore.js'
+import { storyReelAdvanceOnFill, storyReelFillSec } from '../../lib/stories/storyReelCore.js'
 
 const HOLD_MS = 280
 const SLIDE_MS = 420
 
-function frameUrl(file) {
-  return `data:${file.mime};base64,${file.data}`
+function toCached(frameId, storyId, file) {
+  const src = storyFrameObjectUrl(file)
+  return {
+    frameId,
+    storyId,
+    src,
+    mime: file.mime,
+    sec: file.sec ?? null,
+  }
 }
 
 /**
- * Лента кадров: полоска сама доходит до конца и листает дальше.
+ * Лента кадров: полоска сама доходит до конца и листает дальше (фото).
+ * Видео листает только ended — иначе iPhone обрывает на 5 с.
  * Жест вниз — закрыть; влево/вправо — соседний автор (onPeer).
  */
 export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false }) {
@@ -20,7 +30,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   const [motion, setMotion] = useState('')
   const [paused, setPaused] = useState(false)
   const [error, setError] = useState('')
-  const [fillSec, setFillSec] = useState(STORY_PHOTO_SEC)
+  const [fillSec, setFillSec] = useState(/** @type {number | null} */ (STORY_PHOTO_SEC))
   const [dragY, setDragY] = useState(0)
   const cache = useRef(new Map())
   const shownRef = useRef(null)
@@ -50,7 +60,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     }
     shownRef.current = next
     setShown(next)
-    setFillSec(storyMimeIsVideo(next.mime) ? Math.max(STORY_PHOTO_SEC, Number(next.sec) || STORY_PHOTO_SEC) : STORY_PHOTO_SEC)
+    setFillSec(storyReelFillSec({ mime: next.mime, sec: next.sec, photoSec: STORY_PHOTO_SEC }))
   }, [])
 
   useEffect(() => {
@@ -65,13 +75,9 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     setError('')
     loadFrame(storyId, frameId)
       .then((file) => {
-        const next = {
-          frameId,
-          storyId,
-          src: frameUrl(file),
-          mime: file.mime,
-          sec: file.sec ?? null,
-        }
+        const next = toCached(frameId, storyId, file)
+        const old = cache.current.get(frameId)
+        if (old) revokeStoryFrameUrl(old.src)
         cache.current.set(frameId, next)
         if (alive) reveal(next)
       })
@@ -90,19 +96,24 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     loadFrame(next.story.id, next.frame.id)
       .then((file) => {
         if (!alive) return
-        cache.current.set(next.frame.id, {
-          frameId: next.frame.id,
-          storyId: next.story.id,
-          src: frameUrl(file),
-          mime: file.mime,
-          sec: file.sec ?? null,
-        })
+        const id = next.frame.id
+        const old = cache.current.get(id)
+        if (old) revokeStoryFrameUrl(old.src)
+        cache.current.set(id, toCached(id, next.story.id, file))
       })
       .catch(() => {})
     return () => {
       alive = false
     }
   }, [flat, index, loadFrame])
+
+  useEffect(
+    () => () => {
+      for (const row of cache.current.values()) revokeStoryFrameUrl(row.src)
+      cache.current.clear()
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!leaving) return undefined
@@ -207,13 +218,14 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   const onFillEnd = (e) => {
     if (e.animationName !== 'stories-fill') return
     if (ended.current === index) return
+    if (!storyReelAdvanceOnFill(shown?.mime)) return
     ended.current = index
     stepRef.current(1)
   }
 
   const onVideoMeta = (sec) => {
-    const n = Math.round(Number(sec) || 0)
-    if (n >= 1) setFillSec(n)
+    const n = storyReelFillSec({ mime: shown?.mime || 'video/mp4', sec, photoSec: STORY_PHOTO_SEC })
+    if (n != null) setFillSec(n)
   }
 
   const onVideoEnded = () => {
@@ -222,15 +234,18 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     stepRef.current(1)
   }
 
+  const fillReady = fillSec != null && fillSec >= 1
+
   return {
     index,
     current,
     shown,
     leaving,
     motion,
-    paused: paused || held,
+    paused: paused || held || (storyMimeIsVideo(shown?.mime) && !fillReady),
     error,
     fillSec,
+    fillReady,
     dragY,
     playing: Boolean(shown && shown.frameId === frameId && !error),
     bindZone,

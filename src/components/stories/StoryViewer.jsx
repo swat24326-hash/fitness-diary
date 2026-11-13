@@ -30,6 +30,7 @@ export function StoryViewer({
   const [who, setWho] = useState(false)
   const [reactBusy, setReactBusy] = useState(false)
   const [mineById, setMineById] = useState(() => Object.fromEntries(stories.map((s) => [s.id, s.my_reaction ?? null])))
+  const [needsTap, setNeedsTap] = useState(false)
   const mediaRef = useRef(null)
   const {
     index,
@@ -40,6 +41,7 @@ export function StoryViewer({
     paused,
     error,
     fillSec,
+    fillReady,
     dragY,
     playing,
     bindZone,
@@ -51,7 +53,7 @@ export function StoryViewer({
     loadFrame,
     onClose,
     onPeer,
-    held: who || reactBusy,
+    held: who || reactBusy || needsTap,
   })
   const storyId = current?.story.id
   const seenRef = useRef(onSeen)
@@ -66,11 +68,21 @@ export function StoryViewer({
   }, [stories])
 
   useEffect(() => {
+    setNeedsTap(false)
+  }, [shown?.frameId])
+
+  useEffect(() => {
     const el = mediaRef.current
     if (!el || el.tagName !== 'VIDEO') return
-    if (paused) el.pause()
-    else el.play().catch(() => {})
-  }, [paused, shown?.frameId])
+    if (paused) {
+      el.pause()
+      return
+    }
+    const run = el.play()
+    if (run && typeof run.then === 'function') {
+      run.then(() => setNeedsTap(false)).catch(() => setNeedsTap(true))
+    }
+  }, [paused, shown?.frameId, fillReady])
 
   if (!current) return null
   const cta = current.story.cta
@@ -79,6 +91,7 @@ export function StoryViewer({
   const mine = mineById[current.story.id] ?? null
   const videoShown = shown && storyMimeIsVideo(shown.mime)
   const videoLeaving = leaving && storyMimeIsVideo(leaving.mime)
+  const barRunning = playing && fillReady && !needsTap
 
   const pickReact = (emoji) => {
     if (!onReact || reactBusy) return
@@ -91,11 +104,19 @@ export function StoryViewer({
       .finally(() => setReactBusy(false))
   }
 
+  const tapToPlay = () => {
+    const el = mediaRef.current
+    if (!el || el.tagName !== 'VIDEO') return
+    el.play()
+      .then(() => setNeedsTap(false))
+      .catch(() => setNeedsTap(true))
+  }
+
   const frameClass = (extra) => `stories-view__frame${extra ? ` ${extra}` : ''}`
 
   return createPortal(
     <div
-      className={`stories-view${paused ? ' is-paused' : ''}${dragY ? ' is-drag' : ''}`}
+      className={`stories-view${paused || needsTap ? ' is-paused' : ''}${dragY ? ' is-drag' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={current.story.author_name || current.story.label_ru}
@@ -107,10 +128,14 @@ export function StoryViewer({
       <div className="stories-view__phone">
         <div className="stories-view__bars">
           {flat.map((item, i) => (
-            <span key={`${item.story.id}-${item.frame.id}`} className={i < index ? 'is-done' : i === index && playing ? 'is-run' : ''}>
+            <span
+              key={`${item.story.id}-${item.frame.id}`}
+              className={i < index ? 'is-done' : i === index && barRunning ? 'is-run' : ''}
+            >
               <span
+                key={i === index ? `fill-${item.frame.id}-${fillSec ?? 0}` : 'fill'}
                 className="stories-view__fill"
-                style={i === index ? { animationDuration: `${fillSec}s` } : undefined}
+                style={i === index && fillReady ? { animationDuration: `${fillSec}s` } : undefined}
                 onAnimationEnd={i === index ? onFillEnd : undefined}
               />
             </span>
@@ -145,6 +170,7 @@ export function StoryViewer({
                 preload="auto"
                 onLoadedMetadata={(e) => onVideoMeta(e.currentTarget.duration)}
                 onEnded={onVideoEnded}
+                onError={() => setNeedsTap(true)}
               />
             ) : (
               <img
@@ -154,6 +180,11 @@ export function StoryViewer({
                 alt={current.frame.caption || current.story.author_name || current.story.label_ru}
               />
             )
+          ) : null}
+          {needsTap && videoShown ? (
+            <button type="button" className="stories-view__tap-play btn-touch" onClick={tapToPlay}>
+              Коснитесь, чтобы смотреть
+            </button>
           ) : null}
         </div>
         {!shown && !error ? <p className="stories-view__status">Загружаем…</p> : null}
