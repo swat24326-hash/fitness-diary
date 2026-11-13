@@ -72,12 +72,13 @@ export function normalizeVideoSec(raw) {
 
 /**
  * Бинарное тело запроса → видео для хранилища. Только настоящие байты (Buffer) — из JSON видео не приходит.
- * @param {{ bytes: unknown, sec: unknown }} input
+ * @param {{ bytes: unknown, sec: unknown, maxBytes?: number }} input
  * @returns {{ ok: true, mime: 'video/mp4'|'video/webm', bytes: number, sec: number } | { ok: false, status: number, error: string }}
  */
-export function checkVideoUpload({ bytes, sec }) {
+export function checkVideoUpload({ bytes, sec, maxBytes = CHAT_VIDEO_MAX_BYTES }) {
+  const cap = Number.isFinite(Number(maxBytes)) && Number(maxBytes) > 0 ? Math.floor(Number(maxBytes)) : CHAT_VIDEO_MAX_BYTES
   if (!(bytes instanceof Uint8Array) || bytes.length < MIN_BYTES) return { ok: false, status: 400, error: CHAT_VIDEO_BAD_RU }
-  if (bytes.length > CHAT_VIDEO_MAX_BYTES) return { ok: false, status: 413, error: CHAT_VIDEO_BIG_RU }
+  if (bytes.length > cap) return { ok: false, status: 413, error: CHAT_VIDEO_BIG_RU }
   const mime = sniffVideoMime(bytes)
   if (!mime) return { ok: false, status: 400, error: CHAT_VIDEO_BAD_RU }
   const s = normalizeVideoSec(sec)

@@ -21,6 +21,7 @@ import {
   STORY_UNAVAILABLE_RU,
   STORY_VIDEO_BAD_RU,
   STORY_VIDEO_JSON_RU,
+  STORY_VIDEO_MAX_BYTES,
   canBanClubStoryAuthor,
   canModerateClubStoryPublish,
   canPublishClubStoryNow,
@@ -42,6 +43,7 @@ import {
   storyStaffKind,
   storyStorageKey,
   storyUuid,
+  storyVideoBytesOk,
   storyVideoSecOk,
   storyViewerKey,
   storyViewerPublic,
@@ -546,8 +548,8 @@ async function publishStoryVideo(ctx, body, res, put) {
   const caption = storyCaptionOk(body?.caption)
   if (!caption.ok) return fail(res, 400, STORY_BAD_RU)
   const bytes = body?.video?.buffer
-  const upload = checkVideoUpload({ bytes, sec: body?.video?.sec })
-  if (!upload.ok || !storyVideoSecOk(upload.sec)) {
+  const upload = checkVideoUpload({ bytes, sec: body?.video?.sec, maxBytes: STORY_VIDEO_MAX_BYTES })
+  if (!upload.ok || !storyVideoSecOk(upload.sec) || !storyVideoBytesOk(upload.bytes)) {
     return fail(res, upload.ok ? 400 : upload.status || 400, STORY_VIDEO_BAD_RU)
   }
   return finishPublish(

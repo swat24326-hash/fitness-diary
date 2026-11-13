@@ -26,8 +26,8 @@ export const STORY_LIFETIME_DAYS = 1
 export const STORY_MIN_DAYS = STORY_LIFETIME_DAYS
 export const STORY_MAX_DAYS = STORY_LIFETIME_DAYS
 export const STORY_PHOTO_MAX_BYTES = 650_000
-/** Видео в кадре — как в чате: бинарный POST до 15 МБ / 60 с. */
-export const STORY_VIDEO_MAX_BYTES = 15 * 1024 * 1024
+/** Видео в кадре — бинарный POST до 50 МБ / 60 с (ролик с телефона часто тяжелее 15 МБ). */
+export const STORY_VIDEO_MAX_BYTES = 50 * 1024 * 1024
 export const STORY_VIDEO_MAX_SEC = 60
 export const STORY_VIDEO_MIN_SEC = 1
 /** Фото без видео — полоска ~5 с. */
@@ -44,7 +44,9 @@ export const STORY_PICK_CLUB_RU = 'Выберите клуб'
 export const STORY_OTHER_CLUB_RU = 'Это чужой клуб'
 export const STORY_NO_CLUB_RU = 'У вас не задан клуб — обратитесь к администратору'
 export const STORY_BAD_RU = 'Проверьте фото и подпись'
-export const STORY_VIDEO_BAD_RU = 'Видео не подошло — до 60 секунд и не слишком тяжёлое'
+export const STORY_VIDEO_BAD_RU = 'Видео не подошло — до 60 секунд и не тяжелее 50 МБ'
+export const STORY_VIDEO_HEAVY_RU = 'Видео слишком тяжёлое — до 50 МБ. Снимите в приложении или выберите более лёгкий файл'
+export const STORY_VIDEO_LONG_RU = 'Видео длиннее 60 секунд — обрежьте и попробуйте снова'
 export const STORY_VIDEO_JSON_RU = 'Видео выкладывайте как файл — через камеру или из галереи'
 export const STORY_GONE_RU = 'Сторис уже нет'
 export const STORY_OFFLINE_RU = 'Сторис откроются, когда появится связь'

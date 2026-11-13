@@ -31,8 +31,8 @@ export function portableMaxBodyBytes(raw) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : PORTABLE_MAX_BODY_BYTES_DEFAULT
 }
 
-/** Видеокружок в переписке: минута ~11 МБ, с запасом — 15 МБ. Больше лимит только у этих типов, JSON и Sync — прежние 5 МБ. */
-export const PORTABLE_MAX_UPLOAD_BYTES_DEFAULT = 15 * 1024 * 1024
+/** Бинарное видео (сторис до 50 МБ; кружок в чате сам режет до 15 МБ). JSON и Sync — прежние 5 МБ. */
+export const PORTABLE_MAX_UPLOAD_BYTES_DEFAULT = 50 * 1024 * 1024
 const BINARY_TYPES = new Set(['video/mp4', 'video/webm'])
 /** Видеокружки шлют только эти входные точки переписки; остальным байты не нужны. */
 export const PORTABLE_BINARY_APIS = new Set(['client-me', 'coach', 'admin-data'])

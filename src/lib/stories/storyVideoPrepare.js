@@ -1,6 +1,8 @@
 /** Видео для кадра сторис: длительность и вес; уходит бинарным POST, не base64. */
 import {
   STORY_VIDEO_BAD_RU,
+  STORY_VIDEO_HEAVY_RU,
+  STORY_VIDEO_LONG_RU,
   STORY_VIDEO_MAX_BYTES,
   STORY_VIDEO_MAX_SEC,
   STORY_VIDEO_MIN_SEC,
@@ -32,12 +34,13 @@ function probeSec(file) {
  */
 export async function prepareStoryVideo(file, opts = {}) {
   if (!file || !(file instanceof Blob)) throw new Error(STORY_VIDEO_BAD_RU)
-  if (file.size > STORY_VIDEO_MAX_BYTES) throw new Error(STORY_VIDEO_BAD_RU)
+  if (file.size > STORY_VIDEO_MAX_BYTES) throw new Error(STORY_VIDEO_HEAVY_RU)
   const mime = baseVideoMime(file.type) ?? (String(file.type || '').startsWith('video/') ? 'video/mp4' : null)
   if (!mime) throw new Error(STORY_VIDEO_BAD_RU)
   let sec = Math.round(Number(opts.sec) || 0)
   if (!sec) sec = await probeSec(file)
-  if (sec < STORY_VIDEO_MIN_SEC || sec > STORY_VIDEO_MAX_SEC) throw new Error(STORY_VIDEO_BAD_RU)
+  if (sec < STORY_VIDEO_MIN_SEC) throw new Error(STORY_VIDEO_BAD_RU)
+  if (sec > STORY_VIDEO_MAX_SEC) throw new Error(STORY_VIDEO_LONG_RU)
   return {
     kind: 'video',
     blob: file,
