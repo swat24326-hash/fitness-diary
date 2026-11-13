@@ -112,10 +112,15 @@
 }
 
 .stories-view__close.btn-touch {
-  width: 48px;
-  height: 48px;
-  min-height: 48px;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
+  display: grid;
+  place-items: center;
+  line-height: 0;
 }
 
 .stories-rail__circle {
@@ -1523,11 +1528,11 @@ video.stories-view__frame {
 .stories-view__bars {
   position: absolute;
   z-index: 5;
-  top: max(10px, env(safe-area-inset-top, 0px));
-  left: 12px;
-  right: 64px;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  left: 10px;
+  right: 10px;
   display: flex;
-  gap: 5px;
+  gap: 3px;
   flex-shrink: 0;
   pointer-events: none;
 }
@@ -1535,20 +1540,20 @@ video.stories-view__frame {
 .stories-view__head {
   position: absolute;
   z-index: 5;
-  top: calc(max(10px, env(safe-area-inset-top, 0px)) + 14px);
-  left: 12px;
-  right: 64px;
+  top: calc(max(8px, env(safe-area-inset-top, 0px)) + 12px);
+  left: 10px;
+  right: 48px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   pointer-events: none;
-  text-shadow: 0 1px 2px color-mix(in srgb, #000 55%, transparent);
+  text-shadow: 0 1px 3px color-mix(in srgb, #000 65%, transparent);
 }
 
 .stories-view__head-face {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   overflow: hidden;
   background: color-mix(in srgb, #fff 18%, transparent);
@@ -1590,12 +1595,11 @@ video.stories-view__frame {
 
 .stories-view__bars > span {
   flex: 1;
-  height: 5px;
+  height: 2px;
   min-width: 8px;
   border-radius: 999px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, #fff 35%, transparent);
 }
 
 .stories-view__fill {
@@ -1653,18 +1657,26 @@ video.stories-view__frame {
   }
 }
 
+/* Как в Telegram: голый крестик рядом с именем, без круглой подложки */
 .stories-view__close {
   position: absolute;
   z-index: 5;
-  top: max(12px, env(safe-area-inset-top, 0px));
-  right: 12px;
-  width: 48px;
-  height: 48px;
+  top: calc(max(8px, env(safe-area-inset-top, 0px)) + 6px);
+  right: 4px;
+  width: 44px;
+  height: 44px;
   color: #fff;
-  background: color-mix(in srgb, #000 40%, transparent);
+  background: transparent;
   border: 0;
-  border-radius: 50%;
+  border-radius: 0;
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, #000 70%, transparent));
   -webkit-tap-highlight-color: transparent;
+}
+
+.stories-view__close svg {
+  display: block;
+  width: 26px;
+  height: 26px;
 }
 
 /* Тап по кружку на iPhone не должен сразу попасть в «далее» и закрыть сторис */

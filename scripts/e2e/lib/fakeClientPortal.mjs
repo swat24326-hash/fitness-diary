@@ -22,6 +22,7 @@ import { parseCycleSettingsInput, publicClientCycle } from '../../../src/lib/cli
 import { normalizeHealthSex } from '../../../src/lib/healthCardCore.js'
 import { sanitizeClientPlanPayload, summarizeClientPlan } from '../../../src/lib/clientPlans/clientPlanCore.js'
 import { fakeJwt } from './fakeBackend.mjs'
+import { handleClientStoryAction } from './fakeClientStories.mjs'
 
 /**
  * @param {object} state состояние fakeBackend
@@ -181,6 +182,15 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
         return { status: 200, json: { ok: true, cycle: publicClientCycle(parsed.value) } }
       }
       return { status: 400, json: { error: 'Неизвестное действие' } }
+    }
+
+    if (method !== 'GET' && String(body?.action ?? '').startsWith('story-')) {
+      const clientRow = state.clients.find((c) => c.id === clientId)
+      return handleClientStoryAction(state, {
+        clientId,
+        clubId: clientRow?.club_id,
+        body,
+      })
     }
 
     if (method !== 'GET') return { status: 200, json: { ok: true } }

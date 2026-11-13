@@ -183,7 +183,7 @@ export function StoryViewer({
           createdAt={current.story.created_at}
         />
         <button type="button" className="stories-view__close btn-touch" onClick={onClose} aria-label="Закрыть">
-          <X size={22} aria-hidden />
+          <X size={26} strokeWidth={2.25} aria-hidden />
         </button>
         <div className="stories-view__stage">
           {leaving ? (
