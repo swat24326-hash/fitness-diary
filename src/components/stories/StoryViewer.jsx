@@ -31,8 +31,8 @@ export function StoryViewer({
   const [reactBusy, setReactBusy] = useState(false)
   const [mineById, setMineById] = useState(() => Object.fromEntries(stories.map((s) => [s.id, s.my_reaction ?? null])))
   const [needsTap, setNeedsTap] = useState(false)
-  const [muted, setMuted] = useState(true)
   const mediaRef = useRef(null)
+  const unmutedRef = useRef(false)
   const {
     index,
     current,
@@ -72,33 +72,42 @@ export function StoryViewer({
 
   useEffect(() => {
     setNeedsTap(false)
-    setMuted(true)
+    unmutedRef.current = false
   }, [shown?.frameId])
 
   useEffect(() => {
     const el = mediaRef.current
-    if (!el || el.tagName !== 'VIDEO') return
+    if (!el || el.tagName !== 'VIDEO') return undefined
     if (paused) {
       el.pause()
-      return
+      return undefined
     }
-    el.muted = true
+    // Как в Telegram / Safari: стартуем muted, звук только через DOM — без смены React-prop muted
+    // (иначе iPhone играет ~1 с и зависает).
+    if (!unmutedRef.current) el.muted = true
+    let cancelled = false
     const run = el.play()
     if (run && typeof run.then === 'function') {
       run
         .then(() => {
+          if (cancelled) return
           setNeedsTap(false)
           try {
             el.muted = false
-            setMuted(false)
+            unmutedRef.current = true
           } catch {
             /* Safari может оставить muted */
           }
           onVideoPlaying()
         })
-        .catch(() => setNeedsTap(true))
+        .catch(() => {
+          if (!cancelled) setNeedsTap(true)
+        })
     }
-  }, [paused, shown?.frameId, fillReady, onVideoPlaying])
+    return () => {
+      cancelled = true
+    }
+  }, [paused, shown?.frameId, onVideoPlaying])
 
   if (!current) return null
   const cta = current.story.cta
@@ -107,7 +116,7 @@ export function StoryViewer({
   const mine = mineById[current.story.id] ?? null
   const videoShown = shown && storyMimeIsVideo(shown.mime)
   const videoLeaving = leaving && storyMimeIsVideo(leaving.mime)
-  const barRunning = playing && fillReady && !needsTap
+  const barRunning = playing && fillReady && !needsTap && !paused
 
   const pickReact = (emoji) => {
     if (!onReact || reactBusy) return
@@ -129,7 +138,7 @@ export function StoryViewer({
         setNeedsTap(false)
         try {
           el.muted = false
-          setMuted(false)
+          unmutedRef.current = true
         } catch {
           /* ignore */
         }
@@ -191,9 +200,8 @@ export function StoryViewer({
                 ref={mediaRef}
                 className={frameClass(motion ? `is-${motion}` : '')}
                 src={shown.src}
-                autoPlay
                 playsInline
-                muted={muted}
+                muted
                 preload="auto"
                 onLoadedMetadata={(e) => onVideoMeta(e.currentTarget.duration)}
                 onPlaying={onVideoPlaying}

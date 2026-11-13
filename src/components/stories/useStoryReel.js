@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { STORY_PHOTO_SEC, storyMimeIsVideo } from '../../lib/stories/storyClubCore.js'
+import { STORY_PHOTO_SEC } from '../../lib/stories/storyClubCore.js'
 import { warmStoryFrame } from '../../lib/stories/storyFrameWarmCache.js'
 import { revokeStoryFrameUrl, storyFrameObjectUrl } from '../../lib/stories/storyFrameSrcCore.js'
 import { storySwipeIntent } from '../../lib/stories/storyGestureCore.js'
@@ -9,6 +9,7 @@ import {
   storyReelAdvanceOnFill,
   storyReelFillSec,
   storyReelOpenBlocked,
+  storyReelPlaybackPaused,
 } from '../../lib/stories/storyReelCore.js'
 
 const HOLD_MS = 280
@@ -35,7 +36,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   const [shown, setShown] = useState(null)
   const [leaving, setLeaving] = useState(null)
   const [motion, setMotion] = useState('')
-  const [paused, setPaused] = useState(false)
+  const [userPaused, setUserPaused] = useState(false)
   const [error, setError] = useState('')
   const [fillSec, setFillSec] = useState(/** @type {number | null} */ (STORY_PHOTO_SEC))
   const [dragY, setDragY] = useState(0)
@@ -65,6 +66,13 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     const t = setTimeout(() => setOpenGuard(false), STORY_OPEN_GUARD_MS)
     return () => clearTimeout(t)
   }, [])
+
+  const blocked = () =>
+    storyReelOpenBlocked({
+      now: Date.now(),
+      guardUntil: guardUntil.current,
+      hasShown: Boolean(shownRef.current),
+    })
 
   const reveal = useCallback((next) => {
     const prev = shownRef.current
@@ -140,13 +148,13 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   }, [leaving])
 
   useEffect(() => {
-    const onVis = () => setPaused(document.hidden)
+    const onVis = () => setUserPaused(document.hidden)
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [])
 
   stepRef.current = (delta) => {
-    if (storyReelOpenBlocked(Date.now(), guardUntil.current)) return
+    if (blocked()) return
     const next = index + delta
     if (next >= flat.length) {
       if (onPeerRef.current?.(1)) return
@@ -173,11 +181,11 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   }, [])
 
   const finishPtr = (e) => {
-    if (storyReelOpenBlocked(Date.now(), guardUntil.current)) {
+    if (blocked()) {
       setDragY(0)
       ptr.current.dragging = false
       suppressClick.current = true
-      setPaused(false)
+      setUserPaused(false)
       return
     }
     const dx = e.clientX - ptr.current.x
@@ -187,35 +195,35 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     const intent = storySwipeIntent({ dx, dy })
     if (intent === 'close') {
       suppressClick.current = true
-      setPaused(false)
+      setUserPaused(false)
       onCloseRef.current()
       return
     }
     if (intent === 'peer-next') {
       suppressClick.current = true
-      setPaused(false)
+      setUserPaused(false)
       if (!onPeerRef.current?.(1)) stepRef.current(1)
       return
     }
     if (intent === 'peer-prev') {
       suppressClick.current = true
-      setPaused(false)
+      setUserPaused(false)
       if (!onPeerRef.current?.(-1)) stepRef.current(-1)
       return
     }
     if (performance.now() - holdAt.current >= HOLD_MS) suppressClick.current = true
-    setPaused(false)
+    setUserPaused(false)
   }
 
   const bindZone = (delta) => ({
     onPointerDown: (e) => {
-      if (storyReelOpenBlocked(Date.now(), guardUntil.current)) {
+      if (blocked()) {
         suppressClick.current = true
         return
       }
       holdAt.current = performance.now()
       ptr.current = { x: e.clientX, y: e.clientY, dragging: true }
-      setPaused(true)
+      setUserPaused(true)
       setDragY(0)
       try {
         e.currentTarget.setPointerCapture?.(e.pointerId)
@@ -234,10 +242,10 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     onPointerCancel: () => {
       setDragY(0)
       ptr.current.dragging = false
-      setPaused(false)
+      setUserPaused(false)
     },
     onClick: () => {
-      if (suppressClick.current || storyReelOpenBlocked(Date.now(), guardUntil.current)) {
+      if (suppressClick.current || blocked()) {
         suppressClick.current = false
         return
       }
@@ -281,6 +289,7 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
   )
 
   const fillReady = fillSec != null && fillSec >= 1
+  const paused = storyReelPlaybackPaused({ userPaused, held })
 
   return {
     index,
@@ -288,11 +297,11 @@ export function useStoryReel({ flat, loadFrame, onClose, onPeer, held = false })
     shown,
     leaving,
     motion,
-    paused: paused || held || (storyMimeIsVideo(shown?.mime) && !fillReady),
+    paused,
     error,
     fillSec,
     fillReady,
-    openGuard,
+    openGuard: openGuard || !shown,
     dragY,
     playing: Boolean(shown && shown.frameId === frameId && !error),
     bindZone,

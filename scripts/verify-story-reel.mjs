@@ -1,5 +1,5 @@
 /**
- * Полоска сторис: фото листает сама; видео — только ended; guard открытия; ложный ended.
+ * Полоска сторис: фото листает сама; видео — только ended; guard; без паузы до sec.
  * node scripts/verify-story-reel.mjs
  */
 import { STORY_PHOTO_SEC } from '../src/lib/stories/storyClubCore.js'
@@ -9,6 +9,7 @@ import {
   storyReelAdvanceOnFill,
   storyReelFillSec,
   storyReelOpenBlocked,
+  storyReelPlaybackPaused,
 } from '../src/lib/stories/storyReelCore.js'
 import { storyWarmTargets } from '../src/lib/stories/storyWarmTargetsCore.js'
 
@@ -20,9 +21,14 @@ function ok(cond, msg) {
   }
 }
 
-ok(STORY_OPEN_GUARD_MS >= 400 && STORY_OPEN_GUARD_MS <= 800, 'guard ~0.5 с')
-ok(storyReelOpenBlocked(1000, 1500), 'пока guard — блок')
-ok(!storyReelOpenBlocked(1600, 1500), 'после guard — можно листать')
+ok(STORY_OPEN_GUARD_MS >= 800 && STORY_OPEN_GUARD_MS <= 1500, 'guard ~1 с')
+ok(storyReelOpenBlocked({ now: 1000, guardUntil: 1500, hasShown: true }), 'пока guard — блок')
+ok(!storyReelOpenBlocked({ now: 1600, guardUntil: 1500, hasShown: true }), 'после guard — можно')
+ok(storyReelOpenBlocked({ now: 9999, guardUntil: 0, hasShown: false }), 'без кадра — блок (не закрывать)')
+
+ok(!storyReelPlaybackPaused({ userPaused: false, held: false }), 'нет паузы — играем')
+ok(storyReelPlaybackPaused({ userPaused: true, held: false }), 'удержание — пауза')
+ok(storyReelPlaybackPaused({ userPaused: false, held: true }), 'оверлей — пауза')
 
 ok(storyReelAdvanceOnFill('image/jpeg'), 'фото — полоска листает')
 ok(!storyReelAdvanceOnFill('video/mp4'), 'видео — полоска не листает')
@@ -36,6 +42,7 @@ ok(storyReelFillSec({ mime: 'video/mp4', sec: 90, photoSec: STORY_PHOTO_SEC }) =
 
 ok(!storyReelAcceptVideoEnded({ hasStarted: false, currentTime: 0, duration: 10 }), 'без play — не ended')
 ok(!storyReelAcceptVideoEnded({ hasStarted: true, currentTime: 0.1, duration: 10 }), 'ранний нуль — не ended')
+ok(!storyReelAcceptVideoEnded({ hasStarted: true, currentTime: 3, duration: 10 }), 'середина — не ended')
 ok(storyReelAcceptVideoEnded({ hasStarted: true, currentTime: 9.8, duration: 10 }), 'досмотрели — ok')
 
 {

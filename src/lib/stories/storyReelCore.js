@@ -5,7 +5,7 @@
 import { storyMimeIsVideo } from './storyClubCore.js'
 
 /** После открытия кружка тот же тап на iPhone попадает в «далее» и закрывает сторис. */
-export const STORY_OPEN_GUARD_MS = 550
+export const STORY_OPEN_GUARD_MS = 1000
 
 /**
  * @param {string | null | undefined} mime
@@ -28,11 +28,21 @@ export function storyReelFillSec({ mime, sec, photoSec }) {
 }
 
 /**
- * Тап, открывший кружок, ещё «живой» — зоны листания не принимать.
- * @param {number} now
- * @param {number} guardUntil
+ * Пауза воспроизведения: только удержание / оверлей.
+ * Нельзя ставить на паузу из‑за «полоска ещё без sec» — на iPhone играет 1 с и зависает.
+ * @param {{ userPaused?: boolean, held?: boolean }} p
  */
-export function storyReelOpenBlocked(now, guardUntil) {
+export function storyReelPlaybackPaused({ userPaused, held }) {
+  return Boolean(userPaused) || Boolean(held)
+}
+
+/**
+ * Тап, открывший кружок, ещё «живой» — зоны листания не принимать.
+ * Пока кадр не показан — тоже: иначе «далее» закрывает пустой просмотр.
+ * @param {{ now: number, guardUntil: number, hasShown?: boolean }} p
+ */
+export function storyReelOpenBlocked({ now, guardUntil, hasShown = true }) {
+  if (!hasShown) return true
   return Number(now) < Number(guardUntil)
 }
 
@@ -45,5 +55,6 @@ export function storyReelAcceptVideoEnded({ currentTime, duration, hasStarted })
   const t = Number(currentTime) || 0
   const d = Number(duration) || 0
   if (Number.isFinite(d) && d >= 1.5 && t < 0.6) return false
+  if (Number.isFinite(d) && d >= 1.5 && t < d * 0.5) return false
   return true
 }
