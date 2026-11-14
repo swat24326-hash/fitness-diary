@@ -9,13 +9,14 @@ import '../../styles/membership-early-activate.css'
  * @param {{
  *   open: boolean,
  *   mode?: 'early' | 'late',
- *   proposal: {
- *     from: { start: string, end: string },
- *     to: { start: string, end: string },
- *     daysShift: number,
- *     durationLabel?: string,
- *     warnFar?: boolean,
- *   } | null,
+ *     proposal: {
+     *     from: { start: string, end: string },
+     *     to: { start: string, end: string },
+     *     daysShift: number,
+     *     durationLabel?: string,
+     *     warnFar?: boolean,
+     *     warnOverlapDepleted?: boolean,
+     *   } | null,
  *   busy?: boolean,
  *   error?: string,
  *   allowSkipWithoutShift?: boolean,
@@ -107,6 +108,13 @@ export function EarlyMembershipActivateSheet({
         {!isLate && proposal.warnFar ? (
           <p className="membership-early-activate-sheet__warn" role="status">
             Плановый старт был больше чем через 14 дней — проверьте, что сдвиг нужен.
+          </p>
+        ) : null}
+
+        {isLate && proposal.warnOverlapDepleted ? (
+          <p className="membership-early-activate-sheet__warn" role="status">
+            Срок пересекается с уже закрытым по лимиту абонементом — списание пойдёт с нового. Можно
+            подтвердить сдвиг или продолжить без него.
           </p>
         ) : null}
 

@@ -269,6 +269,18 @@ export function canOfferEarlyMembershipActivation(memberships, dateIso) {
 }
 
 /**
+ * Другой абон мешает позднему сдвигу при пересечении дат:
+ * есть остаток занятий или пакет без лимита (календарный).
+ * Исчерпанный по лимиту (total>0, used≥total) — не мешает (только предупреждение).
+ * @param {object | null | undefined} other
+ */
+export function membershipBlocksLateStartOverlap(other) {
+  if (!other) return false
+  if (isCalendarUnlimitedMembership(other)) return true
+  return membershipHasRemaining(other)
+}
+
+/**
  * Сдвиг срока уже стартовавшего абона на дату первой тренировки (длина та же).
  * Только если ещё не списывали занятия (поле + дневник) и опоздание ≤ LATE_START_MAX_SHIFT_DAYS.
  *
@@ -283,6 +295,7 @@ export function canOfferEarlyMembershipActivation(memberships, dateIso) {
  *   daysShift: number,
  *   periodDays: number,
  *   warnFar: boolean,
+ *   warnOverlapDepleted: boolean,
  * } | { ok: false, error: string }}
  */
 export function proposeLateMembershipStart(membership, activateOnIso, opts = {}) {
@@ -313,11 +326,14 @@ export function proposeLateMembershipStart(membership, activateOnIso, opts = {})
   const nextPeriod = { start_date: toStart, end_date: toEnd }
   const selfId = String(membership.id)
   const others = opts.otherMemberships ?? []
+  let warnOverlapDepleted = false
   for (const other of others) {
     if (!other || String(other.id ?? '') === selfId) continue
-    if (membershipPeriodsOverlap(nextPeriod, other)) {
+    if (!membershipPeriodsOverlap(nextPeriod, other)) continue
+    if (membershipBlocksLateStartOverlap(other)) {
       return { ok: false, error: 'overlap' }
     }
+    warnOverlapDepleted = true
   }
 
   const snap = readMembershipDurationSnapshot(membership)
@@ -330,6 +346,7 @@ export function proposeLateMembershipStart(membership, activateOnIso, opts = {})
     periodDays,
     durationLabel: snap ? formatMembershipDurationLabel(snap) : '',
     warnFar: false,
+    warnOverlapDepleted,
   }
 }
 
@@ -378,7 +395,7 @@ export function inspectLateMembershipStart(memberships, dateIso, clientTrainings
       membership: usable,
       daysLate,
       message:
-        'Срок абонемента уже идёт, а сдвиг от первой тренировки нельзя: новые даты пересеклись бы со следующим абонементом. Можно провести тренировку без сдвига.',
+        'Срок абонемента уже идёт, а сдвиг от первой тренировки нельзя: новые даты пересеклись бы с другим абонементом, у которого ещё есть занятия или безлимит. Можно провести тренировку без сдвига.',
     }
   }
   if (proposal.error === 'too_late') {

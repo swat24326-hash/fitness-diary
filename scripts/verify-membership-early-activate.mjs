@@ -7,6 +7,7 @@ import {
   canOfferLateMembershipStart,
   canStartNewTrainingForMemberships,
   inspectLateMembershipStart,
+  membershipBlocksLateStartOverlap,
   membershipPeriodDayCount,
   membershipPeriodsOverlap,
   pickEarliestUpcomingMembership,
@@ -150,7 +151,36 @@ ok(membershipPeriodsOverlap({ start_date: '2026-08-12', end_date: '2026-09-11' }
 const lateOverlap = proposeLateMembershipStart(lateBase, firstVisit, {
   otherMemberships: [lateBase, nextMem],
 })
-ok(lateOverlap.ok === false && lateOverlap.error === 'overlap', 'late shift blocked by next membership')
+ok(lateOverlap.ok === false && lateOverlap.error === 'overlap', 'late shift blocked by next membership with remaining')
+ok(membershipBlocksLateStartOverlap(nextMem) === true, 'remaining membership blocks late overlap')
+
+const depletedOther = {
+  id: 'late-depleted',
+  start_date: '2026-07-20',
+  end_date: '2026-08-20',
+  total_trainings: 4,
+  used_trainings: 4,
+}
+ok(membershipPeriodsOverlap({ start_date: '2026-08-12', end_date: '2026-09-11' }, depletedOther), 'depleted other overlaps shifted period')
+ok(membershipBlocksLateStartOverlap(depletedOther) === false, 'depleted limited does not hard-block')
+const lateDepleted = proposeLateMembershipStart(lateBase, firstVisit, {
+  otherMemberships: [lateBase, depletedOther],
+})
+ok(lateDepleted.ok === true && lateDepleted.warnOverlapDepleted === true, 'late shift ok with warn when only depleted overlaps')
+ok(canOfferLateMembershipStart([depletedOther, lateBase], firstVisit), 'can offer late when only depleted overlaps')
+
+const unlimitedOther = {
+  id: 'late-unlim',
+  start_date: '2026-08-01',
+  end_date: '2026-09-01',
+  total_trainings: 0,
+  used_trainings: 0,
+}
+ok(membershipBlocksLateStartOverlap(unlimitedOther) === true, 'unlimited blocks late overlap')
+const lateUnlim = proposeLateMembershipStart(lateBase, firstVisit, {
+  otherMemberships: [lateBase, unlimitedOther],
+})
+ok(lateUnlim.ok === false && lateUnlim.error === 'overlap', 'late shift blocked by unlimited overlap')
 
 const diaryTrainings = [
   {
@@ -170,6 +200,12 @@ const inspOffer = inspectLateMembershipStart([lateBase], firstVisit, [])
 ok(inspOffer.status === 'offer', 'inspect offer')
 const inspOverlap = inspectLateMembershipStart([lateBase, nextMem], firstVisit, [])
 ok(inspOverlap.status === 'blocked' && inspOverlap.reason === 'overlap' && inspOverlap.message, 'inspect overlap blocked with message')
+ok(inspOverlap.message.includes('занятия') || inspOverlap.message.includes('безлимит'), 'inspect overlap message mentions remaining/unlimited')
+const inspDepleted = inspectLateMembershipStart([depletedOther, lateBase], firstVisit, [])
+ok(
+  inspDepleted.status === 'offer' && inspDepleted.proposal?.warnOverlapDepleted === true,
+  'inspect depleted overlap → offer with warn',
+)
 const inspTooLate = inspectLateMembershipStart([lateBase], '2026-08-26', [])
 ok(inspTooLate.status === 'blocked' && inspTooLate.reason === 'too_late', 'inspect too_late blocked')
 const inspDiary = inspectLateMembershipStart([lateBase], firstVisit, diaryTrainings)
