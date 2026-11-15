@@ -130,10 +130,6 @@ export function SalesDailyPzTrainingsImportSection({
   return (
     <section className="sales-report__card sales-payments-import sales-daily-excel-card" aria-label="Excel часов ПЗ">
       <h3 className="sales-report__section-title">Каждый день: Excel часов ПЗ</h3>
-      <p className="sales-report__hint sales-daily-excel-card__lead">
-        Файл <strong>otchet_pz.xlsx</strong> — тренер × тип карты. Отчёт менеджера, не статистика планшетов.
-        «Подставить» → матрица ниже → «Сохранить». «Отмена» — сбросить выбранный файл.
-      </p>
       <label className={`sales-payments-import__file${canEdit ? '' : ' sales-payments-import__file--disabled'}`}>
         <FileSpreadsheet size={18} aria-hidden />
         <span>{busy ? 'Читаю…' : fileName || 'Выбрать .xlsx'}</span>

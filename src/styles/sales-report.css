@@ -484,12 +484,57 @@
   font-weight: 700;
 }
 
+.sales-report__daily-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.65rem;
+}
+
+.sales-daily-excel-row + .sales-report__card {
+  margin-top: 0;
+  padding-top: 0.75rem;
+}
+
+.sales-report__pnk-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.sales-report__pnk-inline > svg {
+  flex-shrink: 0;
+  color: var(--accent-bright);
+  opacity: 0.85;
+}
+
+.sales-report__pnk-inline > label {
+  font-size: 0.8rem;
+  color: var(--muted, #94a3b8);
+  white-space: nowrap;
+}
+
+.sales-report__pnk-input {
+  width: 4.5rem;
+  max-width: 100%;
+  text-align: center;
+}
+
 .sales-report__date-stepper {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.sales-report__date-stepper--end {
+  justify-content: flex-end;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .sales-report__date-pill {
@@ -5455,12 +5500,11 @@
 
 
 
-/* ?????? ?????? ?? ??????? (1?) */
 .sales-daily-excel-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.65rem;
+  margin-bottom: 0.45rem;
   align-items: stretch;
 }
 @media (max-width: 900px) {
@@ -5471,7 +5515,10 @@
 .sales-daily-excel-card {
   display: flex;
   flex-direction: column;
-  min-height: 11rem;
+  min-height: 0;
+  margin-bottom: 0;
+}
+.sales-daily-excel-row .sales-payments-import {
   margin-bottom: 0;
 }
 .sales-daily-excel-card__lead {
