@@ -1,8 +1,10 @@
-# Чеклист Supabase и Auth перед продом / крупным клубом
+# Чеклист Supabase и Auth (архив до R4)
 
-Выполнять **до** подключения нового клуба с большим числом тренеров или после смены домена/проекта Supabase.
+**Статус:** 🗄 **архив.** Актуальные проверки прода — [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md).
 
-> **С 01.10.2026 prod — `https://app-core.ru` (ВМ + Managed PG, свой Auth).** Проверки безопасности прода — [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md). **Supabase-проект удалён 16.10 (R4).** Этот файл — архив чеклиста старого контура.
+Исторически: выполнять **до** подключения нового клуба или после смены домена/проекта Supabase.
+
+> **С 01.10.2026 prod — `https://app-core.ru` (ВМ + Managed PG, свой Auth).** Supabase-проект удалён 16.10 (R4).
 
 Production app (до 01.10): **https://fitness-diary-bice.vercel.app** — теперь redirect.
 

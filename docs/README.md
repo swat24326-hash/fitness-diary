@@ -1,7 +1,7 @@
 # Документация fitness-diary (**Ядро**)
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).  
-Системная карта (API / SYNC / DATA_MODEL / DEPLOY / handoff) сверена с кодом **2026-09-01**.
+Системная карта (точки входа: handoff / RELEASE / DEPLOY / PATH / STRATEGY) сверена с прод-контуром **2026-11-16** (R3+R4: `app-core.ru`). Узкие docs (API / SYNC / DATA_MODEL) обновлять по смене поведения в той же задаче.
 
 **С чего начать:** [`AGENTS.md`](../AGENTS.md) (короткий вход) → [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) → [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) (экономия) → [PRODUCT_VISION.md](./PRODUCT_VISION.md) → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) → карта ниже.
 
@@ -32,26 +32,34 @@
 
 | Файл | Когда читать |
 |------|--------------|
-| [DEPLOY.md](./DEPLOY.md) | Первый выклад в интернет (полная инструкция) |
-| [SUPABASE_FIRST_DEPLOY.md](./SUPABASE_FIRST_DEPLOY.md) | Краткая шпаргалка: env + schema + RLS |
-| [RELEASE.md](./RELEASE.md) | Чеклист перед merge и prod-деплоем |
+| [DEPLOY.md](./DEPLOY.md) | Выкладка на ВМ (прод); в конце — архив Vercel/Supabase |
+| [RELEASE.md](./RELEASE.md) | Чеклист перед merge и prod-деплоем на `app-core.ru` |
 | [RUNBOOK.md](./RUNBOOK.md) | **Что делать сейчас:** sync, PWA, клубы ≠ облако (процедуры) |
-| [PRE_R3_OWNER.md](./PRE_R3_OWNER.md) | **До пилота РФ:** биллинг Yandex, дожим INC, домен, чеклист ночи R3 |
-| [R3_DOMAIN.md](./R3_DOMAIN.md) | **Домен к R3:** покупка `.ru`, DNS, Let's Encrypt, `PUBLIC_ORIGIN`, текст для зала |
-| [R3_NIGHT.md](./R3_NIGHT.md) | **Ночь переезда 30.09→01.10:** порядок, команды на ВМ, перенос данных, откат |
 | [FRIEND_CLUB_NOTE.md](./FRIEND_CLUB_NOTE.md) | Черновик в мессенджер: бесплатный доступ другу-клубу (ПДн простым языком) |
 | [FRIEND_CLUB_AGREEMENT.md](./FRIEND_CLUB_AGREEMENT.md) | Черновик простого договора с клубом-другом (не замена юристу) |
 | [PD_152FZ.md](./PD_152FZ.md) | Персональные данные: кто оператор, документы ваши и клуба, порядок при утечке, шаблон согласия, план |
 | [INCIDENTS.md](./INCIDENTS.md) | **Журнал кейсов:** контуры (зал / админ / продажи / связь / инфра) + коды A–Q; ведёт агент по чату |
 | [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md) | Безопасность прода на РФ-контуре: verify, проверки снаружи и на ВМ |
-| [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Старый контур Supabase (до R4): Auth, RLS, `users.id` |
 | [PUSH_SETUP.md](./PUSH_SETUP.md) | Web Push / VAPID (планёрка, задания) |
 | [DEVICE_HEALTH.md](./DEVICE_HEALTH.md) | Центр сбоев устройств: планшет сообщает о сбое, push админу, `/admin/health` |
 | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) | Клубные SMS и звонки «Мои Звонки»: **в проде** + журнал связи (список/сводка/SMS) |
 | [PWA.md](./PWA.md) | Установка на планшет, SW, обновление после деплоя |
-| [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md) | Переход Vercel/Supabase на платные тарифы |
 | [DEEP_AUDIT.md](./DEEP_AUDIT.md) | Глубокий аудит критических зон перед релизом |
 | [MEMORIES.md](./MEMORIES.md) | Журнал findings аудита |
+
+### Архив переезда РФ / старый US-контур
+
+Не текущая инструкция для выкладки. Читать при разборе истории или локальном демо со старым стеком.
+
+| Файл | Заметка |
+|------|---------|
+| [PRE_R3_OWNER.md](./PRE_R3_OWNER.md) | Чеклист владельца **до** пилота R3 (уже пройден) |
+| [R3_DOMAIN.md](./R3_DOMAIN.md) | Покупка `.ru`, DNS, Let's Encrypt к R3 |
+| [R3_NIGHT.md](./R3_NIGHT.md) | Ночь cutover 30.09→01.10 — порядок и откат |
+| [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) | Стенд R2 / Hybrid A / True C2 (история + полезно для нового стенда) |
+| [SUPABASE_FIRST_DEPLOY.md](./SUPABASE_FIRST_DEPLOY.md) | Шпаргалка env + schema + RLS эпохи Supabase |
+| [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Auth/RLS старого контура (до R4) |
+| [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md) | Апгрейд Vercel/Supabase Pro — **не актуален** после R4 |
 
 ---
 
@@ -77,14 +85,14 @@
 | [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md) | **Чеклист vs DDX:** что есть / частично / позже (турникет, B2C, касса, сайт…) |
 | [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
 | [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт P1–P3 §5.8; стек/TS vs переезд **§5.9** |
-| [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Вход сейчас (Supabase) vs свой Auth на Yandex; шов `authPort` готов; JWT — по команде R2 |
+| [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Шов Auth: было Supabase → свой JWT (`AUTH_PROVIDER=own` на проде ✅) |
 | [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) | Стенд R2: волна 1 Hybrid A ✅ 2026-09-26; волны 2–3, migrate:pg, portable host / Docker |
-| [PRE_R3_OWNER.md](./PRE_R3_OWNER.md) | **Владелец до R3:** биллинг Yandex, дожим INC зала, домен, чеклист ночи пилота |
-| [R3_DOMAIN.md](./R3_DOMAIN.md) | Свой `.ru` к R3: покупка, DNS, HTTPS, origin |
-| [R3_NIGHT.md](./R3_NIGHT.md) | Ночь R3: перенос данных, адрес, проверка, откат |
+| [PRE_R3_OWNER.md](./PRE_R3_OWNER.md) | 🗄 архив: чеклист владельца до R3 (пилот пройден) |
+| [R3_DOMAIN.md](./R3_DOMAIN.md) | 🗄 архив: `.ru` к R3 |
+| [R3_NIGHT.md](./R3_NIGHT.md) | 🗄 архив cutover + справочник откат/контура |
 | [GROKBOT_CONTEXT.md](./GROKBOT_CONTEXT.md) | Память GrokBot (исполнитель в Yandex Cloud) вне подписки: роли, риски, состояние стенда, журнал |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Фазы 0–4: что сделано и ongoing |
-| [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов и платные тарифы |
+| [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов; разделы Pro US — архив после R4 |
 | [DATA_VOLUME.md](./DATA_VOLUME.md) | Оценка объёма БД, пороги pull-by-period |
 | [BUNDLE_MEASURE.md](./BUNDLE_MEASURE.md) | Метрика размера JS-бандла (что тянет вес) |
 | [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md) | Журнал метрик клуба, когда переходить на Pro |

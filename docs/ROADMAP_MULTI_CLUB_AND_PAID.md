@@ -1,8 +1,10 @@
 # План дальнейших изменений: новые клубы и платные тарифы
 
-Документ для команды и AI-агента: **что делать дальше**, когда подключаем 2-й, 3-й клуб или переходим на Vercel Pro / Supabase Pro.
+**Актуально по хостингу:** 2026-11-16 — прод на `app-core.ru` (R3+R4). Разделы про апгрейд **Vercel Pro / Supabase Pro** — 🗄 архив; не делать. Мульти-клуб и объём данных — смотреть [CAPACITY_PLAN.md](./CAPACITY_PLAN.md), [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md), [PATH_TO_GOAL.md](./PATH_TO_GOAL.md).
 
-**Сейчас (2026-07):** 1 клуб, Free Supabase + Hobby Vercel, масштабирование в коде **сделано** (IDB v10, индексы SQL, лимиты API, пагинация, `npm run check:volume`).
+Документ для команды и AI-агента: **что делать дальше** при 2-м / 3-м клубе. Исторически включал переход на Vercel/Supabase Pro.
+
+**Было (2026-07):** 1 клуб, Free Supabase + Hobby Vercel, масштабирование в коде **сделано** (IDB, индексы SQL, лимиты API, пагинация, `npm run check:volume`).
 
 Связанные документы:
 
@@ -73,7 +75,7 @@ npm run check:volume
 
 1. Апгрейд проекта на [vercel.com](https://vercel.com) → Pro (~$20/мес).
 2. Проверить env: `VITE_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY` без изменений.
-3. `git push` + `npx vercel --prod --yes` (как обычно).
+3. `git push` + деплой на ВМ ([RELEASE.md](./RELEASE.md)); исторически было `npx vercel --prod`.
 4. `npm run qa` и `npm run qa:roles` на prod.
 5. Запись в GROWTH_PLAYBOOK: Vercel = Pro.
 
@@ -205,21 +207,21 @@ npm run lint
 npm run qa:local
 git add … && git commit -m "…"
 git push origin main
-npx vercel --prod --yes
+# на ВМ: миграции при необходимости, затем deploy-vm.sh — см. RELEASE.md
 npm run qa:roles
 ```
 
-Prod: https://fitness-diary-bice.vercel.app
+Prod: https://app-core.ru
 
-Новые SQL-миграции: Supabase SQL Editor или `npm run db:migrate:scalability -- --linked` (для индексов).
+Новые SQL-миграции: `scripts/r2-pg-migrate-vm.sh` на ВМ (или `npm run db:migrate:pg` на стенде).
 
 ---
 
 ## 7. Что не планируем «заранее»
 
 - Полный рефакторинг `TrainingForm` / `syncService` без фичи.
-- Новые Vercel functions сверх 12.
-- Supabase Pro «на всякий случай» при 64 клиентах и 386 тренировках.
+- Плодить `api/*.js` без нужды (лучше `admin-data?action=`).
+- Платить за US SaaS «на всякий случай» — прод уже на Yandex.
 - Отдельный микросервис — один Vercel + один Supabase достаточно до 5–10 клубов.
 
 ---

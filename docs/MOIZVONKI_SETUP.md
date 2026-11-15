@@ -4,7 +4,7 @@
 **Входящие (MVP):** код + миграция `direction` (2026-08-16). Webhook создаёт «Вход.» **только** если Мои Звонки явно передали входящее направление (`direction`/`incoming`); иначе не угадываем. Один клуб на login МЗ. После деплоя API.
 **Per-club:** ✅ свой аккаунт на клуб (`club_iskra_settings.moizvonki`); общий `MOIZVONKI_*` — запасной.  
 **Не путать с:** Max у тренера (личный чат) и с номерным Max-шлюзом.
-**Прод:** https://fitness-diary-bice.vercel.app · миграции `club_call_log` + `outcome` (см. ниже).
+**Прод:** https://app-core.ru · миграции `club_call_log` + `outcome` (см. ниже).
 
 ## Зачем
 

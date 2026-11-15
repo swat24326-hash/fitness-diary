@@ -40,10 +40,10 @@ npx web-push generate-vapid-keys
 
 ```bash
 git push origin main
-npx vercel --prod --yes
+# на ВМ (через стенд): cd /opt/fitness-diary && sudo bash scripts/deploy-vm.sh origin/main
 ```
 
-См. [RELEASE.md](./RELEASE.md).
+См. [RELEASE.md](./RELEASE.md). `vercel --prod` не использовать (R4).
 
 ## 4. Проверка на планшете
 
@@ -59,7 +59,7 @@ GET `admin-data?action=push-subscription` доступен ролям `admin`, `
 
 ## 5. Если push не пришёл
 
-- Нет VAPID на Vercel → задания всё равно в приложении.
+- Нет VAPID в `.env` на ВМ → задания всё равно в приложении.
 - Не дали разрешение браузеру.
 - iOS без «На экран Домой».
 - Тренер не нажал «Включить» в профиле.
@@ -72,10 +72,10 @@ GET `admin-data?action=push-subscription` доступен ролям `admin`, `
 ## 6. Microsoft Edge (ошибка «push service error»)
 
 1. **Windows:** Параметры → Система → Уведомления → **Microsoft Edge** — включено.
-2. **Edge:** `edge://settings/content/notifications` — сайт `fitness-diary-bice.vercel.app` в «Разрешить».
+2. **Edge:** `edge://settings/content/notifications` — сайт `https://app-core.ru` в «Разрешить».
 3. Закройте **InPrivate** и корпоративный VPN (блокируют WNS).
 4. Обновите страницу (Ctrl+F5) и нажмите **Включить** снова.
-5. Если не помогло — проверьте VAPID в Vercel (`npx web-push generate-vapid-keys`, redeploy).
+5. Если не помогло — проверьте VAPID в `.env` на ВМ (`scripts/push-vapid-setup-vm.sh`, затем деплой).
 6. Временный обход: **Chrome** на том же ПК — push там обычно стабильнее.
 
 ## Файлы

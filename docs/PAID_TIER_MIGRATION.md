@@ -1,8 +1,14 @@
-# Переход на платные тарифы (перед крупным заказом)
+# Переход на платные тарифы (архив US SaaS)
 
-Документ-памятка. **Не оплачивать заранее** — только когда объём клуба упирается в лимиты free tier.
+**Статус:** 🗄 **архив** (2026-11-16). Прод на Yandex VM + Managed PG с 01.10; Vercel/Supabase сняты в R4 (27.10). Апгрейд Hobby→Pro **не актуален**. Ёмкость и надёжность сейчас — [CAPACITY_PLAN.md](./CAPACITY_PLAN.md), [RELIABILITY_PLAN.md](./RELIABILITY_PLAN.md), [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md).
 
-Если цель — **данные и API в РФ**, смотрите сначала [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md): свой хостинг может снять лимит Vercel Hobby без апгрейда Pro.
+Ниже — памятка эпохи Free tier. **Не оплачивать** и не применять к текущему прод.
+
+---
+
+Документ-памятка (исторически). **Не оплачивать заранее** — только когда объём клуба упирался в лимиты free tier.
+
+Если цель была **данные и API в РФ** — см. [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md): свой хостинг снимал лимит Vercel Hobby без апгрейда Pro.
 
 ## Когда пора
 

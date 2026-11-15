@@ -1,8 +1,8 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-**Актуально:** 2026-09-01. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
+**Актуально:** 2026-11-16. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
-**Сначала:** [`AGENTS.md`](../AGENTS.md) → [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) → [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) (экономия) → крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (код сегодня) → [README.md](./README.md) → [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Жалобы и кейсы: [INCIDENTS.md](./INCIDENTS.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ; **код L3/кассы — после R3+ (РФ)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
+**Сначала:** [`AGENTS.md`](../AGENTS.md) → [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) → [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) (экономия) → крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (код сегодня) → [README.md](./README.md) → [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Жалобы и кейсы: [INCIDENTS.md](./INCIDENTS.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ; **код L3/кассы — очередь PATH #6–10** (РФ-прод уже ✅). Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
 **Роль агента:** вести процесс к конечной цели (ритуал и очередь ставок — PATH_TO_GOAL §4–5); владельцу — кабинеты, оплата, пароли, явные go/no-go. Правило: `.cursor/rules/fitness-diary-north-star-lead.mdc`.
 
@@ -76,7 +76,7 @@ src/
     trainer/              — home, clients, ClientCard, TrainingPage, profile
   components/pnk/         — UI воронки ПНК
 api/
-  *.js                    — тонкие handlers (лимит Hobby ≤12 functions)
+  *.js                    — тонкие handlers (на ВМ лимита Hobby нет; предпочтительно admin-data?action=)
   _lib/                   — ядро: pushRecordCore, *Agg, adminData/*, iskra*, …
 server/                   — portable host + /api/health (prep R2 / РФ)
 supabase/
@@ -127,8 +127,8 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | trainer / sales_manager / supervisor / admin | `/messages/chat/:clientId/:kind` — переписка с клиентом (админ — из карточки клиента), [CHAT.md](./CHAT.md) |
 | клиент (токен клиента) | `/me/inbox` — «Сообщения»: диалоги с тренером, менеджером, управляющим + объявления и опросы; `/me/chat/:kind` — диалог ([CHAT.md](./CHAT.md)) |
 | admin | `/admin/*` (clients, **client-lists**, **deletion-log**, **call-log**, **excel-lists**, **inbox** — рассылки клиентам и команде ([INBOX.md](./INBOX.md)), statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
-- Без Supabase: fallback в `localStorage`, демо-данные.
-- С Supabase: `signInWithPassword` (+ при необходимости `/api/auth-sign-in`), профиль из `users`.
+- Без URL/ключа в `.env`: fallback в `localStorage`, демо-данные.
+- Прод / свой Auth: вход через `/api/auth-sign-in` (и совместимый клиентский путь), профиль из `users` (`AUTH_PROVIDER=own`). Имена `VITE_SUPABASE_*` — исторические (на проде URL = `https://app-core.ru`).
 
 **Маршруты** (`App.jsx`):
 

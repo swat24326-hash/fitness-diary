@@ -1,6 +1,6 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-08-20. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-11-16. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/` (имена исторические; на прод PG — `scripts/r2-pg-migrate-vm.sh`).  
 На bare Postgres (C2 / Yandex): сначала `supabase/c2_auth_stub.sql` через `npm run db:migrate:pg` — см. [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 

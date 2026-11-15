@@ -1,8 +1,10 @@
 # До R3 — что сделать владельцу (простым языком)
 
-**Актуально:** 2026-09-30  
-**Зачем:** шаги **до** команды «стартуем R3…».  
-**Не путать:** стенд C2 уже принят; прод клуба пока Vercel + Supabase.
+**Статус:** 🗄 **архив** (R3 выполнен 01.10.2026). Оставлен как журнал подготовки. Актуальный деплой — [RELEASE.md](./RELEASE.md), [DEPLOY.md](./DEPLOY.md).
+
+**Актуально на момент подготовки:** 2026-09-30  
+**Зачем тогда:** шаги **до** команды «стартуем R3…».  
+**На тот момент:** стенд C2 принят; прод клуба ещё был Vercel + Supabase.
 
 Связано: [PATH_TO_GOAL.md](./PATH_TO_GOAL.md), [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) (волна 3), [R3_DOMAIN.md](./R3_DOMAIN.md), [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) §5.4 R3, [INCIDENTS.md](./INCIDENTS.md).
 

@@ -1,6 +1,6 @@
 # Playbook агента Cursor
 
-**Актуально:** 2026-09-06  
+**Актуально:** 2026-11-16  
 **Для кого:** новый чат / другая модель — **с чего начать**, куда смотреть, что не читать зря.
 
 Политика кода — `.cursor/rules/`. Этот файл — **маршрут по задачам**, не дубль правил.  
@@ -45,8 +45,8 @@
 | **Статистика / agg / ИСКРА** | [COACH_QUALITY.md](./COACH_QUALITY.md), [CODE_TRACE.md](./CODE_TRACE.md) §I–J | `fitness-diary-domain.mdc` | `verify-stats-agg-parity`, `verify-club-*` |
 | **Продажи / прогноз / Excel** | [SALES_MANAGER.md](./SALES_MANAGER.md), [CODE_TRACE.md](./CODE_TRACE.md) §M–N | `fitness-diary-scale.mdc` | `verify-sales-*`, `verify-club-finance-*` |
 | **Новая фича** | [PATH_TO_GOAL.md](./PATH_TO_GOAL.md), [PRODUCT_VISION.md](./PRODUCT_VISION.md) | `fitness-diary-features.mdc` → architecture, file-structure | lint + verify по ветвлениям |
-| **API / auth / RLS** | [API.md](./API.md), [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | `fitness-diary-security.mdc`, `fitness-diary-supabase.mdc` | `verify-security-l1-audit` |
-| **Деплой / прод** | [RELEASE.md](./RELEASE.md) | `fitness-diary-ship.mdc` | `lint` + релевантный qa |
+| **API / auth / RLS** | [API.md](./API.md), [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md) (архив US: [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md)) | `fitness-diary-security.mdc`, `fitness-diary-supabase.mdc` | `verify-security-l1-audit` |
+| **Деплой / прод** | [RELEASE.md](./RELEASE.md), [DEPLOY.md](./DEPLOY.md) | `fitness-diary-ship.mdc` | `lint` + релевантный qa |
 | **Инцидент инфра** | [RUNBOOK.md](./RUNBOOK.md), INCIDENTS **P** / **Q** | `fitness-diary-hosting-portability.mdc` | По симптому |
 
 **Коды жалоб (кратко):** зал A–H · админ I–L · продажи M–N · связь O · инфра P–Q — таблица в [INCIDENTS.md](./INCIDENTS.md) §2.
@@ -146,4 +146,4 @@
 | Критический путь зала | [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
 | История багов | [INCIDENTS.md](./INCIDENTS.md) |
 | Симптом → файлы в репо | [CODE_TRACE.md](./CODE_TRACE.md) |
-| Prod URL | https://fitness-diary-bice.vercel.app |
+| Prod URL | https://app-core.ru |

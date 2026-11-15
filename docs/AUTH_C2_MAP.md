@@ -1,16 +1,15 @@
-# Вход в приложение: сейчас и на Yandex (C2)
+# Вход в приложение: Supabase Auth → свой Auth (C2)
 
-**Актуально:** 2026-09-29.  
-**Для кого:** владелец и разработчик перед стендом R2.  
-**Статус:** свой вход **в коде** (`AUTH_PROVIDER=own`: хеш scrypt + JWT). На проде и на стенде флаг **выключен** — браузер всё ещё проверяет сессию у Supabase. Runbook: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).
+**Актуально:** 2026-11-16.  
+**Статус:** на проде **`AUTH_PROVIDER=own`** (с R3, 01.10) — хеш scrypt + JWT; Supabase Auth снят в R4. Ниже — карта шва и **история** перехода; разделы «сейчас Vercel» читать как «было до cutover».
 
-Простыми словами: на проде «охранник на входе» — сервис Supabase Auth. На российском хостинге охранник наш: сервер проверяет пароль и выдаёт свой пропуск (токен). Это уже в коде и включается флагом `AUTH_PROVIDER=own`. На проде и на стенде флаг выключен, зал работает как раньше.
+Простыми словами: охранник на входе — наш сервер: проверяет пароль и выдаёт свой пропуск (токен). Флаг `AUTH_PROVIDER=own`.
 
-Связано: [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) (C2 + Yandex), [API.md](./API.md).
+Связано: [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), [API.md](./API.md), [PROD_SECURITY_CHECKLIST.md](./PROD_SECURITY_CHECKLIST.md), [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).
 
 ---
 
-## Сейчас (Vercel + Supabase)
+## Было (Vercel + Supabase, до R3)
 
 | Что | Где в коде | Зачем |
 |-----|------------|-------|
@@ -28,9 +27,9 @@
 
 ---
 
-## Цель на C2 (Yandex Managed Postgres + наш Auth)
+## Цель на C2 (Yandex Managed Postgres + наш Auth) — ✅ на prod с R3
 
-| Кусок | Что сделать на стенде R2 |
+| Кусок | Что сделали на стенде R2 → прод |
 |-------|---------------------------|
 | База | Postgres в Yandex; `npm run db:migrate:pg` (сначала stub `c2_auth_stub.sql`) |
 | Пароли | Хранить у себя (или через проверенную библиотеку хешей) — **не** в браузере. ✅ Свои — scrypt; перенесённые из Supabase (bcrypt, `bcryptjs`, только сервер) принимаются и при первом входе пересохраняются в scrypt. Перенос — `scripts/r3-import-auth-hashes.mjs`, шаги в `R2_C2_STAGING_RUNBOOK.md` §«Волна 3» |
@@ -44,13 +43,13 @@
 
 ---
 
-## Порядок работ (когда будет R2)
+## Порядок работ (R2 → R3) — выполнен
 
-1. Поднять Postgres + задеплоить API (`npm start` / Docker) на тестовый адрес — [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).  
-2. Реализовать минимальный Auth за портом: вход + проверка Bearer.  
-3. Прогнать роли: admin, trainer, sales, supervisor.  
-4. Сценарий зала: тренировка офлайн → Sync → видно в админке.  
-5. Только потом думать про перенос живого клуба (R3).
+1. Postgres + API на стенде — [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).  
+2. Auth за портом: вход + проверка Bearer (`AUTH_PROVIDER=own`).  
+3. Роли: admin, trainer, sales, supervisor.  
+4. Сценарий зала: тренировка офлайн → Sync → админка.  
+5. Перенос живого клуба — R3 01.10 (`app-core.ru`).
 
 ---
 

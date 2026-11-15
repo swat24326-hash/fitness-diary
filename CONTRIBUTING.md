@@ -6,7 +6,7 @@
 
 1. Прочитать [AGENT_PLAYBOOK.md](./docs/AGENT_PLAYBOOK.md) или handoff и нужный раздел [docs/README.md](./docs/README.md).
 2. Логику класть в `src/lib/` или `api/_lib/`, не раздувать JSX.
-3. Новое API-действие — через `admin-data?action=` (лимит ≤12 functions), см. [docs/API.md](./docs/API.md).
+3. Новое API-действие — по возможности через `admin-data?action=` (на ВМ лимита Hobby нет), см. [docs/API.md](./docs/API.md).
 4. Sync / офлайн — [docs/SYNC.md](./docs/SYNC.md); не обходить `saveLocalWithSync`.
 
 ## Перед «готово»

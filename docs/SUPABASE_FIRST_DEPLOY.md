@@ -1,8 +1,10 @@
 # Первый выход в Supabase (кратко)
 
-Шпаргалка на момент, когда вы заведёте проект в [Supabase](https://supabase.com) и подключите приложение к облаку. До этого шаги можно не выполнять — локально клубы живут в IndexedDB.
+**Статус:** 🗄 **архив** (после R4). Прод — [DEPLOY.md](./DEPLOY.md) §A / [RELEASE.md](./RELEASE.md). Ниже — шпаргалка эпохи Supabase для истории или редкого локального демо.
 
-Полная инструкция: [DEPLOY.md](./DEPLOY.md). **Сейчас** хостинг — Vercel + Supabase; целевой переезд на РФ — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md).
+Шпаргалка на момент, когда заводили проект в [Supabase](https://supabase.com). Локально клубы и без облака живут в IndexedDB.
+
+Полная актуальная инструкция: [DEPLOY.md](./DEPLOY.md). История переезда: [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md).
 
 ## 1. Проект и переменные в приложении
 
