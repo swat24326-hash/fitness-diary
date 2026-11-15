@@ -74,10 +74,6 @@ export function AdminNutritionRecipes() {
           <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0 }}>
             Книга рецептов
           </h2>
-          <p className="muted" style={{ margin: '8px 0 0', lineHeight: 1.45 }}>
-            Общий набор блюд для сборки рациона (Пятёрочка / Магнит, домашняя кухня). Пока только просмотр —
-            правки в коде. Продукты клуба — во вкладке «Питание».
-          </p>
           <p className="admin-nutrition-hero__stat">
             Рецептов: <strong>{NUTRITION_RECIPE_CATALOG.length}</strong>
             {filter !== 'all' ? (

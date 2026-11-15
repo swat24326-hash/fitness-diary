@@ -259,10 +259,36 @@
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent, #2effb8) 45%, transparent);
 }
 
+.loyalty-settings__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.loyalty-settings__card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loyalty-settings__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 10px;
+}
+
 .loyalty-settings__card-title {
   margin: 0 0 6px;
   font-size: 1.05rem;
   font-weight: 700;
+}
+
+.loyalty-settings__card-head .loyalty-settings__card-title {
+  margin-bottom: 0;
 }
 
 .loyalty-settings__card-lead {

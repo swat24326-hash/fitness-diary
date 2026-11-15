@@ -1,0 +1,254 @@
+/* Админ → Структура: заголовок выше, рейка вровень с контентом (AmoCRM) */
+
+.admin-structure {
+  --admin-structure-rail: 3.25rem;
+  --admin-structure-chrome: 5.75rem;
+  --admin-structure-pad-x: clamp(12px, 2.5vw, 20px);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  min-height: calc(100dvh - var(--admin-structure-chrome));
+  margin: 0;
+  padding: 0;
+}
+
+.admin-structure__header {
+  /* как .admin-section__head: 10px до окна контента */
+  margin: 0 0 10px;
+  /*
+   * app-main top/left обнулены (рейка flush) — компенсируем как у
+   * Клиенты: crumbs-gap + section-shell top, main+shell слева.
+   * Справа у app-main pad остаётся → только shell.
+   */
+  padding: var(--admin-title-pad-top, calc(var(--admin-crumbs-title-gap, 12px) + clamp(8px, 1.6vw, 14px)))
+    var(--admin-section-pad-x, clamp(14px, 3vw, 22px))
+    0
+    var(--admin-title-pad-x, calc(clamp(16px, 3vw, 28px) + clamp(14px, 3vw, 22px)));
+}
+
+.admin-structure__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-structure__title-icon {
+  flex-shrink: 0;
+  color: var(--accent-bright);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+.admin-structure__title {
+  margin: 0;
+  font-size: clamp(1.28rem, 2.8vw, 1.65rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.admin-structure__body {
+  display: grid;
+  grid-template-columns: var(--admin-structure-rail) minmax(0, 1fr);
+  /* start — иначе слот тянется на всю высоту контента и sticky не держит меню */
+  align-items: start;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.admin-structure__nav-slot {
+  position: sticky;
+  top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+  z-index: 6;
+  align-self: start;
+  width: var(--admin-structure-rail);
+  height: calc(100dvh - var(--header-h) - env(safe-area-inset-top, 0px));
+  max-height: calc(100dvh - var(--header-h) - env(safe-area-inset-top, 0px));
+}
+
+.admin-structure__nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  width: var(--admin-structure-rail);
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0;
+  padding: 8px 6px;
+  border: none;
+  border-right: 1px solid color-mix(in srgb, var(--text-muted) 16%, transparent);
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright) 4%, transparent) 0%, transparent 40%),
+    color-mix(in srgb, var(--bg-elevated) 96%, var(--bg) 4%);
+  scrollbar-width: thin;
+  transition:
+    width 0.18s ease,
+    box-shadow 0.18s ease,
+    padding 0.18s ease;
+}
+
+.admin-structure__nav-slot:hover .admin-structure__nav,
+.admin-structure__nav-slot:focus-within .admin-structure__nav {
+  width: 13.25rem;
+  padding: 8px;
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.35);
+}
+
+.admin-structure__nav-btn {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 7px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 78%, var(--text-muted) 22%);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.admin-structure__nav-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+}
+
+.admin-structure__nav-btn:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 1px;
+}
+
+.admin-structure__nav-btn[aria-selected='true'] {
+  color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent-bright) 12%, transparent);
+}
+
+.admin-structure__nav-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  justify-self: center;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.admin-structure__nav-btn[aria-selected='true'] .admin-structure__nav-icon {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.admin-structure__nav-label {
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    max-width 0.18s ease;
+}
+
+.admin-structure__nav-slot:hover .admin-structure__nav-label,
+.admin-structure__nav-slot:focus-within .admin-structure__nav-label {
+  max-width: 11rem;
+  opacity: 1;
+}
+
+.admin-structure__panel-wrap {
+  min-width: 0;
+  padding: 0 var(--admin-structure-pad-x) 28px 14px;
+}
+
+.admin-structure__panel[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .app-shell--admin .app-main:has(.admin-structure) {
+    padding-left: clamp(12px, 2.6vw, 20px);
+    padding-bottom: clamp(12px, 2.6vw, 20px);
+  }
+
+  .admin-structure {
+    min-height: 0;
+    gap: 10px;
+    padding: clamp(8px, 1.6vw, 14px) 0 28px;
+  }
+
+  .admin-structure__header {
+    padding: 0;
+  }
+
+  .admin-structure__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .admin-structure__nav-slot {
+    position: static;
+    top: auto;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    border-right: none;
+    border-radius: calc(var(--radius-lg, 16px) - 4px);
+    border: 1px solid color-mix(in srgb, var(--text-muted) 16%, transparent);
+  }
+
+  .admin-structure__nav {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px;
+    border-right: none;
+    background: transparent;
+  }
+
+  .admin-structure__nav-slot:hover .admin-structure__nav,
+  .admin-structure__nav-slot:focus-within .admin-structure__nav {
+    width: 100%;
+    box-shadow: none;
+  }
+
+  .admin-structure__nav-btn {
+    width: auto;
+    max-width: 100%;
+    min-height: 36px;
+    grid-template-columns: 1.1rem auto;
+    padding: 7px 10px;
+  }
+
+  .admin-structure__nav-label,
+  .admin-structure__nav-slot:hover .admin-structure__nav-label,
+  .admin-structure__nav-slot:focus-within .admin-structure__nav-label {
+    max-width: 12rem;
+    opacity: 1;
+  }
+
+  .admin-structure__panel-wrap {
+    padding-inline: 0;
+  }
+}

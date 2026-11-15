@@ -1,0 +1,180 @@
+/*
+ * Компактная полоска периода/зала на сводке статистики (верх карточки).
+ */
+
+.admin-club-stats-period {
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.admin-club-stats-period__row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.admin-club-stats-period__sep {
+  width: 1px;
+  height: 1.1rem;
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+  flex-shrink: 0;
+}
+
+.admin-club-stats-period__presets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.admin-club-stats-period__chip {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  line-height: 1.2;
+  transition:
+    color 0.15s var(--ease-out),
+    background 0.15s var(--ease-out);
+}
+
+.admin-club-stats-period__chip:hover {
+  color: var(--text);
+}
+
+.admin-club-stats-period__chip.is-active {
+  color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent-bright) 12%, transparent);
+}
+
+.admin-club-stats-period__range {
+  margin: 0;
+  margin-left: auto;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.admin-club-stats-period__custom {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 0 auto;
+  min-width: 0;
+}
+
+.admin-club-stats-period__help {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: 2px;
+}
+
+.admin-club-stats-period__help-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+
+.admin-club-stats-period__help .admin-club-stats-board__popover {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+.admin-club-stats-period__date {
+  margin: 0;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.admin-club-stats-period__date .input {
+  width: auto;
+  max-width: 9.5rem;
+  min-height: 32px;
+  padding-block: 2px;
+  padding-inline: 8px;
+  font-size: 0.78rem;
+}
+
+.admin-club-stats-period__dash {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Зал в той же полоске — легче, без «кирпичей». */
+.admin-club-stats-period .admin-club-stats-hall {
+  gap: 2px;
+}
+
+.admin-club-stats-period .admin-club-stats-hall__btn {
+  min-width: 2.4rem;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.admin-club-stats-period .admin-club-stats-hall__btn:hover {
+  color: var(--text);
+}
+
+.admin-club-stats-period .admin-club-stats-hall__btn.is-active {
+  color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent-bright) 12%, transparent);
+  border-color: transparent;
+}
+
+@media (max-width: 900px) {
+  .admin-club-stats-period__row {
+    flex-wrap: wrap;
+  }
+
+  .admin-club-stats-period__custom {
+    margin-left: auto;
+  }
+
+  .admin-club-stats-period__date .input {
+    max-width: 8.5rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-club-stats-period__row {
+    flex-wrap: wrap;
+  }
+
+  .admin-club-stats-period__help {
+    margin-left: auto;
+  }
+
+  .admin-club-stats-period__range,
+  .admin-club-stats-period__custom {
+    margin-left: 0;
+    flex-basis: 100%;
+    order: 5;
+  }
+
+  .admin-club-stats-period__custom {
+    justify-content: flex-start;
+  }
+
+  .admin-club-stats-period__sep {
+    display: none;
+  }
+}

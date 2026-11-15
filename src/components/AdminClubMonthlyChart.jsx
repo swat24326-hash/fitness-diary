@@ -1,72 +1,27 @@
 import { useMemo } from 'react'
-
-function monthLabelRu(ym) {
-  const s = String(ym ?? '')
-  const [y, m] = s.split('-')
-  const yy = Number(y)
-  const mm = Number(m)
-  if (!Number.isFinite(yy) || !Number.isFinite(mm) || mm < 1 || mm > 12) return s
-  const d = new Date(yy, mm - 1, 1)
-  return new Intl.DateTimeFormat('ru-RU', { month: 'short', year: 'numeric' }).format(d)
-}
-
-function monthLabelAxis(ym, chartYear) {
-  const s = String(ym ?? '')
-  const [y, m] = s.split('-')
-  const yy = Number(y)
-  const mm = Number(m)
-  if (!Number.isFinite(yy) || !Number.isFinite(mm) || mm < 1 || mm > 12) return s
-  const d = new Date(yy, mm - 1, 1)
-  const mon = new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(d).replace('.', '')
-  if (chartYear && yy === chartYear) return mon
-  const yr = String(yy).slice(-2)
-  return `${mon} ’${yr}`
-}
-
-/** Верх шкалы Y с «красивым» шагом. */
-function chartMaxValue(maxCount) {
-  const n = Number(maxCount) || 0
-  if (n <= 0) return 5
-  const exp = Math.pow(10, Math.floor(Math.log10(n)))
-  const f = n / exp
-  let nice = 10
-  if (f <= 1) nice = 1
-  else if (f <= 2) nice = 2
-  else if (f <= 5) nice = 5
-  return nice * exp
-}
-
-function yTicks(chartMax, steps = 5) {
-  const out = []
-  for (let i = steps; i >= 0; i--) {
-    out.push(Math.round((chartMax * i) / steps))
-  }
-  return out
-}
+import {
+  buildAdminClubMonthlyChartModel,
+  monthLabelAxis,
+  monthLabelRu,
+} from '../lib/admin/adminClubMonthlyChartCore.js'
+import { todayInTimeZoneIso } from '../lib/dateRu'
 
 /**
- * @param {{ rows: Array<{ month: string, count: number }>, year?: number }} props
+ * @param {{
+ *   rows: Array<{ month: string, count: number }>,
+ *   year?: number,
+ *   yearPicker?: import('react').ReactNode,
+ * }} props
  */
-export function AdminClubMonthlyChart({ rows, year }) {
+export function AdminClubMonthlyChart({ rows, year, yearPicker = null }) {
   const list = Array.isArray(rows) ? rows : []
+  const todayIso = todayInTimeZoneIso()
 
-  const { chartMax, ticks, total, hasAny, peakMonth } = useMemo(() => {
-    let max = 0
-    let sum = 0
-    let peak = null
-    let peakN = 0
-    for (const r of list) {
-      const n = Number(r?.count ?? 0) || 0
-      sum += n
-      if (n > max) max = n
-      if (n > peakN) {
-        peakN = n
-        peak = r.month
-      }
-    }
-    const cm = chartMaxValue(max)
-    return { chartMax: cm, ticks: yTicks(cm), total: sum, hasAny: sum > 0, peakMonth: peakN > 0 ? peak : null }
-  }, [list])
+  const model = useMemo(
+    () => buildAdminClubMonthlyChartModel(list, { todayIso }),
+    [list, todayIso],
+  )
+  const { chartMax, ticks, total, hasAny, peakMonth, avgCount, currentMonth, avgBottomPct } = model
 
   if (!list.length) {
     return (
@@ -108,11 +63,27 @@ export function AdminClubMonthlyChart({ rows, year }) {
                 />
               ))}
 
+              {avgBottomPct != null ? (
+                <div
+                  className="admin-monthly-chart__avg-line"
+                  style={{ bottom: `${avgBottomPct}%` }}
+                  title={`Средняя по месяцам с тренировками: ${avgCount}`}
+                  aria-hidden
+                />
+              ) : null}
+
               {list.map((r) => {
                 const n = Number(r?.count ?? 0) || 0
                 const hPct = chartMax ? Math.min(100, (n / chartMax) * 100) : 0
                 const isPeak = peakMonth === r.month && n > 0
-                const title = `${monthLabelRu(r.month)}: ${n}`
+                const isCurrent = Boolean(currentMonth) && r.month === currentMonth
+                const title = [
+                  `${monthLabelRu(r.month)}: ${n}`,
+                  isCurrent ? 'текущий месяц' : '',
+                  isPeak ? 'пик года' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
                 const colClass = [
                   'admin-monthly-chart__col',
                   n > 0 ? 'admin-monthly-chart__col--filled' : 'admin-monthly-chart__col--zero',
@@ -120,7 +91,6 @@ export function AdminClubMonthlyChart({ rows, year }) {
                 ]
                   .filter(Boolean)
                   .join(' ')
-
                 return (
                   <div
                     key={r.month}
@@ -139,7 +109,13 @@ export function AdminClubMonthlyChart({ rows, year }) {
                       />
                     </div>
                     <span
-                      className={`admin-monthly-chart__col-label${n > 0 ? ' admin-monthly-chart__col-label--active' : ''}${isPeak ? ' admin-monthly-chart__col-label--peak' : ''}`}
+                      className={[
+                        'admin-monthly-chart__col-label',
+                        n > 0 ? 'admin-monthly-chart__col-label--active' : '',
+                        isPeak ? 'admin-monthly-chart__col-label--peak' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
                       title={monthLabelRu(r.month)}
                     >
                       {monthLabelAxis(r.month, year)}
@@ -150,18 +126,24 @@ export function AdminClubMonthlyChart({ rows, year }) {
             </div>
           </div>
         </div>
+        {yearPicker ? <div className="admin-monthly-chart__year-slot">{yearPicker}</div> : null}
       </div>
 
       {hasAny ? (
         <p className="muted admin-monthly-chart__sum">
-          Всего за {year ? `${year} год` : 'период'} на графике: <strong className="admin-monthly-chart__sum-val">{total}</strong>
+          Всего за {year ? `${year} год` : 'период'} на графике:{' '}
+          <strong className="admin-monthly-chart__sum-val">{total}</strong>
+          {avgCount != null ? (
+            <>
+              {' '}
+              · средняя по месяцам с тренировками:{' '}
+              <strong className="admin-monthly-chart__sum-val">
+                {Number(avgCount).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}
+              </strong>
+            </>
+          ) : null}
         </p>
       ) : null}
-
-      <p className="muted admin-monthly-chart__foot">
-        Завершённые тренировки со списанием по абонементу, у которого <strong>задан тип карты</strong>. «Без типа» в этот
-        итог <strong>не входят</strong>.
-      </p>
     </div>
   )
 }

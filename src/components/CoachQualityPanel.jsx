@@ -6,6 +6,7 @@ import {
   COACH_QUALITY_STATUS_LABELS,
   coachQualityRulesHelp,
 } from '../lib/admin/coachQualityCore.js'
+import { AdminClubStatsHelpTip } from './admin/AdminClubStatsHelpTip.jsx'
 
 /**
  * Оценка качества ведения: ровная таблица (админ / тренер — одни правила).
@@ -27,7 +28,6 @@ export function CoachQualityPanel({
   compact = false,
 }) {
   const [openId, setOpenId] = useState(null)
-  const [rulesOpen, setRulesOpen] = useState(false)
   const rules = coachQuality?.rules ?? coachQualityRulesHelp(coachQuality?.config)
 
   const trainers = useMemo(() => {
@@ -36,89 +36,69 @@ export function CoachQualityPanel({
     return list.filter((t) => t.trainerId === selfTrainerId)
   }, [coachQuality, selfTrainerId])
 
+  const title = selfTrainerId ? 'Ваша оценка качества' : 'Качество ведения'
+  const rulesHelp = (
+    <AdminClubStatsHelpTip lines={rules} label="Как считается оценка" />
+  )
+
   if (!coachQuality || !trainers.length) {
     return (
       <section className="card admin-club-stats-detail coach-quality-panel">
-        <h3 className="section-title coach-quality-panel__title">Качество ведения</h3>
+        <div className="coach-quality-panel__top">
+          <h3 className="section-title coach-quality-panel__title">Качество ведения</h3>
+          {rulesHelp}
+        </div>
         <p className="muted coach-quality-panel__empty">
           Нет строк для расчёта — обновите статистику при сети.
         </p>
-        <RulesBlock rules={rules} open={rulesOpen} onToggle={() => setRulesOpen((v) => !v)} />
       </section>
     )
   }
 
   const sc = coachQuality.statusCounts ?? {}
   const colCount = 8
-  const briefTop = (coachQuality.brief?.trainers ?? []).slice(0, 3)
-  const briefHasSignal =
-    Boolean(coachQuality.brief) &&
-    ((coachQuality.brief.reviewCount ?? 0) > 0 ||
-      (coachQuality.brief.attentionCount ?? 0) > 0 ||
-      (coachQuality.brief.droppedCount ?? 0) > 0)
+  const showClubSummary = !selfTrainerId && !compact
 
   return (
     <section className="card admin-club-stats-detail coach-quality-panel">
-      <div className="coach-quality-panel__head">
-        <div>
-          <h3 className="section-title coach-quality-panel__title">
-            {selfTrainerId ? 'Ваша оценка качества' : 'Качество ведения по тренерам'}
-          </h3>
-          <p className="muted coach-quality-panel__lead">
-            Три оси: ведение · глубина дневника · хвосты в «Неактивных». Клик по строке — факты.
-          </p>
-        </div>
-        {!compact ? (
-          <div className="coach-quality-panel__chips" aria-label="Сводка статусов">
-            <StatusChip status="ok" count={sc.ok ?? 0} />
-            <StatusChip status="attention" count={sc.attention ?? 0} />
-            <StatusChip status="review" count={sc.review ?? 0} />
-            <StatusChip status="insufficient_data" count={sc.insufficient_data ?? 0} />
-          </div>
-        ) : null}
+      <div className="coach-quality-panel__top">
+        <h3 className="section-title coach-quality-panel__title">{title}</h3>
+        {rulesHelp}
       </div>
 
-      {!selfTrainerId && coachQuality.averageScorePct != null ? (
-        <p className="coach-quality-panel__avg muted">
-          Средний балл по клубу:{' '}
-          <strong>
-            {coachQuality.averageScorePct}
-            <span className="coach-quality-panel__avg-den"> / 100</span>
-          </strong>
-          {coachQuality.medianCarePct != null ? (
-            <>
-              {' '}
-              · медиана ведения: <strong>{coachQuality.medianCarePct}%</strong>
-            </>
-          ) : null}
-        </p>
-      ) : null}
-
-      {!selfTrainerId && briefHasSignal ? (
-        <div className="coach-quality-brief" role="status">
-          <p className="coach-quality-brief__title">Утренний бриф</p>
-          <ul className="coach-quality-brief__list">
-            {(coachQuality.brief.lines ?? []).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-          {briefTop.length ? (
-            <ul className="coach-quality-brief__people">
-              {briefTop.map((t) => {
-                const name = trainerLabel(t.trainerId)
-                const axes = (t.failureDirectionLabels ?? []).join(', ') || '—'
-                return (
-                  <li key={t.trainerId}>
-                    <strong>{name}</strong>
-                    {t.dropped ? <span className="coach-quality-brief__drop"> просел</span> : null}
-                    {': '}
-                    {t.statusLabel}
-                    {axes !== '—' ? ` · ${axes}` : null}
-                  </li>
-                )
-              })}
-            </ul>
-          ) : null}
+      {showClubSummary ? (
+        <div className="admin-pnk-report__grid coach-quality-panel__summary" aria-label="Сводка качества">
+          <div className="admin-pnk-report__cell">
+            <span className="admin-pnk-report__label">Балл</span>
+            <strong className="admin-pnk-report__num">
+              {coachQuality.averageScorePct != null ? coachQuality.averageScorePct : '—'}
+              {coachQuality.averageScorePct != null ? (
+                <span className="coach-quality-panel__avg-den">/100</span>
+              ) : null}
+            </strong>
+          </div>
+          <div className="admin-pnk-report__cell">
+            <span className="admin-pnk-report__label">Медиана</span>
+            <strong className="admin-pnk-report__num">
+              {coachQuality.medianCarePct != null ? `${coachQuality.medianCarePct}%` : '—'}
+            </strong>
+          </div>
+          <div className="admin-pnk-report__cell">
+            <span className="admin-pnk-report__label">{COACH_QUALITY_STATUS_LABELS.ok}</span>
+            <strong className="admin-pnk-report__num">{sc.ok ?? 0}</strong>
+          </div>
+          <div className="admin-pnk-report__cell">
+            <span className="admin-pnk-report__label">{COACH_QUALITY_STATUS_LABELS.attention}</span>
+            <strong className="admin-pnk-report__num">{sc.attention ?? 0}</strong>
+          </div>
+          <div className="admin-pnk-report__cell">
+            <span className="admin-pnk-report__label">{COACH_QUALITY_STATUS_LABELS.review}</span>
+            <strong className="admin-pnk-report__num">{sc.review ?? 0}</strong>
+          </div>
+          <div className="admin-pnk-report__cell">
+            <span className="admin-pnk-report__label">{COACH_QUALITY_STATUS_LABELS.insufficient_data}</span>
+            <strong className="admin-pnk-report__num">{sc.insufficient_data ?? 0}</strong>
+          </div>
         </div>
       ) : null}
 
@@ -215,14 +195,6 @@ export function CoachQualityPanel({
           </tbody>
         </table>
       </div>
-
-      <RulesBlock rules={rules} open={rulesOpen} onToggle={() => setRulesOpen((v) => !v)} />
-      {!selfTrainerId ? (
-        <p className="muted" style={{ margin: '10px 0 0', fontSize: 12 }}>
-          Настройка весов и тумблеров — в{' '}
-          <Link to="/admin/structure?tab=coach-quality">Структура → Качество ведения</Link>.
-        </p>
-      ) : null}
     </section>
   )
 }
@@ -298,14 +270,6 @@ function TrainerDetail({ tr, clientLabel, clientHref }) {
   )
 }
 
-function StatusChip({ status, count }) {
-  return (
-    <span className="coach-quality-panel__chip">
-      {COACH_QUALITY_STATUS_LABELS[status] ?? status}: <strong>{count}</strong>
-    </span>
-  )
-}
-
 /** @param {{ status: string, label?: string }} props */
 export function CoachQualityStatusBadge({ status, label }) {
   const Icon = status === 'ok' ? CheckCircle2 : status === 'insufficient_data' ? Info : AlertTriangle
@@ -325,19 +289,3 @@ export function CoachQualityStatusBadge({ status, label }) {
   )
 }
 
-function RulesBlock({ rules, open, onToggle }) {
-  return (
-    <div className="coach-quality-panel__rules">
-      <button type="button" className="btn btn-secondary btn-sm" onClick={onToggle}>
-        {open ? 'Скрыть правила оценки' : 'Как считается (одинаково для тренера и админа)'}
-      </button>
-      {open ? (
-        <ul className="coach-quality-panel__rules-list">
-          {(rules ?? []).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  )
-}

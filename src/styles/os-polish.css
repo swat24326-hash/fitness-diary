@@ -243,7 +243,8 @@
 }
 
 .admin-structure__header {
-  margin-bottom: 12px;
+  /* зазор до панели — в admin-structure.css (= Клиенты 10px) */
+  margin-bottom: 10px;
 }
 
 .admin-structure__title {

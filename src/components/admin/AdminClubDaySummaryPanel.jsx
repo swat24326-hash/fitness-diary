@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, BarChart3, Cake, CalendarClock, Clock, Gauge, History, UserX } from 'lucide-react'
-import { formatIsoRu } from '../../lib/period'
 import {
   buildAdminDaySummaryCards,
   groupAdminDaySummaryCards,
@@ -63,11 +62,13 @@ function DaySummaryCard({ card }) {
  *   clubId?: string,
  *   clientsPath?: string,
  *   statsPath?: string,
+ *   statsTab?: string,
  *   loading?: boolean,
  *   noClub?: boolean,
  *   coachQuality?: object | null,
  *   coachQualityLoading?: boolean,
  *   coachQualityHeroInAttention?: boolean,
+ *   includeCoachQuality?: boolean,
  *   onRetry?: () => void,
  * }} props
  */
@@ -76,11 +77,13 @@ export function AdminClubDaySummaryPanel({
   clubId = '',
   clientsPath = '/admin/clients',
   statsPath = '/admin/statistics',
+  statsTab = '',
   loading = false,
   noClub = false,
   coachQuality = null,
   coachQualityLoading = false,
   coachQualityHeroInAttention = false,
+  includeCoachQuality = true,
   onRetry,
 }) {
   const cards = useMemo(
@@ -91,12 +94,24 @@ export function AdminClubDaySummaryPanel({
             clubId,
             clientsPath,
             statsPath,
+            statsTab,
             coachQuality,
             coachQualityLoading,
             coachQualityHeroInAttention,
+            includeCoachQuality,
           })
         : [],
-    [summary, clubId, clientsPath, statsPath, coachQuality, coachQualityLoading, coachQualityHeroInAttention],
+    [
+      summary,
+      clubId,
+      clientsPath,
+      statsPath,
+      statsTab,
+      coachQuality,
+      coachQualityLoading,
+      coachQualityHeroInAttention,
+      includeCoachQuality,
+    ],
   )
 
   const groups = useMemo(() => groupAdminDaySummaryCards(cards), [cards])
@@ -105,13 +120,8 @@ export function AdminClubDaySummaryPanel({
 
   if (noClub) {
     return (
-      <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
-        <div className="admin-day-summary__head">
-          <h2 id="admin-day-summary-title" className="admin-day-summary__title">
-            Сводка дня клуба
-          </h2>
-          <p className="admin-day-summary__hint muted">Выберите клуб в шапке</p>
-        </div>
+      <section className="admin-day-summary" aria-label="Сводка дня клуба">
+        <p className="admin-day-summary__hint muted">Выберите клуб в шапке</p>
       </section>
     )
   }
@@ -120,20 +130,17 @@ export function AdminClubDaySummaryPanel({
     return (
       <section
         className="admin-day-summary admin-day-summary--skel admin-day-summary--dense"
-        aria-labelledby="admin-day-summary-title"
+        aria-label="Сводка дня клуба"
         aria-busy="true"
       >
-        <div className="admin-day-summary__head">
-          <h2 id="admin-day-summary-title" className="admin-day-summary__title">
-            Сводка дня клуба
-          </h2>
-        </div>
         <div className="admin-day-summary__section admin-day-summary__section--base">
-          <h3 className="admin-day-summary__section-title">База и поводы</h3>
+          <div className="admin-day-summary__section-head">
+            <h3 className="admin-day-summary__section-title">База и поводы</h3>
+          </div>
           <ul className="admin-day-summary__skel-grid" aria-label="Загрузка сводки">
             <li className="admin-home-skel admin-day-summary__skel-card" />
             <li className="admin-home-skel admin-day-summary__skel-card" />
-            <li className="admin-home-skel admin-day-summary__skel-card" />
+            {includeCoachQuality ? <li className="admin-home-skel admin-day-summary__skel-card" /> : null}
           </ul>
         </div>
       </section>
@@ -142,12 +149,7 @@ export function AdminClubDaySummaryPanel({
 
   if (!summary) {
     return (
-      <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
-        <div className="admin-day-summary__head">
-          <h2 id="admin-day-summary-title" className="admin-day-summary__title">
-            Сводка дня клуба
-          </h2>
-        </div>
+      <section className="admin-day-summary" aria-label="Сводка дня клуба">
         <div className="os-empty-card u-col u-items-center" role="alert">
           <p className="os-empty-card__title">Сводка дня не загрузилась</p>
           <p className="os-empty-card__hint">Нажмите «Повторить». Не помогло — синхронизируйте кнопкой в шапке.</p>
@@ -164,26 +166,20 @@ export function AdminClubDaySummaryPanel({
   return (
     <section
       className="admin-day-summary admin-day-summary--dense"
-      aria-labelledby="admin-day-summary-title"
+      aria-label="Сводка дня клуба"
       aria-busy={loading || undefined}
     >
-      <div className="admin-day-summary__head">
-        <h2 id="admin-day-summary-title" className="admin-day-summary__title">
-          Сводка дня клуба
-        </h2>
-        {actionableUi === 0 ? (
-          <p className="admin-day-summary__ok muted">На сегодня ({formatIsoRu(summary.today)}) всё в порядке.</p>
-        ) : (
-          <p className="admin-day-summary__hint muted">
-            {actionableUi}{' '}
-            {actionableUi === 1 ? 'пункт' : actionableUi < 5 ? 'пункта' : 'пунктов'} требуют внимания
-          </p>
-        )}
-      </div>
-
       {groups.map((g) => (
         <div key={g.id} className={`admin-day-summary__section admin-day-summary__section--${g.id}`}>
-          <h3 className="admin-day-summary__section-title">{g.title}</h3>
+          <div className="admin-day-summary__section-head">
+            <h3 className="admin-day-summary__section-title">{g.title}</h3>
+            {g.id === 'base' && actionableUi > 0 ? (
+              <p className="admin-day-summary__hint muted">
+                {actionableUi}{' '}
+                {actionableUi === 1 ? 'пункт' : actionableUi < 5 ? 'пункта' : 'пунктов'} требуют внимания
+              </p>
+            ) : null}
+          </div>
           <ul
             className={`admin-day-summary__grid admin-day-summary__grid--${g.id}`}
             aria-label={g.title}

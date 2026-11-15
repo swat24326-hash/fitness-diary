@@ -289,12 +289,6 @@ export function AdminSupervisors() {
       {msg ? <p className="muted admin-inline-note">{msg}</p> : null}
       {links.error ? <p className="muted admin-inline-note">{links.error}</p> : null}
 
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-        Управляющий — почти админ своего клуба: клиенты, статистика, продажи, ПНК, челленджи, планёрка. Вместо
-        «Структуры» — «Настройки» (Max и SMS). Журнал удалений и справочники сети — только у вас. После входа —{' '}
-        <code className="muted">/club</code>.
-      </p>
-
       {supervisors.length === 0 && !busy ? <p className="muted">Управляющих пока нет.</p> : null}
       {clubFilterId && supervisors.length > 0 && filteredSupervisors.length === 0 && !busy ? (
         <p className="muted">В выбранном клубе управляющих нет.</p>

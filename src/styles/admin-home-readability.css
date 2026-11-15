@@ -26,6 +26,7 @@
 .admin-home--dashboard .admin-day-summary__card-suffix,
 .admin-home--dashboard .club-call-shift__section-title,
 .admin-home--dashboard .club-call-shift__card-hint,
-.admin-home--dashboard .admin-home__tiles-heading {
+.admin-home--dashboard .admin-home__tiles-heading,
+.admin-home--dashboard .admin-home__tile-grid--rail .feature-tile--compact .feature-tile__title {
   font-size: 0.75rem;
 }

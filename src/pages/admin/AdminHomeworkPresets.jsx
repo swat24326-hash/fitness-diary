@@ -255,7 +255,7 @@ export function AdminHomeworkPresets() {
   if (!clubId) {
     return (
       <section className="card admin-homework-page">
-        <p className="muted">Выберите клуб в шапке — у каждого клуба свои шаблоны домашних заданий.</p>
+        <p className="muted">Выберите клуб в шапке.</p>
       </section>
     )
   }
@@ -267,10 +267,6 @@ export function AdminHomeworkPresets() {
           <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0 }}>
             Шаблоны ДЗ
           </h2>
-          <p className="muted" style={{ margin: '8px 0 0', lineHeight: 1.45 }}>
-            Быстрый старт для тренера на планшете. Упражнения — только из справочника клуба. При первом открытии
-            создаются 5 базовых шаблонов — их можно править.
-          </p>
           <p className="admin-homework-hero__stat">
             Активных: <strong>{activeCount}</strong>
           </p>

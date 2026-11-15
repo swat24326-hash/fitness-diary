@@ -88,7 +88,6 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const [trainers, setTrainers] = useState([])
   const [clubColumn, setClubColumn] = useState(true)
   const [clientCounts, setClientCounts] = useState({})
-  const [clientCountsSource, setClientCountsSource] = useState('local')
   const [trainerMsg, setTrainerMsg] = useState('')
   const [trainerBusy, setTrainerBusy] = useState(false)
   const [reassigningId, setReassigningId] = useState('')
@@ -140,9 +139,8 @@ export function AdminOrganization({ mode = 'both' } = {}) {
         setTrainers([])
         setClubColumn(false)
         setTrainerMsg('Настройте Supabase, чтобы видеть тренеров из таблицы users и назначать клуб.')
-        const { counts, source } = await getClientCountsByTrainerId()
+        const { counts } = await getClientCountsByTrainerId()
         setClientCounts(counts)
-        setClientCountsSource(source)
         return
       }
       const { trainers: list, clubColumn: hasCol, listSource, fromCache } = await listTrainersWithClubForAdmin()
@@ -152,7 +150,6 @@ export function AdminOrganization({ mode = 'both' } = {}) {
         skipRemote: listSource === 'admin_api',
       })
       setClientCounts(counts)
-      setClientCountsSource(source)
       if (!hasCol) {
         setTrainerMsg(
           'В таблице users ещё нет колонки club_id. Выполните миграцию в Supabase (файл supabase/migrations/20260210120000_users_club_id.sql), затем обновите страницу.',
@@ -174,9 +171,8 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     } catch (e) {
       setTrainerMsg(humanizeNetworkError(e) || e?.message || 'Ошибка загрузки тренеров')
       setTrainers([])
-      const { counts, source } = await getClientCountsByTrainerId()
+      const { counts } = await getClientCountsByTrainerId()
       setClientCounts(counts)
-      setClientCountsSource(source)
     } finally {
       setTrainerBusy(false)
     }
@@ -838,10 +834,6 @@ export function AdminOrganization({ mode = 'both' } = {}) {
             {clubMsg}
           </p>
         ) : null}
-        <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-          Администратор ведёт справочник залов: от него зависят фильтры «Клиенты» и «Статистика» в шапке (параметр <code className="muted">?club=</code>
-          ), привязка тренеров и club_id у новых клиентов. Удалить клуб можно только если нет связанных клиентов, тренеров, абонементов и тренировок.
-        </p>
         <form onSubmit={clubSubmit} className="grid" style={{ gap: 8, marginBottom: 16 }}>
           <input
             className="input"
@@ -928,18 +920,9 @@ export function AdminOrganization({ mode = 'both' } = {}) {
         <label className="row" style={{ gap: 10, alignItems: 'flex-start', margin: '0 0 12px', cursor: 'pointer' }}>
           <input type="checkbox" checked={syncClientsClub} onChange={(e) => setSyncClientsClub(e.target.checked)} style={{ marginTop: 3 }} />
           <span className="muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
-            При смене клуба тренера выставлять тот же <strong>club_id</strong> у его клиентов, их абонементов и тренировок (локально + очередь синхронизации). Выключите, если нужно вручную развести данные по залам.
+            При смене клуба тренера — тот же club_id у его клиентов, абонементов и тренировок.
           </span>
         </label>
-        <p className="muted" style={{ fontSize: 13, margin: '0 0 10px', lineHeight: 1.45 }}>
-          Тренер в приложении видит только клиентов своего клуба (поле <code className="muted">users.club_id</code>). Смена пароля и блокировка — кнопками в таблице. Удаление тренера — из Auth и{' '}
-          <code className="muted">users</code>, только если у него нет клиентов (через сервер приложения).{' '}
-          {clientCountsSource === 'remote'
-            ? '«Клиентов» в таблице — по облаку.'
-            : isSupabaseConfigured()
-              ? '«Клиентов» — по локальному кэшу (RLS или офлайн).'
-              : '«Клиентов» — по локальной базе на устройстве.'}
-        </p>
 
         {isSupabaseConfigured() && trainers.length === 0 && !trainerMsg ? (
           <p className="muted">Нет тренеров с ролью trainer в users.</p>

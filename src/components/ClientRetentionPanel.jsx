@@ -9,6 +9,8 @@ import {
   retentionRateTone,
   summarizeArchiveReasonMix,
 } from '../lib/admin/clientRetentionPresentationCore.js'
+import { adminClubStatsHelpLines } from '../lib/admin/adminClubStatsHelpCore.js'
+import { AdminClubStatsHelpTip } from './admin/AdminClubStatsHelpTip.jsx'
 
 /**
  * @param {{
@@ -53,10 +55,20 @@ export function ClientRetentionPanel({
     [archiveReasons.rows],
   )
 
+  const retentionHelp = (
+    <AdminClubStatsHelpTip
+      label="Что значит удержание"
+      lines={adminClubStatsHelpLines('clientRetention', { isTrainerScope: Boolean(selfTrainerId) })}
+    />
+  )
+
   if (!r || (r.poolSize === 0 && r.universeSize === 0)) {
     return (
       <section className="card admin-club-stats-detail client-retention-panel">
-        <h3 className="section-title client-retention-panel__title">Удержание клиентов</h3>
+        <div className="admin-club-stats-detail__head">
+          <h3 className="section-title client-retention-panel__title">Удержание клиентов</h3>
+          {retentionHelp}
+        </div>
         <p className="muted client-retention-panel__empty">
           Нет клиентов с планшетом для расчёта — обновите при сети или проверьте пул ПЗ.
         </p>
@@ -70,110 +82,13 @@ export function ClientRetentionPanel({
   return (
     <section className="card admin-club-stats-detail client-retention-panel">
       <header className="client-retention-panel__head">
-        <h3 className="section-title client-retention-panel__title">
-          {selfTrainerId ? 'Ваше удержание' : 'Удержание клиентов'}
-        </h3>
-        {!compact ? (
-          <div className="client-retention-panel__about" role="note">
-            {selfTrainerId ? (
-              <>
-                <p className="client-retention-panel__about-lead">
-                  <strong>Зачем вам:</strong> честная картина по вашим клиентам с планшетом — остаются ли они
-                  ходить, продлевают абонемент, как долго живут в зале. Это не оценка ЗП и не «Качество ведения».
-                </p>
-                <ul className="client-retention-panel__about-list">
-                  <li>
-                    <strong>Удержание M+3</strong> — прижились ли люди через 3 месяца после первого абонемента
-                    (когорты, не «итог выбранного месяца»).
-                  </li>
-                  <li>
-                    <strong>Продления 14 дн.</strong> — кто продлил в ближайшие 14 дней после окончания абона
-                    (горячий срез на дату конца периода).
-                  </li>
-                  <li>
-                    <strong>Продления за период</strong> — честный итог: у кого абон закончился в выбранном
-                    периоде и кто купил следующий (тоже в окне 14 дн. после end).
-                  </li>
-                  <li>
-                    <strong>Медиана жизни</strong> — сколько типичный клиент «живёт» до архива или до сегодня
-                    (длинная метрика).
-                  </li>
-                  <li>
-                    <strong>Архив / закрытия ПЗ</strong> — события именно в выбранном периоде фильтра.
-                  </li>
-                  <li>
-                    Если M+3 показывает «—» или «Рано» — клиенты только начали, цифру рано сравнивать с
-                    коллегами.
-                  </li>
-                </ul>
-              </>
-            ) : (
-              <>
-                <p className="client-retention-panel__about-lead">
-                  <strong>Зачем клубу:</strong> видеть, удерживаем ли клиентов ПЗ с планшетом — не только сколько
-                  пришло, но кто остался ходить, продлил абонемент и почему ушёл в архив. Отдельно от «Качества
-                  ведения» и чипа «Не активные».
-                </p>
-                <ul className="client-retention-panel__about-list">
-                  <li>
-                    <strong>M+3 и медиана жизни</strong> — длинные метрики (когорты / срок жизни), фильтр месяца их
-                    почти не «переписывает».
-                  </li>
-                  <li>
-                    <strong>Продления 14 дн.</strong> — короткий горячий срез;{' '}
-                    <strong>продления за период</strong> — итог по окончаниям абона в выбранном месяце/диапазоне.
-                  </li>
-                  <li>
-                    «Архив / закрытия ПЗ за период» — кто ушёл <em>в выбранном месяце/квартале</em>, не весь
-                    список во вкладке «Архив».
-                  </li>
-                  <li>Причины архива — из модалки «В архив», чтобы понимать отток.</li>
-                </ul>
-              </>
-            )}
-          </div>
-        ) : (
-          <p className="muted client-retention-panel__lead">
-            ПЗ с планшетом. Не путать с «Качеством ведения» и чипами «Не активные».
-          </p>
-        )}
+        <div className="admin-club-stats-detail__head">
+          <h3 className="section-title client-retention-panel__title">
+            {selfTrainerId ? 'Ваше удержание' : 'Удержание клиентов'}
+          </h3>
+          {retentionHelp}
+        </div>
       </header>
-
-      {!compact ? (
-        <details className="client-retention-panel__explain">
-          <summary className="client-retention-panel__explain-summary">Подробнее про каждую цифру</summary>
-          <ul className="client-retention-panel__explain-list">
-            <li>
-              <strong>Удержание M+3</strong> — доля клиентов с хотя бы одним ДК в 3‑м месяце после первого
-              абонемента (только «созревшие» когорты). Не «удержание за сентябрь».
-            </li>
-            <li>
-              <strong>Продления 14 дн.</strong> — из тех, у кого абонемент заканчивался в последние 14 дней до
-              даты среза, сколько продлили. Оперативный срез.
-            </li>
-            <li>
-              <strong>Продления за период</strong> — из тех, у кого абон закончился в выбранном периоде
-              фильтра, сколько купили следующий (окно renew — 14 дн. после end). Это «месячная» / периодная
-              цифра рядом с горячим срезом.
-            </li>
-            <li>
-              <strong>Архив за период</strong> — сколько убрали в архив в выбранном периоде; «база» — все
-              клиенты ПЗ с планшетом для расчёта, не вкладка «Архив».
-            </li>
-            <li>
-              <strong>Медиана жизни</strong> — типичный срок от первого ДК до архива или до сегодня; половина
-              клиентов живут меньше, половина — дольше. Длинная метрика, не «за месяц».
-            </li>
-            <li>
-              <strong>Возвраты</strong> — вернули из архива и снова ходили в течение 30 дней (журнал «Вернуть»).
-            </li>
-            <li>
-              <strong>«Рано»</strong> у тренера — клиенты в базе есть, но с их старта прошло меньше ~3
-              месяцев, M+3 ещё нельзя считать.
-            </li>
-          </ul>
-        </details>
-      ) : null}
 
       <div className="client-retention-kpi-grid" role="list">
         <KpiCard
@@ -183,7 +98,7 @@ export function ClientRetentionPanel({
           value={formatRetentionRatePct(m3?.averageRate)}
           hint={
             m3?.cohortSize
-              ? `${m3.retained ?? 0} из ${m3.cohortSize} · зрелые когорты`
+              ? `${m3.retained ?? 0} из ${m3.cohortSize} · зрелые`
               : 'Нет зрелых когорт'
           }
         />
@@ -194,7 +109,7 @@ export function ClientRetentionPanel({
           hint={
             r.renewalEligible
               ? `${r.renewalRenewed ?? 0} из ${r.renewalEligible} · горячий срез`
-              : 'Нет истекающих абонементов в окне'
+              : 'Нет истекающих в окне'
           }
         />
         <KpiCard
@@ -203,8 +118,8 @@ export function ClientRetentionPanel({
           value={formatRetentionRatePct(r.periodRenewalRate)}
           hint={
             r.periodRenewalEligible
-              ? `${r.periodRenewalRenewed ?? 0} из ${r.periodRenewalEligible} · end в периоде`
-              : 'Нет окончаний абона в периоде'
+              ? `${r.periodRenewalRenewed ?? 0} из ${r.periodRenewalEligible} · в периоде`
+              : 'Нет окончаний в периоде'
           }
         />
         <KpiCard
@@ -222,7 +137,7 @@ export function ClientRetentionPanel({
         <KpiCard
           label="Медиана жизни"
           value={formatTenureDays(r.medianTenureDays)}
-          hint="От первого ДК до архива или сегодня"
+          hint="От первого ДК до архива / сегодня"
         />
         <KpiCard
           label="Возвраты"
@@ -230,14 +145,14 @@ export function ClientRetentionPanel({
           value={formatRetentionRatePct(r.reactivationRate)}
           hint={
             (r.restoresInWindow ?? 0) > 0
-              ? `${r.successfulReactivations ?? 0} успешных из ${r.restoresInWindow} · 90 дн.`
-              : 'Нет возвратов за 90 дн.'
+              ? `${r.successfulReactivations ?? 0} из ${r.restoresInWindow} · 90 дн.`
+              : 'Нет возвратов · 90 дн.'
           }
         />
         <KpiCard
           label="Активные сейчас"
           value={String(r.poolSize ?? 0)}
-          hint={`База для удержания · ${r.universeSize ?? 0} всего`}
+          hint={`База · ${r.universeSize ?? 0} всего`}
         />
       </div>
 
@@ -347,7 +262,7 @@ function KpiCard({ label, value, hint, tone = 'none', primary = false }) {
     >
       <span className="client-retention-kpi__label">{label}</span>
       <strong className="client-retention-kpi__value">{value}</strong>
-      <span className="muted client-retention-kpi__hint">{hint}</span>
+      <span className="client-retention-kpi__hint">{hint}</span>
     </div>
   )
 }

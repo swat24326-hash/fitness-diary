@@ -188,7 +188,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 Период сводки ≠ годовой график (полный календарный год).  
 Agg: `src/lib/admin/*Agg.js` ↔ зеркало `api/_lib/*Agg.js` + `scripts/verify-*.mjs`.  
 UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domain.mdc`.  
-**Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — статистика + настройка весов/тумблеров в **Структура → Качество ведения**.
+**Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — статистика + настройка весов/тумблеров в **Настройки → Качество ведения** (`/admin/structure?tab=coach-quality`).
 
 **Удержание клиента** (фаза 0 — core + verify): [CLIENT_RETENTION.md](./CLIENT_RETENTION.md) — cohort M+3, renewal, archive/reactivation; отдельно от CQ и period census.  
 **ЗП тренеров:** уровни по порогам тренировок месяца, ставки ₽ на типах карт, надбавка кабинета, снимок прошлого месяца и три прогноза (день / период / месяц) — [TRAINER_PAYROLL.md](./TRAINER_PAYROLL.md); правило агента `fitness-diary-payroll.mdc`.  

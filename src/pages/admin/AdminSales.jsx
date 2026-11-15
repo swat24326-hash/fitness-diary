@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, TrendingUp } from 'lucide-react'
+import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { SalesHomeTiles } from '../../components/SalesHomeTiles.jsx'
+import { SalesHomeDaySummaries } from '../../components/sales/SalesHomeDaySummaries.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, formatDateRu, normalizeClubOpsDayIso, todayInTimeZoneIso } from '../../lib/dateRu'
 import { calendarYearMonthFromIso } from '../../lib/admin/salesPlanPzDkSuggestCore.js'
@@ -1059,7 +1061,11 @@ export function AdminSales({ accessMode = 'admin' }) {
   return (
     <SectionErrorBoundary section="admin_sales" title="Продажи и отчёты">
     <div
-      className={`sales-report sales-report--wide${busy ? ' sales-report__busy' : ''}${isSalesManager ? ` sales-report--manager sales-home${salesTab === 'home' ? ' sales-home--fill' : ''}` : ''}`}
+      className={`sales-report sales-report--wide${busy ? ' sales-report__busy' : ''}${
+        isSalesManager
+          ? ` sales-report--manager sales-home${salesTab === 'home' ? ' sales-home--fill' : ''}`
+          : ' admin-section-shell admin-section-shell--wide'
+      }`}
     >
       {showSalesHero && isSalesManager ? (
         <div className="sales-home__board">
@@ -1109,35 +1115,31 @@ export function AdminSales({ accessMode = 'admin' }) {
           )}
 
           {salesTab === 'home' ? (
-            <SalesHomeTiles attentionWidgets={attentionWidgets} />
+            <>
+              <SalesHomeDaySummaries clubId={clubId} />
+              <SalesHomeTiles attentionWidgets={attentionWidgets} />
+            </>
           ) : null}
         </div>
       ) : showSalesHero ? (
-        <div className="sales-report__hero">
-          <div className="sales-report__hero-head">
-            <div>
-              <h1 className="admin-path-head__title sales-report__page-title">Продажи</h1>
-              <p className="admin-path-head__lead sales-report__month-label">{monthLabel}</p>
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm btn-icon-square"
-              onClick={() => void loadBundle()}
-              disabled={busy}
-              aria-label="Обновить"
-              title="Обновить"
-              aria-busy={busy}
+        <div className="sales-report__section-top">
+          <AdminSectionHeader icon={TrendingUp} title="Продажи" />
+          <div className="sales-report__hero sales-report__hero--plan">
+            <div
+              className={`sales-report__hero-body${heroFinanceForecast?.ok ? ' sales-report__hero-body--split' : ''}`}
             >
-              <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
-            </button>
+              <div className="sales-report__hero-vessel">
+                <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
+              </div>
+              {heroFinanceForecast?.ok ? (
+                <AdminHomeSalesGlanceMetrics
+                  layout="rail"
+                  fact={heroFinanceForecast.fact}
+                  forecast={heroFinanceForecast.forecast}
+                />
+              ) : null}
+            </div>
           </div>
-          <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
-          {heroFinanceForecast?.ok ? (
-            <AdminHomeSalesGlanceMetrics
-              fact={heroFinanceForecast.fact}
-              forecast={heroFinanceForecast.forecast}
-            />
-          ) : null}
         </div>
       ) : null}
 

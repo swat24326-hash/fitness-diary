@@ -27,7 +27,7 @@ function tabFromSearch(search, fallback = '') {
   }
 }
 
-/** Вкладки «Структура» — синхронно с AdminStructure.TABS */
+/** Вкладки «Настройки» (/admin/structure) — синхронно с AdminStructure.TABS */
 export const STRUCTURE_TAB_LABELS = {
   clubs: 'Клубы',
   trainers: 'Тренеры',
@@ -116,7 +116,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/admin/structure') {
     const tab = tabFromSearch(search, 'clubs')
     const sub = STRUCTURE_TAB_LABELS[tab] ?? 'Клубы'
-    return [...admin, { label: 'Структура', to: `/admin/structure${clubQs}` }, { label: sub, to: full }]
+    return [...admin, { label: 'Настройки', to: `/admin/structure${clubQs}` }, { label: sub, to: full }]
   }
 
   if (p === '/admin/sales') {

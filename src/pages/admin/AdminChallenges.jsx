@@ -268,9 +268,12 @@ export function AdminChallenges() {
   if (!clubId) {
     return (
       <section className="challenge-admin-shell" aria-labelledby="ch-admin-title">
-        <h1 id="ch-admin-title" className="challenge-admin__h1">
-          Челленджи
-        </h1>
+        <div className="admin-section__title-row">
+          <Trophy size={22} aria-hidden className="admin-section__icon" />
+          <h1 id="ch-admin-title" className="challenge-admin__h1">
+            Челленджи
+          </h1>
+        </div>
         <div className="challenge-empty-card">
           <Trophy size={40} aria-hidden className="challenge-empty-card__icon" />
           <p className="challenge-empty-card__title">Выберите клуб в шапке</p>
@@ -286,10 +289,12 @@ export function AdminChallenges() {
     <section className="challenge-admin-shell" aria-labelledby="ch-admin-title">
       <div className="challenge-admin__head">
         <div>
-          <h1 id="ch-admin-title" className="challenge-admin__h1">
-            Челленджи
-          </h1>
-          <p className="muted challenge-admin__lead">Соревнования по упражнению за период — рейтинг из завершённых тренировок.</p>
+          <div className="admin-section__title-row">
+            <Trophy size={22} aria-hidden className="admin-section__icon" />
+            <h1 id="ch-admin-title" className="challenge-admin__h1">
+              Челленджи
+            </h1>
+          </div>
         </div>
         <div className="challenge-admin__actions">
           <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void reload({ pullRemote: true })} title="Обновить с сервера">

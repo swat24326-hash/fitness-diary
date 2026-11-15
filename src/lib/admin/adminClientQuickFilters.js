@@ -32,6 +32,7 @@ export function buildAdminClubQueryHref(path, p = {}) {
   }
   if (p.period) qs.set('period', p.period)
   if (p.panel) qs.set('panel', p.panel)
+  if (p.tab) qs.set('tab', String(p.tab).trim())
   const tail = qs.toString()
   return tail ? `${path}?${tail}` : path
 }

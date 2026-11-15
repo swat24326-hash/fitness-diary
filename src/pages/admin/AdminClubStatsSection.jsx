@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, TrendingDown, TrendingUp, Trophy, UserPlus } from 'lucide-react'
-import { listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
+import { BarChart3, ClipboardList, Gauge, LayoutGrid, LineChart, TrendingDown, TrendingUp, Trophy, UserPlus } from 'lucide-react'
+import { listTrainerSummariesForAdmin } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadTrainerMonthlyStatsForYear } from '../../lib/trainer/trainerMonthlyStatsService'
-import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
+import { getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
@@ -23,13 +23,15 @@ import { enrichPaySnapshotMembershipTypesForAerobic } from '../../lib/admin/trai
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 import { useClubPeriodStatsLoad } from './useClubPeriodStatsLoad'
-import { AdminClubStatsHallTabs } from '../../components/admin/AdminClubStatsHallTabs.jsx'
+import { AdminClubStatsPeriodBar } from '../../components/admin/AdminClubStatsPeriodBar.jsx'
 import {
   CLUB_STATS_HALL_LABELS,
   clubStatsHallShowsPzOnlyCards,
 } from '../../lib/admin/clubStatsHallFilterCore.js'
+import { adminClubStatsHelpLines } from '../../lib/admin/adminClubStatsHelpCore.js'
+import { AdminClubStatsHelpTip } from '../../components/admin/AdminClubStatsHelpTip.jsx'
 
-/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality' | 'clientRetention' | 'clientAttendance'} AdminStatsInlinePanel */
+/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality' | 'clientRetention' | 'clientAttendance' | 'completed'} AdminStatsInlinePanel */
 
 /** @typedef {'journal' | 'coachQuality'} AdminStatsDeepLinkPanel */
 
@@ -42,8 +44,12 @@ import {
  *   onDeepLinkConsumed?: () => void,
  *   onActiveRangeChange?: (r: { start: string, end: string } | null) => void,
  *   onOpenCompletedJournal?: () => void,
+ *   completedJournalOpen?: boolean,
+ *   completedJournal?: import('react').ReactNode,
+ *   onCompletedJournalOpenChange?: (open: boolean) => void,
  *   onStatsContextReset?: () => void,
  *   hideSectionTitle?: boolean,
+ *   completedJournalId?: string,
  * }} props
  */
 export function AdminClubStatsSection({
@@ -54,8 +60,12 @@ export function AdminClubStatsSection({
   onDeepLinkConsumed,
   onActiveRangeChange,
   onOpenCompletedJournal,
+  completedJournalOpen = false,
+  completedJournal = null,
+  onCompletedJournalOpenChange,
   onStatsContextReset,
   hideSectionTitle = false,
+  completedJournalId = 'admin-completed-trainings-journal',
 }) {
   const isTrainerScope = Boolean(trainerScope?.trainerId)
   const { pathname } = useLocation()
@@ -71,10 +81,8 @@ export function AdminClubStatsSection({
   /** @type {['pz'|'tz'|'az', Function]} */
   const [statsHall, setStatsHall] = useState(/** @type {'pz'|'tz'|'az'} */ ('pz'))
   const [trainerNameById, setTrainerNameById] = useState({})
-  const [clubLabel, setClubLabel] = useState('')
-  const [statsHelpOpen, setStatsHelpOpen] = useState(false)
-  /** @type {[AdminStatsInlinePanel | null, Function]} */
-  const [inlinePanel, setInlinePanel] = useState(null)
+  /** @type {[AdminStatsInlinePanel, Function]} */
+  const [inlinePanel, setInlinePanel] = useState(/** @type {AdminStatsInlinePanel} */ ('completed'))
   const [clubMonthly, setClubMonthly] = useState([])
   const [clubMonthlyBusy, setClubMonthlyBusy] = useState(false)
   const [monthlyChartYear, setMonthlyChartYear] = useState(() => new Date().getFullYear())
@@ -86,7 +94,6 @@ export function AdminClubStatsSection({
     membershipTypes: null,
   }))
   const monthlyCacheRef = useRef(new Map())
-  const statsHelpRef = useRef(null)
   const deepLinkHandledRef = useRef('')
 
   useEffect(() => {
@@ -95,15 +102,9 @@ export function AdminClubStatsSection({
     }
   }, [initialPeriod, clubId, periodPresetIds])
 
-  useEffect(() => {
-    if (isTrainerScope) return
-    setStatsHall('pz')
-    setInlinePanel(null)
-  }, [clubId, isTrainerScope])
-
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
 
-  const { busy, coachQualityBusy, clientRetentionBusy, clientAttendanceBusy, stats, pnkFunnel, loadStats } = useClubPeriodStatsLoad({
+  const { busy, coachQualityBusy, clientRetentionBusy, clientAttendanceBusy, stats, pnkFunnel } = useClubPeriodStatsLoad({
     clubId,
     isTrainerScope,
     scopeTrainerId,
@@ -117,15 +118,46 @@ export function AdminClubStatsSection({
   useEffect(() => {
     if (showPzOnlyCards) return
     setInlinePanel((prev) =>
-      prev === 'pnk' || prev === 'byDay' || prev === 'rating' || prev === 'coachQuality' || prev === 'clientRetention' || prev === 'clientAttendance' || prev === 'clubMonthly'
-        ? null
-        : prev,
+      prev === 'pnk' ||
+      prev === 'byDay' ||
+      prev === 'rating' ||
+      prev === 'coachQuality' ||
+      prev === 'clientRetention' ||
+      prev === 'clientAttendance' ||
+      prev === 'clubMonthly' ||
+      prev === 'completed'
+        ? 'byTypes'
+        : prev || 'byTypes',
     )
-  }, [showPzOnlyCards, statsHall])
+    onCompletedJournalOpenChange?.(false)
+  }, [showPzOnlyCards, statsHall, onCompletedJournalOpenChange])
+
+  useEffect(() => {
+    if (completedJournalOpen) setInlinePanel('completed')
+  }, [completedJournalOpen])
+
+  useEffect(() => {
+    if (!showPzOnlyCards || inlinePanel !== 'completed' || completedJournalOpen) return
+    onCompletedJournalOpenChange?.(true)
+    onOpenCompletedJournal?.()
+  }, [
+    showPzOnlyCards,
+    inlinePanel,
+    completedJournalOpen,
+    onCompletedJournalOpenChange,
+    onOpenCompletedJournal,
+  ])
 
   const onStatsHallChange = (hall) => {
     setStatsHall(hall)
-    setInlinePanel(null)
+    if (clubStatsHallShowsPzOnlyCards(hall)) {
+      setInlinePanel('completed')
+      onCompletedJournalOpenChange?.(true)
+      onOpenCompletedJournal?.()
+    } else {
+      setInlinePanel('byTypes')
+      onCompletedJournalOpenChange?.(false)
+    }
     onStatsContextReset?.()
   }
 
@@ -194,8 +226,8 @@ export function AdminClubStatsSection({
   }, [clubId, isTrainerScope, reloadNames])
 
   useEffect(() => {
-    setStatsHelpOpen(false)
-    setInlinePanel(null)
+    // Сброс кэша итога при смене клуба/скоупа. Панель не в null —
+    // иначе при повторном входе в статистику все отчёты «закрыты».
     setClubMonthly([])
     setClubMonthlyBusy(false)
     setMonthlyChartYear(defaultChartYear)
@@ -203,7 +235,18 @@ export function AdminClubStatsSection({
     setMonthlyYearSummary(null)
     monthlyCacheRef.current.clear()
     deepLinkHandledRef.current = ''
-  }, [clubId, scopeClubId, isTrainerScope, defaultChartYear])
+    if (!isTrainerScope) setStatsHall('pz')
+    setInlinePanel('completed')
+    onCompletedJournalOpenChange?.(true)
+    onOpenCompletedJournal?.()
+  }, [
+    clubId,
+    scopeClubId,
+    isTrainerScope,
+    defaultChartYear,
+    onCompletedJournalOpenChange,
+    onOpenCompletedJournal,
+  ])
 
   /** Итог по календарному году — только при открытии графика. */
   useEffect(() => {
@@ -261,43 +304,6 @@ export function AdminClubStatsSection({
   }, [inlinePanel, monthlyChartYear, clubId, scopeClubId, scopeTrainerId, isTrainerScope])
 
   useEffect(() => {
-    if (!statsHelpOpen) return
-    const onDoc = (e) => {
-      if (statsHelpRef.current && !statsHelpRef.current.contains(e.target)) setStatsHelpOpen(false)
-    }
-    const onKey = (e) => {
-      if (e.key === 'Escape') setStatsHelpOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDoc)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [statsHelpOpen])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      if (isTrainerScope || !clubId) {
-        setClubLabel('')
-        return
-      }
-      try {
-        const clubs = await listClubsLocal()
-        if (cancelled) return
-        const c = clubs.find((x) => x.id === clubId)
-        setClubLabel(c?.name?.trim() || '')
-      } catch {
-        if (!cancelled) setClubLabel('')
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [clubId, isTrainerScope])
-
-  useEffect(() => {
     if (!deepLinkPanel || busy || !stats) return
     if (deepLinkPanel === 'coachQuality' && coachQualityBusy) return
     // ПНК/журнал/качество — только ПЗ: сначала переключаем вкладку, не сжигаем deep-link.
@@ -312,12 +318,14 @@ export function AdminClubStatsSection({
     const key = `${clubId}:${deepLinkPanel}:${range.start}:${range.end}:${isTrainerScope ? 't' : statsHall}`
     if (deepLinkHandledRef.current === key) return
     deepLinkHandledRef.current = key
-    setInlinePanel(null)
     // «Не активные» — в Клиентах (админ и тренер), не карточка статистики.
     if (deepLinkPanel === 'journal') {
+      setInlinePanel('completed')
       onOpenCompletedJournal?.()
+      onCompletedJournalOpenChange?.(true)
     } else if (deepLinkPanel === 'coachQuality') {
       setInlinePanel('coachQuality')
+      onCompletedJournalOpenChange?.(false)
       window.setTimeout(() => {
         document.getElementById('admin-coach-quality-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 80)
@@ -334,18 +342,9 @@ export function AdminClubStatsSection({
     statsHall,
     isTrainerScope,
     onOpenCompletedJournal,
+    onCompletedJournalOpenChange,
     onDeepLinkConsumed,
   ])
-
-  const maxDayTotal = useMemo(() => {
-    if (!stats?.byDay?.length) return 1
-    let m = 1
-    for (const d of stats.byDay) {
-      const t = (d.completed ?? 0) + (d.draft ?? 0)
-      if (t > m) m = t
-    }
-    return m
-  }, [stats?.byDay])
 
   const dayActivityTotal = useMemo(() => {
     const byDay = stats?.byDay ?? []
@@ -405,14 +404,6 @@ export function AdminClubStatsSection({
     }
     return map
   }, [clientRetention?.byTrainer])
-  const clientsListPath = pathname.startsWith('/club')
-    ? '/club/clients'
-    : pathname.startsWith('/sales')
-      ? '/sales/clients'
-      : isTrainerScope
-        ? '/trainer/clients'
-        : '/admin/clients'
-
   const clientHrefForQuality = useCallback(
     (clientId) => {
       const id = String(clientId ?? '').trim()
@@ -428,7 +419,7 @@ export function AdminClubStatsSection({
 
   if (!isTrainerScope && !clubId) {
     return (
-      <section className="card">
+      <section className="card admin-club-stats-shell">
         <h2 className="section-title td-section-title" style={{ margin: '0 0 8px' }}>
           Статистика клуба
         </h2>
@@ -441,20 +432,37 @@ export function AdminClubStatsSection({
 
   const s = stats
   const totalCompleted = s?.totalCompleted ?? 0
-  const totalDraft = s?.totalDraft ?? 0
-  const uniqueClients = s?.uniqueClients ?? 0
   const byDay = s?.byDay ?? []
   const byTrainer = s?.byTrainer ?? []
   const byType = s?.byType ?? []
   const byTrainerByType = s?.byTrainerByType ?? []
   const totalCounted = s?.totalCounted ?? 0
+  const helpCtx = {
+    isTrainerScope,
+    showPzOnlyCards,
+    hallLabel: CLUB_STATS_HALL_LABELS[statsHall] || '',
+  }
+  const detailHelp = (key, label) => (
+    <AdminClubStatsHelpTip label={label} lines={adminClubStatsHelpLines(key, helpCtx)} />
+  )
 
-  const toggleInlinePanel = (panel) => {
+  /** Карточки только переключают панель — повторный клик не сворачивает. */
+  const selectInlinePanel = (panel) => {
     setInlinePanel((cur) => {
-      const next = cur === panel ? null : panel
-      if (next === 'clubMonthly') setMonthlyChartYear(defaultChartYear)
-      return next
+      if (cur === panel) return cur
+      if (panel === 'clubMonthly') setMonthlyChartYear(defaultChartYear)
+      return panel
     })
+    if (panel === 'completed') {
+      onCompletedJournalOpenChange?.(true)
+      onOpenCompletedJournal?.()
+      return
+    }
+    onCompletedJournalOpenChange?.(false)
+  }
+
+  const selectCompletedJournal = () => {
+    selectInlinePanel('completed')
   }
 
   const statCardClass = (active) =>
@@ -463,198 +471,68 @@ export function AdminClubStatsSection({
       .join(' ')
 
   return (
-    <section className="card">
-      <div className="td-section-head">
-        {hideSectionTitle ? (
-          <span className="u-visually-hidden">Сводка за период</span>
-        ) : (
+    <section className="card admin-club-stats-shell">
+      <AdminClubStatsPeriodBar
+        showHall={!isTrainerScope}
+        hall={statsHall}
+        onHallChange={onStatsHallChange}
+        period={period}
+        onPeriodChange={setPeriod}
+        range={range}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFrom={setCustomFrom}
+        onCustomTo={setCustomTo}
+      />
+      {hideSectionTitle ? (
+        <span className="u-visually-hidden">Сводка за период</span>
+      ) : (
+        <div className="td-section-head">
           <h2 className="section-title td-section-title" style={{ margin: 0 }}>
             {isTrainerScope ? 'Статистика' : 'Статистика клуба'}
           </h2>
-        )}
-        <div className="row td-actions">
-          <button
-            type="button"
-            className="btn btn-primary btn-icon-square btn-touch"
-            disabled={busy}
-            onClick={() => {
-              if (!isTrainerScope) void reloadNames()
-              void loadStats()
-            }}
-            aria-label="Обновить статистику"
-            title="Обновить"
-          >
-            <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
-          </button>
         </div>
-      </div>
-      {!isTrainerScope ? (
-        <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-          {clubLabel ? (
-            <>
-              Клуб: <strong>{clubLabel}</strong>
-              {s?.source === 'remote' || s?.source === 'admin_api' || s?.source === 'api' ? (
-                <> · данные из <strong>облака</strong>.</>
-              ) : (
-                <>
-                  · сейчас с <strong>устройства</strong> (IndexedDB).
-                  {!isSupabaseConfigured()
-                    ? ' Добавьте Supabase в .env для облака.'
-                    : ' Если сервер недоступен, проверьте сеть и RLS.'}
-                </>
-              )}
-            </>
-          ) : (
-            <>Сводка по клубу: клиенты и абонементы на конец периода, непродления в диапазоне, проведённые тренировки, график по дням и рейтинг тренеров.</>
-          )}
-        </p>
-      ) : (
-        <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-          {s?.source === 'api'
-            ? 'Цифры с сервера клуба.'
-            : s?.source === 'last_good'
-              ? 'Показаны последние успешные цифры (сеть сбойнула).'
-              : 'Сейчас с устройства. Если нули — нажмите Sync или обновите приложение.'}
-        </p>
       )}
-      {!isTrainerScope ? (
-        <div style={{ margin: '0 0 12px' }}>
-          <AdminClubStatsHallTabs value={statsHall} onChange={onStatsHallChange} />
-          <p className="muted" style={{ fontSize: 12, margin: '6px 0 0', lineHeight: 1.4 }}>
-            Цифры по залу. Человек с абонами в разных залах может быть на нескольких вкладках — не складывайте ПЗ+ТЗ+АЗ.
-          </p>
-        </div>
-      ) : null}
       {s?.fallbackReason ? <p className="muted admin-inline-note">Резерв / причина: {s.fallbackReason}</p> : null}
-
-      <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
-        Период
-      </h3>
-      <div className="row td-period__buttons" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        {PERIOD_PRESETS.map((p) => (
-          <button key={p.id} type="button" className={`btn ${period === p.id ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPeriod(p.id)}>
-            {p.label}
-          </button>
-        ))}
-      </div>
-      {period === 'custom' && (
-        <div className="grid grid-2 td-period__custom" style={{ marginBottom: 10 }}>
-          <div className="field td-period__field" style={{ marginBottom: 0 }}>
-            <label className="label">С</label>
-            <input className="input" type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} required />
-          </div>
-          <div className="field td-period__field" style={{ marginBottom: 0 }}>
-            <label className="label">По</label>
-            <input className="input" type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} required />
-          </div>
-        </div>
-      )}
-      <p className="muted td-range" style={{ margin: '0 0 8px', fontSize: 13 }}>
-        {range.start && range.end ? (
-          <>
-            Диапазон: {formatIsoRu(range.start)} — {formatIsoRu(range.end)}
-          </>
-        ) : period === 'custom' ? (
-          <span className="admin-inline-note">Укажите даты «с» и «по». Начало не должно быть позже конца.</span>
-        ) : (
-          <>Диапазон: —</>
-        )}
-      </p>
-      <div ref={statsHelpRef} className="admin-club-stats-board">
-        <button
-          type="button"
-          className="btn btn-ghost btn-icon-square admin-club-stats-board__help"
-          aria-expanded={statsHelpOpen}
-          aria-controls="admin-club-stats-help"
-          aria-label="Как считаются показатели"
-          title="Как считаются показатели"
-          onClick={() => setStatsHelpOpen((v) => !v)}
-        >
-          <Info size={20} aria-hidden />
-        </button>
-        {statsHelpOpen ? (
-          <div id="admin-club-stats-help" className="admin-club-stats-board__popover" role="region" aria-label="Пояснения к показателям">
-            <ul className="admin-club-stats-board__popover-list">
-              {!isTrainerScope ? (
-                <li>
-                  <strong>Вкладки ПЗ / ТЗ / АЗ</strong> — цифры только по выбранному залу. Не складывайте три вкладки как «число людей»: один клиент может быть на нескольких.
-                </li>
-              ) : null}
-              <li>
-                <strong>Клиенты (всего / действующие / не активные)</strong> —{' '}
-                {isTrainerScope
-                  ? 'в разделе «Клиенты» (фильтры воронки); здесь не дублируем.'
-                  : 'в разделе «Клиенты» по вкладке зала и фильтрам воронки; здесь не дублируем.'}
-              </li>
-              {showPzOnlyCards ? (
-                <>
-                  <li>
-                    <strong>ПНК → ДК</strong> — дробь: оформления / все ПНК за период; маленький % — конверсия. Только на вкладке ПЗ.
-                  </li>
-                  <li>
-                    <strong>Проведено тренировок</strong> — завершённые за период (планшет ПЗ); список внизу страницы.
-                  </li>
-                  <li>
-                    <strong>По дням</strong> — график завершённых и черновиков по датам.
-                  </li>
-                </>
-              ) : null}
-              <li>
-                <strong>По типам карт</strong> —{' '}
-                {showPzOnlyCards
-                  ? 'завершённые тренировки по типу абонемента; «Итого» без «Без типа».'
-                  : `сколько абонов ${CLUB_STATS_HALL_LABELS[statsHall] || ''} по типу карты (не тренировки планшета).`}
-              </li>
-              {showPzOnlyCards ? (
-                <>
-                  <li>
-                    <strong>{isTrainerScope ? 'Итог' : 'Итог по клубу'}</strong> — 12 календарных месяцев выбранного года; график по клику, без «Без типа».
-                  </li>
-                  {!isTrainerScope ? (
-                    <li>
-                      <strong>Рейтинг тренеров</strong> — сравнение тренеров клуба.
-                    </li>
-                  ) : null}
-                  <li>
-                    <strong>Качество ведения</strong> — {isTrainerScope ? 'ваш балл 0–100' : 'средний балл тренеров 0–100'}; нажмите для таблицы (ведение, глубина, хвосты).
-                  </li>
-                  <li>
-                    <strong>Удержание</strong> — {isTrainerScope ? 'ваш M+3' : 'M+3 по клубу'} (клиенты с планшетом): доля когорт, которые ещё ходили через 3 месяца; нажмите для продлений, архива и тренеров.
-                  </li>
-                  <li>
-                    <strong>Посещаемость</strong> — <em>средняя</em> (трен./нед. на клиента с активным абоном за период сводки). Не путать с «Проведено тренировок». Нажмите — структура ритма и сравнение тренеров.
-                  </li>
-                </>
-              ) : null}
-            </ul>
-            {showPzOnlyCards ? (
-              <p className="admin-club-stats-board__popover-note">
-                По тренировкам в периоде: черновиков <strong>{totalDraft}</strong>, уникальных клиентов в записях (завершена или черновик) —{' '}
-                <strong>{uniqueClients}</strong>.
-              </p>
-            ) : (
-              <p className="admin-club-stats-board__popover-note">
-                На ТЗ/АЗ нет журнала тренировок планшета и ПНК — это контур персонального зала.
-              </p>
-            )}
-          </div>
-        ) : null}
-
+      <div className="admin-club-stats-board">
         <div className="admin-club-stats-board__grid">
           {showPzOnlyCards ? (
           <button
             type="button"
-            className={statCardClass(inlinePanel === 'pnk')}
+            className={statCardClass(inlinePanel === 'completed')}
+            aria-expanded={inlinePanel === 'completed'}
+            aria-controls={completedJournalId}
             aria-label={
-              pnkFunnel
-                ? `ПНК в ДК: ${pnkFunnel.won} из ${pnkFunnel.entered}, ${pnkFunnel.conversionPct} процентов. Нажмите для отчёта`
-                : 'ПНК в ДК: нет данных'
+              totalCompleted > 0
+                ? `Проведено тренировок: ${totalCompleted}. Список за период`
+                : 'Проведено тренировок: нет за период'
             }
-            title={pnkFunnel ? 'Подробный отчёт по воронке ПНК' : undefined}
-            onClick={() => toggleInlinePanel('pnk')}
+            title="Проведено тренировок — список за период"
+            onClick={selectCompletedJournal}
           >
             <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">ПНК → ДК</h3>
+              <h3 className="td-stat-title admin-club-stat-card__title">Проведено</h3>
+              <ClipboardList className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">{totalCompleted}</p>
+          </button>
+          ) : null}
+
+          {showPzOnlyCards ? (
+          <button
+            type="button"
+            className={statCardClass(inlinePanel === 'pnk')}
+            aria-expanded={inlinePanel === 'pnk'}
+            aria-label={
+              pnkFunnel
+                ? `ПНК в ДК: ${pnkFunnel.won} из ${pnkFunnel.entered}, ${pnkFunnel.conversionPct} процентов. Подробнее`
+                : 'ПНК в ДК: нет данных'
+            }
+            title="ПНК → ДК — воронка за период"
+            onClick={() => selectInlinePanel('pnk')}
+          >
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">ПНК</h3>
               <UserPlus className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value admin-club-stat-card__value--pnk">
@@ -669,40 +547,6 @@ export function AdminClubStatsSection({
                 '—'
               )}
             </p>
-            <p className="admin-club-stat-card__foot">
-              {inlinePanel === 'pnk'
-                ? 'скрыть отчёт'
-                : isTrainerScope
-                  ? 'нажмите · ПНК'
-                  : 'нажмите · оформления / ПНК'}
-            </p>
-          </button>
-          ) : null}
-
-          {showPzOnlyCards ? (
-          <button
-            type="button"
-            className="card stat-card admin-club-stat-card admin-club-stat-card--clickable"
-            disabled={totalCompleted === 0}
-            aria-label={
-              totalCompleted > 0
-                ? `Проведено тренировок: ${totalCompleted}. Нажмите, чтобы открыть список`
-                : 'Проведено тренировок: нет за период'
-            }
-            title={totalCompleted > 0 ? 'Показать список тренировок' : undefined}
-            onClick={() => {
-              setInlinePanel(null)
-              onOpenCompletedJournal?.()
-            }}
-          >
-            <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Проведено тренировок</h3>
-              <ClipboardList className="stat-card__icon" size={22} aria-hidden />
-            </div>
-            <p className="stat-card__value admin-club-stat-card__value">{totalCompleted}</p>
-            <p className="admin-club-stat-card__foot">
-              {totalCompleted > 0 ? 'нажмите для списка' : 'за выбранный период'}
-            </p>
           </button>
           ) : null}
           {showPzOnlyCards ? (
@@ -710,104 +554,58 @@ export function AdminClubStatsSection({
             type="button"
             className={statCardClass(inlinePanel === 'byDay')}
             disabled={dayActivityTotal === 0}
+            aria-expanded={inlinePanel === 'byDay'}
             aria-label={
               dayActivityTotal > 0
-                ? `По дням: ${dayActivityTotal} записей. Нажмите для графика`
+                ? `По дням: ${dayActivityTotal} записей. Подробнее`
                 : 'По дням: нет данных за период'
             }
-            title={dayActivityTotal > 0 ? 'График по дням' : undefined}
-            onClick={() => toggleInlinePanel('byDay')}
+            title="По дням — график"
+            onClick={() => selectInlinePanel('byDay')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">По дням</h3>
               <BarChart3 className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{dayActivityTotal}</p>
-            <p className="admin-club-stat-card__foot">
-              {dayActivityTotal > 0 ? (inlinePanel === 'byDay' ? 'скрыть график' : 'нажмите для графика') : 'за выбранный период'}
-            </p>
           </button>
           ) : null}
           <button
             type="button"
             className={statCardClass(inlinePanel === 'byTypes')}
             disabled={totalCounted === 0}
+            aria-expanded={inlinePanel === 'byTypes'}
             aria-label={
               totalCounted > 0
                 ? showPzOnlyCards
-                  ? `По типам карт: ${totalCounted} записей. Нажмите для таблицы`
-                  : `По типам карт ${CLUB_STATS_HALL_LABELS[statsHall] || ''}: ${totalCounted} абонов. Нажмите для таблицы`
+                  ? `По типам карт: ${totalCounted} записей. Подробнее`
+                  : `По типам карт ${CLUB_STATS_HALL_LABELS[statsHall] || ''}: ${totalCounted} абонов. Подробнее`
                 : 'По типам карт: нет данных'
             }
-            title={totalCounted > 0 ? 'Таблица по типам' : undefined}
-            onClick={() => toggleInlinePanel('byTypes')}
+            title="По типам карт — таблица"
+            onClick={() => selectInlinePanel('byTypes')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">По типам карт</h3>
+              <h3 className="td-stat-title admin-club-stat-card__title">Типы карт</h3>
               <LayoutGrid className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{totalCounted}</p>
-            <p className="admin-club-stat-card__foot">
-              {totalCounted > 0
-                ? inlinePanel === 'byTypes'
-                  ? 'скрыть таблицу'
-                  : showPzOnlyCards
-                    ? 'нажмите для таблицы'
-                    : `абоны ${CLUB_STATS_HALL_LABELS[statsHall] || ''} · нажмите`
-                : showPzOnlyCards
-                  ? 'за выбранный период'
-                  : 'нет абонов зала'}
-            </p>
           </button>
-          {showPzOnlyCards ? (
-          <button
-            type="button"
-            className={statCardClass(inlinePanel === 'clubMonthly')}
-            disabled={!range.end}
-            aria-label={
-              range.end
-                ? `Итог: ${MONTHS_PER_CALENDAR_YEAR} месяцев, ${defaultChartYear} год. Нажмите для графика`
-                : 'Итоговая статистика недоступна'
-            }
-            title={range.end ? `График по месяцам · ${defaultChartYear}` : undefined}
-            onClick={() => toggleInlinePanel('clubMonthly')}
-          >
-            <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Итог' : 'Итог по клубу'}</h3>
-              <LineChart className="stat-card__icon" size={22} aria-hidden />
-            </div>
-            <p className="stat-card__value admin-club-stat-card__value admin-club-stat-card__value--months">
-              {MONTHS_PER_CALENDAR_YEAR}
-              <span className="admin-club-stat-card__value-unit">месяцев</span>
-            </p>
-            <p className="admin-club-stat-card__foot">
-              {inlinePanel === 'clubMonthly'
-                ? `скрыть · ${monthlyChartYear}`
-                : `год ${defaultChartYear} · не период сверху`}
-            </p>
-          </button>
-          ) : null}
           {showPzOnlyCards && !isTrainerScope ? (
             <button
               type="button"
               className={statCardClass(inlinePanel === 'rating')}
               disabled={!byTrainer.length}
-              aria-label={byTrainer.length ? `Рейтинг тренеров: ${byTrainer.length}. Нажмите для раскрытия` : 'Рейтинг тренеров: нет данных'}
-              title={byTrainer.length ? 'Рейтинг тренеров' : undefined}
-              onClick={() => toggleInlinePanel('rating')}
+              aria-expanded={inlinePanel === 'rating'}
+              aria-label={byTrainer.length ? `Рейтинг тренеров: ${byTrainer.length}. Подробнее` : 'Рейтинг тренеров: нет данных'}
+              title="Рейтинг тренеров"
+              onClick={() => selectInlinePanel('rating')}
             >
               <div className="stat-card__top admin-club-stat-card__head">
-                <h3 className="td-stat-title admin-club-stat-card__title">Рейтинг тренеров</h3>
+                <h3 className="td-stat-title admin-club-stat-card__title">Рейтинг</h3>
                 <Trophy className="stat-card__icon" size={22} aria-hidden />
               </div>
               <p className="stat-card__value admin-club-stat-card__value">{byTrainer.length}</p>
-              <p className="admin-club-stat-card__foot">
-                {byTrainer.length
-                  ? inlinePanel === 'rating'
-                    ? 'скрыть рейтинг'
-                    : 'нажмите · рейтинг'
-                  : 'за выбранный период'}
-              </p>
             </button>
           ) : null}
           {showPzOnlyCards ? (
@@ -816,20 +614,21 @@ export function AdminClubStatsSection({
             className={statCardClass(inlinePanel === 'coachQuality')}
             disabled={!hasCoachQualityRows || coachQualityBusy}
             aria-busy={coachQualityBusy || undefined}
+            aria-expanded={inlinePanel === 'coachQuality'}
             aria-label={
               coachQualityBusy
                 ? 'Качество ведения: считаем'
                 : hasCoachQualityRows
                   ? isTrainerScope
-                    ? `Качество ведения: ${coachQualityCardValue != null ? `${coachQualityCardValue} из 100` : 'нет балла'}. Нажмите для таблицы`
-                    : `Качество ведения: средний балл ${coachQualityCardValue != null ? coachQualityCardValue : 'нет'}. Нажмите для таблицы`
+                    ? `Качество ведения: ${coachQualityCardValue != null ? `${coachQualityCardValue} из 100` : 'нет балла'}. Подробнее`
+                    : `Качество ведения: средний балл ${coachQualityCardValue != null ? coachQualityCardValue : 'нет'}. Подробнее`
                   : 'Качество ведения: нет данных'
             }
-            title={hasCoachQualityRows && !coachQualityBusy ? 'Таблица качества ведения' : undefined}
-            onClick={() => toggleInlinePanel('coachQuality')}
+            title="Качество ведения"
+            onClick={() => selectInlinePanel('coachQuality')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Качество ведения</h3>
+              <h3 className="td-stat-title admin-club-stat-card__title">Качество</h3>
               <Gauge className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">
@@ -844,17 +643,6 @@ export function AdminClubStatsSection({
                 '—'
               )}
             </p>
-            <p className="admin-club-stat-card__foot">
-              {coachQualityBusy
-                ? 'считаем…'
-                : !hasCoachQualityRows
-                  ? 'за выбранный период'
-                  : inlinePanel === 'coachQuality'
-                    ? 'скрыть таблицу'
-                    : isTrainerScope
-                      ? 'нажмите · ваша оценка'
-                      : 'средний балл · нажмите'}
-            </p>
           </button>
           ) : null}
           {showPzOnlyCards ? (
@@ -863,31 +651,23 @@ export function AdminClubStatsSection({
             className={statCardClass(inlinePanel === 'clientRetention')}
             disabled={!hasClientRetention || clientRetentionBusy}
             aria-busy={clientRetentionBusy || undefined}
+            aria-expanded={inlinePanel === 'clientRetention'}
             aria-label={
               clientRetentionBusy
                 ? 'Удержание: считаем'
                 : hasClientRetention
-                  ? `Удержание M+3: ${formatRetentionRatePct(clientRetentionM3)}. Нажмите для подробностей`
+                  ? `Удержание M+3: ${formatRetentionRatePct(clientRetentionM3)}. Подробнее`
                   : 'Удержание: нет данных'
             }
-            title={hasClientRetention && !clientRetentionBusy ? 'Удержание клиентов' : undefined}
-            onClick={() => toggleInlinePanel('clientRetention')}
+            title="Удержание M+3"
+            onClick={() => selectInlinePanel('clientRetention')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Удержание</h3>
+              <h3 className="td-stat-title admin-club-stat-card__title">M+3</h3>
               <TrendingUp className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">
               {clientRetentionBusy ? '…' : formatRetentionRatePct(clientRetentionM3)}
-            </p>
-            <p className="admin-club-stat-card__foot">
-              {clientRetentionBusy
-                ? 'считаем…'
-                : !hasClientRetention
-                  ? 'клиенты с планшетом'
-                  : inlinePanel === 'clientRetention'
-                    ? 'скрыть подробности'
-                    : 'M+3 · нажмите'}
             </p>
           </button>
           ) : null}
@@ -904,47 +684,60 @@ export function AdminClubStatsSection({
               clientAttendanceBusy
                 ? 'Посещаемость: считаем'
                 : hasClientAttendance
-                  ? `Посещаемость: средняя ${formatClubAvgVisitsPerWeek(clientAttendance.avgVisitsPerWeek)} тренировок в неделю, без выпадения ${formatClubAttendancePct(clientAttendance.inRhythmPct)}. Нажмите`
+                  ? `Посещаемость: средняя ${formatClubAvgVisitsPerWeek(clientAttendance.avgVisitsPerWeek)} тренировок в неделю, без выпадения ${formatClubAttendancePct(clientAttendance.inRhythmPct)}. Подробнее`
                   : 'Посещаемость: нет активных абонов'
             }
-            title={
-              hasClientAttendance && !clientAttendanceBusy
-                ? 'Средняя посещаемость ПЗ за последние 30 дней (трен./нед) — нажмите для аналитики'
-                : undefined
-            }
-            onClick={() => toggleInlinePanel('clientAttendance')}
+            title="Посещаемость · трен./нед за 30 дней"
+            onClick={() => selectInlinePanel('clientAttendance')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Посещаемость</h3>
+              <h3 className="td-stat-title admin-club-stat-card__title">Ритм</h3>
               <TrendingDown className="stat-card__icon" size={20} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">
               {clientAttendanceBusy ? '…' : formatClubAvgVisitsPerWeek(clientAttendance?.avgVisitsPerWeek)}
             </p>
-            <p className="admin-club-stat-card__foot">
-              {clientAttendanceBusy
-                ? 'считаем…'
-                : !hasClientAttendance
-                  ? 'нет активных абонов'
-                  : inlinePanel === 'clientAttendance'
-                    ? 'скрыть подробности'
-                    : `трен./нед · 30 дн. · без выпад. ${formatClubAttendancePct(clientAttendance.inRhythmPct)} · нажмите`}
-            </p>
+          </button>
+          ) : null}
+          {showPzOnlyCards ? (
+          <button
+            type="button"
+            className={statCardClass(inlinePanel === 'clubMonthly')}
+            disabled={!range.end}
+            aria-expanded={inlinePanel === 'clubMonthly'}
+            aria-label={
+              range.end
+                ? `Итог: ${MONTHS_PER_CALENDAR_YEAR} месяцев, ${defaultChartYear} год. Подробнее`
+                : 'Итоговая статистика недоступна'
+            }
+            title={isTrainerScope ? `Итог · год ${defaultChartYear}` : `Итог по клубу · год ${defaultChartYear}`}
+            onClick={() => selectInlinePanel('clubMonthly')}
+          >
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">Итог</h3>
+              <LineChart className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">{MONTHS_PER_CALENDAR_YEAR}</p>
           </button>
           ) : null}
         </div>
       </div>
 
+      {inlinePanel === 'completed' && completedJournalOpen && completedJournal ? (
+        <section className="card admin-club-stats-detail has-float-help" id={completedJournalId}>
+          <div className="admin-club-stats-detail__head admin-club-stats-detail__head--float">
+            {detailHelp('completed', 'Что за журнал тренировок')}
+          </div>
+          {completedJournal}
+        </section>
+      ) : null}
+
       {inlinePanel === 'pnk' && pnkFunnel && showPzOnlyCards ? (
-        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
-          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
-            Воронка ПНК за период
-          </h3>
-          <p className="muted" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
-            Дробь <strong>{pnkFunnel.won}/{pnkFunnel.entered}</strong> — сколько оформили в ДК из всех ПНК, попавших в период
-            (по дате создания). Процент — та же конверсия мелко. Открытый ПНК сюда входит, в «Всего клиентов» клуба — нет,
-            пока не оформлен.
-          </p>
+        <section className="card admin-club-stats-detail">
+          <div className="admin-club-stats-detail__head">
+            <h3 className="section-title">Воронка ПНК за период</h3>
+            {detailHelp('pnk', 'Что значит воронка ПНК')}
+          </div>
           <div className="admin-pnk-report__grid">
             <div className="admin-pnk-report__cell">
               <span className="admin-pnk-report__label">ПНК</span>
@@ -1010,34 +803,29 @@ export function AdminClubStatsSection({
               </table>
             </>
           ) : null}
-          <p className="muted" style={{ margin: '12px 0 0', fontSize: 12, lineHeight: 1.4 }}>
-            Дальше здесь появятся доли с полной картой здоровья, обмерами и «слабыми» пропусками шагов — тот же язык, что в
-            «Итоге визита» у админа на карточке клиента.
-          </p>
         </section>
       ) : null}
 
       {inlinePanel === 'byDay' && showPzOnlyCards ? (
-        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
-          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            {isTrainerScope ? 'По дням' : 'По дням (клуб)'}
-          </h3>
-          <AdminClubDayChart byDay={byDay} maxDayTotal={maxDayTotal} />
+        <section className="card admin-club-stats-detail">
+          <div className="admin-club-stats-detail__head">
+            <h3 className="section-title">Тренировки по дням</h3>
+            {detailHelp('byDay', 'Что показывает график тренировок по дням')}
+          </div>
+          <AdminClubDayChart byDay={byDay} />
         </section>
       ) : null}
 
       {inlinePanel === 'byTypes' ? (
-        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
-          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            {showPzOnlyCards
-              ? 'По типам абонементов'
-              : `По типам абонементов · ${CLUB_STATS_HALL_LABELS[statsHall] || ''}`}
-          </h3>
-          {!showPzOnlyCards ? (
-            <p className="muted" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.4 }}>
-              Считаем абоны выбранного зала по типу карты (не тренировки планшета ПЗ).
-            </p>
-          ) : null}
+        <section className="card admin-club-stats-detail">
+          <div className="admin-club-stats-detail__head">
+            <h3 className="section-title">
+              {showPzOnlyCards
+                ? 'По типам абонементов'
+                : `По типам абонементов · ${CLUB_STATS_HALL_LABELS[statsHall] || ''}`}
+            </h3>
+            {detailHelp('byTypes', 'Что значит таблица по типам карт')}
+          </div>
           <MembershipTypeStatsTable
             byType={byType}
             byTrainerByType={byTrainerByType}
@@ -1056,15 +844,15 @@ export function AdminClubStatsSection({
       ) : null}
 
       {inlinePanel === 'clubMonthly' && showPzOnlyCards ? (
-        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
-          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            {isTrainerScope
-              ? `Итоговая статистика · ${monthlyChartYear}`
-              : `Итоговая статистика по клубу · ${monthlyChartYear}`}
-          </h3>
-          <p className="muted" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.4 }}>
-            Столбцы — по всем календарным месяцам {monthlyChartYear} года (янв–дек), независимо от периода сводки выше.
-          </p>
+        <section className="card admin-club-stats-detail">
+          <div className="admin-club-stats-detail__head">
+            <h3 className="section-title">
+              {isTrainerScope
+                ? `Итоговая статистика · ${monthlyChartYear}`
+                : `Итоговая статистика по клубу · ${monthlyChartYear}`}
+            </h3>
+            {detailHelp('clubMonthly', 'Что показывает итог по месяцам')}
+          </div>
           {clubMonthlyBusy && !clubMonthly.length ? (
             <div className="admin-path-loading" role="status" aria-busy="true">
               <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
@@ -1080,35 +868,41 @@ export function AdminClubStatsSection({
                   на абонементе — 0 (как «Без типа» в таблице). Назначьте тип в абонементе клиента или обновите данные (Sync).
                 </p>
               ) : null}
-              <AdminClubMonthlyChart rows={clubMonthly} year={monthlyChartYear} />
+              <AdminClubMonthlyChart
+                rows={clubMonthly}
+                year={monthlyChartYear}
+                yearPicker={
+                  monthlyYears.length ? (
+                    <div className="admin-monthly-year-tabs" role="group" aria-label="Год графика">
+                      {monthlyYears.map((y) => (
+                        <button
+                          key={y}
+                          type="button"
+                          className={`admin-monthly-year-tabs__btn${monthlyChartYear === y ? ' admin-monthly-year-tabs__btn--active' : ''}`}
+                          aria-pressed={monthlyChartYear === y}
+                          disabled={clubMonthlyBusy && monthlyChartYear === y}
+                          onClick={() => {
+                            if (y !== monthlyChartYear) setMonthlyChartYear(y)
+                          }}
+                        >
+                          {y}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null
+                }
+              />
             </>
           )}
-          {monthlyYears.length ? (
-            <div className="row td-period__buttons admin-monthly-year-tabs" style={{ flexWrap: 'wrap', gap: 8, marginTop: 12, justifyContent: 'center' }}>
-              {monthlyYears.map((y) => (
-                <button
-                  key={y}
-                  type="button"
-                  className={`btn ${monthlyChartYear === y ? 'btn-primary' : 'btn-ghost'}`}
-                  aria-pressed={monthlyChartYear === y}
-                  disabled={clubMonthlyBusy && monthlyChartYear === y}
-                  onClick={() => {
-                    if (y !== monthlyChartYear) setMonthlyChartYear(y)
-                  }}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          ) : null}
         </section>
       ) : null}
 
       {inlinePanel === 'rating' && showPzOnlyCards ? (
-        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
-          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            Тренеры — рейтинг
-          </h3>
+        <section className="card admin-club-stats-detail">
+          <div className="admin-club-stats-detail__head">
+            <h3 className="section-title">Тренеры — рейтинг</h3>
+            {detailHelp('rating', 'Что значит рейтинг тренеров')}
+          </div>
           {byTrainer.length === 0 ? (
             <div className="os-empty-card" role="status">
               <p className="os-empty-card__title">Нет данных по тренерам</p>
@@ -1153,7 +947,7 @@ export function AdminClubStatsSection({
       ) : null}
 
       {inlinePanel === 'coachQuality' && showPzOnlyCards ? (
-        <div id="admin-coach-quality-panel">
+        <div id="admin-coach-quality-panel" className="admin-club-stats-detail-slot">
           <CoachQualityPanel
             coachQuality={s?.coachQuality}
             trainerLabel={trainerLabel}
@@ -1165,7 +959,7 @@ export function AdminClubStatsSection({
       ) : null}
 
       {inlinePanel === 'clientRetention' && showPzOnlyCards ? (
-        <div id="admin-client-retention-panel">
+        <div id="admin-client-retention-panel" className="admin-club-stats-detail-slot">
           <ClientRetentionPanel
             clientRetention={s?.clientRetention}
             trainerLabel={trainerLabel}
@@ -1176,12 +970,10 @@ export function AdminClubStatsSection({
       ) : null}
 
       {inlinePanel === 'clientAttendance' && showPzOnlyCards ? (
-        <div id="admin-client-attendance-panel">
+        <div id="admin-client-attendance-panel" className="admin-club-stats-detail-slot">
           <ClientAttendanceClubPanel
             clientAttendance={clientAttendance}
             busy={clientAttendanceBusy}
-            clubId={isTrainerScope ? scopeClubId || clubId : clubId}
-            clientsPath={clientsListPath}
             trainerLabel={trainerLabel}
             selfTrainerId={isTrainerScope ? scopeTrainerId : null}
           />

@@ -1,0 +1,21 @@
+.admin-club-day-chart {
+  margin: 0;
+  min-width: 0;
+}
+
+.admin-club-day-chart__empty {
+  margin: 0;
+  font-size: 13px;
+}
+
+.admin-club-day-chart__canvas {
+  height: clamp(320px, 48vh, 460px);
+  width: 100%;
+  padding: 4px 2px 0;
+}
+
+.admin-club-day-chart__hint {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}

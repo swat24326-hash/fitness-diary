@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { RefreshCw, Trash2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Trash2 } from 'lucide-react'
 import { AdminMembershipTypeRenameButton } from '../../components/admin/AdminMembershipTypeRenameButton.jsx'
 import {
   AdminMembershipTypesPzPayTable,
@@ -47,7 +47,6 @@ function TypeChips({ items, zone, emptyLabel }) {
           {active.map((t) => (
             <li key={t.id}>
               <span className={`admin-mt-chip admin-mt-chip--${zone} admin-mt-chip--active`}>
-                <AdminMembershipTypeZoneBadge zone={zone} />
                 <span className="admin-mt-chip__code">{t.code}</span>
               </span>
             </li>
@@ -63,7 +62,6 @@ function TypeChips({ items, zone, emptyLabel }) {
             {inactive.map((t) => (
               <li key={t.id}>
                 <span className={`admin-mt-chip admin-mt-chip--${zone} admin-mt-chip--inactive`}>
-                  <AdminMembershipTypeZoneBadge zone={zone} />
                   <span className="admin-mt-chip__code">{t.code}</span>
                 </span>
               </li>
@@ -219,21 +217,6 @@ export function AdminMembershipTypes() {
     }
   }
 
-  const refreshFromCloud = async () => {
-    if (!clubId) return
-    setMsg('')
-    setPullBusy(true)
-    try {
-      if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
-        const r = await pullMembershipTypesForClubFromCloud(clubId, { forceFromCloud: true })
-        if (!r.ok && r.error) setMsg(r.error)
-      }
-      await reloadLocal()
-    } finally {
-      setPullBusy(false)
-    }
-  }
-
   const addType = async (e) => {
     e.preventDefault()
     if (!clubId) {
@@ -361,29 +344,19 @@ export function AdminMembershipTypes() {
 
   return (
     <div className="admin-membership-types grid" style={{ gap: 16 }}>
-      <p className="muted admin-inline-note" style={{ margin: 0 }}>
-        <strong>ПЗ</strong> — тренерский зал: тип видит тренер при оформлении абонемента, ставка идёт в ЗП
-        персонального зала
-        тренеров. <strong>АЗ</strong> — аэробный зал: только отчёт менеджера по продажам и ЗП АЗ, тренер не
-        оформляет.
-      </p>
-
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          disabled={pullBusy}
-          onClick={() => void refreshFromCloud()}
-        >
-          <RefreshCw size={14} className={pullBusy ? 'icon-spin' : undefined} aria-hidden />
-          Обновить с сервера
-        </button>
-        {msg ? (
-          <p className="admin-inline-note" style={{ margin: 0, color: 'var(--danger)' }} role="status">
-            {msg}
-          </p>
-        ) : null}
-      </div>
+      <h2 className="section-title td-section-title" style={{ margin: 0 }}>
+        Типы абонементов
+      </h2>
+      {msg ? (
+        <p className="admin-inline-note" style={{ margin: 0, color: 'var(--danger)' }} role="status">
+          {msg}
+        </p>
+      ) : null}
+      {pullBusy ? (
+        <p className="muted admin-inline-note" style={{ margin: 0 }} role="status">
+          Обновляем типы с сервера…
+        </p>
+      ) : null}
 
       <section className="admin-mt-catalog" aria-labelledby="admin-mt-overview-title">
         <div className="admin-mt-catalog__head">
@@ -420,14 +393,6 @@ export function AdminMembershipTypes() {
         <h3 id="admin-mt-pz-title" className="admin-mt-zone__title">
           <AdminMembershipTypeZoneBadge zone="pz" /> ПЗ — тренерский зал
         </h3>
-        <p className="muted admin-mt-zone__lead">
-          Тренер выбирает эти типы при создании абонемента. Ставки (ур. 1–3) — оплата тренеру за тренировку.
-          Галочка «В план» — учитывать тренировки в порогах вкладки{' '}
-          <Link to={clubId ? `/admin/structure?tab=club-plan&club=${encodeURIComponent(clubId)}` : '/admin/structure?tab=club-plan'}>
-            План ЗП
-          </Link>
-          (независимо от ₽). Карандаш — переименовать тип (абонементы не отвязываются).
-        </p>
 
         <form onSubmit={addType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
           <div className="field" style={{ margin: 0, minWidth: 200, flex: '1 1 220px' }}>
@@ -467,10 +432,6 @@ export function AdminMembershipTypes() {
         <h3 id="admin-mt-az-title" className="admin-mt-zone__title">
           <AdminMembershipTypeZoneBadge zone="az" /> АЗ — аэробный зал
         </h3>
-        <p className="muted admin-mt-zone__lead">
-          Только для отчёта менеджера по продажам. «Стоимость / ЗП» — сумма зарплаты АЗ за одну продажу этого
-          типа. Карандаш — переименовать. Тренер эти типы не видит.
-        </p>
 
         <form
           onSubmit={addAerobicType}

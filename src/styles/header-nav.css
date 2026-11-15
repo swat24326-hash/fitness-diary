@@ -1,0 +1,134 @@
+/*
+ * Верхняя навигация: иконка над подписью.
+ * Высота шапки остаётся в --header-h (72px) — от неё считают мессенджер, отчёт, обзвон.
+ */
+
+.app-header .app-header__nav {
+  gap: 0;
+  padding-bottom: 0;
+  scrollbar-width: none;
+}
+
+.app-header .app-header__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.app-header__nav-link {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  max-height: 46px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 2px 12px 4px;
+  min-width: 3rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: 0;
+  transition:
+    color 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out);
+  white-space: nowrap;
+}
+
+/* Тихие палочки между пунктами — как тонкая кромка шапки. */
+.app-header__nav > .app-header__nav-link + .app-header__nav-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  translate: 0 -58%;
+  width: 1px;
+  height: 1.35rem;
+  background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+  pointer-events: none;
+}
+
+.app-header__nav-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.app-header__nav-item-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  opacity: 0.9;
+}
+
+.app-header__nav-item-label {
+  display: block;
+}
+
+.app-header__nav-link:hover {
+  color: var(--text);
+}
+
+/* Роль — на иконке и черте; подпись без неона (канон Whoop). */
+.app-header__nav-link--active {
+  color: var(--text);
+  border-bottom-color: var(--accent-bright);
+}
+
+.app-header__nav-link--active .app-header__nav-item-icon {
+  color: var(--accent-bright);
+  opacity: 1;
+}
+
+.app-header a.app-header__nav-link:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 1px;
+}
+
+/* Бургер-меню: иконка слева от текста, не стек. */
+.app-header__menu-nav .app-header__nav-with-icon {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header__menu-nav .app-header__nav-with-icon svg {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* Менеджер: 12 пунктов с плиток — плотнее, полоса листается при нехватке ширины. */
+.app-shell--sales .app-header__nav--sales .app-header__nav-link {
+  padding-inline: 8px;
+  min-width: 2.6rem;
+  font-size: 0.66rem;
+}
+
+.app-shell--sales .app-header__nav--sales .app-header__nav-item-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Монитор уже: чуть плотнее, шапку не раздуваем. */
+@media (max-width: 1180px) {
+  .app-header__nav-link {
+    font-size: 0.68rem;
+    min-width: 2.75rem;
+    padding-inline: 8px;
+  }
+
+  .app-header__nav-item-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .app-header__nav > .app-header__nav-link + .app-header__nav-link::before {
+    height: 1.05rem;
+  }
+}

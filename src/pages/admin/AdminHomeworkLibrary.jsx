@@ -100,9 +100,6 @@ export function AdminHomeworkLibrary() {
           </button>
         </div>
       </div>
-      <p className="muted hwlib__hint">
-        Отсюда авто-ДЗ подбирает упражнения для клиентов всех клубов. Правки попадут в следующие задания; уже отправленные не меняются. Убранное упражнение можно вернуть.
-      </p>
       {msg ? <p className="hwlib__msg" role="status">{msg}</p> : null}
 
       <div className="hwlib__filters">

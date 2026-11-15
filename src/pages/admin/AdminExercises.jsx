@@ -225,9 +225,6 @@ export function AdminExercises() {
           </div>
         </div>
         {msg && <p className="muted">{msg}</p>}
-        <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-          Список из кэша (быстро). «Обновить» — подтянуть с облака. Добавление и правка названия сразу на этом компьютере; в облако уходят в фоне. Если сеть рвётся — Sync в шапке, упражнения не удалять.
-        </p>
 
         <h3 className="section-title td-period__title" style={{ margin: '16px 0 8px' }}>
           Добавить одно

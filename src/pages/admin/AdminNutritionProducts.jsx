@@ -279,7 +279,7 @@ export function AdminNutritionProducts() {
   if (!clubId) {
     return (
       <section className="card admin-nutrition-page">
-        <p className="muted">Выберите клуб в шапке — у каждого клуба свой набор продуктов для рациона.</p>
+        <p className="muted">Выберите клуб в шапке.</p>
       </section>
     )
   }
@@ -291,11 +291,6 @@ export function AdminNutritionProducts() {
           <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0 }}>
             Продукты для рациона
           </h2>
-          <p className="muted" style={{ margin: '8px 0 0', lineHeight: 1.45 }}>
-            Свой справочник клуба — как шаблоны ДЗ. Тренер видит продукты во вкладке «Питание». Пищевая группа нужна
-            для опроса «Не ем»; тип и сочетания — чтобы рацион собирал логичные тарелки. Книга рецептов — соседняя
-            вкладка «Рецепты».
-          </p>
           <p className="admin-nutrition-hero__stat">
             Активных: <strong>{activeCount}</strong>
           </p>

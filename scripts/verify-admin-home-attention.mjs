@@ -206,6 +206,41 @@ ok(groups[0]?.id === 'base' && groups[0].cards.length === 3, 'base: DR + trainin
 ok(groups[1]?.id === 'path' && groups[1].cards.length === 5, 'path: abo funnel')
 ok(groups[0]?.title === 'База и поводы', 'base title')
 ok(groups[1]?.title === 'По абонементу', 'path title')
+
+const managerCards = buildAdminDaySummaryCards({
+  clubId: 'club-1',
+  clientsPath: '/sales/clients',
+  statsPath: '/sales',
+  statsTab: 'stats',
+  includeCoachQuality: false,
+  summary: {
+    today: '2026-07-20',
+    yesterday: '2026-07-19',
+    inactive: 0,
+    expiring: 1,
+    expired_recent: 0,
+    stale: 0,
+    birthdays: 2,
+    awaiting_start: 0,
+    trainingsToday: 3,
+    trainingsYesterday: 1,
+    salesReportFilled: true,
+  },
+})
+ok(managerCards.length === 7, 'manager day cards without CQ')
+ok(!managerCards.some((c) => c.key === 'coachQuality'), 'manager: no coach quality')
+ok(
+  managerCards.find((c) => c.key === 'trainings')?.to ===
+    '/sales?club=club-1&period=today&panel=journal&tab=stats',
+  'manager trainings → sales stats tab',
+)
+ok(
+  managerCards.find((c) => c.key === 'birthdays')?.to ===
+    '/sales/clients?club=club-1&filter=birthdays',
+  'manager birthdays → sales clients',
+)
+const managerGroups = groupAdminDaySummaryCards(managerCards)
+ok(managerGroups[0]?.cards.length === 2, 'manager base: DR + trainings only')
 const split = splitDaySummarySpotlight(cards, { maxSpotlight: 2 })
 ok(split.spotlight.length === 2, 'spotlight size')
 ok(split.spotlight.some((c) => c.key === 'inactive' || c.key === 'expired_recent'), 'spotlight has urgent')

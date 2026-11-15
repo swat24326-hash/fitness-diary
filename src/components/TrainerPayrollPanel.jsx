@@ -222,9 +222,6 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
           <h2 className="section-title td-section-title" id="trainer-payroll-title" style={{ margin: 0 }}>
             Моя зарплата
           </h2>
-          <p className="trainer-payroll__note" style={{ margin: '0.35rem 0 0' }}>
-            По вашим завершённым тренировкам × ставки типов карт (сервер клуба; при сбое — последние цифры).
-          </p>
         </div>
       </div>
 

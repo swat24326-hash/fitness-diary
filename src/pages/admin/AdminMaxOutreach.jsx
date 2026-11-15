@@ -38,20 +38,16 @@ export function AdminMaxOutreach() {
   if (!clubId) {
     return (
       <div className="admin-outreach-templates">
-        <p className="admin-outreach-templates__notice muted">
-          Выберите клуб в шапке админки — шаблоны Max и SMS задаются отдельно для каждого клуба.
-        </p>
+        <p className="admin-outreach-templates__notice muted">Выберите клуб в шапке.</p>
       </div>
     )
   }
 
   return (
     <div className="admin-outreach-templates">
-      <p className="muted admin-outreach-templates__notice">
-        Max у тренера, Max/SMS/звонок у менеджера с доски клиентов; SMS и звонок — через Мои Звонки с
-        телефона клуба. Общий журнал звонков — отдельный раздел (не здесь). У каждого клуба может быть свой
-        аккаунт Мои Звонки.
-      </p>
+      <h2 className="section-title td-section-title" style={{ margin: 0 }}>
+        Max и SMS
+      </h2>
       <AdminClubMoizvonkiSection clubId={clubId} clubName={clubName} />
       <AdminOutreachTemplatesSection clubId={clubId} clubName={clubName} />
       <AdminClubSmsTemplatesSection clubId={clubId} clubName={clubName} />

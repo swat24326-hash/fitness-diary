@@ -1274,9 +1274,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           <div className="sales-clients__topbar-text">
             <p className="sales-home__eyebrow">Клуб · день</p>
             <h1 className="sales-page__title">Клиенты</h1>
-            <p className="sales-clients__lead">
-              Те же фильтры, что у админа: ДР, воронки, ТЗ/АЗ, lite-ПЗ. Только ваш клуб.
-            </p>
           </div>
           <div className="sales-clients__actions">
             <Link
@@ -1291,11 +1288,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           </div>
         </header>
       ) : (
-        <AdminSectionHeader
-          icon={UserCircle}
-          title="Клиенты"
-          lead="ПЗ · ТЗ · АЗ · архив. Новый клиент — кнопка «+» (ПЗ lite / ТЗ / АЗ вручную). Массово ТЗ/АЗ — «Списки из Excel»."
-        />
+        <AdminSectionHeader icon={UserCircle} title="Клиенты" />
       )}
 
       {!club && clubBound ? (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, UserCircle } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { useAuth } from '../../context/AuthContext'
 import { loadAdminHealthCardsByClientIds } from '../../lib/dataAccess'
@@ -86,11 +86,10 @@ export function TrainerStatisticsSection() {
   const trainerClubId = user?.club_id ?? null
 
   const [statsRange, setStatsRange] = useState({ start: '', end: '' })
-  const [journalOpen, setJournalOpen] = useState(false)
+  const [journalOpen, setJournalOpen] = useState(true)
 
   const [filteredTrainings, setFilteredTrainings] = useState([])
   const [clients, setClients] = useState({})
-  const [journalSource, setJournalSource] = useState('local')
   const [journalFallback, setJournalFallback] = useState(null)
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(ADMIN_JOURNAL_DEFAULT_PAGE_SIZE)
@@ -111,7 +110,6 @@ export function TrainerStatisticsSection() {
 
   const onStatsRange = useCallback((r) => {
     setPage(0)
-    setJournalOpen(false)
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
       return
@@ -172,7 +170,6 @@ export function TrainerStatisticsSection() {
     if (!journalOpen || !trainerId || !statsRange.start || !statsRange.end) {
       setFilteredTrainings([])
       setClients({})
-      setJournalSource('local')
       setJournalFallback(null)
       setHealthByClientId({})
       return
@@ -189,13 +186,11 @@ export function TrainerStatisticsSection() {
       if (seq !== loadSeqRef.current) return
       setClients(j.clientsById)
       setFilteredTrainings(j.trainings)
-      setJournalSource(j.source || 'local')
       setJournalFallback(j.fallbackReason ?? null)
     } catch {
       if (seq !== loadSeqRef.current) return
       setFilteredTrainings([])
       setClients({})
-      setJournalSource('local')
       setJournalFallback('Не удалось загрузить журнал')
     } finally {
       if (seq === loadSeqRef.current && !silent) setBusy(false)
@@ -228,13 +223,18 @@ export function TrainerStatisticsSection() {
   useEffect(() => {
     if (!journalOpen) return
     requestAnimationFrame(() => {
-      document.getElementById('trainer-completed-trainings-journal')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('trainer-completed-trainings-journal')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     })
   }, [journalOpen])
 
   const openCompletedJournal = useCallback(() => {
     setJournalOpen(true)
     setPage(0)
+  }, [])
+
+  const onCompletedJournalOpenChange = useCallback((open) => {
+    setJournalOpen(Boolean(open))
+    if (open) setPage(0)
   }, [])
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
@@ -270,148 +270,135 @@ export function TrainerStatisticsSection() {
         }}
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
-      />
-
-      {journalOpen ? (
-        <section className="card" id="trainer-completed-trainings-journal">
-          <div className="td-section-head">
-            <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-              Проведённые тренировки
-            </h2>
-            <div className="row td-actions">
-              <button type="button" className="btn btn-ghost btn-touch" onClick={() => setJournalOpen(false)}>
-                Скрыть
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-icon-square btn-touch"
-                disabled={busy}
-                onClick={() => void load()}
-                aria-label="Обновить список"
-                title="Обновить"
-              >
-                <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
-              </button>
-            </div>
-          </div>
-          <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-            Завершённые тренировки по вашим клиентам за период (
-            {statsRange.start && statsRange.end
-              ? `${formatDateRu(statsRange.start)} — ${formatDateRu(statsRange.end)}`
-              : '…'}
-            ).{' '}
-            {journalSource === 'api' || journalSource === 'remote' || journalSource === 'remote_partial' ? (
-              <>
-                Данные с <strong>сервера</strong>
-                {journalSource === 'remote_partial' ? ' (частично)' : ''}.
-              </>
-            ) : (
-              <>
-                Данные с <strong>устройства</strong> (IndexedDB)
-                {journalFallback ? ` · запасной режим: ${journalFallback}` : ''}.
-              </>
-            )}
-          </p>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Клиент</th>
-                  <th>№ карты</th>
-                  <th>Дата</th>
-                  <th>Тип карты</th>
-                  <th title="Просмотр" />
-                  <th title="Карточка клиента" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((t) => (
-                  <tr key={t.id}>
-                    <td>{journalClientDisplayName(clients, t.client_id)}</td>
-                    <td className="muted">{journalClientCardNumber(clients, t.client_id)}</td>
-                    <td>{formatDateRu(t.date)}</td>
-                    <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById, membershipsByClientId)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon-square btn-touch"
-                        onClick={() => setPreviewTraining(t)}
-                        aria-label="Просмотр тренировки"
-                        title="Просмотр"
-                      >
-                        <Eye size={16} aria-hidden />
-                      </button>
-                    </td>
-                    <td>
-                      <Link
-                        to={clientLinkTo(t.client_id)}
-                        className="btn btn-ghost btn-icon-square btn-touch u-no-decoration"
-                        aria-label="Карточка клиента"
-                        title="Карточка клиента"
-                      >
-                        <UserCircle size={16} aria-hidden />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div
-            className="row"
-            style={{ flexWrap: 'wrap', gap: 12, marginTop: 12, alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              {totalCount === 0
-                ? 'Нет завершённых тренировок в этом периоде.'
-                : `Записи ${rangeFrom}–${rangeTo} из ${totalCount} · стр. ${page + 1} из ${totalPages}`}
-            </p>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <label className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                На странице
-                <select
-                  className="select"
-                  style={{ minWidth: 72 }}
-                  value={String(pageSize)}
-                  disabled={busy}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value))
-                    setPage(0)
-                  }}
-                >
-                  {ADMIN_JOURNAL_PAGE_SIZE_OPTIONS.map((n) => (
-                    <option key={n} value={String(n)}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="row journal-pagination" style={{ gap: 6 }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={!canPrev}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  aria-label="Предыдущая страница"
-                >
-                  <ChevronLeft size={18} aria-hidden />
-                  Назад
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={!canNext}
-                  onClick={() => setPage((p) => p + 1)}
-                  aria-label="Следующая страница"
-                >
-                  Вперёд
-                  <ChevronRight size={18} aria-hidden />
-                </button>
+        completedJournalOpen={journalOpen}
+        onCompletedJournalOpenChange={onCompletedJournalOpenChange}
+        completedJournalId="trainer-completed-trainings-journal"
+        completedJournal={
+          journalOpen ? (
+            <>
+              <div className="td-section-head">
+                <h2 className="section-title td-section-title" style={{ margin: 0 }}>
+                  Проведённые тренировки
+                </h2>
               </div>
-            </div>
-          </div>
-        </section>
-      ) : null}
+              {journalFallback ? (
+                <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {journalFallback}</p>
+              ) : null}
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Клиент</th>
+                      <th>№ карты</th>
+                      <th>Дата</th>
+                      <th>Тип карты</th>
+                      <th title="Просмотр" />
+                      <th title="Карточка клиента" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((t) => (
+                      <tr key={t.id}>
+                        <td>{journalClientDisplayName(clients, t.client_id)}</td>
+                        <td className="muted">{journalClientCardNumber(clients, t.client_id)}</td>
+                        <td>{formatDateRu(t.date)}</td>
+                        <td>
+                          {membershipCardTypeLabelForTraining(
+                            t,
+                            membershipById,
+                            typeCodeById,
+                            membershipsByClientId,
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon-square btn-touch"
+                            onClick={() => setPreviewTraining(t)}
+                            aria-label="Просмотр тренировки"
+                            title="Просмотр"
+                          >
+                            <Eye size={16} aria-hidden />
+                          </button>
+                        </td>
+                        <td>
+                          <Link
+                            to={clientLinkTo(t.client_id)}
+                            className="btn btn-ghost btn-icon-square btn-touch u-no-decoration"
+                            aria-label="Карточка клиента"
+                            title="Карточка клиента"
+                          >
+                            <UserCircle size={16} aria-hidden />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div
+                className="row"
+                style={{
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  marginTop: 12,
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                  {totalCount === 0
+                    ? 'Нет завершённых тренировок в этом периоде.'
+                    : `Записи ${rangeFrom}–${rangeTo} из ${totalCount} · стр. ${page + 1} из ${totalPages}`}
+                </p>
+                <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    На странице
+                    <select
+                      className="select"
+                      style={{ minWidth: 72 }}
+                      value={String(pageSize)}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value))
+                        setPage(0)
+                      }}
+                    >
+                      {ADMIN_JOURNAL_PAGE_SIZE_OPTIONS.map((n) => (
+                        <option key={n} value={String(n)}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="row journal-pagination" style={{ gap: 6 }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-touch"
+                      disabled={!canPrev}
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      aria-label="Предыдущая страница"
+                    >
+                      <ChevronLeft size={18} aria-hidden />
+                      Назад
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-touch"
+                      disabled={!canNext}
+                      onClick={() => setPage((p) => p + 1)}
+                      aria-label="Следующая страница"
+                    >
+                      Вперёд
+                      <ChevronRight size={18} aria-hidden />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null
+        }
+      />
 
       {previewTraining ? (
         <div

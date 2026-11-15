@@ -77,14 +77,9 @@ export function formatTenureDays(days) {
  */
 export function formatPzChurnHint(r) {
   const closed = Number(r?.pzChurnInPeriod) || 0
-  if (closed <= 0) return 'Нет закрытий ПЗ за период'
+  if (closed <= 0) return 'Нет закрытий за период'
   const transitions = Number(r?.pzChurnTransitions) || 0
-  return `${formatRuCountWord(closed, 'закрытие', 'закрытия', 'закрытий')} · ${formatRuCountWord(
-    transitions,
-    'переход',
-    'перехода',
-    'переходов',
-  )} в ТЗ/АЗ`
+  return `${closed} закр. · ${transitions} в ТЗ/АЗ`
 }
 
 /**

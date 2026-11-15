@@ -49,12 +49,7 @@ export function ClubCallShiftSummaryPanel({
 
   if (noClub) {
     return (
-      <section className="club-call-shift" aria-labelledby="club-call-shift-title">
-        <div className="club-call-shift__head">
-          <h2 id="club-call-shift-title" className="club-call-shift__title">
-            Сводка смены
-          </h2>
-        </div>
+      <section className="club-call-shift" aria-label="Связь за день">
         <p className="club-call-shift__meta muted">Выберите клуб, чтобы увидеть связь за день.</p>
       </section>
     )
@@ -62,12 +57,7 @@ export function ClubCallShiftSummaryPanel({
 
   if (loading && !summary && !errText) {
     return (
-      <section className="club-call-shift club-call-shift--skel" aria-labelledby="club-call-shift-title" aria-busy="true">
-        <div className="club-call-shift__head">
-          <h2 id="club-call-shift-title" className="club-call-shift__title">
-            Сводка смены
-          </h2>
-        </div>
+      <section className="club-call-shift club-call-shift--skel" aria-label="Связь за день" aria-busy="true">
         <div className="club-call-shift__section">
           <div className="club-call-shift__section-head">
             <h3 className="club-call-shift__section-title">Связь за день</h3>
@@ -90,31 +80,25 @@ export function ClubCallShiftSummaryPanel({
     ? errText
     : summary?.has_activity
       ? `Связь за ${dayLabel}${summary.connect_rate_pct != null ? ` · дозвон ${summary.connect_rate_pct}%` : ''}`
-      : dayLabel
+      : ''
 
   return (
     <section
       className={`club-call-shift${summary?.is_hot ? ' club-call-shift--hot' : ''}`}
-      aria-labelledby="club-call-shift-title"
+      aria-label="Связь за день"
       aria-busy={loading || undefined}
     >
-      <div className="club-call-shift__head">
-        <h2 id="club-call-shift-title" className="club-call-shift__title">
-          Сводка смены
-        </h2>
-        <p
-          className={`club-call-shift__meta muted${errText ? (summary ? ' club-call-shift__meta--warn' : ' club-call-shift__meta--err') : ''}`}
-          role={errText ? 'status' : undefined}
-        >
-          {meta}
-        </p>
-      </div>
       <div className="club-call-shift__section">
         <div className="club-call-shift__section-head">
           <h3 className="club-call-shift__section-title">Связь за день</h3>
-          <Link to={journalHref} className="club-call-shift__link">
-            Журнал звонков
-          </Link>
+          {meta ? (
+            <p
+              className={`club-call-shift__meta muted${errText ? (summary ? ' club-call-shift__meta--warn' : ' club-call-shift__meta--err') : ''}`}
+              role={errText ? 'status' : undefined}
+            >
+              {meta}
+            </p>
+          ) : null}
         </div>
         <ul className="club-call-shift__grid" aria-label="Показатели смены">
           {cards.map((card) => {

@@ -1,11 +1,11 @@
-import { Link } from 'react-router-dom'
 import {
   clubAvgVisitsTone,
   formatClubAttendancePct,
   formatClubAvgVisitsPerWeek,
 } from '../lib/admin/clubAttendanceAggCore'
 import { formatClubAttendanceTrendHint } from '../lib/admin/clubAttendanceTrendCore.js'
-import { buildAdminClubQueryHref } from '../lib/admin/adminClientQuickFilters'
+import { adminClubStatsHelpLines } from '../lib/admin/adminClubStatsHelpCore.js'
+import { AdminClubStatsHelpTip } from './admin/AdminClubStatsHelpTip.jsx'
 import '../styles/client-retention.css'
 
 const REGULARITY_ROWS = [
@@ -22,8 +22,6 @@ const REGULARITY_ROWS = [
  * @param {{
  *   clientAttendance: object | null,
  *   busy?: boolean,
- *   clubId?: string,
- *   clientsPath?: string,
  *   trainerLabel?: (id: string) => string,
  *   selfTrainerId?: string | null,
  * }} props
@@ -31,8 +29,6 @@ const REGULARITY_ROWS = [
 export function ClientAttendanceClubPanel({
   clientAttendance,
   busy = false,
-  clubId = '',
-  clientsPath = '/admin/clients',
   trainerLabel = (id) => id,
   selfTrainerId = null,
 }) {
@@ -47,7 +43,13 @@ export function ClientAttendanceClubPanel({
   if (!clientAttendance || !(clientAttendance.poolSize > 0)) {
     return (
       <section className="card admin-club-stats-detail client-retention-panel">
-        <h3 className="section-title client-retention-panel__title">Посещаемость ПЗ</h3>
+        <div className="admin-club-stats-detail__head">
+          <h3 className="section-title client-retention-panel__title">Посещаемость ПЗ</h3>
+          <AdminClubStatsHelpTip
+            label="Что значит посещаемость"
+            lines={adminClubStatsHelpLines('clientAttendance', { isTrainerScope: Boolean(selfTrainerId) })}
+          />
+        </div>
         <p className="muted client-retention-panel__empty">
           {clientAttendance?.visitsDataMissing
             ? 'Не удалось загрузить визиты за окно. Sync и обновите статистику.'
@@ -67,13 +69,6 @@ export function ClientAttendanceClubPanel({
     clientAttendance.deltaAvgVisitsPerWeek,
     formatClubAvgVisitsPerWeek,
   )
-  const listHref = selfTrainerId
-    ? null
-    : buildAdminClubQueryHref(clientsPath, {
-        clubId,
-        filter: 'attendance_slip',
-      })
-
   /* Сравнение по тренерам — контур админки; у тренера своей строки-рейтинга нет (как удержание). */
   const trainerRows =
     !selfTrainerId && Array.isArray(clientAttendance.byTrainer) ? clientAttendance.byTrainer : []
@@ -84,52 +79,27 @@ export function ClientAttendanceClubPanel({
     ...REGULARITY_ROWS.map((row) => Number(by[row.key]) || 0),
   )
   const windowDays = clientAttendance.windowDays ?? 30
-  const asOfLabel = clientAttendance.asOf ?? 'сегодня'
+  const attendanceHelp = (
+    <AdminClubStatsHelpTip
+      label="Что значит посещаемость"
+      lines={adminClubStatsHelpLines('clientAttendance', {
+        isTrainerScope: Boolean(selfTrainerId),
+        windowDays,
+        asOf: clientAttendance.asOf ?? 'сегодня',
+        windowFrom: clientAttendance.windowFrom,
+      })}
+    />
+  )
 
   return (
     <section className="card admin-club-stats-detail client-retention-panel">
       <header className="client-retention-panel__head">
-        <h3 className="section-title client-retention-panel__title">
-          {selfTrainerId ? 'Ваша посещаемость ПЗ' : 'Посещаемость ПЗ'}
-        </h3>
-        <details className="client-retention-panel__explain">
-          <summary className="client-retention-panel__explain-summary">
-            {selfTrainerId ? 'Зачем вам эти цифры' : 'Зачем клубу эти цифры'}
-          </summary>
-          <p className="client-retention-panel__about-lead">
-            {selfTrainerId ? (
-              <>
-                <strong>Зачем вам:</strong> сколько в среднем ходят ваши клиенты с активным абоном (планшет), и
-                где проседает ритм — до ухода в архив. Это не «проведено тренировок» за месяц сводки и не рейтинг
-                из админки.
-              </>
-            ) : (
-              <>
-                <strong>Зачем клубу:</strong> сколько в среднем ходят клиенты с активным абоном (планшет), и где
-                проседает ритм — до того, как человек уйдёт в архив. Это не «проведено тренировок» за месяц
-                сводки.
-              </>
-            )}
-          </p>
-          <ul className="client-retention-panel__explain-list">
-            <li>
-              <strong>Средняя посещаемость</strong> — ритм за последние {windowDays} дней до {asOfLabel} (не за
-              выбранный месяц в фильтре). Рядом — сравнение с <em>предыдущими</em> {windowDays} днями. Формула:
-              (сумма завершённых ÷ пул) × (7 ÷ {windowDays} дн.)
-              {clientAttendance.windowFrom
-                ? ` · окно ${clientAttendance.windowFrom}…${clientAttendance.asOf ?? '…'}`
-                : ''}
-              .
-            </li>
-            <li>
-              <strong>Без выпадения</strong> — доля пула без паузы ≥14 дн. с последнего визита.
-            </li>
-            <li>
-              Структура ритма
-              {selfTrainerId ? '' : ' и таблица по тренерам'} — для сравнения, не список ФИО.
-            </li>
-          </ul>
-        </details>
+        <div className="admin-club-stats-detail__head">
+          <h3 className="section-title client-retention-panel__title">
+            {selfTrainerId ? 'Ваша посещаемость ПЗ' : 'Посещаемость ПЗ'}
+          </h3>
+          {attendanceHelp}
+        </div>
       </header>
 
       <div className="client-retention-kpi-grid" role="list">
@@ -142,9 +112,9 @@ export function ClientAttendanceClubPanel({
             [
               trendHint,
               clientAttendance.medianVisitsPerWeek != null
-                ? `медиана ${formatClubAvgVisitsPerWeek(clientAttendance.medianVisitsPerWeek)}`
+                ? `мед. ${formatClubAvgVisitsPerWeek(clientAttendance.medianVisitsPerWeek)}`
                 : null,
-              `${clientAttendance.totalVisitsInWindow ?? 0} визитов · ${clientAttendance.windowDays ?? 30} дн.`,
+              `${clientAttendance.totalVisitsInWindow ?? 0} виз. · ${clientAttendance.windowDays ?? 30} дн.`,
             ]
               .filter(Boolean)
               .join(' · ')
@@ -174,15 +144,15 @@ export function ClientAttendanceClubPanel({
           }
           label="Выпали из ритма"
           value={formatClubAttendancePct(clientAttendance.slippedPct)}
-          hint={`${slipped} чел. · ≥14 дн. без визита`}
+          hint={`${slipped} чел. · ≥14 дн.`}
         />
         <KpiCard
           label="В пуле"
           value={String(pool)}
           hint={
             clientAttendance.avgVisitsInWindow != null
-              ? `ср. ${Number(clientAttendance.avgVisitsInWindow).toFixed(2)} визита на чел. за окно`
-              : 'активный абон · планшет ПЗ'
+              ? `ср. ${Number(clientAttendance.avgVisitsInWindow).toFixed(2)} / чел.`
+              : 'активный абон · ПЗ'
           }
         />
       </div>
@@ -190,10 +160,6 @@ export function ClientAttendanceClubPanel({
       <section className="client-retention-panel__block client-retention-reasons">
         <header className="client-retention-reasons__head">
           <h4 className="client-retention-section__title">Структура ритма</h4>
-          <div className="client-retention-reasons__meta">
-            <strong className="client-retention-reasons__total">{pool}</strong>
-            <span className="muted client-retention-reasons__top">доля пула с активным абоном</span>
-          </div>
         </header>
         <ul className="client-retention-reasons__list">
           {REGULARITY_ROWS.map((row) => {
@@ -275,13 +241,6 @@ export function ClientAttendanceClubPanel({
       {clientAttendance.truncated ? (
         <p className="client-retention-panel__note client-retention-panel__note--warn" role="status">
           Данные обрезаны по лимиту — цифры приблизительные.
-        </p>
-      ) : null}
-
-      {!selfTrainerId ? (
-        <p className="muted client-retention-panel__note" style={{ marginTop: 12 }}>
-          Список выпавших — в Клиентах.{' '}
-          <Link to={listHref}>Фильтр «Выпали из ритма»</Link>
         </p>
       ) : null}
     </section>

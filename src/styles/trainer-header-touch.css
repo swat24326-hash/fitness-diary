@@ -31,11 +31,23 @@
   flex-shrink: 0;
 }
 
+/* Стек влезает в 72px: тап 44, подпись читаемее с планшета (~0.75rem). */
 .app-shell--trainer .app-header__nav-link {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   min-height: 44px;
-  padding-inline: 6px;
+  min-width: 44px;
+  max-height: 46px;
+  padding: 2px 4px 4px;
+  font-size: 0.75rem;
+  line-height: 1.1;
+}
+
+.app-shell--trainer .app-header__nav-item-icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* Конверт / колокольчик / Sync — один квадрат 44px на планшете */

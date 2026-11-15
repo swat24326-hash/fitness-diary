@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo, useState } from 'react'
-import { BarChart3, Building2, CalendarDays, ClipboardList, FileSpreadsheet, Gift, Mail, Phone, Settings, Shield, TabletSmartphone, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { BarChart3, CalendarDays, ClipboardList, FileSpreadsheet, Gift, Mail, Phone, Settings, Shield, TabletSmartphone, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { PendingDevicesAlert } from './PendingDevicesAlert.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
@@ -57,8 +57,10 @@ function glanceFromCoachQualityApi(api) {
   }
 }
 
+const ADMIN_TILE_ICON = 22
+
 function adminTileClass({ isActive }) {
-  return `feature-tile u-no-decoration${isActive ? ' feature-tile--active' : ''}`
+  return `feature-tile feature-tile--compact u-no-decoration${isActive ? ' feature-tile--active' : ''}`
 }
 
 export function AdminDashboard({ accessMode = 'admin' } = {}) {
@@ -292,106 +294,110 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
           <h2 className="admin-home__tiles-heading" id="admin-home-sections">
             Разделы
           </h2>
-          <section className="admin-home__tiles" aria-labelledby="admin-home-sections">
-            <div className="tile-grid admin-home__tile-grid">
+          <section className="admin-home__tiles admin-home__tiles--rail" aria-labelledby="admin-home-sections">
+            <div
+              className="admin-home__tile-grid admin-home__tile-grid--rail"
+              role="navigation"
+              aria-label={isSupervisor ? 'Разделы управляющего' : 'Разделы админа'}
+            >
               <NavLink
                 to={tab('pnk')}
                 className={({ isActive }) =>
                   `${adminTileClass({ isActive })} feature-tile--pnk${glanceRowShown ? ' feature-tile--echo' : ''}`
                 }
-                title={glanceRowShown ? 'ПНК уже на главной выше' : undefined}
+                title={glanceRowShown ? 'ПНК уже на главной выше' : 'ПНК — воронка пробных'}
               >
                 <div className="feature-tile__icon">
-                  <UserPlus size={44} aria-hidden />
+                  <UserPlus size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
                 <p className="feature-tile__title">ПНК</p>
               </NavLink>
               {isSupervisor ? (
-                <NavLink to={tab('settings')} className={adminTileClass}>
+                <NavLink to={tab('settings')} className={adminTileClass} title="Настройки клуба">
                   <div className="feature-tile__icon">
-                    <Settings size={44} aria-hidden />
+                    <Settings size={ADMIN_TILE_ICON} aria-hidden />
                   </div>
                   <p className="feature-tile__title">Настройки</p>
                 </NavLink>
               ) : (
-                <NavLink to={tab('structure')} className={adminTileClass}>
+                <NavLink to={tab('structure')} className={adminTileClass} title="Настройки — клубы, тренеры, справочники">
                   <div className="feature-tile__icon">
-                    <Building2 size={44} aria-hidden />
+                    <Settings size={ADMIN_TILE_ICON} aria-hidden />
                   </div>
-                  <p className="feature-tile__title">Структура</p>
+                  <p className="feature-tile__title">Настройки</p>
                 </NavLink>
               )}
-              <NavLink to={tab('clients')} className={adminTileClass}>
+              <NavLink to={tab('clients')} className={adminTileClass} title="Клиенты — список и карты">
                 <div className="feature-tile__icon">
-                  <UserCircle size={44} aria-hidden />
+                  <UserCircle size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Клиенты</p>
               </NavLink>
-              <NavLink to={tab('call-log')} className={adminTileClass}>
+              <NavLink to={tab('call-log')} className={adminTileClass} title="Журнал звонков">
                 <div className="feature-tile__icon">
-                  <Phone size={44} aria-hidden />
+                  <Phone size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
-                <p className="feature-tile__title">Журнал звонков</p>
+                <p className="feature-tile__title">Звонки</p>
               </NavLink>
-              <NavLink to={tab('trainer-schedule')} className={adminTileClass}>
+              <NavLink to={tab('trainer-schedule')} className={adminTileClass} title="Ежедневники тренеров">
                 <div className="feature-tile__icon">
-                  <CalendarDays size={44} aria-hidden />
+                  <CalendarDays size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
-                <p className="feature-tile__title">Ежедневники</p>
+                <p className="feature-tile__title">Календарь</p>
               </NavLink>
               {!isSupervisor ? (
-                <NavLink to={tab('deletion-log')} className={adminTileClass}>
+                <NavLink to={tab('deletion-log')} className={adminTileClass} title="Журнал удалений">
                   <div className="feature-tile__icon">
-                    <Trash2 size={44} aria-hidden />
+                    <Trash2 size={ADMIN_TILE_ICON} aria-hidden />
                   </div>
-                  <p className="feature-tile__title">Журнал удалений</p>
+                  <p className="feature-tile__title">Удаления</p>
                 </NavLink>
               ) : null}
               {!isSupervisor ? (
-                <NavLink to={`${basePath}/devices`} className={adminTileClass}>
+                <NavLink to={`${basePath}/devices`} className={adminTileClass} title="Устройства тренеров">
                   <div className="feature-tile__icon">
-                    <TabletSmartphone size={44} aria-hidden />
+                    <TabletSmartphone size={ADMIN_TILE_ICON} aria-hidden />
                   </div>
-                  <p className="feature-tile__title">Устройства тренеров</p>
+                  <p className="feature-tile__title">Устройства</p>
                 </NavLink>
               ) : null}
               {!isSupervisor ? (
-                <NavLink to={tab('loyalty')} className={adminTileClass}>
+                <NavLink to={tab('loyalty')} className={adminTileClass} title="Журнал баллов">
                   <div className="feature-tile__icon">
-                    <Gift size={44} aria-hidden />
+                    <Gift size={ADMIN_TILE_ICON} aria-hidden />
                   </div>
-                  <p className="feature-tile__title">Журнал баллов</p>
+                  <p className="feature-tile__title">Баллы</p>
                 </NavLink>
               ) : null}
               {!isSupervisor ? (
-                <NavLink to={tab('excel-lists')} className={adminTileClass}>
+                <NavLink to={tab('excel-lists')} className={adminTileClass} title="Списки из Excel">
                   <div className="feature-tile__icon">
-                    <FileSpreadsheet size={44} aria-hidden />
+                    <FileSpreadsheet size={ADMIN_TILE_ICON} aria-hidden />
                   </div>
-                  <p className="feature-tile__title">Списки из Excel</p>
+                  <p className="feature-tile__title">Excel</p>
                 </NavLink>
               ) : null}
-              <NavLink to={tab('statistics')} className={adminTileClass}>
+              <NavLink to={tab('statistics')} className={adminTileClass} title="Статистика клуба">
                 <div className="feature-tile__icon">
-                  <BarChart3 size={44} aria-hidden />
+                  <BarChart3 size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Статистика</p>
               </NavLink>
-              <NavLink to={tab('sales')} className={adminTileClass}>
+              <NavLink to={tab('sales')} className={adminTileClass} title="Продажи">
                 <div className="feature-tile__icon">
-                  <TrendingUp size={44} aria-hidden />
+                  <TrendingUp size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Продажи</p>
               </NavLink>
-              <NavLink to={tab('inbox')} className={adminTileClass}>
+              <NavLink to={tab('inbox')} className={adminTileClass} title="Опросы и объявления">
                 <div className="feature-tile__icon">
-                  <Mail size={44} aria-hidden />
+                  <Mail size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
-                <p className="feature-tile__title">Опросы и объявления</p>
+                <p className="feature-tile__title">Опросы</p>
               </NavLink>
-              <NavLink to={tab('challenges')} className={adminTileClass}>
+              <NavLink to={tab('challenges')} className={adminTileClass} title="Челленджи">
                 <div className="feature-tile__icon">
-                  <Trophy size={44} aria-hidden />
+                  <Trophy size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Челленджи</p>
               </NavLink>
@@ -400,10 +406,10 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
                 className={({ isActive }) =>
                   `${adminTileClass({ isActive })}${glanceRowShown ? ' feature-tile--echo' : ''}`
                 }
-                title={glanceRowShown ? 'Планёрка уже на главной выше' : undefined}
+                title={glanceRowShown ? 'Планёрка уже на главной выше' : 'Планёрка — задания клуба'}
               >
                 <div className="feature-tile__icon">
-                  <ClipboardList size={44} aria-hidden />
+                  <ClipboardList size={ADMIN_TILE_ICON} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Планёрка</p>
               </NavLink>

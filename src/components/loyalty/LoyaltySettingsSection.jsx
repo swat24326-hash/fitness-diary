@@ -1,5 +1,4 @@
-import { Check, Gift, Pencil, X } from 'lucide-react'
-import { AdminSectionHeader } from '../admin/AdminSectionHeader.jsx'
+import { Check, Pencil, X } from 'lucide-react'
 import {
   formatLoyaltyIntervals,
   formatLoyaltyProgramStatus,
@@ -30,11 +29,6 @@ export function LoyaltySettingsSection({
   if (!clubId) {
     return (
       <section className="loyalty-settings">
-        <AdminSectionHeader
-          title="Лояльность ПЗ"
-          lead="Баллы за персоналки: включение по клубу и ставки цикла."
-          icon={Gift}
-        />
         <p className="muted">{LOYALTY_SETTINGS_NEED_CLUB}</p>
       </section>
     )
@@ -42,50 +36,44 @@ export function LoyaltySettingsSection({
 
   const status = formatLoyaltyProgramStatus({ enabled: draft.enabled, enabled_at: enabledAt })
 
+  const actions = !isEditing ? (
+    <button
+      type="button"
+      className="btn btn-ghost btn-touch loyalty-settings__edit-btn"
+      disabled={busy || !saveState.canSave}
+      onClick={() => onStartEdit?.()}
+      aria-label="Редактировать"
+      title="Редактировать"
+    >
+      <Pencil size={16} aria-hidden />
+    </button>
+  ) : (
+    <>
+      <button
+        type="button"
+        className="btn btn-ghost btn-touch"
+        disabled={busy}
+        onClick={() => onCancelEdit?.()}
+        aria-label="Отменить изменения"
+        title="Отменить"
+      >
+        <X size={16} aria-hidden />
+      </button>
+      <button
+        type="button"
+        className="btn btn-primary btn-touch"
+        disabled={!saveState.canSave || !isDirty}
+        onClick={() => void onSave?.()}
+        aria-label="Сохранить изменения"
+        title="Сохранить"
+      >
+        <Check size={16} aria-hidden />
+      </button>
+    </>
+  )
+
   return (
     <section className="loyalty-settings" aria-labelledby="loyalty-settings-title">
-      <AdminSectionHeader
-        title="Лояльность ПЗ"
-        lead="Включение и ставки выбранного клуба. Цикл клиента считается на сервере; очередь Sync не трогаем."
-        icon={Gift}
-      >
-        {!isEditing ? (
-          <button
-            type="button"
-            className="btn btn-ghost btn-touch"
-            disabled={busy || !saveState.canSave}
-            onClick={() => onStartEdit?.()}
-            aria-label="Начать редактирование"
-            title="Начать редактирование"
-          >
-            <Pencil size={16} aria-hidden />
-          </button>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="btn btn-ghost btn-touch"
-              disabled={busy}
-              onClick={() => onCancelEdit?.()}
-              aria-label="Отменить изменения"
-              title="Отменить изменения"
-            >
-              <X size={16} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-touch"
-              disabled={!saveState.canSave || !isDirty}
-              onClick={() => void onSave?.()}
-              aria-label="Сохранить изменения"
-              title="Сохранить изменения"
-            >
-              <Check size={16} aria-hidden />
-            </button>
-          </>
-        )}
-      </AdminSectionHeader>
-
       {migrationNeeded ? (
         <p className="admin-section__banner admin-section__banner--warn" role="status">
           Таблиц лояльности в базе ещё нет. После миграции{' '}
@@ -105,15 +93,14 @@ export function LoyaltySettingsSection({
           {msg}
         </p>
       ) : null}
-      <p className="muted loyalty-settings__note" role="status">
-        Режим: {isEditing ? 'редактирование' : 'просмотр'}
-        {isEditing ? (isDirty ? ' · есть несохранённые изменения' : ' · изменений пока нет') : ''}
-      </p>
 
       <div className="loyalty-settings__card">
-        <h2 className="loyalty-settings__card-title" id="loyalty-settings-title">
-          Программа клуба
-        </h2>
+        <div className="loyalty-settings__card-head">
+          <h2 className="loyalty-settings__card-title" id="loyalty-settings-title">
+            Лояльность ПЗ
+          </h2>
+          <div className="loyalty-settings__card-actions">{actions}</div>
+        </div>
         <p className="muted loyalty-settings__card-lead">{status}</p>
         <label className="loyalty-settings__toggle">
           <input
@@ -129,10 +116,6 @@ export function LoyaltySettingsSection({
 
       <div className="loyalty-settings__card">
         <h2 className="loyalty-settings__card-title">Ставки открытого цикла</h2>
-        <p className="muted loyalty-settings__card-lead">
-          Уже идущий цикл держит снимок ставок. Новые числа — для следующих циклов. Потолок минут и ккал
-          действует в момент «Завершить».
-        </p>
         <div className="loyalty-settings__fields">
           <label className="field">
             <span className="label">Месяцев до куша</span>

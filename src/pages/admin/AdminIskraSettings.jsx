@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Plus, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react'
-import { ISKRA_FULL_NAME } from '../../lib/admin/geminiIskraCore.js'
+import { ChevronDown, ChevronUp, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
 import {
   defaultIskraQuickChips,
   iskraBuiltinHandlerOptions,
   ISKRA_QUICK_CHIP_LIMITS,
 } from '../../lib/admin/iskraQuickChipsCore.js'
 import { fetchIskraSettings, saveIskraSettings } from '../../lib/admin/iskraSettingsService.js'
-import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { IskraPlaybooksSection } from '../../components/iskra/IskraPlaybooksSection.jsx'
-import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
-import { useAuth } from '../../context/AuthContext'
 
 const HANDLER_OPTIONS = [{ id: '', label: 'Gemini (свой вопрос)' }, ...iskraBuiltinHandlerOptions()]
 
@@ -38,11 +34,9 @@ function chipsEqual(a, b) {
 }
 
 export function AdminIskraSettings() {
-  const { supabaseReady } = useAuth()
   const [searchParams] = useSearchParams()
   const clubId = searchParams.get('club')?.trim() ?? ''
 
-  const [clubName, setClubName] = useState('—')
   const [promptAppend, setPromptAppend] = useState('')
   const [defaultPreview, setDefaultPreview] = useState('')
   const [savedAppend, setSavedAppend] = useState('')
@@ -56,28 +50,10 @@ export function AdminIskraSettings() {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
-  useEffect(() => {
-    let alive = true
-    const loadClub = async () => {
-      try {
-        if (supabaseReady) await pullClubsFromSupabase()
-        const clubs = await listClubsLocal()
-        const hit = clubs.find((c) => String(c.id) === clubId)
-        if (alive) setClubName(hit?.name ?? (clubId || '—'))
-      } catch {
-        if (alive) setClubName(clubId || '—')
-      }
-    }
-    void loadClub()
-    return () => {
-      alive = false
-    }
-  }, [clubId, supabaseReady])
-
   const reloadSettings = useCallback(async () => {
     if (!clubId) {
       setLoading(false)
-      setErr('Выберите клуб в шапке админки')
+      setErr('')
       return
     }
 
@@ -95,7 +71,6 @@ export function AdminIskraSettings() {
       setSparkBriefEnabled(data?.spark_brief_enabled !== false)
       setSavedSparkBriefEnabled(data?.spark_brief_enabled !== false)
       setDefaultPreview(String(data?.default_prompt_preview ?? ''))
-      if (data?.club_name) setClubName(data.club_name)
     } catch (e) {
       setErr(e?.message ? String(e.message) : 'Не удалось загрузить настройки')
     } finally {
@@ -184,15 +159,10 @@ export function AdminIskraSettings() {
 
   return (
     <div className="admin-iskra-settings admin-section-shell">
-      <AdminSectionHeader
-        icon={Sparkles}
-        title={ISKRA_FULL_NAME}
-        lead={
-          clubName !== '—'
-            ? `Филиал «${clubName}» · только то, что реально крутит клуб`
-            : 'Выберите клуб в шапке'
-        }
-      />
+      <h2 className="section-title td-section-title" style={{ margin: '0 0 12px' }}>
+        Настройки ИСКРЫ
+      </h2>
+      {!clubId ? <p className="muted">Выберите клуб в шапке.</p> : null}
 
       {err ? (
         <p className="admin-iskra-settings__error" role="alert">
@@ -203,10 +173,6 @@ export function AdminIskraSettings() {
 
       <section className="card admin-iskra-settings__section">
         <h2 className="section-title">Утренний бриф</h2>
-        <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>
-          При открытии ИСКРЫ: план и норма к дате, главный риск, кнопка действия. Можно скрыть на день в панели —
-          вернётся в следующем месяце.
-        </p>
         <label className="admin-iskra-settings__check">
           <input
             type="checkbox"
@@ -220,10 +186,6 @@ export function AdminIskraSettings() {
 
       <section className="card admin-iskra-settings__section">
         <h2 className="section-title">Быстрые кнопки</h2>
-        <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>
-          Чипы в панели для этого клуба. «Готовый ответ» — мгновенно из отчёта; «Gemini» — свой вопрос модели.
-          Минимум одна кнопка.
-        </p>
         {loading ? (
           <p className="muted">Загрузка…</p>
         ) : (

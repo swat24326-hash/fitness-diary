@@ -26,9 +26,11 @@ export const ADMIN_DAY_SUMMARY_GROUPS = [
  *   clubId?: string,
  *   clientsPath?: string,
  *   statsPath?: string,
+ *   statsTab?: string,
  *   coachQuality?: { scorePct?: number | null, chipLabel?: string | null, hot?: boolean } | null,
  *   coachQualityLoading?: boolean,
  *   coachQualityHeroInAttention?: boolean,
+ *   includeCoachQuality?: boolean,
  * }} opts
  */
 export function buildAdminDaySummaryCards(opts = {}) {
@@ -37,10 +39,18 @@ export function buildAdminDaySummaryCards(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
   const clientsPath = String(opts.clientsPath ?? '/admin/clients').trim() || '/admin/clients'
   const statsPath = String(opts.statsPath ?? '/admin/statistics').trim() || '/admin/statistics'
+  const statsTab = String(opts.statsTab ?? '').trim()
+  const includeCoachQuality = opts.includeCoachQuality !== false
   const cq = opts.coachQuality ?? null
   const cqLoading = opts.coachQualityLoading === true
   const cqHeroAbove = opts.coachQualityHeroInAttention === true && (cq != null || cqLoading)
   const clients = (filter) => buildAdminClubQueryHref(clientsPath, { clubId, filter })
+  const statsHref = (extra = {}) =>
+    buildAdminClubQueryHref(statsPath, {
+      clubId,
+      ...(statsTab ? { tab: statsTab } : {}),
+      ...extra,
+    })
 
   /** @type {Record<string, object>} */
   const byKey = {
@@ -62,7 +72,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       label: 'Тренировок сегодня',
       hint: `вчера: ${summary.trainingsYesterday}`,
       icon: 'barChart',
-      to: buildAdminClubQueryHref(statsPath, { clubId, period: 'today', panel: 'journal' }),
+      to: statsHref({ period: 'today', panel: 'journal' }),
       hot: false,
       warn: false,
       textCount: false,
@@ -76,11 +86,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
         ? 'цифра · детали в ряду выше'
         : cq?.chipLabel || 'за месяц · таблица в статистике',
       icon: 'gauge',
-      to: buildAdminClubQueryHref(statsPath, {
-        clubId,
-        period: 'month',
-        panel: 'coachQuality',
-      }),
+      to: statsHref({ period: 'month', panel: 'coachQuality' }),
       // Герой CQ уже в ряду внимания — в сводке не дублируем «горячесть» шкалы.
       hot: cqHeroAbove ? false : Boolean(cq?.hot),
       warn: false,
@@ -150,7 +156,12 @@ export function buildAdminDaySummaryCards(opts = {}) {
     },
   }
 
-  return ADMIN_DAY_SUMMARY_GROUPS.flatMap((g) => g.keys.map((k) => byKey[k]).filter(Boolean))
+  return ADMIN_DAY_SUMMARY_GROUPS.flatMap((g) =>
+    g.keys
+      .filter((k) => includeCoachQuality || k !== 'coachQuality')
+      .map((k) => byKey[k])
+      .filter(Boolean),
+  )
 }
 
 /**

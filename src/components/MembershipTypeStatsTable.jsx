@@ -178,12 +178,6 @@ export function MembershipTypeStatsTable({
       {note ? (
         <p className="muted mem-type-stats__note">{note}</p>
       ) : null}
-      {payrollForecast ? (
-        <p className="muted mem-type-stats__note mem-type-stats__note--payroll">
-          ЗП за период: база по текущему уровню плана; итого — с надбавкой кабинета. Без плана — ур. 3 и сценарии
-          1/2/3. Подсказка — линейный прогноз до конца периода.
-        </p>
-      ) : null}
       <div className="table-wrap admin-mem-type-table-wrap">
         <table className="admin-mem-type-table">
           <thead>

@@ -28,14 +28,14 @@ ok(adminClubQs('?x=1') === '', 'no club → empty qs')
 
 ok(labels('/admin').length === 0, 'admin home → no crumbs')
 ok(
-  labels('/admin/structure', '?club=c1&tab=trainers').join(' › ') === 'Админка › Структура › Тренеры',
+  labels('/admin/structure', '?club=c1&tab=trainers').join(' › ') === 'Админка › Настройки › Тренеры',
   'structure trainers + club',
 )
 ok(STRUCTURE_TAB_LABELS['coach-quality'] === 'Качество ведения', 'structure coach-quality label')
 ok(STRUCTURE_TAB_LABELS['club-plan'] === 'План ЗП', 'structure club-plan label')
 ok(STRUCTURE_TAB_LABELS.loyalty === 'Лояльность', 'structure loyalty label')
 ok(
-  labels('/admin/structure', '?club=c1&tab=loyalty').join(' › ') === 'Админка › Структура › Лояльность',
+  labels('/admin/structure', '?club=c1&tab=loyalty').join(' › ') === 'Админка › Настройки › Лояльность',
   'structure loyalty + club',
 )
 

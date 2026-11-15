@@ -159,4 +159,14 @@
   --accent-soft: var(--premium-glow-ambient);
   --border: var(--premium-glass-border);
   --border-strong: rgba(240, 212, 138, 0.34);
+  /* крошки → заголовок раздела (Настройки / Клиенты / …) */
+  --admin-crumbs-title-gap: 12px;
+  /* горизонталь: .app-main / .breadcrumbs-shell */
+  --admin-main-pad-x: clamp(16px, 3vw, 28px);
+  /* доп. inset внутри .admin-section-shell */
+  --admin-section-pad-x: clamp(14px, 3vw, 22px);
+  --admin-section-pad-top: clamp(8px, 1.6vw, 14px);
+  /* заголовок Настроек при обнулённом app-main (= main + shell) */
+  --admin-title-pad-x: calc(var(--admin-main-pad-x) + var(--admin-section-pad-x));
+  --admin-title-pad-top: calc(var(--admin-crumbs-title-gap) + var(--admin-section-pad-top));
 }

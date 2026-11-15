@@ -13,6 +13,10 @@
   margin-bottom: 12px;
 }
 
+.client-retention-panel__head > .admin-club-stats-detail__head {
+  margin-bottom: 0;
+}
+
 .client-retention-panel__title {
   font-size: 1rem;
   margin: 0 0 4px;
@@ -28,9 +32,12 @@
 .client-retention-panel__about {
   margin-top: 10px;
   padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--accent-bright, #10b981) 18%, rgba(255, 255, 255, 0.08));
-  background: color-mix(in srgb, var(--accent-bright, #10b981) 5%, rgba(255, 255, 255, 0.03));
+  border-radius: calc(var(--radius-lg, 16px) - 6px);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright, #10b981) 5%, transparent) 0%, transparent 48%),
+    color-mix(in srgb, var(--bg-elevated) 92%, var(--bg) 8%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .client-retention-panel__about-lead {
@@ -65,9 +72,12 @@
 .client-retention-panel__explain {
   margin: 8px 0 12px;
   padding: 0 12px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--accent-bright, #10b981) 18%, rgba(255, 255, 255, 0.08));
-  background: color-mix(in srgb, var(--accent-bright, #10b981) 5%, rgba(255, 255, 255, 0.03));
+  border-radius: calc(var(--radius-lg, 16px) - 6px);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright, #10b981) 5%, transparent) 0%, transparent 48%),
+    color-mix(in srgb, var(--bg-elevated) 92%, var(--bg) 8%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .client-retention-panel__explain .client-retention-panel__about-lead {
@@ -115,15 +125,24 @@
   font-weight: 600;
 }
 
-/* KPI: адаптивная сетка (удержание — 7 плиток; посещаемость — 4).
-   Фиксированные 6 колонок на планшете раздували страницу → браузер сжимал весь UI. */
+/*
+ * KPI: ровная сетка 4×N (удержание 8 → 2 ряда; посещаемость 4 → 1 ряд).
+ * Внутри карточки — три слота одной высоты: подпись / цифра / хвост.
+ */
 .client-retention-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 14px;
   max-width: 100%;
   min-width: 0;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .client-retention-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -136,64 +155,90 @@
   }
 
   .client-retention-kpi {
-    flex: 0 0 min(152px, 78vw);
+    flex: 0 0 min(148px, 76vw);
     scroll-snap-align: start;
   }
 }
 
+/* Стекло + типографика как у карточек метрик / ячеек ПНК */
 .client-retention-kpi {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-rows: 1.7rem minmax(1.45rem, 1fr) 1.7rem;
   gap: 4px;
-  min-height: 88px;
+  height: 100%;
+  min-height: 100px;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 10px 12px;
+  border-radius: calc(var(--radius-lg, 16px) - 6px);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright) 5%, transparent) 0%, transparent 48%),
+    color-mix(in srgb, var(--bg-elevated) 92%, var(--bg) 8%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .client-retention-kpi--primary {
-  background: color-mix(in srgb, var(--accent-bright, #10b981) 7%, rgba(255, 255, 255, 0.04));
-  border-color: color-mix(in srgb, var(--accent-bright, #10b981) 24%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, var(--accent-bright) 34%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright) 10%, transparent) 0%, transparent 55%),
+    color-mix(in srgb, var(--bg-elevated) 92%, var(--bg) 8%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .client-retention-kpi--good {
-  border-color: color-mix(in srgb, #34d399 32%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, #34d399 34%, transparent);
 }
 
 .client-retention-kpi--mid {
-  border-color: color-mix(in srgb, #fbbf24 32%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, #fbbf24 34%, transparent);
 }
 
 .client-retention-kpi--low {
-  border-color: color-mix(in srgb, #f87171 32%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, #f87171 34%, transparent);
 }
 
 .client-retention-kpi__label {
-  font-size: 10px;
-  line-height: 1.3;
-  color: var(--text-muted, rgba(255, 255, 255, 0.62));
+  margin: 0;
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.15;
+  color: color-mix(in srgb, var(--text) 92%, var(--accent-bright) 8%);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  word-break: break-word;
 }
 
 .client-retention-kpi__value {
-  font-size: 1.25rem;
-  line-height: 1.15;
+  margin: 0;
+  min-width: 0;
+  align-self: end;
+  font-size: clamp(0.95rem, 1.35vw, 1.12rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
-}
-
-.client-retention-kpi--primary .client-retention-kpi__value {
-  font-size: 1.35rem;
+  color: #e2e8f0;
 }
 
 .client-retention-kpi__hint {
-  margin-top: auto;
-  font-size: 10px;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
+  margin: 0;
+  min-width: 0;
+  align-self: end;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-muted, #9aa39c);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* Второй ряд: виджет «Причины архива» на всю ширину */
@@ -245,9 +290,12 @@
   flex-direction: column;
   min-height: 100%;
   padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: calc(var(--radius-lg, 16px) - 6px);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-bright) 5%, transparent) 0%, transparent 48%),
+    color-mix(in srgb, var(--bg-elevated) 92%, var(--bg) 8%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .client-retention-section__title {

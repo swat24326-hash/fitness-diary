@@ -40,6 +40,23 @@
   overflow: hidden;
 }
 
+/* Заголовок + виджет: зазор как у Клиенты (не gap всего .sales-report) */
+.sales-report__section-top {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sales-report__section-top > .admin-section__head {
+  margin-bottom: 0;
+}
+
+/* Заголовок раздела снаружи — в карточке только план/метрики */
+.sales-report__hero--plan {
+  padding: clamp(1rem, 2.2vw, 1.35rem) clamp(1.1rem, 2.5vw, 1.5rem);
+}
+
 .sales-report__section-title {
   margin: 0 0 0.75rem;
   font-size: clamp(1.1rem, 2.5vw, 1.35rem);
@@ -68,6 +85,106 @@
   align-items: flex-start;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
+}
+
+/* Внутри раздела продаж: слева план/факт, справа метрики — экономим высоту */
+.sales-report__hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.sales-report__hero-vessel {
+  min-width: 0;
+}
+
+.sales-report__hero-body--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(14rem, 0.85fr);
+  gap: clamp(1.1rem, 2.8vw, 2rem);
+  align-items: center;
+}
+
+.sales-report__hero-body--split .sales-report__hero-vessel .sales-report__plan-chart {
+  max-width: none;
+  margin: 0;
+  align-items: stretch;
+  padding-top: 0.2rem;
+}
+
+.sales-report__hero-body--split .admin-home-sales-plan__metrics--rail {
+  margin: 0;
+  padding: 0.35rem 0.15rem 0.35rem 1.15rem;
+  border-top: none;
+  border-left: 1px solid color-mix(in srgb, var(--accent-bright) 18%, var(--border));
+  gap: 0.45rem;
+  align-self: center;
+}
+
+.sales-report__hero-body--split .admin-home-sales-plan__metrics--rail .admin-home-sales-plan__metric {
+  grid-template-columns: minmax(3.5rem, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 6px 10px;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.sales-report__hero-body--split .admin-home-sales-plan__metrics--rail .admin-home-sales-plan__metric--head {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.72;
+  margin-bottom: 0.15rem;
+}
+
+.sales-report__hero-body--split
+  .admin-home-sales-plan__metrics--rail
+  .admin-home-sales-plan__metric--head
+  .admin-home-sales-plan__metric-fact,
+.sales-report__hero-body--split
+  .admin-home-sales-plan__metrics--rail
+  .admin-home-sales-plan__metric--head
+  .admin-home-sales-plan__metric-forecast {
+  color: var(--text-muted);
+  font-weight: 650;
+}
+
+.sales-report__hero-body--split .admin-home-sales-plan__metrics--rail .admin-home-sales-plan__metric-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text-muted) 88%, var(--text) 12%);
+}
+
+.sales-report__hero-body--split .admin-home-sales-plan__metrics--rail .admin-home-sales-plan__metric-fact,
+.sales-report__hero-body--split .admin-home-sales-plan__metrics--rail .admin-home-sales-plan__metric-forecast {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sales-report__hero-body--split .admin-home-sales-plan__metric-sep {
+  list-style: none;
+  height: 1px;
+  margin: 0.35rem 0 0.2rem;
+  padding: 0;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  border: none;
+}
+
+@media (max-width: 900px) {
+  .sales-report__hero-body--split {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    align-items: stretch;
+  }
+
+  .sales-report__hero-body--split .admin-home-sales-plan__metrics--rail {
+    padding: 0.75rem 0 0;
+    border-left: none;
+    border-top: 1px solid color-mix(in srgb, var(--accent-bright) 18%, var(--border));
+    align-self: stretch;
+  }
 }
 
 .sales-report__page-title {
@@ -3217,66 +3334,35 @@
   z-index: 1;
 }
 
+.sales-home__day-summaries {
+  margin: 0;
+  padding: 0.65rem clamp(1.25rem, 3vw, 2.25rem) 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
+
 .sales-home--fill .sales-home__tiles {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  min-height: clamp(240px, 40vh, 460px);
-  padding: clamp(1rem, 2vh, 1.35rem) clamp(1.5rem, 3.5vw, 2.75rem) clamp(1.25rem, 2.2vh, 1.75rem);
+  justify-content: flex-start;
+  min-height: 0;
+  padding: clamp(0.65rem, 1.4vh, 1rem) clamp(1.25rem, 3vw, 2.25rem) clamp(0.85rem, 1.6vh, 1.2rem);
 }
 
 .sales-home--fill .sales-home__tiles-heading {
   flex-shrink: 0;
   margin-top: 0;
-  margin-bottom: clamp(0.55rem, 1.2vh, 0.85rem);
-  font-size: clamp(0.72rem, 1.1vw, 0.8rem);
+  margin-bottom: 0.45rem;
+  font-size: 0.68rem;
 }
 
-.sales-home--fill .sales-home__tile-groups {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: clamp(0.85rem, 1.8vh, 1.25rem);
-}
-
-.sales-home--fill .sales-home__tile-grid {
+.sales-home--fill .sales-home__tile-grid--rail {
   flex: 0 0 auto;
-  min-height: 0;
-  align-items: stretch;
 }
 
-.sales-home--fill .sales-home__tile {
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(6px, 1vh, 10px);
-  min-height: clamp(118px, 14vh, 156px);
-  height: auto;
-  padding: clamp(14px, 2vh, 22px) clamp(12px, 1.8vw, 18px);
-}
-
-.sales-home--fill .sales-home__tile-icon {
-  width: clamp(48px, 5.5vw, 64px);
-  height: clamp(48px, 5.5vw, 64px);
-  border-radius: 14px;
-}
-
-.sales-home--fill .sales-home__tile-icon svg {
-  width: clamp(26px, 3.2vw, 34px);
-  height: clamp(26px, 3.2vw, 34px);
-}
-
-.sales-home--fill .sales-home__tile-title {
-  font-size: clamp(0.95rem, 1.6vw, 1.15rem);
-  text-align: center;
-  flex: none;
-}
-
-.sales-home--fill .sales-home__tile-lead {
-  font-size: clamp(0.7rem, 1.1vw, 0.78rem);
+.sales-home--fill .sales-home__tile--compact {
+  min-height: 68px;
+  padding: 8px 4px;
 }
 
 .sales-home__board {
@@ -3377,26 +3463,54 @@
   width: 100%;
 }
 
-/* «День в зале» — 6 плиток в один ряд; «Отчёты и рост» — 5 */
-.sales-home__tile-grid--day {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+/* Компактные разделы менеджера: в ширину — один ряд, узко — перенос без скролла. */
+.sales-home__tiles--rail {
+  padding-top: 0.55rem;
 }
 
-.sales-home__tile-grid--plan {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+.sales-home__tile-grid--rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
 }
 
-.sales-home__tile-grid--day .sales-home__tile {
-  padding: clamp(10px, 1.4vw, 14px) clamp(4px, 0.8vw, 10px);
+.sales-home__tile--compact {
+  min-width: 0;
+  min-height: 72px;
+  gap: 4px;
+  padding: 8px 3px 10px;
+  overflow: hidden;
 }
 
-.sales-home__tile-grid--day .sales-home__tile-title {
-  font-size: clamp(0.78rem, 1.2vw, 0.98rem);
+.sales-home__tile--compact .sales-home__tile-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 
-.sales-home__tile-grid--day .sales-home__tile-lead {
-  font-size: clamp(0.62rem, 0.95vw, 0.72rem);
+.sales-home__tile--compact .sales-home__tile-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sales-home__tile--compact .sales-home__tile-title {
+  max-width: 100%;
+  margin: 0;
+  padding-inline: 1px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.15;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sales-home__tile--compact:hover {
+  transform: translateY(-1px);
 }
 
 .sales-home__tile {
@@ -3541,45 +3655,24 @@
     padding: 0 clamp(1.75rem, 3vw, 2.5rem) clamp(1.5rem, 2.5vw, 2rem);
   }
 
-  .sales-home__tile-grid {
+  .sales-home__tile-grid:not(.sales-home__tile-grid--rail) {
     gap: clamp(12px, 1.6vw, 18px);
   }
 
-  .sales-home__tile {
+  .sales-home__tile:not(.sales-home__tile--compact) {
     min-height: clamp(108px, 12vh, 140px);
-  }
-
-  .sales-home--fill .sales-home__tile {
-    min-height: clamp(124px, 14vh, 160px);
   }
 }
 
 @media (max-width: 960px) {
-  .sales-home__tile-grid,
-  .sales-home__tile-grid--day,
-  .sales-home__tile-grid--plan {
+  .sales-home__tile-grid:not(.sales-home__tile-grid--rail) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 600px) {
-  .sales-home--fill .sales-home__tiles {
-    min-height: clamp(300px, 48vh, 420px);
-  }
-
-  .sales-home__tile-grid,
-  .sales-home__tile-grid--day,
-  .sales-home__tile-grid--plan {
+  .sales-home__tile-grid:not(.sales-home__tile-grid--rail) {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .sales-home--fill .sales-home__tile {
-    min-height: clamp(104px, 16vh, 128px);
-    padding: clamp(12px, 2vh, 16px) clamp(10px, 2.5vw, 14px);
-  }
-
-  .sales-home--fill .sales-home__tile-title {
-    text-align: center;
   }
 
   .sales-home--fill .sales-report__plan-fraction {

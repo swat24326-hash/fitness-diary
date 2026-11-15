@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Dumbbell, Save } from 'lucide-react'
-import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
+import { Pencil, Save } from 'lucide-react'
 import {
   defaultTrainerPayPlanConfig,
   describeTrainerPayPlanBands,
@@ -29,7 +28,8 @@ export function AdminClubPlanSettings() {
   const [searchParams] = useSearchParams()
   const clubId = searchParams.get('club')?.trim() ?? ''
   const [draft, setDraft] = useState(() => configToDraft(defaultTrainerPayPlanConfig()))
-  const [clubName, setClubName] = useState('')
+  const [savedDraft, setSavedDraft] = useState(() => configToDraft(defaultTrainerPayPlanConfig()))
+  const [editing, setEditing] = useState(false)
   const [migrationNeeded, setMigrationNeeded] = useState(false)
   const [usingDefaults, setUsingDefaults] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -43,28 +43,39 @@ export function AdminClubPlanSettings() {
   )
   const canSave = Boolean(clubId) && !busy && draftCheck.ok
 
-  const load = useCallback(async (cid) => {
-    if (!cid) return
-    setBusy(true)
-    setErr('')
-    setMsg('')
-    try {
-      const data = await fetchTrainerPayPlanSettings(cid)
-      setDraft(configToDraft(data?.config))
-      setClubName(String(data?.club_name ?? ''))
-      setMigrationNeeded(Boolean(data?.migration_needed))
-      setUsingDefaults(Boolean(data?.using_defaults))
-    } catch (e) {
-      setErr(e?.message ? String(e.message) : 'Не удалось загрузить')
-    } finally {
-      setBusy(false)
-    }
+  const applyLoaded = useCallback((config) => {
+    const next = configToDraft(config)
+    setDraft(next)
+    setSavedDraft(next)
+    setEditing(false)
   }, [])
+
+  const load = useCallback(
+    async (cid) => {
+      if (!cid) return
+      setBusy(true)
+      setErr('')
+      setMsg('')
+      try {
+        const data = await fetchTrainerPayPlanSettings(cid)
+        applyLoaded(data?.config)
+        setMigrationNeeded(Boolean(data?.migration_needed))
+        setUsingDefaults(Boolean(data?.using_defaults))
+      } catch (e) {
+        setErr(e?.message ? String(e.message) : 'Не удалось загрузить')
+      } finally {
+        setBusy(false)
+      }
+    },
+    [applyLoaded],
+  )
 
   useEffect(() => {
     if (!clubId) {
-      setDraft(configToDraft(defaultTrainerPayPlanConfig()))
-      setClubName('')
+      const empty = configToDraft(defaultTrainerPayPlanConfig())
+      setDraft(empty)
+      setSavedDraft(empty)
+      setEditing(false)
       setMigrationNeeded(false)
       setUsingDefaults(false)
       setErr('')
@@ -78,6 +89,19 @@ export function AdminClubPlanSettings() {
     setDraft((d) => ({ ...d, [key]: value }))
   }
 
+  const onEdit = () => {
+    setErr('')
+    setMsg('')
+    setEditing(true)
+  }
+
+  const onCancel = () => {
+    setDraft(savedDraft)
+    setEditing(false)
+    setErr('')
+    setMsg('')
+  }
+
   const onSave = async () => {
     if (!clubId || !draftCheck.ok) return
     setBusy(true)
@@ -85,7 +109,7 @@ export function AdminClubPlanSettings() {
     setMsg('')
     try {
       const data = await saveTrainerPayPlanSettings(clubId, { config: draftCheck.config })
-      setDraft(configToDraft(data?.config ?? draftCheck.config))
+      applyLoaded(data?.config ?? draftCheck.config)
       setUsingDefaults(false)
       setMigrationNeeded(false)
       setMsg('Пороги тренировок сохранены')
@@ -103,30 +127,16 @@ export function AdminClubPlanSettings() {
   if (!clubId) {
     return (
       <section className="admin-club-plan">
-        <AdminSectionHeader
-          title="План ЗП"
-          lead="Сколько тренировок в календарном месяце нужно для уровня 2 и 3."
-          icon={Dumbbell}
-        />
-        <p className="muted">Выберите клуб в шапке — настройки плана относятся к выбранному филиалу.</p>
+        <p className="muted">Выберите клуб в шапке.</p>
       </section>
     )
   }
 
   const trainersHref = `/admin/structure?tab=trainers&club=${encodeURIComponent(clubId)}`
-  const lead = clubName
-    ? `Филиал «${clubName}». Пороги тренировок для уровней 2 и 3. Ставки ₽ — в Типы абон.; план/±₽ сотрудника — в Тренеры → кабинет.`
-    : 'Пороги тренировок для уровней 2 и 3. Ставки ₽ — в Типы абон.; план/±₽ сотрудника — в Тренеры → кабинет.'
+  const fieldsLocked = !editing || busy
 
   return (
     <section className="admin-club-plan" aria-labelledby="admin-club-plan-title">
-      <AdminSectionHeader title="План ЗП" lead={lead} icon={Dumbbell}>
-        <button type="button" className="btn btn-primary btn-touch" disabled={!canSave} onClick={() => void onSave()}>
-          <Save size={16} aria-hidden />
-          Сохранить
-        </button>
-      </AdminSectionHeader>
-
       {migrationNeeded ? (
         <p className="admin-section__banner admin-section__banner--warn">
           Таблица в базе ещё не создана — сейчас действуют стартовые пороги (80 / 120). После миграции{' '}
@@ -152,12 +162,45 @@ export function AdminClubPlanSettings() {
       ) : null}
 
       <div className="admin-club-plan__card">
-        <h2 className="admin-club-plan__card-title">Пороги тренировок месяца</h2>
-        <p className="muted admin-club-plan__card-lead">
-          Считаются завершённые тренировки персонального зала за календарный месяц по типам карт с галочкой
-          «В план» в «Типы абон.» (ставки ₽ и галочка — раздельно). Без плана у сотрудника позже всегда будет
-          уровень 3 — это в кабинете сотрудника.
-        </p>
+        <div className="admin-club-plan__card-head">
+          <h2 id="admin-club-plan-title" className="admin-club-plan__card-title">
+            Пороги тренировок месяца
+          </h2>
+          <div className="admin-club-plan__card-actions">
+            {editing ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-touch"
+                  disabled={busy}
+                  onClick={onCancel}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-touch"
+                  disabled={!canSave}
+                  onClick={() => void onSave()}
+                >
+                  <Save size={16} aria-hidden />
+                  Сохранить
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch admin-club-plan__edit-btn"
+                disabled={busy}
+                onClick={onEdit}
+                aria-label="Редактировать пороги"
+                title="Редактировать"
+              >
+                <Pencil size={16} aria-hidden />
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="admin-club-plan__fields">
           <label className="field">
@@ -167,6 +210,7 @@ export function AdminClubPlanSettings() {
               type="text"
               inputMode="numeric"
               value={draft.workouts_l2_min}
+              readOnly={fieldsLocked}
               disabled={busy}
               onChange={(e) => setWorkouts('workouts_l2_min', e.target.value)}
               aria-label="Порог тренировок уровня 2"
@@ -179,6 +223,7 @@ export function AdminClubPlanSettings() {
               type="text"
               inputMode="numeric"
               value={draft.workouts_l3_min}
+              readOnly={fieldsLocked}
               disabled={busy}
               onChange={(e) => setWorkouts('workouts_l3_min', e.target.value)}
               aria-label="Порог тренировок уровня 3"
@@ -203,8 +248,9 @@ export function AdminClubPlanSettings() {
         ) : null}
 
         <p className="muted admin-club-plan__footer">
-          Рубли за тренировку — в <Link to={typesHref}>Типы абон.</Link>. План и надбавка тренера —{' '}
-          <Link to={trainersHref}>Тренеры → кабинет</Link> (иконка кошелька). ЗП считает уровни и ±₽ автоматически.
+          <Link to={typesHref}>Типы абон.</Link>
+          {' · '}
+          <Link to={trainersHref}>Тренеры → кабинет</Link>
         </p>
       </div>
     </section>

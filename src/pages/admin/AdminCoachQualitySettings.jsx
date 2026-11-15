@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Gauge, RotateCcw, Save } from 'lucide-react'
+import { RotateCcw, Save } from 'lucide-react'
 import {
   defaultCoachQualityConfig,
   normalizeCoachQualityConfig,
@@ -15,7 +15,6 @@ import {
   saveCoachQualitySettings,
 } from '../../lib/admin/coachQualitySettingsService.js'
 import { invalidateAdminCoachQualityGlance } from '../../lib/admin/coachQualityGlanceSession.js'
-import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -179,12 +178,9 @@ export function AdminCoachQualitySettings() {
 
   return (
     <section className="card cq-settings">
-      <AdminSectionHeader
-        title="Качество ведения"
-        lead="Веса осей, доли внутри ведения и хвостов, тумблеры — одинаково для статистики админа и тренера."
-        icon={Gauge}
-      />
-
+      <h2 className="section-title td-section-title" style={{ margin: '0 0 12px' }}>
+        Качество ведения
+      </h2>
       <div className="cq-settings__toolbar">
         <label className="cq-settings__club">
           <span className="cq-settings__club-label">Клуб</span>

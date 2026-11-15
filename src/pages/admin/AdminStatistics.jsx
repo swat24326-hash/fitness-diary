@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { BarChart3, ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle } from 'lucide-react'
+import { BarChart3, ChevronLeft, ChevronRight, Eye, UserCircle } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
-import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   loadAdminJournalPage,
   loadAdminHealthCardsByClientIds,
@@ -136,10 +135,9 @@ export function AdminStatistics() {
   }, [setSearchParams])
 
   const [statsRange, setStatsRange] = useState({ start: '', end: '' })
-  const [journalOpen, setJournalOpen] = useState(false)
+  const [journalOpen, setJournalOpen] = useState(true)
   const onStatsRange = useCallback((r) => {
     setPage(0)
-    setJournalOpen(false)
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
       return
@@ -149,7 +147,6 @@ export function AdminStatistics() {
 
   const onStatsContextReset = useCallback(() => {
     setPage(0)
-    setJournalOpen(false)
   }, [])
 
   const [rows, setRows] = useState([])
@@ -163,7 +160,6 @@ export function AdminStatistics() {
   const [busy, setBusy] = useState(false)
   const loadSeqRef = useRef(0)
   const [trainerNameById, setTrainerNameById] = useState({})
-  const [journalSource, setJournalSource] = useState('local')
   const [journalFallback, setJournalFallback] = useState(null)
   const [memberships, setMemberships] = useState([])
   const [membershipTypes, setMembershipTypes] = useState([])
@@ -225,7 +221,6 @@ export function AdminStatistics() {
       setTrainerNameById({})
       setHealthByClientId({})
       setHealthCardsFallback(null)
-      setJournalSource('local')
       setJournalFallback(null)
       return
     }
@@ -248,7 +243,6 @@ export function AdminStatistics() {
       setClients(j.clientsById)
       setRows(j.trainings)
       setTotalCount(typeof j.totalCount === 'number' ? j.totalCount : j.trainings.length)
-      setJournalSource(j.source)
       setJournalFallback(j.fallbackReason ?? null)
 
       const fromApi = await listTrainerSummariesForAdmin()
@@ -277,7 +271,6 @@ export function AdminStatistics() {
       setClients({})
       setTotalCount(0)
       setTrainerNameById({})
-      setJournalSource('local')
       setJournalFallback(null)
       setHealthByClientId({})
       setHealthCardsFallback(null)
@@ -294,18 +287,23 @@ export function AdminStatistics() {
     if (!journalOpen) return
     void loadMembershipContext()
     requestAnimationFrame(() => {
-      document.getElementById('admin-completed-trainings-journal')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('admin-completed-trainings-journal')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     })
   }, [journalOpen, loadMembershipContext])
 
   useEffect(() => {
     setPage(0)
-    setJournalOpen(false)
+    setJournalOpen(Boolean(club))
   }, [club])
 
   const openCompletedJournal = useCallback(() => {
     setJournalOpen(true)
     setPage(0)
+  }, [])
+
+  const onCompletedJournalOpenChange = useCallback((open) => {
+    setJournalOpen(Boolean(open))
+    if (open) setPage(0)
   }, [])
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
@@ -329,11 +327,7 @@ export function AdminStatistics() {
   return (
     <SectionErrorBoundary section="admin_statistics" title="Статистика клуба">
     <section className="admin-section-shell admin-section-shell--wide">
-      <AdminSectionHeader
-        icon={BarChart3}
-        title="Статистика клуба"
-        lead="Цифры за период. Нажмите карточку — разбор или список тренировок. Клиенты и воронка абонов — в разделе «Клиенты»."
-      />
+      <AdminSectionHeader icon={BarChart3} title="Статистика клуба" />
 
     <div className="grid stagger td-grid">
       <AdminClubStatsSection
@@ -343,171 +337,151 @@ export function AdminStatistics() {
         onDeepLinkConsumed={consumeDeepLink}
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
+        completedJournalOpen={journalOpen}
+        onCompletedJournalOpenChange={onCompletedJournalOpenChange}
         onStatsContextReset={onStatsContextReset}
         hideSectionTitle
-      />
-
-      {journalOpen ? (
-      <section className="card" id="admin-completed-trainings-journal">
-        <div className="td-section-head">
-          <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-            Проведённые тренировки
-          </h2>
-          <div className="row td-actions">
-            <button
-              type="button"
-              className="btn btn-ghost btn-touch"
-              onClick={() => setJournalOpen(false)}
-            >
-              Скрыть
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-icon-square btn-touch"
-              disabled={busy}
-              onClick={() => void load()}
-              aria-label="Обновить список"
-              title="Обновить"
-            >
-              <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
-            </button>
-          </div>
-        </div>
-        {!club ? (
-          <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-            Выберите клуб в панели выше — список завершённых тренировок строится в разрезе зала.
-          </p>
-        ) : (
-          <>
-            <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-              Завершённые тренировки за период из блока «Период» выше ({statsRange.start && statsRange.end ? `${formatDateRu(statsRange.start)} — ${formatDateRu(statsRange.end)}` : '…'}).{' '}
-              {journalSource === 'remote' ? (
-                <>Данные из <strong>Supabase</strong>.</>
+        completedJournal={
+          journalOpen ? (
+            <>
+              <div className="td-section-head">
+                <h2 className="section-title td-section-title" style={{ margin: 0 }}>
+                  Проведённые тренировки
+                </h2>
+              </div>
+              {!club ? (
+                <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+                  Выберите клуб в панели выше — список завершённых тренировок строится в разрезе зала.
+                </p>
               ) : (
                 <>
-                  С <strong>устройства</strong> (IndexedDB).
-                  {!isSupabaseConfigured()
-                    ? ' Задайте VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY (.env локально или Vercel → Environment Variables, затем Redeploy).'
-                    : null}
-                </>
-              )}
-            </p>
-            {journalFallback ? <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {journalFallback}</p> : null}
-            {healthCardsFallback ? (
-              <p className="muted admin-inline-note">Медкарты: локальный кэш. Причина: {healthCardsFallback}</p>
-            ) : null}
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Клиент</th>
-                    <th>№ карты</th>
-                    <th>Тренер</th>
-                    <th>Дата</th>
-                    <th>Тип карты</th>
-                    <th title="Просмотр" />
-                    <th title="Карточка клиента" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((t) => (
-                    <tr key={t.id}>
-                      <td>{journalClientDisplayName(clients, t.client_id)}</td>
-                      <td className="muted">{journalClientCardNumber(clients, t.client_id)}</td>
-                      <td className="muted" title={t.trainer_id}>
-                        {trainerCell(t.trainer_id)}
-                      </td>
-                      <td>{formatDateRu(t.date)}</td>
-                      <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById, membershipsByClientId)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-icon-square btn-touch"
-                          onClick={() => setPreviewTraining(t)}
-                          aria-label="Просмотр тренировки"
-                          title="Просмотр"
-                        >
-                          <Eye size={16} aria-hidden />
-                        </button>
-                      </td>
-                      <td>
-                        <Link
-                          to={`${clientsBase}/${t.client_id}${club ? `?club=${encodeURIComponent(club)}` : ''}`}
-                          className="btn btn-ghost btn-icon-square btn-touch u-no-decoration"
-                          aria-label="Карточка клиента"
-                          title="Карточка клиента"
-                        >
-                          <UserCircle size={16} aria-hidden />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div
-              className="row"
-              style={{
-                flexWrap: 'wrap',
-                gap: 12,
-                marginTop: 12,
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                {totalCount === 0
-                  ? 'Нет завершённых тренировок в этом периоде.'
-                  : `Записи ${rangeFrom}–${rangeTo} из ${totalCount} · стр. ${page + 1} из ${totalPages}`}
-              </p>
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <label className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  На странице
-                  <select
-                    className="select"
-                    style={{ minWidth: 72 }}
-                    value={String(pageSize)}
-                    disabled={busy}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value))
-                      setPage(0)
+                  {journalFallback ? (
+                    <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {journalFallback}</p>
+                  ) : null}
+                  {healthCardsFallback ? (
+                    <p className="muted admin-inline-note">Медкарты: локальный кэш. Причина: {healthCardsFallback}</p>
+                  ) : null}
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Клиент</th>
+                          <th>№ карты</th>
+                          <th>Тренер</th>
+                          <th>Дата</th>
+                          <th>Тип карты</th>
+                          <th title="Просмотр" />
+                          <th title="Карточка клиента" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((t) => (
+                          <tr key={t.id}>
+                            <td>{journalClientDisplayName(clients, t.client_id)}</td>
+                            <td className="muted">{journalClientCardNumber(clients, t.client_id)}</td>
+                            <td className="muted" title={t.trainer_id}>
+                              {trainerCell(t.trainer_id)}
+                            </td>
+                            <td>{formatDateRu(t.date)}</td>
+                            <td>
+                              {membershipCardTypeLabelForTraining(
+                                t,
+                                membershipById,
+                                typeCodeById,
+                                membershipsByClientId,
+                              )}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-icon-square btn-touch"
+                                onClick={() => setPreviewTraining(t)}
+                                aria-label="Просмотр тренировки"
+                                title="Просмотр"
+                              >
+                                <Eye size={16} aria-hidden />
+                              </button>
+                            </td>
+                            <td>
+                              <Link
+                                to={`${clientsBase}/${t.client_id}${club ? `?club=${encodeURIComponent(club)}` : ''}`}
+                                className="btn btn-ghost btn-icon-square btn-touch u-no-decoration"
+                                aria-label="Карточка клиента"
+                                title="Карточка клиента"
+                              >
+                                <UserCircle size={16} aria-hidden />
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div
+                    className="row"
+                    style={{
+                      flexWrap: 'wrap',
+                      gap: 12,
+                      marginTop: 12,
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
                     }}
                   >
-                    {ADMIN_JOURNAL_PAGE_SIZE_OPTIONS.map((n) => (
-                      <option key={n} value={String(n)}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="row journal-pagination" style={{ gap: 6 }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-touch"
-                    disabled={!canPrev}
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    aria-label="Предыдущая страница"
-                  >
-                    <ChevronLeft size={18} aria-hidden />
-                    Назад
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-touch"
-                    disabled={!canNext}
-                    onClick={() => setPage((p) => p + 1)}
-                    aria-label="Следующая страница"
-                  >
-                    Вперёд
-                    <ChevronRight size={18} aria-hidden />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </section>
-      ) : null}
+                    <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                      {totalCount === 0
+                        ? 'Нет завершённых тренировок в этом периоде.'
+                        : `Записи ${rangeFrom}–${rangeTo} из ${totalCount} · стр. ${page + 1} из ${totalPages}`}
+                    </p>
+                    <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <label className="muted" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        На странице
+                        <select
+                          className="select"
+                          style={{ minWidth: 72 }}
+                          value={String(pageSize)}
+                          disabled={busy}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value))
+                            setPage(0)
+                          }}
+                        >
+                          {ADMIN_JOURNAL_PAGE_SIZE_OPTIONS.map((n) => (
+                            <option key={n} value={String(n)}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="row journal-pagination" style={{ gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-touch"
+                          disabled={!canPrev}
+                          onClick={() => setPage((p) => Math.max(0, p - 1))}
+                          aria-label="Предыдущая страница"
+                        >
+                          <ChevronLeft size={18} aria-hidden />
+                          Назад
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-touch"
+                          disabled={!canNext}
+                          onClick={() => setPage((p) => p + 1)}
+                          aria-label="Следующая страница"
+                        >
+                          Вперёд
+                          <ChevronRight size={18} aria-hidden />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          ) : null
+        }
+      />
 
       {previewTraining && (
         <div

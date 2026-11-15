@@ -1,11 +1,13 @@
-import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
-import { BarChart3, Bell, CalendarDays, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, UserCircle, Building2 } from 'lucide-react'
+import { Bell, LogOut, Menu, RefreshCw, TrendingUp } from 'lucide-react'
 import { HeaderClubSwitcher } from './header/HeaderClubSwitcher.jsx'
+import { HeaderMenuNav } from './header/HeaderMenuNav.jsx'
+import { HeaderPrimaryNav } from './header/HeaderPrimaryNav.jsx'
 import { HeaderProfileSheet } from './header/HeaderProfileSheet.jsx'
 import { HeaderProfileSettings } from './header/HeaderProfileSettings.jsx'
 import { HeaderJournalMenuItem } from './header/HeaderJournalMenuItem.jsx'
@@ -43,14 +45,6 @@ import { resolveHeaderAttentionTarget } from '../lib/headerAttentionTarget.js'
 const GeminiAnalyticsPanel = lazy(() =>
   import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
 )
-
-function headerNavClass({ isActive }) {
-  return `app-header__nav-link${isActive ? ' app-header__nav-link--active' : ''}`
-}
-
-function menuNavClass({ isActive }) {
-  return `app-header__menu-link${isActive ? ' app-header__menu-link--active' : ''}`
-}
 
 export function AppHeader() {
   const { user, signOut, isAdmin, isSalesManager, isSupervisor, supabaseReady, refreshUserProfile, refreshSessionOnWake } = useAuth()
@@ -129,13 +123,6 @@ export function AppHeader() {
   /** Вне /admin (мессенджер) — последний клуб, чтобы «Главная» и ИСКРА вели туда же. */
   const adminClubValue = showAdminClubSelect ? (searchParams.get('club') ?? '') : adminClub.clubId
   const adminQs = useMemo(() => (adminClubValue ? `?club=${encodeURIComponent(adminClubValue)}` : ''), [adminClubValue])
-  const salesReportActive = searchParams.get('tab') === 'report'
-  const salesStatsActive = searchParams.get('tab') === 'stats'
-  const salesAnalyticsActive = searchParams.get('tab') === 'analytics'
-  const salesClientsActive = location.pathname.startsWith('/sales/clients')
-  const salesHomeActive =
-    location.pathname === '/sales' && !salesReportActive && !salesStatsActive && !salesAnalyticsActive
-
   useEffect(() => subscribeAppUpdatePending(setUpdatePending), [])
 
   useEffect(() => {
@@ -364,123 +351,10 @@ export function AppHeader() {
           />
         )}
       </div>
-      <nav className="app-header__nav" aria-label="Разделы">
-        {isAdmin ? (
-          <>
-            <NavLink to={`/admin${adminQs}`} end className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <LayoutDashboard size={18} aria-hidden />
-                Главная
-              </span>
-            </NavLink>
-            <NavLink to={`/admin/structure${adminQs}`} className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <Building2 size={18} aria-hidden />
-                Структура
-              </span>
-            </NavLink>
-            <NavLink to={`/admin/clients${adminQs}`} className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <UserCircle size={18} aria-hidden />
-                Клиенты
-              </span>
-            </NavLink>
-            <NavLink to={`/admin/statistics${adminQs}`} className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <BarChart3 size={18} aria-hidden />
-                Статистика
-              </span>
-            </NavLink>
-            <NavLink to={`/admin/sales${adminQs}`} className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <TrendingUp size={18} aria-hidden />
-                Продажи
-              </span>
-            </NavLink>
-            <NavLink to={`/admin/challenges${adminQs}`} className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <Trophy size={18} aria-hidden />
-                Челленджи
-              </span>
-            </NavLink>
-          </>
-        ) : isSupervisor ? (
-          <>
-            <NavLink to="/club" end className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <LayoutDashboard size={18} aria-hidden />
-                Главная
-              </span>
-            </NavLink>
-            <NavLink to="/club/clients" className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <UserCircle size={18} aria-hidden />
-                Клиенты
-              </span>
-            </NavLink>
-            <NavLink to="/club/statistics" className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <BarChart3 size={18} aria-hidden />
-                Статистика
-              </span>
-            </NavLink>
-            <NavLink to="/club/sales" className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <TrendingUp size={18} aria-hidden />
-                Продажи
-              </span>
-            </NavLink>
-            <NavLink to="/club/settings" className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <Building2 size={18} aria-hidden />
-                Настройки
-              </span>
-            </NavLink>
-          </>
-        ) : isSalesManager ? (
-          <>
-            <NavLink to="/sales" end className={() => headerNavClass({ isActive: salesHomeActive })}>
-              Главная
-            </NavLink>
-            <NavLink to="/sales/clients" className={() => headerNavClass({ isActive: salesClientsActive })}>
-              <span className="app-header__nav-with-icon">
-                <UserCircle size={18} aria-hidden />
-                Клиенты
-              </span>
-            </NavLink>
-            <NavLink to="/sales?tab=report" className={() => headerNavClass({ isActive: salesReportActive })}>
-              Отчёт
-            </NavLink>
-            <NavLink to="/sales?tab=stats" className={() => headerNavClass({ isActive: salesStatsActive })}>
-              Статистика
-            </NavLink>
-            <NavLink to="/sales?tab=analytics" className={() => headerNavClass({ isActive: salesAnalyticsActive })}>
-              <span className="app-header__nav-with-icon">
-                <TrendingUp size={18} aria-hidden />
-                Аналитика
-              </span>
-            </NavLink>
-          </>
-        ) : (
-          <>
-            <NavLink to="/trainer" end className={headerNavClass}>
-              Главная
-            </NavLink>
-            <NavLink to="/trainer/calendar" className={headerNavClass}>
-              <span className="app-header__nav-with-icon">
-                <CalendarDays size={18} aria-hidden />
-                Ежедневник
-              </span>
-            </NavLink>
-            <NavLink to="/trainer/profile" className={headerNavClass}>
-              Профиль
-            </NavLink>
-            <NavLink to="/trainer/clients" className={headerNavClass}>
-              Клиенты
-            </NavLink>
-          </>
-        )}
-      </nav>
+      <HeaderPrimaryNav
+        role={isAdmin ? 'admin' : isSupervisor ? 'supervisor' : isSalesManager ? 'sales' : 'trainer'}
+        adminQs={adminQs}
+      />
       <div className="app-header__right" ref={menuRootRef}>
         <div className="app-header__tools">
         {showAdminClubSelect ? (
@@ -619,92 +493,12 @@ export function AppHeader() {
                 </>
               ) : null}
             </ProfileMenuRow>
-            <div className="app-header__menu-nav" aria-label="Разделы">
-              {isAdmin ? (
-                <>
-                  <NavLink to={`/admin${adminQs}`} end className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Главная
-                  </NavLink>
-                  <NavLink to={`/admin/structure${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Структура
-                  </NavLink>
-                  <NavLink to={`/admin/clients${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Клиенты
-                  </NavLink>
-                  <NavLink to={`/admin/statistics${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Статистика
-                  </NavLink>
-                  <NavLink to={`/admin/sales${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Продажи
-                  </NavLink>
-                  <NavLink to={`/admin/challenges${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Челленджи
-                  </NavLink>
-                  {supabaseReady ? (
-                    <NavLink to={`/admin/health${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                      Сбои устройств
-                    </NavLink>
-                  ) : null}
-                </>
-              ) : isSupervisor ? (
-                <>
-                  <NavLink to="/club" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Главная
-                  </NavLink>
-                  <NavLink to="/club/clients" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Клиенты
-                  </NavLink>
-                  <NavLink to="/club/statistics" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Статистика
-                  </NavLink>
-                  <NavLink to="/club/sales" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Продажи
-                  </NavLink>
-                  <NavLink to="/club/settings" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Настройки
-                  </NavLink>
-                </>
-              ) : isSalesManager ? (
-                <>
-                  <NavLink to="/sales" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Главная
-                  </NavLink>
-                  <NavLink to="/sales/clients" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    <span className="app-header__nav-with-icon">
-                      <UserCircle size={18} aria-hidden />
-                      Клиенты
-                    </span>
-                  </NavLink>
-                  <NavLink to="/sales?tab=report" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Отчёт
-                  </NavLink>
-                  <NavLink to="/sales?tab=stats" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Статистика
-                  </NavLink>
-                  <NavLink to="/sales?tab=analytics" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Аналитика
-                  </NavLink>
-                </>
-              ) : (
-                <>
-                  <NavLink to="/trainer" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Главная
-                  </NavLink>
-                  <NavLink to="/trainer/calendar" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    <span className="app-header__nav-with-icon">
-                      <CalendarDays size={18} aria-hidden />
-                      Ежедневник
-                    </span>
-                  </NavLink>
-                  <NavLink to="/trainer/profile" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Профиль
-                  </NavLink>
-                  <NavLink to="/trainer/clients" className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Клиенты
-                  </NavLink>
-                </>
-              )}
-            </div>
+            <HeaderMenuNav
+              role={isAdmin ? 'admin' : isSupervisor ? 'supervisor' : isSalesManager ? 'sales' : 'trainer'}
+              adminQs={adminQs}
+              supabaseReady={supabaseReady}
+              onNavigate={closeMenu}
+            />
             <HeaderJournalMenuItem
               isAdmin={isAdmin}
               errorCount={persistentErrorCount}

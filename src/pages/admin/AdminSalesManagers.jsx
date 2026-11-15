@@ -240,11 +240,6 @@ export function AdminSalesManagers() {
 
       {msg ? <p className="muted admin-inline-note">{msg}</p> : null}
 
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-        Менеджер видит только отчёты продаж своего клуба: «Отчёт за день» и «Статистика». Финансы и ИИ-помощник недоступны.
-        После входа — раздел <code className="muted">/sales</code>.
-      </p>
-
       {managers.length === 0 && !busy ? <p className="muted">Менеджеров пока нет.</p> : null}
       {clubFilterId && managers.length > 0 && filteredManagers.length === 0 && !busy ? (
         <p className="muted">В выбранном клубе менеджеров нет.</p>
