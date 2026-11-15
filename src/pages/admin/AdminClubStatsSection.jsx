@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { BarChart3, ClipboardList, Gauge, LayoutGrid, LineChart, TrendingDown, TrendingUp, Trophy, UserPlus } from 'lucide-react'
-import { listTrainerSummariesForAdmin } from '../../lib/dataAccess'
+import { listTrainerSummariesForAdmin, loadClubTrainingStats } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadTrainerMonthlyStatsForYear } from '../../lib/trainer/trainerMonthlyStatsService'
+import { loadTrainerPeriodStats } from '../../lib/trainer/trainerPeriodStatsService'
 import { getDateRange, PERIOD_PRESETS } from '../../lib/period'
+import { previousCalendarMonthRangeFromIso } from '../../lib/admin/dayChartPrevMonthCore.js'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
@@ -112,6 +114,52 @@ export function AdminClubStatsSection({
     range,
     hall: isTrainerScope ? null : statsHall,
   })
+
+  const [prevByDay, setPrevByDay] = useState(/** @type {Array<{ date: string, completed?: number, draft?: number }>} */ ([]))
+
+  useEffect(() => {
+    if (inlinePanel !== 'byDay') return
+    const canLoad = isTrainerScope ? scopeTrainerId : clubId
+    const prev = previousCalendarMonthRangeFromIso(range.start)
+    if (!canLoad || !prev) {
+      setPrevByDay([])
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const s = isTrainerScope
+          ? await loadTrainerPeriodStats({
+              trainerId: scopeTrainerId,
+              clubId: scopeClubId || null,
+              dateFrom: prev.dateFrom,
+              dateTo: prev.dateTo,
+              includeCoachQuality: false,
+            })
+          : await loadClubTrainingStats({
+              clubId,
+              dateFrom: prev.dateFrom,
+              dateTo: prev.dateTo,
+              includeCoachQuality: false,
+              hall: statsHall || 'pz',
+            })
+        if (!cancelled) setPrevByDay(Array.isArray(s?.byDay) ? s.byDay : [])
+      } catch {
+        if (!cancelled) setPrevByDay([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    inlinePanel,
+    clubId,
+    isTrainerScope,
+    scopeTrainerId,
+    scopeClubId,
+    range.start,
+    statsHall,
+  ])
 
   const showPzOnlyCards = isTrainerScope || clubStatsHallShowsPzOnlyCards(statsHall)
 
@@ -812,7 +860,7 @@ export function AdminClubStatsSection({
             <h3 className="section-title">Тренировки по дням</h3>
             {detailHelp('byDay', 'Что показывает график тренировок по дням')}
           </div>
-          <AdminClubDayChart byDay={byDay} />
+          <AdminClubDayChart byDay={byDay} prevByDay={prevByDay} />
         </section>
       ) : null}
 

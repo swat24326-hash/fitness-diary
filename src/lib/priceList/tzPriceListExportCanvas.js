@@ -314,10 +314,10 @@ function drawMonth1Panel(ctx, p) {
   const cols = [
     { key: 'months', label: 'Срок', accent: false },
     { key: 'sessions', label: 'Тренировки', accent: false },
-    { key: 'base_full', label: 'База полная', accent: false },
-    { key: 'base_stand', label: 'База стенд', accent: true },
+    { key: 'base_full', label: 'База', accent: false },
+    { key: 'base_stand', label: 'База акция', accent: true },
     { key: 'base_save', label: 'Экон.', accent: false },
-    { key: 'day_stand', label: 'День стенд', accent: true },
+    { key: 'day_stand', label: 'День акция', accent: true },
     { key: 'day_save', label: 'Экон.', accent: false },
   ]
   drawGridPanel(ctx, { x, y, w, h, rows, cols, u, kind: 'month1' })

@@ -81,9 +81,6 @@ export function SalesStrategyPlaybookHallListsMenu({ playbook, clubId = '' }) {
 
         {menuOpen ? (
           <div className="sales-playbook__burger-panel" role="menu" aria-label="Закрытия по залам">
-            <p className="sales-playbook__burger-lead muted">
-              Весь месяц — не только выбранная неделя. Дата, зал, ориентир оплаты, контакты.
-            </p>
             {summary.halls.map((h) => (
               <button
                 key={h.hall}

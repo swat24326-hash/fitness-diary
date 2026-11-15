@@ -56,12 +56,6 @@ export function SalesStrategyPlaybookSection({
           <h3 className="sales-playbook__title" id="sales-playbook-title">
             Playbook месяца
           </h3>
-          <p className="muted sales-playbook__lead">
-            Недели с темпом от пакета, закрытия ДК на неделю и ориентир НК/УК. Прогресс месяца — из
-            отчётов продаж (не из галочек). Галочка «купил» — когда в базе уже есть следующий абон;
-            после вечера / планшета нажмите «Посчитать» ещё раз. Бургер справа от недель — все
-            закрытия зала за месяц.
-          </p>
         </div>
         <div className="sales-playbook__month-kpi">
           <span className="muted">Месяц</span>

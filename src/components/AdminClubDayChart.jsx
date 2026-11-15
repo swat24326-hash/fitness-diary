@@ -37,13 +37,16 @@ const GRID = 'rgba(255, 255, 255, 0.05)'
 
 /**
  * Минималистичный график тренировок по дням (оси X/Y).
- * @param {{ byDay: Array<{ date: string, completed?: number, draft?: number }> }} props
+ * @param {{
+ *   byDay: Array<{ date: string, completed?: number, draft?: number }>,
+ *   prevByDay?: Array<{ date: string, completed?: number, draft?: number }>|null,
+ * }} props
  */
-export function AdminClubDayChart({ byDay }) {
+export function AdminClubDayChart({ byDay, prevByDay = null }) {
   const todayIso = todayInTimeZoneIso()
   const series = useMemo(
-    () => buildAdminClubDayChartSeries(byDay, { todayIso }),
-    [byDay, todayIso],
+    () => buildAdminClubDayChartSeries(byDay, { todayIso, prevByDay }),
+    [byDay, prevByDay, todayIso],
   )
 
   const chartBody = useMemo(() => {
@@ -80,6 +83,26 @@ export function AdminClubDayChart({ byDay }) {
         tension: 0,
         fill: false,
         order: 0,
+      })
+    }
+
+    if (series.hasPrevMonth && Array.isArray(series.prevCompleted)) {
+      datasets.push({
+        label: 'Прошлый месяц',
+        data: series.prevCompleted,
+        borderColor: 'rgba(148, 163, 184, 0.85)',
+        backgroundColor: 'transparent',
+        pointBackgroundColor: 'rgba(148, 163, 184, 0.85)',
+        pointBorderColor: 'rgba(15, 23, 20, 0.9)',
+        pointBorderWidth: 1,
+        pointRadius: series.pointCount > 40 ? 0 : 2,
+        pointHoverRadius: 4,
+        borderWidth: 1.75,
+        borderDash: [5, 4],
+        tension: 0.3,
+        fill: false,
+        spanGaps: false,
+        order: 3,
       })
     }
 
@@ -142,7 +165,7 @@ export function AdminClubDayChart({ byDay }) {
             },
             label(ctx) {
               const v = ctx.parsed?.y
-              if (v == null) return ''
+              if (v == null) return `${ctx.dataset.label}: —`
               if (ctx.dataset.label === 'Средняя') {
                 return `Средняя: ${Number(v).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}`
               }
@@ -150,9 +173,26 @@ export function AdminClubDayChart({ byDay }) {
             },
             footer(items) {
               const idx = items?.[0]?.dataIndex
-              if (idx == null || !series.hasDraft) return ''
-              const sum = (series.completed[idx] || 0) + (series.draft[idx] || 0)
-              return `Всего: ${sum}`
+              if (idx == null) return ''
+              /** @type {string[]} */
+              const lines = []
+              if (series.hasDraft) {
+                const sum = (series.completed[idx] || 0) + (series.draft[idx] || 0)
+                lines.push(`Всего: ${sum}`)
+              }
+              if (series.hasPrevMonth && Array.isArray(series.prevCompleted)) {
+                const prev = series.prevCompleted[idx]
+                const cur = series.completed[idx] || 0
+                if (prev != null) {
+                  const delta = cur - prev
+                  lines.push(
+                    delta === 0
+                      ? 'Как в прошлом месяце'
+                      : `${delta > 0 ? '+' : '−'}${Math.abs(delta)} к прошлому месяцу`,
+                  )
+                }
+              }
+              return lines.join('\n')
             },
           },
         },
@@ -207,11 +247,12 @@ export function AdminClubDayChart({ byDay }) {
         <Line key={`day-chart-${series.dates[0]}-${series.dates[series.dates.length - 1]}-${series.pointCount}`} data={chartBody} options={options} />
       </div>
       <p className="admin-club-day-chart__hint muted">
-        Пунктир — средняя за дни на графике
+        Пунктир — средняя
         {series.avgCompleted != null
           ? ` (${Number(series.avgCompleted).toLocaleString('ru-RU', { maximumFractionDigits: 1 })})`
           : ''}
-        . Светлее — выходные (от точки до точки), золотая полоса — сегодня.
+        {series.hasPrevMonth ? '; серая линия — тот же день прошлого месяца' : ''}
+        . Светлее — выходные, золотая полоса — сегодня.
       </p>
     </div>
   )

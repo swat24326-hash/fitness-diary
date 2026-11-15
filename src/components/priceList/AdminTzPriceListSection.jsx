@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FileSpreadsheet, ImageDown, Printer, RefreshCw, Save } from 'lucide-react'
+import { FileSpreadsheet, ImageDown, Printer, Save } from 'lucide-react'
 import {
   addTzMonth1Row,
   addTzPromoRow,
@@ -27,9 +27,9 @@ import '../../styles/tz-price-list.css'
 /**
  * Прайс ТЗ в стиле витрины ПЗ (шапка стенда, матрица, легенда).
  *
- * @param {{ clubId: string }} props
+ * @param {{ clubId: string, hallTabs?: import('react').ReactNode }} props
  */
-export function AdminTzPriceListSection({ clubId }) {
+export function AdminTzPriceListSection({ clubId, hallTabs = null }) {
   const [doc, setDoc] = useState(() =>
     clubId ? readTzPriceListLocalEntry(clubId).doc : emptyTzPriceListDocument({ club_id: clubId }),
   )
@@ -171,6 +171,7 @@ export function AdminTzPriceListSection({ clubId }) {
   if (!clubId) {
     return (
       <section className="card price-list" aria-label="Прайс ТЗ">
+        {hallTabs ? <header className="price-list__head">{hallTabs}</header> : null}
         <p className="muted">Выберите клуб в шапке — у каждого клуба свой прайс.</p>
       </section>
     )
@@ -183,14 +184,7 @@ export function AdminTzPriceListSection({ clubId }) {
   return (
     <section className="card price-list tz-price-list os-enter" aria-label="Прайс тренажёрного зала">
       <header className="price-list__head">
-        <div className="price-list__head-text">
-          <p className="price-list__eyebrow">Витрина клуба</p>
-          <h2 className="price-list__title">Прайс · тренажёрный зал</h2>
-          <p className="price-list__lead">
-            Как на стенде: пакеты на 1 месяц (база / день) и акции на несколько месяцев. Сетка без
-            Excel или импорт — правка ячеек, строк и часов — сохранение в облако.
-          </p>
-        </div>
+        {hallTabs}
         <div className="price-list__actions">
           <input
             ref={fileRef}
@@ -237,16 +231,6 @@ export function AdminTzPriceListSection({ clubId }) {
             title="Типовые строки 8/10/без лимита и акции 1–12 мес"
           >
             Типовая сетка
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm btn-icon-square"
-            disabled={busy || !clubId}
-            onClick={() => void reload({ force: true })}
-            aria-label="Обновить из облака"
-            title="Обновить из облака"
-          >
-            <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
           </button>
           <button
             type="button"
@@ -311,11 +295,11 @@ export function AdminTzPriceListSection({ clubId }) {
           <ul className="price-list__legend" aria-label="Легенда цен">
             <li>
               <span className="price-list__legend-swatch price-list__legend-swatch--full" />
-              База полная
+              База
             </li>
             <li>
               <span className="price-list__legend-swatch price-list__legend-swatch--off" />
-              Стенд (скидка)
+              Акция
             </li>
             <li>
               <span className="price-list__legend-swatch tz-price-list__legend-day" />

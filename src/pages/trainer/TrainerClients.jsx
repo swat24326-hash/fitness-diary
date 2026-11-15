@@ -533,13 +533,6 @@ export function TrainerClients() {
         </div>
       ) : null}
 
-      <header className="trainer-path-head">
-        <div className="trainer-path-head__left">
-          <h1 className="trainer-path-head__title">Клиенты</h1>
-          <p className="trainer-path-head__lead">Найти клиента и открыть карточку. Очереди Max — чипами ниже.</p>
-        </div>
-      </header>
-
       <section className="card admin-clients-workspace trainer-clients-workspace" id="clients">
         <div className="admin-clients-workspace__toolbar">
           <div className="admin-clients-segment" role="tablist" aria-label="Раздел списка клиентов">

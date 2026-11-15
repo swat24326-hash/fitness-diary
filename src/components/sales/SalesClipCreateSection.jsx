@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ClipboardList, Eraser, Plus } from 'lucide-react'
+import { Eraser, Plus } from 'lucide-react'
+import { AdminClubStatsHelpTip } from '../admin/AdminClubStatsHelpTip.jsx'
 import { createSaleClip, cancelSaleClip, fetchSaleClips, fulfillSaleClip } from '../../lib/admin/saleClipService.js'
 import { buildSaleDayChecklist } from '../../lib/admin/saleClipCore.js'
 import { planFulfillAwaitingSaleClip } from '../../lib/admin/saleClipInstantCore.js'
@@ -379,14 +380,8 @@ export function SalesClipCreateSection({
   }
 
   return (
-    <section className="sales-clip-section" aria-label="Заявки тренеру на абонемент">
+    <section className="sales-clip-section" aria-label="Заявка тренеру">
       <div className="sales-clip-section__head">
-        <h2 className="sales-clip-section__title">
-          <span className="sales-clip-section__title-icon" aria-hidden>
-            <ClipboardList size={20} />
-          </span>
-          Заявка тренеру на абон
-        </h2>
         {onReportDateChange ? (
           <div className="sales-clip-section__day" role="group" aria-label="Дата заявок">
             <button type="button" className="btn btn-ghost btn-icon-square sales-clip-section__day-nav" onClick={() => shiftDay(-1)} aria-label="Вчера">
@@ -408,38 +403,29 @@ export function SalesClipCreateSection({
             >
               →
             </button>
-            <span className="sales-clip-section__day-label">{formatDateRu(day)}</span>
           </div>
         ) : (
           <p className="sales-clip-section__day-label">{formatDateRu(day)}</p>
         )}
+        {formHints.length || !checklist.closedSoft ? (
+          <div className="sales-clip-section__head-tools">
+            {formHints.length ? (
+              <AdminClubStatsHelpTip
+                className="sales-clip-section__form-hints"
+                label="Что не хватает в форме"
+                lines={formHints}
+              />
+            ) : null}
+            {!checklist.closedSoft ? (
+              <AdminClubStatsHelpTip
+                className="sales-clip-section__day-hints sales-clip-section__day-hints--warn"
+                label="Есть заявки без абона на планшете"
+                lines={checklist.items.map((it) => it.text)}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
-      <p className="sales-clip-section__tip">
-        После продажи в 1С — вставьте текст клип-карты ниже или заполните поля. Абонемент создаётся сразу, на планшете
-        тренер нажимает «Синхронизировать».
-      </p>
-
-      {!checklist.closedSoft ? (
-        <SalesVisualAlert level="warn" title="Есть заявки без абона на планшете">
-          <ul>
-            {checklist.items.map((it) => (
-              <li key={it.key}>{it.text}</li>
-            ))}
-          </ul>
-        </SalesVisualAlert>
-      ) : (
-        <SalesVisualAlert level="ok" title={`На ${formatDateRu(day)} висящих заявок нет`} />
-      )}
-
-      {formHints.length ? (
-        <SalesVisualAlert level="warn" title="Программа пока не поняла форму">
-          <ul>
-            {formHints.map((h) => (
-              <li key={h}>{h}</li>
-            ))}
-          </ul>
-        </SalesVisualAlert>
-      ) : null}
 
       <form className="sales-clip-form" onSubmit={(e) => void submit(e)}>
         <label className="sales-clip-form__paste">

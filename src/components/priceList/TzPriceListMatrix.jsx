@@ -46,13 +46,13 @@ export function TzPriceListMatrix({
                 <th scope="col" className="price-list__sticky price-list__sticky--2 price-list__axis">
                   Тренировки
                 </th>
-                <th scope="col">База полная</th>
+                <th scope="col">База</th>
                 <th scope="col" className="tz-price-list__col-stand">
-                  База стенд
+                  База акция
                 </th>
                 <th scope="col">Экон.</th>
                 <th scope="col" className="tz-price-list__col-day">
-                  День стенд
+                  День акция
                 </th>
                 <th scope="col">Экон.</th>
                 <th scope="col" className="tz-price-list__col-act">
@@ -99,7 +99,7 @@ export function TzPriceListMatrix({
                       className="price-list__input"
                       value={r.base_full ?? ''}
                       onChange={(e) => onMonth1Field(r.id, 'base_full', e.target.value)}
-                      aria-label="База полная"
+                      aria-label="База"
                     />
                   </td>
                   <td className="tz-price-list__col-stand">
@@ -109,7 +109,7 @@ export function TzPriceListMatrix({
                       className="price-list__input price-list__input--discount"
                       value={r.base_stand ?? ''}
                       onChange={(e) => onMonth1Field(r.id, 'base_stand', e.target.value)}
-                      aria-label="База стенд"
+                      aria-label="База акция"
                     />
                   </td>
                   <td className="tz-price-list__computed">{formatPriceListMoney(r.base_save)}</td>
@@ -120,7 +120,7 @@ export function TzPriceListMatrix({
                       className="price-list__input price-list__input--discount"
                       value={r.day_stand ?? ''}
                       onChange={(e) => onMonth1Field(r.id, 'day_stand', e.target.value)}
-                      aria-label="День стенд"
+                      aria-label="День акция"
                     />
                   </td>
                   <td className="tz-price-list__computed">{formatPriceListMoney(r.day_save)}</td>
@@ -140,7 +140,6 @@ export function TzPriceListMatrix({
             </tbody>
           </table>
         </div>
-        <p className="price-list__scroll-hint muted">Колонка «стенд» — цена на витрине</p>
       </div>
     )
   }

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { FileSpreadsheet, Printer, ImageDown, RefreshCw, Save, X } from 'lucide-react'
+import { FileSpreadsheet, Printer, ImageDown, Save, X } from 'lucide-react'
 import {
   buildPriceListRows,
   emptyPriceListDocument,
@@ -24,9 +24,9 @@ import '../../styles/price-list.css'
 /**
  * Прайс ПЗ — админ или менеджер своего клуба (полное редактирование).
  *
- * @param {{ clubId: string, membershipTypes?: object[] }} props
+ * @param {{ clubId: string, membershipTypes?: object[], hallTabs?: import('react').ReactNode }} props
  */
-export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
+export function AdminPriceListSection({ clubId, membershipTypes = [], hallTabs = null }) {
   const [doc, setDoc] = useState(() =>
     clubId ? readPriceListLocalEntry(clubId).doc : emptyPriceListDocument({ club_id: clubId }),
   )
@@ -216,6 +216,7 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
   if (!clubId) {
     return (
       <section className="card price-list" aria-label="Прайс">
+        {hallTabs ? <header className="price-list__head">{hallTabs}</header> : null}
         <p className="muted">Выберите клуб в шапке — у каждого клуба свой прайс.</p>
       </section>
     )
@@ -224,15 +225,7 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
   return (
     <section className="card price-list os-enter" aria-label="Прайс персонального зала">
       <header className="price-list__head">
-        <div className="price-list__head-text">
-          <p className="price-list__eyebrow">Витрина клуба</p>
-          <h2 className="price-list__title">Прайс · персональный зал</h2>
-          <p className="price-list__lead">
-            Сетка как на стенде: сравнение карт, две цены в колонке. БЗ не входит. Убранную карту
-            вернёт «Сверить с типами». Сохранение — в облако по клубу; менеджер своего клуба тоже
-            может править.
-          </p>
-        </div>
+        {hallTabs}
         <div className="price-list__actions">
           <button
             type="button"
@@ -271,16 +264,6 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
             title="Собрать колонки из платных типов ПЗ и вернуть убранные"
           >
             Сверить с типами
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm btn-icon-square"
-            onClick={() => void reload({ force: true })}
-            disabled={busy}
-            aria-label="Обновить из облака"
-            title="Обновить из облака"
-          >
-            <RefreshCw size={16} aria-hidden />
           </button>
           <button
             type="button"

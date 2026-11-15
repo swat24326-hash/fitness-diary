@@ -1,9 +1,18 @@
+import {
+  alignPrevMonthValuesByDayOfMonth,
+  lastDayOfMonthFromIso,
+  previousCalendarMonthRangeFromIso,
+} from './dayChartPrevMonthCore.js'
+
 /**
  * Серия для графика «По дням»: оси X (даты) / Y (тренировки),
- * средняя за период и флаги выходной / сегодня.
+ * средняя за период, прошлый месяц и флаги выходной / сегодня.
  *
  * @param {Array<{ date?: string, completed?: number, draft?: number }>|null|undefined} byDay
- * @param {{ todayIso?: string }} [opts]
+ * @param {{
+ *   todayIso?: string,
+ *   prevByDay?: Array<{ date?: string, completed?: number, draft?: number }>|null,
+ * }} [opts]
  */
 export function buildAdminClubDayChartSeries(byDay, opts = {}) {
   const todayIso = String(opts.todayIso ?? '').slice(0, 10)
@@ -34,14 +43,30 @@ export function buildAdminClubDayChartSeries(byDay, opts = {}) {
 
   const avgCompleted = averageCompleted(completed)
   const hasDraft = draft.some((n) => n > 0)
+
+  let prevCompleted = null
+  const prevRows = Array.isArray(opts.prevByDay) ? opts.prevByDay : null
+  if (prevRows && dates.length) {
+    const prevRange = previousCalendarMonthRangeFromIso(dates[0])
+    const prevLastDay = prevRange ? lastDayOfMonthFromIso(prevRange.dateFrom) : null
+    prevCompleted = alignPrevMonthValuesByDayOfMonth(
+      dates,
+      prevRows,
+      (r) => Math.max(0, Number(r?.completed ?? 0) || 0),
+      { missingAs: 0, prevLastDay },
+    )
+  }
+
   return {
     labels,
     dates,
     completed,
     draft,
+    prevCompleted,
     dayFlags,
     avgCompleted,
     hasDraft,
+    hasPrevMonth: Array.isArray(prevCompleted) && prevCompleted.some((n) => n != null),
     pointCount: labels.length,
   }
 }

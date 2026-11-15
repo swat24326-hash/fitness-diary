@@ -142,31 +142,27 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card', ini
   return (
     <section className={sectionClass} aria-label="Журнал связи клуба">
       <div className="club-outreach-journal__chrome">
-        <div className="club-call-journal__head">
-          <div>
-            <h2 className="section-title">{isPage ? 'Журнал звонков' : 'Журнал связи клуба'}</h2>
-            {!isPage ? (
+        {!isPage ? (
+          <div className="club-call-journal__head">
+            <div>
+              <h2 className="section-title">Журнал связи клуба</h2>
               <p className="muted admin-outreach-templates__intro">
                 «Набор…» — команда ушла на телефон, ждём исход. «Дозвон / Не взял / Сброс» — после звонка.
                 SMS — отдельный учёт отправки.
               </p>
-            ) : (
-              <p className="muted club-outreach-journal__lead">
-                Журнал дня: список, сводка и SMS.
-              </p>
-            )}
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon-square btn-touch"
+              onClick={() => void reload()}
+              disabled={loading || !clubId}
+              aria-label="Обновить"
+              title="Обновить"
+            >
+              <RefreshCw size={18} aria-hidden />
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon-square btn-touch"
-            onClick={() => void reload()}
-            disabled={loading || !clubId}
-            aria-label="Обновить"
-            title="Обновить"
-          >
-            <RefreshCw size={18} aria-hidden />
-          </button>
-        </div>
+        ) : null}
 
         <div className="club-outreach-journal__toolbar">
           <div className="tabs club-outreach-journal__tabs" role="tablist" aria-label="Разделы журнала">
@@ -186,7 +182,21 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card', ini
               </button>
             ))}
           </div>
-          <ClubOutreachDayStepper value={day} onChange={setDay} disabled={loading} />
+          <div className="club-outreach-journal__toolbar-end">
+            <ClubOutreachDayStepper value={day} onChange={setDay} disabled={loading} />
+            {isPage ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon-square btn-touch"
+                onClick={() => void reload()}
+                disabled={loading || !clubId}
+                aria-label="Обновить"
+                title="Обновить"
+              >
+                <RefreshCw size={18} aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {tab === 'list' || tab === 'sms' ? (

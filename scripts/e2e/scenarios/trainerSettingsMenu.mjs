@@ -1,15 +1,15 @@
 /**
  * Бургер планшета: сверху своё имя → «Мой профиль» с фото и «Настройками» (служебные пункты не в меню);
  * «QR для телефона» раскрывает код прямо в профиле, код целиком виден (раньше отдельное окно запиралось
- * внутри анимированной карточки и обрезалось). Тренер: из профиля — на «Статистику и зарплату», со страницы
- * «Профиль» шестерёнкой — обратно в то же окно.
+ * внутри анимированной карточки и обрезалось). Тренер: из профиля — на «Статистику и зарплату»
+ * (`/trainer/profile`); дубля шапки с фото на странице статистики нет.
  */
 import { createChecks } from '../lib/e2eChecks.mjs'
 import { screenshot } from '../lib/e2eHarness.mjs'
 import { trainerClubSeed } from '../lib/fixtures.mjs'
 import { openTrainerSession } from '../lib/trainerSteps.mjs'
 
-export const name = 'меню планшета: Мой профиль — настройки, QR для телефона, связь со страницей «Профиль»'
+export const name = 'меню планшета: Мой профиль — настройки, QR для телефона, связь со страницей «Статистика»'
 
 const TABLET = { viewport: { width: 1024, height: 768 } }
 
@@ -80,19 +80,10 @@ export async function run(browser) {
     c.ok(Boolean(linkBox) && linkBox.y + linkBox.height <= TABLET.viewport.height, '«Статистика и зарплата» видна сразу, без прокрутки')
     await statsLink.click()
     await page.waitForURL(/\/trainer\/profile$/, { timeout: 10_000 })
-    c.ok(!(await sheet.isVisible()), '«Статистика и зарплата» — окно закрылось, открыта страница «Профиль»')
-
-    const gear = page.getByTestId('trainer-profile-settings')
-    c.ok(await reaches(gear), 'на странице «Профиль» — кнопка «Фото и настройки»')
-    const touch = await page.locator('.trainer-profile-hero button').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()))
-    c.ok(touch.length === 2 && touch.every((r) => r.width >= 44 && r.height >= 44), 'фото и шестерёнка — зоны нажатия от 44px')
-    await screenshot(page, 'trainer-profile-hero')
-    await gear.click()
-    c.ok(await reaches(sheet.getByTestId('profile-settings')), 'шестерёнка открывает то же окно «Мой профиль» с настройками')
-    c.ok((await statsLink.count()) === 0, 'на странице «Профиль» ссылки на саму себя в окне нет')
-    await screenshot(page, 'trainer-profile-sheet')
-    await page.keyboard.press('Escape')
-    c.ok(!(await sheet.isVisible()), 'Esc — окно закрылось, страница на месте')
+    c.ok(!(await sheet.isVisible()), '«Статистика и зарплата» — окно закрылось, открыта страница «Статистика»')
+    c.ok((await page.getByTestId('trainer-profile-settings').count()) === 0, 'на «Статистике» нет дубля шапки с шестерёнкой')
+    c.ok((await page.locator('.trainer-profile-hero').count()) === 0, 'карточки «Профиль/Статистика» с фото на странице нет')
+    await screenshot(page, 'trainer-stats-page')
 
     const inboxBtn = page.getByRole('button', { name: /Входящие|Планёрка/ })
     c.ok(await reaches(inboxBtn), 'в шапке — одна кнопка Входящих (Планёрка + клиенты)')

@@ -35,11 +35,7 @@ export function SalesStrategyReferenceDetails({
 
   return (
     <details className="sales-strategy__season">
-      <summary>Справка: сезон и отчёт менеджера</summary>
-      <p className="muted sales-strategy__ref-lead">
-        Раньше здесь считали «ожидание» = база × сезон. Пакет плана это не задаёт — только доли
-        НК/УК из прошлого месяца. Ниже — если нужно сверить отчёт.
-      </p>
+      <summary>Сезон и отчёт менеджера</summary>
 
       {projection?.ok && base && plan ? (
         <div className="sales-strategy__ref-kpis">

@@ -1,5 +1,4 @@
 import { Gift, MessageSquareText, RefreshCw } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { LOYALTY_JOURNAL_SOURCE_LABELS } from '../../lib/loyalty/loyaltyJournalUiCore.js'
 import { useLoyaltyJournal } from '../../hooks/useLoyaltyJournal.js'
@@ -8,11 +7,11 @@ import '../../styles/loyalty.css'
 /**
  * Список списаний куша (фаза E).
  */
-export function LoyaltyJournalSection({ clubId, listBackHref = '/admin/clients' }) {
+export function LoyaltyJournalSection({ clubId }) {
   const { rows, q, setQ, busy, error, reload, total } = useLoyaltyJournal(clubId)
 
   return (
-    <section className="loyalty-journal" aria-label="Журнал списаний баллов">
+    <section className="card loyalty-journal" aria-label="Журнал списаний баллов">
       <div className="loyalty-journal__toolbar">
         <input
           type="search"
@@ -32,9 +31,6 @@ export function LoyaltyJournalSection({ clubId, listBackHref = '/admin/clients' 
         >
           <RefreshCw size={18} aria-hidden className={busy ? 'icon-spin' : undefined} />
         </button>
-        <Link to={listBackHref} className="btn btn-ghost btn-touch">
-          ← К клиентам
-        </Link>
       </div>
 
       {!clubId ? (

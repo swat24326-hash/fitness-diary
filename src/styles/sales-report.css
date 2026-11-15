@@ -26,6 +26,31 @@
   width: 100%;
 }
 
+/* Менеджер: та же оболочка раздела, что у админа */
+.app-shell--sales .admin-section-shell,
+.app-shell--sales .admin-section-shell--wide {
+  max-width: none;
+  width: 100%;
+  margin-inline: 0;
+}
+
+.sales-report__section-top--manager-home {
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sales-report__section-top--manager-home > .admin-section__head {
+  flex: 0 0 auto;
+}
+
+.sales-report__section-top--manager-home > .sales-home__board {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .sales-report__hero {
   position: relative;
   padding: clamp(1.25rem, 3vw, 2rem);
@@ -2479,7 +2504,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.75rem;
 }
 
@@ -2527,6 +2552,19 @@
 
 .sales-report__stats-block {
   padding: 1rem 1.1rem;
+}
+
+.sales-report__stats-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem 1rem;
+  margin: 0 0 0.35rem;
+}
+
+.sales-report__stats-block-head .sales-report__stats-block-title {
+  margin: 0;
 }
 
 .sales-report__stats-block-title {
@@ -3213,6 +3251,13 @@
   width: 100%;
 }
 
+/* План на главной менеджера — только сосуд, без внутреннего h1 */
+.sales-home--fill .admin-home-attention .sales-home__attention-plan--vessel {
+  gap: 0.45rem;
+  padding: clamp(10px, 1.5vh, 14px) clamp(12px, 2vw, 16px);
+  justify-content: center;
+}
+
 .sales-home--fill .admin-home-attention .sales-home__attention-plan .sales-report__plan-chart {
   max-width: none;
   margin: 0;
@@ -3766,7 +3811,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.65rem 1rem;
   margin-bottom: 0.85rem;
 }
@@ -3782,7 +3827,9 @@
 .sales-report__plan-compare-chips {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.45rem;
+  margin-left: auto;
 }
 
 .sales-report__plan-compare-chip {
@@ -4268,11 +4315,6 @@
   margin-bottom: 0.55rem;
 }
 
-.sales-report__segment-schedule--fullscreen .sales-report__segment-schedule-close {
-  padding: 0.55rem 0.9rem;
-  font-size: 0.86rem;
-}
-
 .sales-report__segment-schedule-charts--fullscreen {
   flex: 1 1 auto;
   min-height: 0;
@@ -4369,26 +4411,6 @@
 .sales-report__segment-schedule-meta {
   margin: 0.35rem 0 0;
   font-size: 0.82rem;
-}
-
-.sales-report__segment-schedule-close {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
-  padding: 0.4rem 0.65rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--text-muted) 25%, transparent);
-  background: color-mix(in srgb, var(--bg) 50%, transparent);
-  color: rgba(226, 232, 240, 0.85);
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.sales-report__segment-schedule-close:hover {
-  border-color: rgba(248, 113, 113, 0.45);
-  color: #fecaca;
 }
 
 .sales-report__segment-schedule-kpis {
@@ -5224,8 +5246,10 @@
 
 .sales-plan-pz-dk-suggest__pct-input {
   width: 4.75rem;
-  min-height: 2.5rem;
+  min-height: 38px;
+  padding: 8px 10px;
   font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
 }
 
 .sales-plan-pz-dk-suggest__row {
@@ -5403,6 +5427,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.65rem 1rem;
+  margin-top: 1rem;
+}
+
+.sales-strategy-nkuk + .sales-plan-pz-dk-preview__foot {
+  margin-top: 1.15rem;
 }
 
 .sales-plan-pz-dk-preview__foot .btn-primary {
@@ -5653,7 +5682,7 @@
   line-height: 1.35;
 }
 
-/* ——— Заявка тренеру на абон (клип) ——— */
+/* ——— Заявка тренеру (клип) ——— */
 .sales-clip-section {
   margin: 0 0 clamp(1rem, 2vh, 1.5rem);
   padding: clamp(1rem, 2vw, 1.35rem) clamp(1rem, 2.2vw, 1.5rem);
@@ -5672,33 +5701,22 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
+  justify-content: flex-end;
+  gap: 0.55rem 0.75rem;
   margin-bottom: 0.45rem;
 }
 
-.sales-clip-section__title {
-  margin: 0;
+.sales-clip-section__head-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem;
-  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  gap: 0.4rem;
 }
 
-.sales-clip-section__title-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--accent-bright) 28%, transparent);
-  background: color-mix(in srgb, var(--accent-bright) 10%, transparent);
-  color: var(--accent-bright);
-  flex-shrink: 0;
+.sales-clip-section__form-hints .admin-club-stats-help-tip__btn,
+.sales-clip-section__day-hints--warn .admin-club-stats-help-tip__btn {
+  color: color-mix(in srgb, var(--warning) 88%, var(--text));
+  border-color: color-mix(in srgb, var(--warning) 42%, transparent);
 }
 
 .sales-clip-section__day {
@@ -5706,10 +5724,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem 0.45rem;
-  padding: 0.25rem 0.35rem 0.25rem 0.25rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--bg-muted) 80%, transparent);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .sales-clip-section__day-nav {
@@ -5742,14 +5759,6 @@
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
-}
-
-.sales-clip-section__tip {
-  margin: 0 0 0.85rem;
-  max-width: 48rem;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: var(--text-muted);
 }
 
 .sales-clip-section__list-title {
@@ -5937,6 +5946,8 @@
 }
 
 .sales-visual-alert {
+  width: fit-content;
+  max-width: 100%;
   margin: 0.75rem 0;
   padding: 0.85rem 1rem;
   border-radius: var(--radius-md);
@@ -5948,6 +5959,9 @@
   margin: 0 0 0.35rem;
   font-weight: 700;
   font-size: 0.98rem;
+}
+.sales-visual-alert__title:last-child {
+  margin-bottom: 0;
 }
 .sales-visual-alert__body {
   margin: 0;

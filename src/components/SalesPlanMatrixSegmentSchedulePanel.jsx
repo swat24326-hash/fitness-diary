@@ -184,12 +184,12 @@ export function SalesPlanMatrixSegmentSchedulePanel({
           </div>
           <button
             type="button"
-            className="sales-report__segment-schedule-close"
+            className="btn btn-ghost btn-icon-square btn-touch"
             onClick={onClose}
-            aria-label="Закрыть график продаж"
+            aria-label="Закрыть"
+            title="Закрыть"
           >
             <X size={18} aria-hidden />
-            Закрыть
           </button>
         </header>
 
@@ -258,11 +258,6 @@ export function SalesPlanMatrixSegmentSchedulePanel({
               )
             })}
           </div>
-          <p className="sales-report__segment-schedule-legend muted">
-            Столбец — день месяца. Подпись — значение и доля от итога за месяц (%). Жёлтая пунктирная линия — план
-            {planLines.hasPlan ? ' (выручка и штуки: план месяца ÷ дни; чек — уровень из плана)' : ''}. Столбец выше
-            линии — день выполнил план. Золотая обводка — лучший день, красная — самый слабый чек.
-          </p>
         </div>
 
         {series.length && activeList.length ? (

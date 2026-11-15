@@ -1,12 +1,17 @@
-import { useMemo, useState } from 'react'
-import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
-import { buildSalesManagerMonthStats } from '../lib/admin/salesManagerStatsAgg.js'
-import { formatRub } from '../lib/admin/salesReportCore.js'
+import { useEffect, useMemo, useState } from 'react'
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  buildDailyCountSeries,
+  buildSalesManagerMonthStats,
+} from '../lib/admin/salesManagerStatsAgg.js'
+import { fetchClubSalesBundle } from '../lib/admin/adminSalesService.js'
+import { previousCalendarMonthParts } from '../lib/admin/dayChartPrevMonthCore.js'
+import { formatRub, monthDateRange } from '../lib/admin/salesReportCore.js'
 import { SALES_TRAINING_CLUB_ID } from '../lib/admin/salesTrainingsMatrix.js'
 import { salesTrainerDisplayLabel } from '../lib/admin/salesTrainerLabelsCore.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { SalesAerobicTypeDayModal } from './SalesAerobicTypeDayModal.jsx'
-import { SalesDayBarChart } from './SalesDayBarChart.jsx'
+import { SalesManagerDayChart } from './SalesManagerDayChart.jsx'
 import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
 import { SalesStructureBlock } from './SalesStructureBlock.jsx'
 import { SalesPlanMatrixCompareTable } from './SalesPlanMatrixCompareTable.jsx'
@@ -115,9 +120,7 @@ export function SalesManagerStatsPanel({
     planMatrixComparison,
     dailySeries,
     dailyPnkSeries,
-    maxDayPnk,
     dailyTrainingsSeries,
-    maxDayTrainings,
     trainingsStats,
     dayTable,
     hallFinance,
@@ -125,29 +128,63 @@ export function SalesManagerStatsPanel({
   } = stats
 
   const [aerobicDrill, setAerobicDrill] = useState(/** @type {{ typeId: string | null, code: string } | null} */ (null))
+  const [prevMonthRows, setPrevMonthRows] = useState(/** @type {Array<Record<string, unknown>>} */ ([]))
+
+  useEffect(() => {
+    const cid = String(clubId || '').trim()
+    const prev = previousCalendarMonthParts(year, month)
+    if (!cid || !prev) {
+      setPrevMonthRows([])
+      return
+    }
+    let cancelled = false
+    const { end } = monthDateRange(prev.year, prev.month)
+    ;(async () => {
+      try {
+        // profile month/shell отдаёт month_days; daily — нет (includeMonthDays=false).
+        const bundle = await fetchClubSalesBundle({
+          clubId: cid,
+          reportDate: end,
+          profile: 'month',
+          preferApi: true,
+        })
+        if (!cancelled) setPrevMonthRows(Array.isArray(bundle?.monthDays) ? bundle.monthDays : [])
+      } catch {
+        if (!cancelled) setPrevMonthRows([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [clubId, year, month])
+
+  const prevDaySeries = useMemo(() => {
+    const prev = previousCalendarMonthParts(year, month)
+    if (!prev || !prevMonthRows.length) {
+      return { pnk: null, trainings: null }
+    }
+    return {
+      pnk: buildDailyCountSeries(prevMonthRows, prev.year, prev.month, 'pnk_total'),
+      trainings: buildDailyCountSeries(prevMonthRows, prev.year, prev.month, 'trainings_count'),
+    }
+  }, [prevMonthRows, year, month])
+
+  const monthNav = showMonthNav ? (
+    <div className="sales-report__stats-month-nav">
+      <button type="button" className="btn btn-secondary btn-sm" onClick={onPrevMonth} aria-label="Предыдущий месяц">
+        <ChevronLeft size={16} aria-hidden />
+      </button>
+      <span className="sales-report__stats-month-label">{monthLabel}</span>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={onNextMonth} aria-label="Следующий месяц">
+        <ChevronRight size={16} aria-hidden />
+      </button>
+    </div>
+  ) : (
+    <p className="sales-report__stats-month-label muted">{monthLabel}</p>
+  )
 
   return (
-    <section className="sales-report__stats" aria-labelledby="sales-stats-title">
-      <div className="sales-report__stats-head">
-        <h2 className="sales-report__section-title" id="sales-stats-title">
-          <BarChart3 size={20} style={{ verticalAlign: -3, marginRight: 8 }} aria-hidden />
-          Статистика месяца
-        </h2>
-        {showMonthNav ? (
-          <div className="sales-report__stats-month-nav">
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onPrevMonth} aria-label="Предыдущий месяц">
-              <ChevronLeft size={16} aria-hidden />
-            </button>
-            <span className="sales-report__stats-month-label">{monthLabel}</span>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onNextMonth} aria-label="Следующий месяц">
-              <ChevronRight size={16} aria-hidden />
-            </button>
-          </div>
-        ) : (
-          <p className="sales-report__stats-month-label muted">{monthLabel}</p>
-        )}
-      </div>
-
+    <section className="sales-report__stats" aria-label="Статистика">
       <div className="sales-report__kpi-grid sales-report__stats-kpi">
         {(summary.refundsTotal ?? 0) > 0 ? (
           <div className="sales-report__kpi">
@@ -208,36 +245,22 @@ export function SalesManagerStatsPanel({
       </div>
 
       <div className="sales-report__card sales-report__stats-block">
-        <h3 className="sales-report__stats-block-title">Прибыль по дням</h3>
-        <p className="muted sales-report__stats-block-note">
-          Нажмите на день с отчётом — откроется вкладка «Отчёт за день».
-        </p>
+        <div className="sales-report__stats-block-head">
+          <h3 className="sales-report__stats-block-title">Прибыль по дням</h3>
+          {monthNav}
+        </div>
         <SalesProfitDayChart series={dailySeries} onDayClick={onOpenDay} />
       </div>
 
-      <div className="sales-report__stats-duo">
-        <div className="sales-report__card sales-report__stats-block">
-          <h3 className="sales-report__stats-block-title">ПНК по дням</h3>
-          <SalesDayBarChart
-            series={dailyPnkSeries}
-            maxValue={maxDayPnk}
-            onDayClick={onOpenDay}
-            formatValue={(n) => String(n)}
-            ariaLabel="ПНК по дням месяца"
-            barClassName="sales-report__profit-chart-bar--pnk"
-          />
-        </div>
-        <div className="sales-report__card sales-report__stats-block">
-          <h3 className="sales-report__stats-block-title">Тренировок по дням</h3>
-          <SalesDayBarChart
-            series={dailyTrainingsSeries}
-            maxValue={maxDayTrainings}
-            onDayClick={onOpenDay}
-            formatValue={(n) => String(n)}
-            ariaLabel="Тренировки по дням месяца"
-            barClassName="sales-report__profit-chart-bar--trainings"
-          />
-        </div>
+      <div className="sales-report__card sales-report__stats-block">
+        <h3 className="sales-report__stats-block-title">ПНК и тренировки по дням</h3>
+        <SalesManagerDayChart
+          pnkSeries={dailyPnkSeries}
+          trainingsSeries={dailyTrainingsSeries}
+          prevPnkSeries={prevDaySeries.pnk}
+          prevTrainingsSeries={prevDaySeries.trainings}
+          onDayClick={onOpenDay}
+        />
       </div>
 
       <div className="sales-report__card sales-report__stats-block">

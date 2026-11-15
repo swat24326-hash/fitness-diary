@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Users, Trophy, Swords, CalendarDays, WifiOff } from 'lucide-react'
+import { BarChart3, Users, Trophy, Swords, CalendarDays, WifiOff } from 'lucide-react'
 import { TrainerHomeDumbbell } from '../../components/trainer/TrainerHomeDumbbell.jsx'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { TrainerHomeTodayStrip } from '../../components/trainer/TrainerHomeTodayStrip.jsx'
@@ -454,9 +454,9 @@ export function TrainerHome() {
 
           <Link to="/trainer/profile" className="feature-tile u-no-decoration">
             <div className="feature-tile__icon">
-              <User size={36} aria-hidden />
+              <BarChart3 size={36} aria-hidden />
             </div>
-            <p className="feature-tile__title">Профиль</p>
+            <p className="feature-tile__title">Статистика</p>
           </Link>
         </div>
       </section>

@@ -148,10 +148,12 @@
   font-size: 0.9rem;
 }
 
-.loyalty-journal {
+.loyalty-journal.card {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  padding: clamp(14px, 2.5vw, 18px);
+  margin: 0;
 }
 
 .loyalty-journal__toolbar {

@@ -27,8 +27,6 @@ export const NAV_BACK_REPLACE_TARGETS = Object.freeze([
   { file: 'src/components/chat/ChatOpenErrorAction.jsx', re: /to=\{backTo\}\s+replace/, label: 'К диалогам' },
   { file: 'src/pages/client/ClientPageNav.jsx', re: /navigate\(to, \{\s*replace:\s*true\s*\}\)/, label: 'ClientPageTitle' },
   { file: 'src/pages/staff/StaffChatThread.jsx', re: /to=\{back\}[\s\S]{0,60}?\breplace\b/, label: 'чат → карточка' },
-  { file: 'src/pages/admin/SalesPnk.jsx', re: /to=\{backTo\}[\s\S]{0,60}?\breplace\b/, label: 'ПНК ←' },
-  { file: 'src/pages/admin/AdminClients.jsx', re: /to="\/sales"[\s\S]{0,80}?\breplace\b/, label: 'продажи ← главная' },
   { file: 'src/pages/client/ClientSegments.jsx', re: /to=\{to\}[\s\S]{0,40}?\breplace\b/, label: 'сегменты /me' },
   { file: 'src/pages/staff/StaffMessenger.jsx', re: /folder: id \}\),\s*\{\s*replace:\s*true\s*\}/, label: 'папки сообщений клуба' },
   { file: 'src/pages/staff/AdminMessenger.jsx', re: /\},\s*\{\s*replace:\s*true\s*\}/, label: 'папки сообщений админа' },

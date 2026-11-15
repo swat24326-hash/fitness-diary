@@ -49,10 +49,10 @@ function buildMonth1TableHtml(normalized) {
       <tr>
         <th class="axis">Срок</th>
         <th class="axis">Тренировки</th>
-        <th>База полная</th>
-        <th class="sub-off">База стенд</th>
+        <th>База</th>
+        <th class="sub-off">База акция</th>
         <th>Экон.</th>
-        <th class="sub-off">День стенд</th>
+        <th class="sub-off">День акция</th>
         <th>Экон.</th>
       </tr>
     </thead>

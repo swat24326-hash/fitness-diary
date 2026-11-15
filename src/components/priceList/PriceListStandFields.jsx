@@ -15,7 +15,6 @@ export function PriceListStandFields({ doc, onValidFrom, onMeta, onExtras }) {
   return (
     <div className="price-list__stand price-list__no-print" aria-label="Шапка и подвал стенда">
       <div className="price-list__stand-glow" aria-hidden />
-      <p className="price-list__stand-label">Шапка (печать / PNG)</p>
       <div className="price-list__meta">
         <label className="price-list__field price-list__field--grow">
           <span className="price-list__label">Заголовок</span>
@@ -49,7 +48,6 @@ export function PriceListStandFields({ doc, onValidFrom, onMeta, onExtras }) {
         </label>
       </div>
 
-      <p className="price-list__stand-label">Подвал (как в Excel)</p>
       <div className="price-list__meta">
         <label className="price-list__field">
           <span className="price-list__label">Разовое (база)</span>

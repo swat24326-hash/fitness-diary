@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, ListFilter, Phone, RefreshCw, Search, UserCircle, UserPlus } from 'lucide-react'
+import { ListFilter, Phone, RefreshCw, Search, UserCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientCallHistorySheet } from '../../components/admin/AdminClientCallHistorySheet.jsx'
@@ -1265,31 +1265,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     <section
       className={
         isSalesManager
-          ? 'sales-clients sales-report sales-report--wide sales-report--manager'
+          ? 'sales-clients sales-report sales-report--wide sales-report--manager admin-section-shell admin-section-shell--wide'
           : 'admin-section-shell admin-section-shell--wide'
       }
     >
-      {isSalesManager ? (
-        <header className="sales-clients__topbar">
-          <div className="sales-clients__topbar-text">
-            <p className="sales-home__eyebrow">Клуб · день</p>
-            <h1 className="sales-page__title">Клиенты</h1>
-          </div>
-          <div className="sales-clients__actions">
-            <Link
-              to="/sales"
-              replace
-              className="btn btn-ghost btn-sm btn-icon-square btn-touch"
-              title="На главную"
-              aria-label="На главную продаж"
-            >
-              <ArrowLeft size={16} aria-hidden />
-            </Link>
-          </div>
-        </header>
-      ) : (
-        <AdminSectionHeader icon={UserCircle} title="Клиенты" />
-      )}
+      <AdminSectionHeader icon={UserCircle} title="Клиенты" />
 
       {!club && clubBound ? (
         <p className="sales-clients__empty" role="status">

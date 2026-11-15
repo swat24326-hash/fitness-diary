@@ -290,15 +290,11 @@ export function SalesFinanceForecast({
           <TrendingUp size={20} aria-hidden className="sales-finance-forecast__title-icon" />
           {closedMonth ? `Итоги месяца (факт) · до ${monthEndLabel}` : `План и прогноз · до ${monthEndLabel}`}
         </h3>
-        <p className="sales-finance-forecast__hint">
-          {closedMonth
-            ? 'Месяц закрыт — цифры по заполненным отчётам. Прогноз строится только в текущем месяце.'
-            : `Темп к норме на сегодня · прогноз = темп отчётов (матрица — та же сумма)${
-                forecast.method === 'weekday_weekend_remaining'
-                  ? ' · будни и выходные отдельно'
-                  : ''
-              }`}
-        </p>
+        {closedMonth ? (
+          <p className="sales-finance-forecast__hint">
+            Месяц закрыт — цифры по заполненным отчётам. Прогноз строится только в текущем месяце.
+          </p>
+        ) : null}
       </header>
 
       {plan?.level3 > 0 ? (
@@ -509,14 +505,6 @@ export function SalesFinanceForecast({
               ) : null}
             </table>
           </div>
-          <p className="sales-finance-forecast__table-footnote">
-            Итого факт и прогноз = карточки клуба. «До плана напр.» — прогноз минус план той же строки (плюс = запас).
-            В «Итого» % и эта колонка — к сумме планов направлений, сумма строк сходится с итогом
-            {plan.totals?.directionsAbove && plan.totals?.clubProgressPercent != null
-              ? ` · к финалу клуба сейчас ${plan.totals.clubProgressPercent}%`
-              : ''}
-            .
-          </p>
         </div>
       ) : null}
 

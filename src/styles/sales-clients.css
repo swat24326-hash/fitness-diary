@@ -5,10 +5,14 @@
 .sales-clients {
   display: flex;
   flex-direction: column;
-  gap: clamp(1rem, 2vw, 1.35rem);
+  gap: 0;
   width: 100%;
   max-width: none;
   padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.sales-clients > .admin-section__head {
+  margin-bottom: 10px;
 }
 
 .sales-clients__topbar {

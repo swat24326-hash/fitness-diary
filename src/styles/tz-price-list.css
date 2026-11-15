@@ -1,7 +1,8 @@
 /* Прайс ТЗ — дополнение к price-list.css (та же витрина). */
 
-.price-list-hall__toolbar {
-  margin-bottom: 0.35rem;
+.price-list-hall__tabs {
+  margin: 0;
+  gap: 0.5rem;
 }
 
 .tz-price-list__hours {

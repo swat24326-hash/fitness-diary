@@ -13,16 +13,6 @@
   max-width: min(100%, 1180px);
 }
 
-.trainer-schedule-page__hero {
-  margin-bottom: 16px;
-}
-
-.trainer-schedule-page__title {
-  margin: 0 0 6px;
-  font-size: clamp(1.2rem, 3vw, 1.45rem);
-  font-weight: 650;
-}
-
 .trainer-schedule-page__loading {
   margin: 0 0 12px;
 }

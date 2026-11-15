@@ -49,11 +49,10 @@ export function TrainerCalendarPage() {
   )
 
   return (
-    <div className={['trainer-schedule-page', wide ? 'trainer-schedule-page--wide' : ''].filter(Boolean).join(' ')}>
-      <header className="trainer-schedule-page__hero">
-        <h1 className="trainer-schedule-page__title">Ежедневник</h1>
-      </header>
-
+    <div
+      className={['trainer-schedule-page', wide ? 'trainer-schedule-page--wide' : ''].filter(Boolean).join(' ')}
+      aria-label="Ежедневник"
+    >
       {loading ? (
         <p className="muted trainer-schedule-page__loading" role="status">
           Загрузка расписания…

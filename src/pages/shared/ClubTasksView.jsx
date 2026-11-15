@@ -152,14 +152,6 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
     }
   }
 
-  const sectionLead = clubId
-    ? isSalesMode
-      ? `Ваши задания команде · ${clubName}`
-      : `Задания команде · ${clubName}`
-    : isSalesMode
-      ? 'Клуб не привязан к профилю менеджера'
-      : 'Выберите клуб в шапке или на главной админки'
-
   const emptyClubHint = isSalesMode ? (
     <p className="muted" style={{ margin: 0 }}>
       Обратитесь к администратору — в профиле должен быть указан клуб.
@@ -172,7 +164,7 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
 
   return (
     <section className="admin-section-shell club-tasks-view" aria-label="Планёрка">
-      <AdminSectionHeader icon={ClipboardList} title="Планёрка" lead={sectionLead}>
+      <AdminSectionHeader icon={ClipboardList} title="Планёрка">
         <button
           type="button"
           className="btn btn-ghost btn-icon-square"
@@ -224,34 +216,35 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
           )}
         </div>
       ) : (
-        <>
-          <p className="admin-section__stats muted">
-            Открытых: <strong>{activeCount}</strong>
-            {statusFilter !== 'overdue' && overdueCount > 0 ? (
-              <>
-                {' '}
-                · Просрочено: <strong className="club-tasks-view__overdue-stat">{overdueCount}</strong>
-              </>
-            ) : null}
-            {' '}
-            · Всего в списке: {items.length}
-            {isSalesMode ? ' · только ваши отправленные' : null}
-          </p>
-
-          <div className="admin-section__tabs" role="tablist" aria-label="Фильтр по статусу">
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.id || 'all'}
-                type="button"
-                role="tab"
-                aria-selected={statusFilter === f.id}
-                className={`admin-section__tab${statusFilter === f.id ? ' admin-section__tab--on' : ''}`}
-                disabled={loading}
-                onClick={() => setStatusFilter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
+        <section className="card club-tasks-view__workspace">
+          <div className="club-tasks-view__toolbar">
+            <div className="admin-section__tabs" role="tablist" aria-label="Фильтр по статусу">
+              {STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.id || 'all'}
+                  type="button"
+                  role="tab"
+                  aria-selected={statusFilter === f.id}
+                  className={`admin-section__tab${statusFilter === f.id ? ' admin-section__tab--on' : ''}`}
+                  disabled={loading}
+                  onClick={() => setStatusFilter(f.id)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <p className="admin-section__stats muted club-tasks-view__stats">
+              Открытых: <strong>{activeCount}</strong>
+              {statusFilter !== 'overdue' && overdueCount > 0 ? (
+                <>
+                  {' '}
+                  · Просрочено: <strong className="club-tasks-view__overdue-stat">{overdueCount}</strong>
+                </>
+              ) : null}
+              {' '}
+              · Всего в списке: {items.length}
+              {isSalesMode ? ' · только ваши отправленные' : null}
+            </p>
           </div>
 
           {migrationPending ? (
@@ -431,7 +424,7 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
               ))}
             </ul>
           ) : null}
-        </>
+        </section>
       )}
 
       {mode === 'admin' && clubId ? (

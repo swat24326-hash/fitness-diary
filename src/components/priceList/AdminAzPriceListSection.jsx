@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FileSpreadsheet, ImageDown, Printer, RefreshCw, Save } from 'lucide-react'
+import { FileSpreadsheet, ImageDown, Printer, Save } from 'lucide-react'
 import {
   addAzDirection,
   addAzOtherFee,
@@ -32,9 +32,9 @@ import '../../styles/az-price-list.css'
 /**
  * Прайс АЗ — витрина направлений × сессии (полная / −10%).
  *
- * @param {{ clubId: string }} props
+ * @param {{ clubId: string, hallTabs?: import('react').ReactNode }} props
  */
-export function AdminAzPriceListSection({ clubId }) {
+export function AdminAzPriceListSection({ clubId, hallTabs = null }) {
   const [doc, setDoc] = useState(() =>
     clubId ? readAzPriceListLocalEntry(clubId).doc : emptyAzPriceListDocument({ club_id: clubId }),
   )
@@ -185,6 +185,7 @@ export function AdminAzPriceListSection({ clubId }) {
   if (!clubId) {
     return (
       <section className="card price-list" aria-label="Прайс АЗ">
+        {hallTabs ? <header className="price-list__head">{hallTabs}</header> : null}
         <p className="muted">Выберите клуб в шапке — у каждого клуба свой прайс.</p>
       </section>
     )
@@ -198,14 +199,7 @@ export function AdminAzPriceListSection({ clubId }) {
   return (
     <section className="card price-list az-price-list os-enter" aria-label="Прайс аэробного зала">
       <header className="price-list__head">
-        <div className="price-list__head-text">
-          <p className="price-list__eyebrow">Витрина клуба</p>
-          <h2 className="price-list__title">Прайс · аэробный зал</h2>
-          <p className="price-list__lead">
-            Как на стенде: направления × тренировки, полная и −10% (автосвязь). Сетка без Excel или
-            импорт — правка — Сохранить. Печать и PNG — все заполненные листы.
-          </p>
-        </div>
+        {hallTabs}
         <div className="price-list__actions">
           <input
             ref={fileRef}
@@ -252,16 +246,6 @@ export function AdminAzPriceListSection({ clubId }) {
             title="Типовые направления Результат + групповые, 4/8/10"
           >
             Типовая сетка
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm btn-icon-square"
-            disabled={busy || !clubId}
-            onClick={() => void reload({ force: true })}
-            aria-label="Обновить из облака"
-            title="Обновить из облака"
-          >
-            <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
           </button>
           <button
             type="button"

@@ -305,7 +305,7 @@ export function SalesPlanHallRenewalsSuggestBar({
         % продления
         <input
           type="number"
-          className="sales-plan-pz-dk-suggest__pct-input"
+          className="input sales-plan-pz-dk-suggest__pct-input"
           min={1}
           max={100}
           value={renewalPct}
@@ -318,7 +318,7 @@ export function SalesPlanHallRenewalsSuggestBar({
         Ср. из покупок
         <input
           type="number"
-          className="sales-plan-pz-dk-suggest__pct-input"
+          className="input sales-plan-pz-dk-suggest__pct-input"
           min={1}
           max={12}
           value={historyDepth}
@@ -331,7 +331,7 @@ export function SalesPlanHallRenewalsSuggestBar({
       {locked ? (
         <button
           type="button"
-          className="btn btn-primary btn-touch"
+          className="btn btn-primary btn-sm"
           disabled={busy || disabled || !clubId}
           onClick={() => void runCalculate(fixedHorizon)}
         >
@@ -387,8 +387,6 @@ export function SalesPlanHallRenewalsSuggestBar({
           {String(snapshotMeta.updatedAt).length > 10
             ? ` ${String(snapshotMeta.updatedAt).slice(11, 16)}`
             : ''}
-          {' · '}
-          обновить — «Посчитать».
         </p>
       ) : null}
     </>
@@ -408,13 +406,9 @@ export function SalesPlanHallRenewalsSuggestBar({
 
   const emptyHint =
     !preview?.ok && layout === 'dashboard' ? (
-      <p className="muted sales-plan-pz-dk-suggest__stage-empty">
-        Нажмите «Посчитать» в шапке — слева пакет и продления, справа playbook по неделям.
-      </p>
+      <p className="muted sales-plan-pz-dk-suggest__stage-empty">Нажмите «Посчитать» в шапке.</p>
     ) : !preview?.ok && layout === 'wide' ? (
-      <p className="muted sales-plan-pz-dk-suggest__stage-empty">
-        Нажмите «Посчитать» — справа появятся продления, доска и playbook по неделям.
-      </p>
+      <p className="muted sales-plan-pz-dk-suggest__stage-empty">Нажмите «Посчитать».</p>
     ) : null
 
   if (layout === 'dashboard' && typeof renderChrome === 'function') {
@@ -433,11 +427,6 @@ export function SalesPlanHallRenewalsSuggestBar({
     >
       <div className="sales-plan-pz-dk-suggest__rail">
         {railBefore}
-        <p className="sales-plan-pz-dk-suggest__lead muted">
-          <strong>1.</strong> Кто кончается в месяце → ДК (история покупок или прайс) × % продления.
-          Архив не входит. <strong>2.</strong> Доп. 70%; добор НК/УК по доле ₽ зала за прошлый месяц.
-          <strong>3.</strong> «В план клуба» → «План месяца».
-        </p>
         {controls}
         {lastSummary && !preview?.ok ? (
           <p className="muted sales-plan-pz-dk-suggest__summary">{lastSummary}</p>

@@ -40,6 +40,7 @@ function monthTitle(year, month) {
  *   onSelectPlanMonth?: (ym: { year: number, month: number }) => void,
  *   onToast?: (text: string, tone?: 'ok' | 'err' | 'warn') => void,
  *   showAdminFinanceBar?: boolean,
+ *   showHatTitle?: boolean,
  *   planConfig?: object | null,
  *   profilesByTrainerId?: Map|object|null,
  * }} props
@@ -54,6 +55,7 @@ export function SalesStrategyPanel({
   onSelectPlanMonth,
   onToast,
   showAdminFinanceBar = false,
+  showHatTitle = true,
   planConfig = null,
   profilesByTrainerId = null,
 }) {
@@ -187,14 +189,13 @@ export function SalesStrategyPanel({
             <>
               <SalesStrategyHat
                 busy={busy}
-                canRefresh={Boolean(clubId)}
-                onRefresh={() => void load()}
                 horizon={horizon}
                 onHorizon={setHorizon}
                 monthLabel={planMonthLabel}
                 planLevel3={planLevel3 > 0 ? planLevel3 : null}
                 prevMonthLabel={prevMonthLabel}
                 controls={controls}
+                showTitle={showHatTitle}
               />
               {adminFinanceBar}
               <div className="sales-strategy__workspace">
@@ -216,13 +217,12 @@ export function SalesStrategyPanel({
         <>
           <SalesStrategyHat
             busy={busy}
-            canRefresh={Boolean(clubId)}
-            onRefresh={() => void load()}
             horizon={horizon}
             onHorizon={setHorizon}
             monthLabel={planMonthLabel}
             planLevel3={planLevel3 > 0 ? planLevel3 : null}
             prevMonthLabel={prevMonthLabel}
+            showTitle={showHatTitle}
           />
           {adminFinanceBar}
           <SalesStrategyReferenceDetails

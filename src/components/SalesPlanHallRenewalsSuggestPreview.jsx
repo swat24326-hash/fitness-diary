@@ -1,10 +1,6 @@
 import { Check } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
-import {
-  HALL_RENEWALS_HALLS,
-  formatHallRenewalsSummaryRu,
-} from '../lib/admin/salesPlanHallRenewalsSuggestCore.js'
-import { formatHallPlanTopUpSummaryRu } from '../lib/admin/salesPlanHallTopUpCore.js'
+import { HALL_RENEWALS_HALLS } from '../lib/admin/salesPlanHallRenewalsSuggestCore.js'
 import { pzDkSuggestHorizonLabelRu } from '../lib/admin/salesPlanPzDkSuggestCore.js'
 import { SalesStrategyPackageBoard } from './SalesStrategyPackageBoard.jsx'
 import { SalesStrategyNkUkEditTable } from './SalesStrategyNkUkEditTable.jsx'
@@ -28,8 +24,6 @@ export function SalesPlanHallRenewalsSuggestPreview({
   if (!suggest?.ok) return null
 
   const horizonLabel = pzDkSuggestHorizonLabelRu(suggest.horizon)
-  const renewalPct = Number(suggest.renewalPct) || 0
-  const depth = Number(suggest.historyDepth) || 3
   const miss = Math.trunc(Number(suggest.endingWithoutPrice) || 0)
   const alreadyBought = Math.trunc(Number(suggest.endingAlreadyPurchased) || 0)
   const packOk = Boolean(topUpPack?.ok)
@@ -51,18 +45,21 @@ export function SalesPlanHallRenewalsSuggestPreview({
         <span className="sales-plan-pz-dk-preview__badge">{horizonLabel}</span>
       </header>
 
-      <div className="sales-plan-pz-dk-preview__meta muted">
-        <span>История до {depth} покупок, иначе прайс</span>
-        <span>{renewalPct}% продления</span>
-        {Number(suggest.fromHistory) > 0 ? (
-          <span>Из истории: {suggest.fromHistory}</span>
-        ) : null}
-        {Number(suggest.fromPriceList) > 0 ? (
-          <span>Из прайса: {suggest.fromPriceList}</span>
-        ) : null}
-        {miss > 0 ? <span>Без цены: {miss}</span> : null}
-        {alreadyBought > 0 ? <span>Уже купили след.: {alreadyBought}</span> : null}
-      </div>
+      {Number(suggest.fromHistory) > 0 ||
+      Number(suggest.fromPriceList) > 0 ||
+      miss > 0 ||
+      alreadyBought > 0 ? (
+        <div className="sales-plan-pz-dk-preview__meta muted">
+          {Number(suggest.fromHistory) > 0 ? (
+            <span>Из истории: {suggest.fromHistory}</span>
+          ) : null}
+          {Number(suggest.fromPriceList) > 0 ? (
+            <span>Из прайса: {suggest.fromPriceList}</span>
+          ) : null}
+          {miss > 0 ? <span>Без цены: {miss}</span> : null}
+          {alreadyBought > 0 ? <span>Уже купили след.: {alreadyBought}</span> : null}
+        </div>
+      ) : null}
 
       <div className="sales-plan-pz-dk-preview__table-wrap">
         <table className="sales-plan-pz-dk-preview__table">
@@ -118,10 +115,6 @@ export function SalesPlanHallRenewalsSuggestPreview({
         </table>
       </div>
 
-      <p className="muted" style={{ margin: '0.5rem 0 0' }}>
-        {formatHallRenewalsSummaryRu(suggest)}
-      </p>
-
       {packOk ? (
         <>
           <header className="sales-plan-pz-dk-preview__head" style={{ marginTop: '1.1rem' }}>
@@ -131,11 +124,6 @@ export function SalesPlanHallRenewalsSuggestPreview({
             </div>
           </header>
           <SalesStrategyPackageBoard renewalsSuggest={suggest} topUpPack={topUpPack} />
-          <p className="muted sales-plan-pz-dk-suggest__lead" style={{ marginTop: '0.65rem' }}>
-            Доп. = {topUpPack.planExtraPct || 70}% прошлого месяца; добор НК/УК — по доле выручки
-            зала за прошлый месяц (не по штукам). Допуск сверху +
-            {formatRub(topUpPack.budgetTolerance || 15000)}.
-          </p>
           {topUpPack.fittedToBudget === false ? (
             <p className="sync-feedback sync-feedback--err" role="alert">
               {topUpPack.targets?.fitted === false
@@ -218,9 +206,6 @@ export function SalesPlanHallRenewalsSuggestPreview({
               </table>
             </div>
           )}
-          <p className="muted" style={{ margin: '0.5rem 0 0' }}>
-            {formatHallPlanTopUpSummaryRu(topUpPack)}
-          </p>
         </>
       ) : null}
 
@@ -233,11 +218,6 @@ export function SalesPlanHallRenewalsSuggestPreview({
               }`
             : `В план · ДК ${suggest.count} шт. · ${formatRub(suggest.amount)}`}
         </button>
-        <p className="sales-plan-pz-dk-preview__foot-hint muted">
-          {packOk
-            ? 'Заполнит матрицу НК/ДК/УК, направления залов и доп. продажи. Затем сохраните во вкладке «План месяца».'
-            : 'Заполнит только ДК (полного пакета нет — мало данных прошлого месяца).'}
-        </p>
       </div>
     </div>
   )

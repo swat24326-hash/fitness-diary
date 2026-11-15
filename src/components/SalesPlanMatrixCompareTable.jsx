@@ -85,11 +85,6 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
       ) : null}
 
       <div className="sales-report__plan-compare-head">
-        {comparison.summary_ru ? (
-          <p className="sales-report__plan-compare-summary" role="status">
-            {comparison.summary_ru}
-          </p>
-        ) : null}
         <div className="sales-report__plan-compare-chips" aria-label="Сводка по статусам">
           <span className="sales-report__plan-compare-chip sales-report__plan-compare-chip--ok">
             <Check size={14} aria-hidden />
@@ -114,39 +109,6 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
             </span>
           ) : null}
         </div>
-          {elapsedPct > 0 && elapsedPct < 100 ? (
-          <p className="sales-report__plan-compare-forecast-hint">
-            {comparison.forecast_method === 'unified_club_pace' ? (
-              <>
-                Прогноз ₽ и шт — разложение <strong>того же</strong> клубного прогноза (темп отчётов). % в
-                строке — к плану <em>сегмента</em>, не к финалу клуба.
-                {comparison.club_forecast_gross != null ? (
-                  <>
-                    {' '}
-                    Сегменты {formatRub(comparison.totals?.forecastAmount ?? 0)}
-                    {Number(comparison.dop_forecast_gross) > 0
-                      ? ` + доп. ${formatRub(comparison.dop_forecast_gross)}`
-                      : ''}{' '}
-                    = {formatRub(comparison.club_forecast_gross)} (карточка «Прогноз»).
-                  </>
-                ) : null}
-              </>
-            ) : (
-              <>
-                Статус — по сумме и прогнозу к концу месяца. Прогноз ₽: темп будни/выходные + тяга к плану
-                сегмента (ДК сильнее).
-                {elapsedPct > 0
-                  ? ` · календарь: ${
-                      Number.isInteger(elapsedPct)
-                        ? Math.round(elapsedPct)
-                        : String(Math.round(elapsedPct * 10) / 10).replace('.', ',')
-                    }%`
-                  : ''}
-              </>
-            )}
-            .
-          </p>
-        ) : null}
       </div>
       <div className="sales-report__matrix-scroll sales-report__matrix-scroll--stats sales-report__matrix-scroll--compare">
         <table className="sales-report__matrix sales-report__stats-matrix sales-report__matrix--compare">

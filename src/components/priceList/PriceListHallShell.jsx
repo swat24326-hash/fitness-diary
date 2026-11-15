@@ -11,51 +11,60 @@ import '../../styles/tz-price-list.css'
 import '../../styles/az-price-list.css'
 
 /**
+ * @param {{ hall: 'pz' | 'tz' | 'az', onHallChange: (hall: 'pz' | 'tz' | 'az') => void }} props
+ */
+function PriceListHallTabs({ hall, onHallChange }) {
+  return (
+    <div className="tabs price-list-hall__tabs" role="tablist" aria-label="Зал прайса">
+      <button
+        type="button"
+        role="tab"
+        className="tab"
+        aria-selected={hall === 'pz'}
+        onClick={() => onHallChange('pz')}
+      >
+        Персональный зал
+      </button>
+      <button
+        type="button"
+        role="tab"
+        className="tab"
+        aria-selected={hall === 'tz'}
+        onClick={() => onHallChange('tz')}
+      >
+        Тренажёрный зал
+      </button>
+      <button
+        type="button"
+        role="tab"
+        className="tab"
+        aria-selected={hall === 'az'}
+        onClick={() => onHallChange('az')}
+      >
+        Аэробный зал
+      </button>
+    </div>
+  )
+}
+
+/**
  * @param {{ clubId: string, membershipTypes?: object[] }} props
  */
 export function PriceListHallShell({ clubId, membershipTypes = [] }) {
   const [hall, setHall] = useState(/** @type {'pz' | 'tz' | 'az'} */ ('pz'))
+  const hallTabs = <PriceListHallTabs hall={hall} onHallChange={setHall} />
 
+  if (hall === 'tz') {
+    return <AdminTzPriceListSection clubId={clubId} hallTabs={hallTabs} />
+  }
+  if (hall === 'az') {
+    return <AdminAzPriceListSection clubId={clubId} hallTabs={hallTabs} />
+  }
   return (
-    <div className="price-list-hall">
-      <div className="price-list__toolbar price-list-hall__toolbar" role="presentation">
-        <div className="price-list__mode" role="tablist" aria-label="Зал прайса">
-          <button
-            type="button"
-            role="tab"
-            className={`price-list__mode-btn${hall === 'pz' ? ' is-active' : ''}`}
-            aria-selected={hall === 'pz'}
-            onClick={() => setHall('pz')}
-          >
-            Персональный зал
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`price-list__mode-btn${hall === 'tz' ? ' is-active' : ''}`}
-            aria-selected={hall === 'tz'}
-            onClick={() => setHall('tz')}
-          >
-            Тренажёрный зал
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`price-list__mode-btn${hall === 'az' ? ' is-active' : ''}`}
-            aria-selected={hall === 'az'}
-            onClick={() => setHall('az')}
-          >
-            Аэробный зал
-          </button>
-        </div>
-      </div>
-      {hall === 'tz' ? (
-        <AdminTzPriceListSection clubId={clubId} />
-      ) : hall === 'az' ? (
-        <AdminAzPriceListSection clubId={clubId} />
-      ) : (
-        <AdminPriceListSection clubId={clubId} membershipTypes={membershipTypes} />
-      )}
-    </div>
+    <AdminPriceListSection
+      clubId={clubId}
+      membershipTypes={membershipTypes}
+      hallTabs={hallTabs}
+    />
   )
 }

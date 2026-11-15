@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, UserPlus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Filter, RefreshCw, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCore'
 import { todayLocalIso } from '../../lib/dateRu'
 import { createPnkClient, deletePnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
@@ -27,8 +28,8 @@ export function SalesPnk() {
     ? String(searchParams.get('club') ?? '').trim()
     : String(user?.club_id ?? '').trim()
   const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
-  const backTo = isAdmin ? `/admin/sales${clubQs}` : isSupervisor ? '/club' : '/sales'
   const focusId = String(searchParams.get('focus') ?? '').trim()
+  const isSalesManager = !isAdmin && !isSupervisor
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -239,60 +240,12 @@ export function SalesPnk() {
   }
 
   return (
-    <div className={`sales-report sales-report--wide pnk-funnel${busy ? ' sales-report__busy' : ''}`}>
-      <div className="sales-report__toolbar pnk-funnel__topbar">
-        <div className="sales-home__hero-text">
-          <p className="sales-home__eyebrow">{isAdmin ? 'Контроль клуба' : 'Воронка'}</p>
-          <h1 className="sales-page__title">ПНК</h1>
-        </div>
-        {stats ? (
-          <section className="pnk-funnel__kpi pnk-funnel__kpi--inline" aria-label="Сводка за месяц">
-            <div className="pnk-funnel__kpi-card pnk-funnel__kpi-card--fraction">
-              <span className="pnk-funnel__kpi-label">ПНК → ДК</span>
-              <span className="pnk-funnel__kpi-value">
-                {stats.won}/{stats.entered}
-                <span className="pnk-funnel__kpi-pct">{stats.conversionPct}%</span>
-              </span>
-            </div>
-            <div className="pnk-funnel__kpi-card">
-              <span className="pnk-funnel__kpi-label">В работе</span>
-              <span className="pnk-funnel__kpi-value">{stats.open}</span>
-            </div>
-          </section>
-        ) : null}
-        <div className="pnk-funnel__toolbar-actions">
-          <Link
-            to={backTo}
-            replace
-            className="btn btn-ghost btn-sm btn-icon-square btn-touch"
-            title="Назад"
-            aria-label="Назад"
-          >
-            <ArrowLeft size={16} aria-hidden />
-          </Link>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm btn-icon-square btn-touch"
-            onClick={() => void load()}
-            disabled={busy || !clubId}
-            title="Обновить"
-            aria-label="Обновить"
-          >
-            <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm btn-icon-square btn-touch"
-            onClick={() => setCreateOpen((v) => !v)}
-            disabled={!clubId}
-            title="Новый ПНК"
-            aria-label="Новый ПНК"
-            aria-pressed={createOpen}
-          >
-            <UserPlus size={16} aria-hidden />
-          </button>
-        </div>
-      </div>
+    <div
+      className={`admin-page admin-section-shell admin-section-shell--wide pnk-funnel${
+        isSalesManager ? ' sales-report sales-report--wide sales-report--manager' : ''
+      }${busy ? ' sales-report__busy' : ''}`}
+    >
+      <AdminSectionHeader icon={Filter} title="ПНК" />
 
       {isAdmin && !clubId ? (
         <p className="sync-feedback sync-feedback--err" role="status">
@@ -313,7 +266,48 @@ export function SalesPnk() {
       ) : null}
 
       {clubId ? (
-        <div className="pnk-funnel__layout">
+        <section className="card pnk-funnel__workspace">
+          <div className="pnk-funnel__topbar">
+            {stats ? (
+              <section className="pnk-funnel__kpi pnk-funnel__kpi--inline" aria-label="Сводка за месяц">
+                <div className="pnk-funnel__kpi-card pnk-funnel__kpi-card--fraction">
+                  <span className="pnk-funnel__kpi-label">ПНК → ДК</span>
+                  <span className="pnk-funnel__kpi-value">
+                    {stats.won}/{stats.entered}
+                    <span className="pnk-funnel__kpi-pct">{stats.conversionPct}%</span>
+                  </span>
+                </div>
+                <div className="pnk-funnel__kpi-card">
+                  <span className="pnk-funnel__kpi-label">В работе</span>
+                  <span className="pnk-funnel__kpi-value">{stats.open}</span>
+                </div>
+              </section>
+            ) : null}
+            <div className="pnk-funnel__toolbar-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm btn-icon-square btn-touch"
+                onClick={() => void load()}
+                disabled={busy || !clubId}
+                title="Обновить"
+                aria-label="Обновить"
+              >
+                <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm btn-icon-square btn-touch"
+                onClick={() => setCreateOpen((v) => !v)}
+                disabled={!clubId}
+                title="Новый ПНК"
+                aria-label="Новый ПНК"
+                aria-pressed={createOpen}
+              >
+                <UserPlus size={16} aria-hidden />
+              </button>
+            </div>
+          </div>
+          <div className="pnk-funnel__layout">
           <PnkManagerControlBoard
             clients={clients}
             attentionIds={attentionIds}
@@ -459,7 +453,8 @@ export function SalesPnk() {
               </>
             }
           />
-        </div>
+          </div>
+        </section>
       ) : null}
 
       {attachConfirm?.matched ? (

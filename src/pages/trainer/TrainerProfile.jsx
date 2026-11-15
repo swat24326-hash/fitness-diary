@@ -1,10 +1,9 @@
-import { TrainerProfileHero } from './TrainerProfileHero.jsx'
 import { TrainerStatisticsSection } from './TrainerStatisticsSection'
 
+/** Страница «Статистика» тренера (маршрут `/trainer/profile`). Личный профиль — в шапке. */
 export function TrainerProfile() {
   return (
     <div className="grid stagger" style={{ gap: 18 }}>
-      <TrainerProfileHero />
       <TrainerStatisticsSection />
     </div>
   )

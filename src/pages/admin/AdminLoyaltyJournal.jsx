@@ -3,7 +3,6 @@ import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { Gift } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { LoyaltyJournalSection } from '../../components/loyalty/LoyaltyJournalSection.jsx'
-import { buildAdminClientsListHref } from '../../lib/admin/adminClientsListHrefCore.js'
 import { useAuth } from '../../context/AuthContext'
 
 /**
@@ -22,22 +21,14 @@ export function AdminLoyaltyJournal({ accessMode = 'admin' } = {}) {
     return String(searchParams.get('club') ?? '').trim() || String(outlet?.clubId ?? '').trim()
   }, [isSales, outlet?.clubId, searchParams, user?.club_id])
 
-  const listBackHref = useMemo(
-    () =>
-      buildAdminClientsListHref(isSales ? '/sales/clients' : '/admin/clients', {
-        clubId: isSales ? '' : clubId,
-      }),
-    [isSales, clubId],
-  )
-
   return (
-    <div className="admin-page">
-      <AdminSectionHeader
-        icon={Gift}
-        title="Журнал баллов"
-        lead="Списания куша ПЗ и баллов за опросы. Списать можно в карточке клиента, только при сети."
-      />
-      <LoyaltyJournalSection clubId={clubId} listBackHref={listBackHref} />
+    <div
+      className={`admin-page admin-section-shell admin-section-shell--wide${
+        isSales ? ' sales-report sales-report--wide sales-report--manager' : ''
+      }`}
+    >
+      <AdminSectionHeader icon={Gift} title="Журнал баллов" />
+      <LoyaltyJournalSection clubId={clubId} />
     </div>
   )
 }

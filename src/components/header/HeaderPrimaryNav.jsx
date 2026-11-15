@@ -6,7 +6,6 @@ import {
   Settings,
   Trophy,
   TrendingUp,
-  User,
   UserCircle,
 } from 'lucide-react'
 import { HeaderNavItem } from './HeaderNavItem.jsx'
@@ -78,7 +77,7 @@ export function HeaderPrimaryNav({ role, adminQs = '' }) {
         <HeaderNavItem icon={CalendarDays}>Ежедневник</HeaderNavItem>
       </NavLink>
       <NavLink to="/trainer/profile" className={navClass}>
-        <HeaderNavItem icon={User}>Профиль</HeaderNavItem>
+        <HeaderNavItem icon={BarChart3}>Статистика</HeaderNavItem>
       </NavLink>
       <NavLink to="/trainer/clients" className={navClass}>
         <HeaderNavItem icon={UserCircle}>Клиенты</HeaderNavItem>

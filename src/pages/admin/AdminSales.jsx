@@ -1,7 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { RefreshCw, TrendingUp } from 'lucide-react'
+import { BarChart3, ClipboardList, Home, Tag, Target, Ticket, TrendingUp } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
+
+/** Шапка вкладок менеджера — как AdminSectionHeader у админа. */
+function managerSectionMeta(tab) {
+  switch (tab) {
+    case 'report':
+      return { title: 'Отчёт за день', icon: ClipboardList }
+    case 'analytics':
+      return { title: 'Аналитика', icon: BarChart3 }
+    case 'price':
+      return { title: 'Прайс', icon: Tag }
+    case 'strategy':
+      return { title: 'Стратегия', icon: Target }
+    case 'clips':
+      return { title: 'Заявка тренеру', icon: Ticket }
+    case 'stats':
+      return { title: 'Статистика', icon: BarChart3 }
+    default:
+      return { title: 'Главная', icon: Home }
+  }
+}
 import { useAuth } from '../../context/AuthContext'
 import { SalesHomeTiles } from '../../components/SalesHomeTiles.jsx'
 import { SalesHomeDaySummaries } from '../../components/sales/SalesHomeDaySummaries.jsx'
@@ -674,6 +694,11 @@ export function AdminSales({ accessMode = 'admin' }) {
     return `${name} ${yearMonth.year}`
   }, [yearMonth])
 
+  const managerHeader = useMemo(
+    () => (isSalesManager && salesTab !== 'home' ? managerSectionMeta(salesTab) : null),
+    [isSalesManager, salesTab],
+  )
+
   const factMonth = resolvePlanFactFromMonthSummary(monthSummary)
 
   useEffect(() => {
@@ -1063,63 +1088,48 @@ export function AdminSales({ accessMode = 'admin' }) {
     <div
       className={`sales-report sales-report--wide${busy ? ' sales-report__busy' : ''}${
         isSalesManager
-          ? ` sales-report--manager sales-home${salesTab === 'home' ? ' sales-home--fill' : ''}`
+          ? ` sales-report--manager sales-home admin-section-shell admin-section-shell--wide${
+              salesTab === 'home' ? ' sales-home--fill' : ''
+            }`
           : ' admin-section-shell admin-section-shell--wide'
       }`}
     >
       {showSalesHero && isSalesManager ? (
-        <div className="sales-home__board">
-          {clubId ? (
-            <AdminHomeAttentionRow
-              clubId={clubId}
-              hrefPnk="/sales/pnk"
-              hrefPlanerka="/sales/club-tasks"
-              hrefCallJournal="/sales/call-log"
-              enableCallToday
-              softSignals={softSignals}
-              onWidgetsPresence={onWidgetsPresence}
-              renderPlan={({ compact }) => (
-                <div
-                  className={`sales-report__hero sales-home__hero sales-home__attention-plan${compact ? ' sales-home__attention-plan--compact' : ''}`}
-                >
-                  <div className="sales-report__hero-head">
-                    <div className="sales-home__hero-text">
-                      <p className="sales-home__eyebrow">{monthLabel}</p>
-                      <h1 className="sales-home__title">План продаж</h1>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm btn-icon-square"
-                      onClick={() => void loadBundle()}
-                      disabled={busy}
-                      aria-label="Обновить"
-                      title="Обновить"
-                      aria-busy={busy}
-                    >
-                      <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
-                    </button>
+        <div className="sales-report__section-top sales-report__section-top--manager-home">
+          <AdminSectionHeader icon={Home} title="Главная" />
+          <div className="sales-home__board">
+            {clubId ? (
+              <AdminHomeAttentionRow
+                clubId={clubId}
+                hrefPnk="/sales/pnk"
+                hrefPlanerka="/sales/club-tasks"
+                hrefCallJournal="/sales/call-log"
+                enableCallToday
+                softSignals={softSignals}
+                onWidgetsPresence={onWidgetsPresence}
+                renderPlan={({ compact }) => (
+                  <div
+                    className={`sales-report__hero sales-home__hero sales-home__attention-plan sales-home__attention-plan--vessel${compact ? ' sales-home__attention-plan--compact' : ''}`}
+                  >
+                    <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
                   </div>
-                  <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
-                </div>
-              )}
-            />
-          ) : (
-            <div className="sales-report__hero sales-home__hero">
-              <div className="sales-report__hero-head">
-                <div className="sales-home__hero-text">
-                  <p className="sales-home__eyebrow">{monthLabel}</p>
-                  <h1 className="sales-home__title">План продаж</h1>
-                </div>
+                )}
+              />
+            ) : (
+              <div className="sales-report__hero sales-home__hero sales-home__attention-plan sales-home__attention-plan--vessel">
+                <p className="muted" style={{ margin: 0 }}>
+                  Клуб не привязан — план продаж появится после настройки профиля.
+                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {salesTab === 'home' ? (
-            <>
-              <SalesHomeDaySummaries clubId={clubId} />
-              <SalesHomeTiles attentionWidgets={attentionWidgets} />
-            </>
-          ) : null}
+            {salesTab === 'home' ? (
+              <>
+                <SalesHomeDaySummaries clubId={clubId} />
+                <SalesHomeTiles attentionWidgets={attentionWidgets} />
+              </>
+            ) : null}
+          </div>
         </div>
       ) : showSalesHero ? (
         <div className="sales-report__section-top">
@@ -1143,35 +1153,9 @@ export function AdminSales({ accessMode = 'admin' }) {
         </div>
       ) : null}
 
-      {isSalesManager && salesTab !== 'home' ? (
-        <div className="sales-report__toolbar">
-          <div className="sales-home__hero-text">
-            <p className="sales-home__eyebrow">{monthLabel}</p>
-            <h1 className="sales-page__title">
-              {salesTab === 'report'
-                ? 'Отчёт за день'
-                : salesTab === 'analytics'
-                  ? 'Аналитика'
-                  : salesTab === 'price'
-                    ? 'Прайс'
-                    : salesTab === 'strategy'
-                      ? 'Стратегия'
-                      : salesTab === 'clips'
-                        ? 'Заявка тренеру на абон'
-                        : 'Статистика'}
-            </h1>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm btn-icon-square"
-            onClick={() => void loadBundle()}
-            disabled={busy}
-            aria-label="Обновить"
-            title="Обновить"
-            aria-busy={busy}
-          >
-            <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
-          </button>
+      {managerHeader ? (
+        <div className="sales-report__section-top">
+          <AdminSectionHeader icon={managerHeader.icon} title={managerHeader.title} />
         </div>
       ) : null}
 
@@ -1313,6 +1297,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPlanChange={setPlanForm}
             onSelectPlanMonth={selectPlanCalendarMonth}
             onToast={showToast}
+            showHatTitle={false}
           />
         </div>
       ) : null}
@@ -1420,6 +1405,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onNextMonth={() => shiftReportMonth(1)}
             onOpenDay={openDayReport}
             showPayroll={false}
+            clubId={clubId}
           />
         </div>
       ) : null}

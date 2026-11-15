@@ -1,7 +1,5 @@
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { HALL_RENEWALS_HALLS } from '../lib/admin/salesPlanHallRenewalsSuggestCore.js'
-import { describeTopUpPackBudgetDeltaRu } from '../lib/admin/salesStrategyNkUkEditCore.js'
-import { strategyNkUkHowWeCountRu } from '../lib/admin/salesStrategyNkUkHowWeCountCore.js'
 
 /**
  * Утверждение НК/УК по направлениям ПЗ / ТЗ / АЗ.
@@ -15,25 +13,13 @@ import { strategyNkUkHowWeCountRu } from '../lib/admin/salesStrategyNkUkHowWeCou
 export function SalesStrategyNkUkEditTable({ topUpPack, disabled = false, onNkUkChange }) {
   if (!topUpPack?.ok) return null
 
-  const how = strategyNkUkHowWeCountRu(topUpPack)
-  const deltaTone = topUpPack.fittedToBudget ? 'ok' : 'warn'
-
   return (
     <div className="sales-strategy-nkuk">
-      <details className="sales-strategy-nkuk__how">
-        <summary>{how.title}</summary>
-        <ol className="sales-strategy-nkuk__how-list">
-          {how.steps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
-      </details>
-
-      <p className="muted sales-strategy-nkuk__lead">
-        По каждому залу правьте только <strong>НК</strong> и <strong>УК</strong> (шт и ср. чек).{' '}
-        <strong>ДК</strong> — из закрытий, только просмотр.
-        {topUpPack.manualNkUk ? ' Есть ручные правки.' : ''}
-      </p>
+      {topUpPack.manualNkUk ? (
+        <p className="muted sales-strategy-nkuk__lead" role="status">
+          Есть ручные правки НК/УК.
+        </p>
+      ) : null}
 
       <div className="sales-strategy-nkuk__halls" role="list">
         {HALL_RENEWALS_HALLS.map((def) => {
@@ -131,29 +117,6 @@ export function SalesStrategyNkUkEditTable({ topUpPack, disabled = false, onNkUk
           )
         })}
       </div>
-
-      <footer className="sales-strategy-nkuk__foot">
-        <div className="sales-strategy-nkuk__pack-total">
-          <span className="sales-strategy-nkuk__pack-label">Пакет залов</span>
-          <strong>{formatRub(topUpPack.totalAmount)}</strong>
-        </div>
-        <p className={`sales-strategy-nkuk__delta sales-strategy-nkuk__delta--${deltaTone}`} role="status">
-          {describeTopUpPackBudgetDeltaRu(topUpPack)}
-          {(Number(topUpPack.budget) || 0) > 0 ? (
-            <>
-              {' '}
-              Цель залов {formatRub(topUpPack.budget)}
-              {(Number(topUpPack.planExtraRub) || 0) > 0
-                ? ` · доп. ${formatRub(topUpPack.planExtraRub)}`
-                : ''}
-              {(Number(topUpPack.level3Budget) || 0) > 0
-                ? ` · ур. 3 ${formatRub(topUpPack.level3Budget)}`
-                : ''}
-              .
-            </>
-          ) : null}
-        </p>
-      </footer>
     </div>
   )
 }
