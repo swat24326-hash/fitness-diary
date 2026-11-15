@@ -98,6 +98,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/' || p === '/trainer') return trainer
 
   // Trainer
+  if (p === '/trainer/calendar') return [...trainer, { label: 'Ежедневник', to: '/trainer/calendar' }]
   if (p === '/trainer/clients') return [...trainer, { label: 'Клиенты', to: '/trainer/clients' }]
   if (p === '/trainer/profile') return [...trainer, { label: 'Статистика', to: '/trainer/profile' }]
   if (matchPathSimple('/trainer/clients/:id', p)) {

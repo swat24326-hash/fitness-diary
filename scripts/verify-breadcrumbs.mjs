@@ -90,6 +90,14 @@ ok(
 )
 
 ok(
+  labels('/trainer/calendar').join(' › ') === 'Главная › Ежедневник',
+  'trainer calendar',
+)
+ok(
+  labels('/trainer/profile').join(' › ') === 'Главная › Статистика',
+  'trainer stats',
+)
+ok(
   labels('/trainer/workouts/w1').join(' › ') === 'Главная › Клиенты › Тренировка',
   'trainer workout path',
 )
