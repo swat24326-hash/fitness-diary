@@ -27,11 +27,29 @@ async function resolveEmail(supabaseAdmin, raw) {
   if (!trimmed) return null
   if (trimmed.includes('@')) {
     const emailPattern = ilikeExactPattern(trimmed)
-    const row = emailPattern
+    const byEmail = emailPattern
       ? await supabaseAdmin.from('users').select('email, is_active').ilike('email', emailPattern).maybeSingle()
       : { data: null }
-    const picked = emailFromLoginRow(row.data, trimmed)
-    return picked ?? { email: trimmed, isActive: row.data?.is_active !== false }
+    let picked = emailFromLoginRow(byEmail.data, trimmed)
+    if (picked) return picked
+
+    // Логин = почта (create-supervisor: email = `${login}@club.local`).
+    const loginLower = trimmed.toLowerCase()
+    const byLoginEq = await supabaseAdmin.from('users').select('email, is_active').eq('login', loginLower).maybeSingle()
+    picked = emailFromLoginRow(byLoginEq.data, trimmed)
+    if (picked) return picked
+    const loginPattern = ilikeExactPattern(trimmed)
+    if (loginPattern) {
+      const byLogin = await supabaseAdmin
+        .from('users')
+        .select('email, is_active')
+        .ilike('login', loginPattern)
+        .maybeSingle()
+      picked = emailFromLoginRow(byLogin.data, trimmed)
+      if (picked) return picked
+    }
+
+    return { email: trimmed, isActive: byEmail.data?.is_active !== false }
   }
 
   const loginLower = trimmed.toLowerCase()

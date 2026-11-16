@@ -26,7 +26,17 @@ ok(
   'synth candidates trainer+sales+club',
 )
 ok(buildDirectAuthEmailCandidates('Sales').includes('sales@sales.local'), 'sales login candidate')
-ok(buildDirectAuthEmailCandidates('a@b.ru').join() === 'a@b.ru', 'email candidate')
+ok(
+  buildDirectAuthEmailCandidates('a@b.ru').join() ===
+    'a@b.ru,a@b.ru@club.local,a@b.ru@trainer.local,a@b.ru@sales.local',
+  'email-like login also tries synth domains (supervisor login=email)',
+)
+ok(
+  buildDirectAuthEmailCandidates('maslofa14.04.89@mail.ru').includes(
+    'maslofa14.04.89@mail.ru@club.local',
+  ),
+  'club.local candidate for supervisor-style login',
+)
 ok(isInvalidCredentialsMessage('Invalid login credentials'), 'invalid creds en')
 ok(!isInvalidCredentialsMessage('timeout'), 'timeout not invalid creds')
 ok(isSupabaseTransportMessage('timeout'), 'timeout is transport')

@@ -23,7 +23,15 @@ export function isSupabaseTransportMessage(msg) {
 export function buildDirectAuthEmailCandidates(raw) {
   const trimmed = normalizeLoginInput(raw)
   if (!trimmed) return []
-  if (trimmed.includes('@')) return [trimmed]
+  if (trimmed.includes('@')) {
+    // Логин вида email (часто у управляющего): Auth email = login@club.local и т.п.
+    return [
+      trimmed,
+      `${trimmed}@club.local`,
+      `${trimmed}@trainer.local`,
+      `${trimmed}@sales.local`,
+    ]
+  }
   const n = trimmed.toLowerCase()
   // Тренер / менеджер / управляющий — разные synth-домены при создании учётки.
   return [`${n}@trainer.local`, `${n}@sales.local`, `${n}@club.local`]

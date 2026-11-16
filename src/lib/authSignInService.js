@@ -13,22 +13,33 @@ export { isAuthApiTransportError } from './authSignInTransport.js'
 export async function resolveLoginEmailFromDb(raw) {
   const trimmed = normalizeLoginInput(raw)
   if (!trimmed) return { email: null, isActive: true, error: null }
-  if (trimmed.includes('@')) return { email: trimmed, isActive: true, error: null }
 
   const loginLower = trimmed.toLowerCase()
   const synthEmail = trainerLocalEmail(trimmed)
-
   const loginPattern = ilikeExactPattern(trimmed)
   const synthEmailPattern = ilikeExactPattern(synthEmail)
 
-  const attempts = [
-    () => supabase.from('users').select('email, is_active').eq('login', loginLower).maybeSingle(),
-  ]
-  if (loginPattern) {
-    attempts.push(() => supabase.from('users').select('email, is_active').ilike('login', loginPattern).maybeSingle())
-  }
-  if (synthEmailPattern) {
-    attempts.push(() => supabase.from('users').select('email, is_active').ilike('email', synthEmailPattern).maybeSingle())
+  /** @type {Array<() => Promise<{ data: unknown, error: unknown }>>} */
+  const attempts = []
+  if (trimmed.includes('@')) {
+    const emailPattern = ilikeExactPattern(trimmed)
+    if (emailPattern) {
+      attempts.push(() => supabase.from('users').select('email, is_active').ilike('email', emailPattern).maybeSingle())
+    }
+    attempts.push(() => supabase.from('users').select('email, is_active').eq('login', loginLower).maybeSingle())
+    if (loginPattern) {
+      attempts.push(() => supabase.from('users').select('email, is_active').ilike('login', loginPattern).maybeSingle())
+    }
+  } else {
+    attempts.push(() => supabase.from('users').select('email, is_active').eq('login', loginLower).maybeSingle())
+    if (loginPattern) {
+      attempts.push(() => supabase.from('users').select('email, is_active').ilike('login', loginPattern).maybeSingle())
+    }
+    if (synthEmailPattern) {
+      attempts.push(() =>
+        supabase.from('users').select('email, is_active').ilike('email', synthEmailPattern).maybeSingle(),
+      )
+    }
   }
 
   for (const run of attempts) {
@@ -40,6 +51,9 @@ export async function resolveLoginEmailFromDb(raw) {
     }
   }
 
+  if (trimmed.includes('@')) {
+    return { email: trimmed, isActive: true, error: null }
+  }
   if (synthEmail) {
     return { email: synthEmail, isActive: true, error: null }
   }
