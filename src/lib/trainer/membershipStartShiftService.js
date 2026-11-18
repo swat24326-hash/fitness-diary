@@ -9,6 +9,7 @@ import { todayLocalIso } from '../dateRu.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { notifyAdminClientsBrowseStorageChanged } from '../admin/adminClientsListReloadCore.js'
 import {
+  buildEarlyActivateExpiredRemainingWarn,
   inspectLateMembershipStart,
   pickEarliestUpcomingMembership,
   pickUsableMembershipForDate,
@@ -34,7 +35,14 @@ export async function loadEarlyActivationProposal(clientId, activateOnIso = toda
   if (!proposal.ok) {
     return { ok: false, reason: proposal.error, proposal: null, membership: null, mode: 'early' }
   }
-  return { ok: true, reason: null, proposal, membership: upcoming, mode: 'early' }
+  const expiredRemainingWarn = buildEarlyActivateExpiredRemainingWarn(memberships, day)
+  return {
+    ok: true,
+    reason: null,
+    proposal: expiredRemainingWarn ? { ...proposal, expiredRemainingWarn } : proposal,
+    membership: upcoming,
+    mode: 'early',
+  }
 }
 
 /**

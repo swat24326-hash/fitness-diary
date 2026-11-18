@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, X } from 'lucide-react'
+import { AlertTriangle, Search, X } from 'lucide-react'
 import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import { SCHEDULE_MAX_CLIENTS, buildTrainerScheduleClientPickerList } from '../../lib/trainer/trainerScheduleCore.js'
 
@@ -77,14 +77,42 @@ export function TrainerScheduleClientPicker({ clients, selectedIds, onToggle, cl
           {picker.map((c) => {
             const id = String(c.id)
             const checked = selectedIds.includes(id)
-            const meta = formatScheduleClientCardMeta(clientInfoById[id] ?? {})
+            const info = clientInfoById[id] ?? {}
+            const ended = Boolean(info.membershipEnded)
+            const meta = formatScheduleClientCardMeta(info)
             return (
               <li key={id}>
-                <label className="trainer-schedule-modal__client-item">
+                <label
+                  className={[
+                    'trainer-schedule-modal__client-item',
+                    ended ? 'trainer-schedule-modal__client-item--ended' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
                   <input type="checkbox" checked={checked} disabled={full && !checked} onChange={() => onToggle(id)} />
                   <span className="trainer-schedule-modal__client-text">
-                    <span className="trainer-schedule-modal__client-name">{c.name}</span>
-                    {meta ? <span className="trainer-schedule-modal__client-meta muted">{meta}</span> : null}
+                    <span className="trainer-schedule-modal__client-name">
+                      {ended ? (
+                        <AlertTriangle
+                          size={14}
+                          strokeWidth={2.5}
+                          className="trainer-schedule-modal__ended-icon"
+                          aria-hidden
+                        />
+                      ) : null}
+                      {c.name}
+                    </span>
+                    {meta ? (
+                      <span
+                        className={[
+                          'trainer-schedule-modal__client-meta',
+                          ended ? 'trainer-schedule-modal__client-meta--ended' : 'muted',
+                        ].join(' ')}
+                      >
+                        {meta}
+                      </span>
+                    ) : null}
                   </span>
                 </label>
               </li>

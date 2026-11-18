@@ -269,6 +269,48 @@ export function canOfferEarlyMembershipActivation(memberships, dateIso) {
 }
 
 /**
+ * Срок уже вышел, но в пакете ещё есть занятия (хвост).
+ * Для списков и предупреждения перед ранней активацией нового.
+ * @param {object[]|null|undefined} memberships
+ * @param {string} dateIso
+ */
+export function pickExpiredMembershipWithRemaining(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return null
+  const candidates = (memberships ?? []).filter(
+    (m) => String(m?.end_date ?? '').slice(0, 10) < d && membershipHasRemaining(m),
+  )
+  if (!candidates.length) return null
+  return candidates.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
+}
+
+/**
+ * Предупреждение перед ранней активацией: старый абон истёк по дате, но остаток занятий висит.
+ * Пока тренер не подтвердил сдвиг — тренировки нет; можно уйти поправить срок старого.
+ * @param {object[]|null|undefined} memberships
+ * @param {string} dateIso
+ * @returns {{ membershipId: string, remaining: number, used: number, total: number, endDate: string } | null}
+ */
+export function buildEarlyActivateExpiredRemainingWarn(memberships, dateIso) {
+  const m = pickExpiredMembershipWithRemaining(memberships, dateIso)
+  if (!m?.id) return null
+  const total = Number(m.total_trainings ?? 0)
+  const used = Number(m.used_trainings ?? 0)
+  if (!(total > 0) || !Number.isFinite(used)) return null
+  const remaining = Math.max(0, total - used)
+  if (remaining < 1) return null
+  const endDate = String(m.end_date ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return null
+  return {
+    membershipId: String(m.id),
+    remaining,
+    used,
+    total,
+    endDate,
+  }
+}
+
+/**
  * Другой абон мешает позднему сдвигу при пересечении дат:
  * есть остаток занятий или пакет без лимита (календарный).
  * Исчерпанный по лимиту (total>0, used≥total) — не мешает (только предупреждение).

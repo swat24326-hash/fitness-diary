@@ -136,12 +136,24 @@ export function buildScheduleClientInfoById(
 }
 
 /**
+ * В слоте есть клиент с истёкшим абоном (`membershipEnded` в clientInfoById).
+ * @param {object|null|undefined} entry
+ * @param {Record<string, { membershipEnded?: boolean }>|null|undefined} [clientInfoById]
+ */
+export function scheduleEntryHasEndedMembership(entry, clientInfoById = {}) {
+  const ids = normalizeScheduleClientIds(entry?.client_ids)
+  if (!ids.length) return false
+  const map = clientInfoById ?? {}
+  return ids.some((id) => Boolean(map[id]?.membershipEnded))
+}
+
+/**
  * Строки плитки: имя (+ опционально мета карты). Заметка без клиентов — одна строка без меты.
  * @param {object} entry
  * @param {Record<string, string>} [clientNameById]
  * @param {Record<string, { name?: string, cardNumber?: string, membershipLabel?: string, visitsLabel?: string, endsOnLabel?: string, membershipEnded?: boolean }>} [clientInfoById]
  * @param {{ short?: boolean, withMeta?: boolean }} [opts]
- * @returns {Array<{ name: string, meta: string }>}
+ * @returns {Array<{ name: string, meta: string, ended: boolean }>}
  */
 export function buildScheduleEntryClientRows(
   entry,
@@ -150,26 +162,27 @@ export function buildScheduleEntryClientRows(
   { short = false, withMeta = false } = {},
 ) {
   const ids = normalizeScheduleClientIds(entry?.client_ids)
-  /** @type {Array<{ name: string, meta: string }>} */
+  /** @type {Array<{ name: string, meta: string, ended: boolean }>} */
   const rows = []
   for (const id of ids) {
     const info = clientInfoById[id]
     const full = String(clientNameById[id] ?? info?.name ?? '').trim()
     if (!full) continue
     const name = short ? shortScheduleClientName(full) : full
+    const ended = Boolean(info?.membershipEnded)
     const meta = withMeta
       ? formatScheduleClientCardMeta({
           cardNumber: info?.cardNumber,
           membershipLabel: info?.membershipLabel,
           visitsLabel: info?.visitsLabel,
           endsOnLabel: info?.endsOnLabel,
-          membershipEnded: info?.membershipEnded,
+          membershipEnded: ended,
         })
       : ''
-    rows.push({ name, meta })
+    rows.push({ name, meta, ended })
   }
   if (!rows.length) {
-    return [{ name: buildScheduleEntryLabel(entry, clientNameById), meta: '' }]
+    return [{ name: buildScheduleEntryLabel(entry, clientNameById), meta: '', ended: false }]
   }
   return rows
 }

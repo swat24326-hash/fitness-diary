@@ -3,6 +3,7 @@ import {
   buildScheduleEntryClientRows,
   formatScheduleClientCardMeta,
   pickMembershipForScheduleCardLabel,
+  scheduleEntryHasEndedMembership,
   scheduleMembershipEndsOnLabel,
   scheduleMembershipVisitsLabel,
 } from '../src/lib/trainer/trainerScheduleClientInfoCore.js'
@@ -174,11 +175,33 @@ ok(
   wide[0].meta === '№4521 · ТЗ · 1/10 · осталось 9 · до 31.12.2026',
   'rows: meta with visits and ends-on on wide',
 )
+ok(wide[0].ended === false, 'rows: active not ended')
 const narrow = buildScheduleEntryClientRows(entry, names, info, { short: true, withMeta: false })
 ok(narrow[0].name === 'Листратенко В. Ю.' && narrow[0].meta === '', 'rows: short without meta in narrow')
 ok(
   buildScheduleEntryClientRows({ client_ids: [], title: 'Обед' }, {}, {}, { withMeta: true })[0].name === 'Обед',
   'rows: note title',
 )
+ok(
+  buildScheduleEntryClientRows({ client_ids: [], title: 'Обед' }, {}, {}, { withMeta: true })[0].ended === false,
+  'rows: note not ended',
+)
+
+const endedEntry = { client_ids: ['c3'], title: '' }
+const endedRows = buildScheduleEntryClientRows(
+  endedEntry,
+  { c3: 'Абаева Светлана' },
+  info,
+  { short: false, withMeta: true },
+)
+ok(endedRows[0].ended === true, 'rows: ended flag on expired abon')
+ok(scheduleEntryHasEndedMembership(endedEntry, info) === true, 'slot has ended membership')
+ok(scheduleEntryHasEndedMembership(entry, info) === false, 'slot without ended membership')
+ok(
+  scheduleEntryHasEndedMembership({ client_ids: ['c1', 'c3'], title: '' }, info) === true,
+  'slot with mixed clients — ended if any',
+)
+ok(scheduleEntryHasEndedMembership({ client_ids: [], title: 'Обед' }, info) === false, 'note slot not ended')
+ok(scheduleEntryHasEndedMembership(endedEntry, {}) === false, 'ended without info map')
 
 console.log('verify-trainer-schedule-client-info: all ok')

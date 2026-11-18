@@ -20,6 +20,7 @@ import { inspectTrainerDraftMembershipOpenGate } from '../../lib/trainer/trainin
 import { shouldOfferEarlyActivateAfterDebitFail } from '../../lib/trainer/trainingMembershipDraftGateCore.js'
 import { resolveTrainerNewTrainingOpenDate } from '../../lib/trainer/trainingNewDraftDateCore.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
+import { formatEarlyActivateExpiredRemainingWarn } from '../../lib/trainer/earlyActivateExpiredRemainingWarnCore.js'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
 import { isAppOnline, saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncService'
 import { clearOpenTrainingDraft, setOpenTrainingDraft } from '../../lib/openTrainingDraftGuard.js'
@@ -1910,6 +1911,17 @@ export function TrainingPage() {
     return `${clientsBase}/${cid}${qs ? `?${qs}` : ''}`
   }, [client?.id, clientIdParam, clientsBase, isAdmin, search])
 
+  const clientCardMembershipsHref = useMemo(() => {
+    const cid = client?.id ?? clientIdParam
+    if (!cid) return null
+    const params = new URLSearchParams()
+    const club = search.get('club')
+    if (isAdmin && club) params.set('club', club)
+    params.set('tab', 'memberships')
+    const qs = params.toString()
+    return `${clientsBase}/${cid}${qs ? `?${qs}` : ''}`
+  }, [client?.id, clientIdParam, clientsBase, isAdmin, search])
+
   const daysUntilMembershipEnd = useMemo(() => {
     if (!membershipSummary?.endDate || !trainingDate) return null
     return calendarDaysUntil(trainingDate, membershipSummary.endDate)
@@ -2099,6 +2111,10 @@ export function TrainingPage() {
 
   if (loadState === 'awaiting_activate') {
     const isLateShift = membershipShiftMode === 'late'
+    const expiredWarnText =
+      !isLateShift && earlyActivateProposal?.expiredRemainingWarn
+        ? formatEarlyActivateExpiredRemainingWarn(earlyActivateProposal.expiredRemainingWarn)
+        : ''
     return (
       <div className="grid" style={{ gap: 16 }}>
         <div className="card" style={{ display: 'grid', gap: 12 }}>
@@ -2110,7 +2126,17 @@ export function TrainingPage() {
               ? 'Абонемент уже стартовал, но занятий ещё не было. Можно сдвинуть срок от сегодняшней первой тренировки (в пределах 14 дней после старта) и начать занятие.'
               : 'Нет действующего абонемента на сегодня, но есть купленный со стартом впереди. Можно активировать его раньше (даты сдвинутся) и сразу начать тренировку.'}
           </p>
+          {expiredWarnText ? (
+            <p className="membership-early-activate-sheet__warn" role="status" style={{ margin: 0 }}>
+              {expiredWarnText}
+            </p>
+          ) : null}
           <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+            {expiredWarnText && clientCardMembershipsHref ? (
+              <Link to={clientCardMembershipsHref} className="btn btn-secondary btn-touch u-no-decoration">
+                Сначала поправить старый
+              </Link>
+            ) : null}
             <button
               type="button"
               className="btn btn-primary btn-touch"
@@ -2119,7 +2145,11 @@ export function TrainingPage() {
                 setEarlyActivateOpen(true)
               }}
             >
-              {isLateShift ? 'Сдвинуть и начать' : 'Активировать и начать'}
+              {isLateShift
+                ? 'Сдвинуть и начать'
+                : expiredWarnText
+                  ? 'Всё равно включить новый'
+                  : 'Активировать и начать'}
             </button>
             {isLateShift ? (
               <button
@@ -2139,7 +2169,7 @@ export function TrainingPage() {
               </button>
             ) : null}
             <Link
-              to={`${clientsBase}/${clientIdParam}${preserveClubQs}`}
+              to={clientCardMembershipsHref || `${clientsBase}/${clientIdParam}${preserveClubQs}`}
               className="btn btn-ghost btn-touch u-no-decoration"
             >
               В карточку клиента
@@ -2153,6 +2183,7 @@ export function TrainingPage() {
           busy={earlyActivateBusy}
           error={earlyActivateError}
           allowSkipWithoutShift={isLateShift}
+          fixOldHref={clientCardMembershipsHref || ''}
           onCancel={() => {
             if (earlyActivateBusy) return
             setEarlyActivateOpen(false)
@@ -2580,6 +2611,7 @@ export function TrainingPage() {
         busy={earlyActivateBusy}
         error={earlyActivateError}
         allowSkipWithoutShift={membershipShiftMode === 'late'}
+        fixOldHref={clientCardMembershipsHref || ''}
         onCancel={() => {
           if (earlyActivateBusy) return
           setEarlyActivateOpen(false)

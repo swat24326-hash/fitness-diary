@@ -1,7 +1,7 @@
 # Документация fitness-diary (**Ядро**)
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).  
-Системная карта (точки входа: handoff / RELEASE / DEPLOY / PATH / STRATEGY) сверена с прод-контуром **2026-11-16** (R3+R4: `app-core.ru`). Узкие docs (API / SYNC / DATA_MODEL) обновлять по смене поведения в той же задаче.
+Системная карта (точки входа: handoff / RELEASE / DEPLOY / PATH / STRATEGY) сверена с прод-контуром **2026-11-17** (R3+R4: `app-core.ru`; зрелость — [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)). Узкие docs (API / SYNC / DATA_MODEL) обновлять по смене поведения в той же задаче.
 
 **С чего начать:** [`AGENTS.md`](../AGENTS.md) (короткий вход) → [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) → [CURSOR_LIMITS.md](./CURSOR_LIMITS.md) (экономия) → [PRODUCT_VISION.md](./PRODUCT_VISION.md) → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) → карта ниже.
 

@@ -1,9 +1,11 @@
 import {
   inactiveMembershipDetail,
-  membershipHasRemaining,
+  pickExpiredMembershipWithRemaining,
   pickUsableMembershipForDate,
 } from './membershipRules.js'
 import { formatDateRu } from './dateRu.js'
+
+export { pickExpiredMembershipWithRemaining } from './membershipRules.js'
 
 /**
  * Окно «Истекает»: осталось дней до конца абона (включительно, 0 = сегодня).
@@ -37,13 +39,6 @@ export function membershipSignalDotClass(key) {
     return 'none'
   }
   return k || 'none'
-}
-
-export function pickExpiredMembershipWithRemaining(list, todayIso) {
-  const d = String(todayIso ?? '')
-  const candidates = (list ?? []).filter((m) => String(m?.end_date ?? '') < d && membershipHasRemaining(m))
-  if (!candidates.length) return null
-  return candidates.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
 }
 
 /**

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Clock, Pencil, StickyNote, Trash2, User, Users, X } from 'lucide-react'
+import { AlertTriangle, Clock, Pencil, StickyNote, Trash2, User, Users, X } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
 import { useScheduleModalViewport } from '../../hooks/useScheduleModalViewport.js'
 import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
@@ -105,17 +105,42 @@ export function TrainerScheduleEntryReadonly({
               <ul className="trainer-schedule-view__client-list">
                 {clientIds.map((cid) => {
                   const name = clientNameById[cid] ?? 'Клиент'
-                  const meta = formatScheduleClientCardMeta(clientInfoById[cid] ?? {})
+                  const info = clientInfoById[cid] ?? {}
+                  const ended = Boolean(info.membershipEnded)
+                  const meta = formatScheduleClientCardMeta(info)
                   return (
-                    <li key={cid}>
-                      {clientsBase ? (
-                        <Link to={`${clientsBase}/${cid}`} className="u-no-decoration">
-                          {name}
-                        </Link>
-                      ) : (
-                        name
-                      )}
-                      {meta ? <span className="trainer-schedule-view__client-meta muted">{meta}</span> : null}
+                    <li key={cid} className={ended ? 'trainer-schedule-view__client--ended' : undefined}>
+                      <span className="trainer-schedule-view__client-name-row">
+                        {ended ? (
+                          <AlertTriangle
+                            size={14}
+                            strokeWidth={2.5}
+                            className="trainer-schedule-view__ended-icon"
+                            aria-hidden
+                          />
+                        ) : null}
+                        {clientsBase ? (
+                          <Link to={`${clientsBase}/${cid}`} className="u-no-decoration">
+                            {name}
+                          </Link>
+                        ) : (
+                          name
+                        )}
+                      </span>
+                      {meta ? (
+                        <span
+                          className={[
+                            'trainer-schedule-view__client-meta',
+                            ended ? 'trainer-schedule-view__client-meta--ended' : 'muted',
+                          ].join(' ')}
+                        >
+                          {meta}
+                        </span>
+                      ) : ended ? (
+                        <span className="trainer-schedule-view__client-meta trainer-schedule-view__client-meta--ended">
+                          Абонемент закончился
+                        </span>
+                      ) : null}
                     </li>
                   )
                 })}

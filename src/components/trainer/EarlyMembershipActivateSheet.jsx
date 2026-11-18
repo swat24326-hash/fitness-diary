@@ -1,6 +1,8 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
+import { formatEarlyActivateExpiredRemainingWarn } from '../../lib/trainer/earlyActivateExpiredRemainingWarnCore.js'
 import '../../styles/membership-early-activate.css'
 
 /**
@@ -16,10 +18,12 @@ import '../../styles/membership-early-activate.css'
      *     durationLabel?: string,
      *     warnFar?: boolean,
      *     warnOverlapDepleted?: boolean,
+     *     expiredRemainingWarn?: { remaining: number, endDate: string } | null,
      *   } | null,
  *   busy?: boolean,
  *   error?: string,
  *   allowSkipWithoutShift?: boolean,
+ *   fixOldHref?: string,
  *   onConfirm: () => void | Promise<void>,
  *   onCancel: () => void,
  *   onSkipWithoutShift?: () => void,
@@ -32,6 +36,7 @@ export function EarlyMembershipActivateSheet({
   busy = false,
   error = '',
   allowSkipWithoutShift = false,
+  fixOldHref = '',
   onConfirm,
   onCancel,
   onSkipWithoutShift,
@@ -42,6 +47,10 @@ export function EarlyMembershipActivateSheet({
 
   const confirming = busy || localBusy
   const isLate = mode === 'late'
+  const expiredWarnText =
+    !isLate && proposal.expiredRemainingWarn
+      ? formatEarlyActivateExpiredRemainingWarn(proposal.expiredRemainingWarn)
+      : ''
 
   const handleConfirm = async () => {
     if (confirming) return
@@ -111,6 +120,12 @@ export function EarlyMembershipActivateSheet({
           </p>
         ) : null}
 
+        {expiredWarnText ? (
+          <p className="membership-early-activate-sheet__warn" role="status">
+            {expiredWarnText}
+          </p>
+        ) : null}
+
         {isLate && proposal.warnOverlapDepleted ? (
           <p className="membership-early-activate-sheet__warn" role="status">
             Срок пересекается с уже закрытым по лимиту абонементом — списание пойдёт с нового. Можно
@@ -138,13 +153,32 @@ export function EarlyMembershipActivateSheet({
               Без сдвига
             </button>
           ) : null}
+          {expiredWarnText && fixOldHref ? (
+            <Link
+              to={fixOldHref}
+              className="btn btn-secondary btn-touch u-no-decoration"
+              onClick={(ev) => {
+                if (confirming) {
+                  ev.preventDefault()
+                  return
+                }
+                onCancel()
+              }}
+            >
+              Сначала поправить старый
+            </Link>
+          ) : null}
           <button
             type="button"
             className="btn btn-primary btn-touch"
             disabled={confirming}
             onClick={() => void handleConfirm()}
           >
-            {confirming ? 'Сохраняем…' : 'Подтвердить и начать'}
+            {confirming
+              ? 'Сохраняем…'
+              : expiredWarnText
+                ? 'Всё равно включить новый'
+                : 'Подтвердить и начать'}
           </button>
         </div>
       </div>

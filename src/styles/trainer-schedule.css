@@ -1323,10 +1323,18 @@
 }
 
 .trainer-schedule-modal__client-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+}
+
+.trainer-schedule-modal__ended-icon {
+  flex-shrink: 0;
+  color: var(--warning);
 }
 
 .trainer-schedule-modal__client-meta {
@@ -1339,6 +1347,15 @@
   overflow: hidden;
   white-space: normal;
   line-height: 1.35;
+}
+
+.trainer-schedule-modal__client-meta--ended {
+  color: var(--warning);
+  opacity: 1;
+}
+
+.trainer-schedule-modal__client-item--ended {
+  border-bottom-color: color-mix(in srgb, var(--warning) 45%, transparent);
 }
 
 .trainer-schedule-modal__clients-empty {

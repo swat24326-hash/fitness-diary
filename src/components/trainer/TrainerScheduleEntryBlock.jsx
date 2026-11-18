@@ -1,7 +1,11 @@
 import { useNavigate } from 'react-router-dom'
-import { Check, CloudOff, Play } from 'lucide-react'
+import { AlertTriangle, Check, CloudOff, Play } from 'lucide-react'
 import { SCHEDULE_UNSENT_TITLE, isScheduleEntryUnsent } from '../../lib/trainer/trainerScheduleDeliveryCore.js'
-import { buildScheduleEntryClientRows } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
+import {
+  buildScheduleEntryClientRows,
+  formatScheduleClientCardMeta,
+  scheduleEntryHasEndedMembership,
+} from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import { isScheduleEntryMetaVisible } from '../../lib/trainer/scheduleZoomCore.js'
 import {
   buildScheduleEntryLabel,
@@ -9,7 +13,6 @@ import {
   formatScheduleTimeRange,
   normalizeScheduleClientIds,
 } from '../../lib/trainer/trainerScheduleCore.js'
-import { formatScheduleClientCardMeta } from '../../lib/trainer/trainerScheduleClientInfoCore.js'
 import {
   resolveScheduleTrainingStart,
   scheduleEntryTrainingStatusLabel,
@@ -68,6 +71,7 @@ export function TrainerScheduleEntryBlock({
     !oneLine &&
     clientIds.length === 1 &&
     isScheduleEntryMetaVisible(heightPx, { withTrainer: Boolean(trainerName) })
+  const membershipEnded = scheduleEntryHasEndedMembership(entry, clientInfoById)
   const rows = buildScheduleEntryClientRows(entry, clientNameById, clientInfoById, {
     short: compact,
     withMeta: showMeta,
@@ -78,7 +82,16 @@ export function TrainerScheduleEntryBlock({
       {rows.map((row, i) => (
         <span key={i} className="trainer-schedule-day__entry-line">
           <span className="trainer-schedule-day__entry-name">{row.name}</span>
-          {row.meta ? <span className="trainer-schedule-day__entry-card muted">{row.meta}</span> : null}
+          {row.meta ? (
+            <span
+              className={[
+                'trainer-schedule-day__entry-card',
+                row.ended ? 'trainer-schedule-day__entry-card--ended' : 'muted',
+              ].join(' ')}
+            >
+              {row.meta}
+            </span>
+          ) : null}
         </span>
       ))}
     </span>
@@ -99,11 +112,21 @@ export function TrainerScheduleEntryBlock({
   }
   const unsent = !readOnly && !ghost && isScheduleEntryUnsent(entry)
   if (unsent) titleParts.push(SCHEDULE_UNSENT_TITLE)
+  if (membershipEnded) titleParts.push('Абонемент закончился')
   const doneMark = (
     <>
       {state.done ? (
         <span className="trainer-schedule-day__entry-done" aria-hidden>
           <Check size={12} strokeWidth={3} />
+        </span>
+      ) : null}
+      {membershipEnded ? (
+        <span
+          className="trainer-schedule-day__entry-ended"
+          title="Абонемент закончился"
+          aria-label="Абонемент закончился"
+        >
+          <AlertTriangle size={12} strokeWidth={2.5} aria-hidden />
         </span>
       ) : null}
       {unsent ? (
@@ -169,6 +192,7 @@ export function TrainerScheduleEntryBlock({
     hasClients ? 'trainer-schedule-day__entry--clients' : 'trainer-schedule-day__entry--note',
     `trainer-schedule-day__entry--kind trainer-schedule-kind--${kind}`,
     state.draft ? 'trainer-schedule-day__entry--draft' : '',
+    membershipEnded ? 'trainer-schedule-day__entry--membership-ended' : '',
     trainerName ? 'trainer-schedule-day__entry--with-trainer' : '',
     compact ? 'trainer-schedule-day__entry--compact' : '',
     oneLine ? 'trainer-schedule-day__entry--one-line' : '',

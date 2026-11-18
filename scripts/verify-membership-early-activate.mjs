@@ -3,6 +3,7 @@
  * Ранняя активация + поздний старт (сдвиг от первой тренировки).
  */
 import {
+  buildEarlyActivateExpiredRemainingWarn,
   canOfferEarlyMembershipActivation,
   canOfferLateMembershipStart,
   canStartNewTrainingForMemberships,
@@ -11,10 +12,12 @@ import {
   membershipPeriodDayCount,
   membershipPeriodsOverlap,
   pickEarliestUpcomingMembership,
+  pickExpiredMembershipWithRemaining,
   proposeEarlyMembershipActivation,
   proposeLateMembershipStart,
   pickUsableMembershipForDate,
 } from '../src/lib/membershipRules.js'
+import { formatEarlyActivateExpiredRemainingWarn } from '../src/lib/trainer/earlyActivateExpiredRemainingWarnCore.js'
 
 let failed = 0
 
@@ -108,6 +111,34 @@ ok(over14.ok && over14.daysShift === 15 && over14.warnFar === true, '15 days —
 
 ok(proposeEarlyMembershipActivation(upcoming, '2026-07-14').ok === false, 'activate on start → already_started')
 ok(proposeEarlyMembershipActivation(stillUsable, today).ok === false, 'usable not upcoming')
+
+const expiredWithLeft = {
+  id: 'm-exp-left',
+  start_date: '2026-05-01',
+  end_date: '2026-07-10',
+  total_trainings: 8,
+  used_trainings: 6,
+}
+ok(
+  pickExpiredMembershipWithRemaining([expiredWithLeft, upcoming], today)?.id === 'm-exp-left',
+  'expired+remaining picked',
+)
+ok(
+  pickExpiredMembershipWithRemaining([oldEnded, upcoming], today) == null,
+  'expired depleted — no remaining warn',
+)
+const expWarn = buildEarlyActivateExpiredRemainingWarn([expiredWithLeft, upcoming], today)
+ok(expWarn?.remaining === 2 && expWarn?.endDate === '2026-07-10', 'early warn: 2 left after end')
+ok(
+  buildEarlyActivateExpiredRemainingWarn([oldEnded, upcoming], today) == null,
+  'early warn: none when depleted',
+)
+ok(
+  buildEarlyActivateExpiredRemainingWarn([stillUsable, upcoming], today) == null,
+  'early warn: none while old still covers',
+)
+const warnText = formatEarlyActivateExpiredRemainingWarn(expWarn)
+ok(warnText.includes('ещё 2') && warnText.includes('10.07.2026'), 'warn text has remaining + end date')
 
 // --- late start (первая тренировка после start_date) ---
 
