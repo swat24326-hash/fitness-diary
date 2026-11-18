@@ -152,6 +152,7 @@
 | Ответ push / «дубликат» insert не откатывает правку, сделанную во время запроса; элемент очереди не снимается вместе с новой правкой | `verify-sync-unsynced.mjs`, `verify-sync-queue-ack.mjs` |
 | Удаление черновика (очередь delete + tombstone; hydrate/persist/restore не воскрешают) | `verify-training-draft-delete.mjs`; cleanup: `trainingDraftCleanup.js` / `*Core.js` |
 | Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
+| Копирование нагрузки подхода (без пульса) | `verify-training-set-copy.mjs` |
 | Обмеры: все поля, пары правая/левая, формат см | `verify-body-measures.mjs` |
 | Статус тренировки: completed не откатывается в draft | `verify-training-persist-status.mjs` |
 | Pull/push merge: draft, completed `updated_at`, prune | `verify-sync-pull-merge.mjs` |

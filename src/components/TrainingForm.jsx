@@ -20,6 +20,10 @@ import {
   exerciseLateralityIsLr,
   maybeEnableLateralityFromLast,
 } from '../lib/trainingSetLateralityCore'
+import {
+  copyTrainingSetLoadFromPrevious,
+  trainingSetHasCopyableLoad,
+} from '../lib/trainingSetCopyCore'
 import { TrainingExerciseFormatRow } from './TrainingExerciseFormatRow.jsx'
 import { TrainingSetRow } from './TrainingSetRow.jsx'
 import {
@@ -257,6 +261,17 @@ export function TrainingForm({
   const removeSet = (exIdx, setIdx) => {
     const ex = exercises[exIdx]
     const sets = ex.sets.filter((_, i) => i !== setIdx)
+    patchExercise(exIdx, { ...ex, sets })
+  }
+
+  const copySetFromPrevious = (exIdx, setIdx) => {
+    if (setIdx < 1) return
+    const ex = exercises[exIdx]
+    const prev = ex.sets[setIdx - 1]
+    const cur = ex.sets[setIdx]
+    if (!trainingSetHasCopyableLoad(prev)) return
+    const sets = ex.sets.slice()
+    sets[setIdx] = copyTrainingSetLoadFromPrevious(prev, cur)
     patchExercise(exIdx, { ...ex, sets })
   }
 
@@ -742,12 +757,15 @@ export function TrainingForm({
                     isLr={exerciseLateralityIsLr(ex)}
                     clientId={clientId}
                     canRemove={ex.sets.length >= 2}
+                    showCopy={setIdx > 0}
+                    canCopy={setIdx > 0 && trainingSetHasCopyableLoad(ex.sets[setIdx - 1])}
                     onChange={(nextSet) => {
                       const sets = ex.sets.slice()
                       sets[setIdx] = nextSet
                       patchExercise(exIdx, { ...ex, sets })
                     }}
                     onRemove={() => removeSet(exIdx, setIdx)}
+                    onCopy={() => copySetFromPrevious(exIdx, setIdx)}
                   />
                 )
               })}

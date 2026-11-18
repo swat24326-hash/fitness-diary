@@ -2001,17 +2001,26 @@ tr:last-child td {
   gap: 8px;
 }
 
-/* Компактный ряд подхода: № · поля одинаковой ширины · удалить */
+/* Компактный ряд подхода: № · поля одинаковой ширины · копировать / удалить */
 .set-row-compact {
   display: grid;
-  grid-template-columns: 26px repeat(3, minmax(0, 1fr)) 40px;
+  grid-template-columns: 26px repeat(3, minmax(0, 1fr)) auto;
   gap: 6px 8px;
   align-items: center;
   margin-bottom: 8px;
 }
 
 .set-row-compact--functional {
-  grid-template-columns: 26px repeat(4, minmax(0, 1fr)) 40px;
+  grid-template-columns: 26px repeat(4, minmax(0, 1fr)) auto;
+}
+
+.set-row-compact__actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .set-row-compact__idx {

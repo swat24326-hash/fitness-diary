@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react'
+import { Copy, Trash2 } from 'lucide-react'
 import { TrainingSetHrField } from './trainer/TrainingSetHrField.jsx'
 import { displayLateralityField, patchLateralitySetField } from '../lib/trainingSetLateralityCore'
 
@@ -66,7 +66,8 @@ function RpeField({ value, onChange, gridArea = '', ariaSide = '' }) {
 }
 
 /**
- * Подход: одна строка или Л/П — две строки (Л сверху, П снизу), одна корзина на обе.
+ * Подход: одна строка или Л/П — две строки (Л сверху, П снизу), действия справа.
+ * «Копировать» — кг/повторы/RPE из предыдущего; пульс не трогает.
  */
 export function TrainingSetRow({
   setIndex,
@@ -76,8 +77,11 @@ export function TrainingSetRow({
   isLr,
   clientId,
   canRemove,
+  showCopy = false,
+  canCopy = false,
   onChange,
   onRemove,
+  onCopy,
 }) {
   const rowClass = [
     'set-row-compact',
@@ -111,16 +115,34 @@ export function TrainingSetRow({
       />
     ) : null
 
-  const removeBtn = (
-    <button
-      type="button"
-      className="btn btn-ghost btn-icon-square set-row-compact__remove"
-      onClick={onRemove}
-      disabled={!canRemove}
-      aria-label="Удалить подход"
-    >
-      <Trash2 size={18} aria-hidden />
-    </button>
+  const copyTitle = canCopy
+    ? 'Взять кг, повторы и RPE из предыдущего подхода (пульс не копируется)'
+    : 'В предыдущем подходе нет веса или повторов'
+
+  const actions = (
+    <div className="set-row-compact__actions">
+      {showCopy ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon-square set-row-compact__copy"
+          onClick={onCopy}
+          disabled={!canCopy}
+          title={copyTitle}
+          aria-label={copyTitle}
+        >
+          <Copy size={18} aria-hidden />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon-square set-row-compact__remove"
+        onClick={onRemove}
+        disabled={!canRemove}
+        aria-label="Удалить подход"
+      >
+        <Trash2 size={18} aria-hidden />
+      </button>
+    </div>
   )
 
   if (isCardio) {
@@ -153,7 +175,7 @@ export function TrainingSetRow({
           />
         ) : null}
         {bilateralRpeField}
-        {removeBtn}
+        {actions}
       </div>
     )
   }
@@ -212,7 +234,7 @@ export function TrainingSetRow({
         {functional ? hrField('hr_after_r', 'hr_after_l', 'hr_after', 'Правая', 'set-row-lr-stack__hr-r') : null}
         {rpeField('rpe_r', 'rpe_l', 'rpe', 'правая', 'set-row-lr-stack__rpe-r')}
 
-        <div className="set-row-lr-stack__remove">{removeBtn}</div>
+        <div className="set-row-lr-stack__actions">{actions}</div>
       </div>
     )
   }
@@ -231,7 +253,7 @@ export function TrainingSetRow({
         />
       ) : null}
       {bilateralRpeField}
-      {removeBtn}
+      {actions}
     </div>
   )
 }

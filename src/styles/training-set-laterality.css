@@ -23,20 +23,20 @@
 
 .set-row-lr-stack {
   display: grid;
-  grid-template-columns: 26px 22px repeat(3, minmax(0, 1fr)) 40px;
+  grid-template-columns: 26px 22px repeat(3, minmax(0, 1fr)) auto;
   grid-template-areas:
-    'idx tagL repsL wtL rpeL rm'
-    'idx tagR repsR wtR rpeR rm';
+    'idx tagL repsL wtL rpeL act'
+    'idx tagR repsR wtR rpeR act';
   gap: 6px 8px;
   align-items: center;
   margin-bottom: 8px;
 }
 
 .set-row-lr-stack--functional {
-  grid-template-columns: 26px 22px repeat(4, minmax(0, 1fr)) 40px;
+  grid-template-columns: 26px 22px repeat(4, minmax(0, 1fr)) auto;
   grid-template-areas:
-    'idx tagL repsL wtL hrL rpeL rm'
-    'idx tagR repsR wtR hrR rpeR rm';
+    'idx tagL repsL wtL hrL rpeL act'
+    'idx tagR repsR wtR hrR rpeR act';
 }
 
 .set-row-lr-stack .field {
@@ -105,10 +105,15 @@
   grid-area: rpeR;
 }
 
-.set-row-lr-stack__remove {
-  grid-area: rm;
-  align-self: stretch;
+.set-row-lr-stack__actions {
+  grid-area: act;
+  align-self: center;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+}
+
+.set-row-lr-stack__actions .set-row-compact__actions {
+  flex-direction: column;
+  gap: 4px;
 }
