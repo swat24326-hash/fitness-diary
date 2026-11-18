@@ -3,6 +3,7 @@
  */
 import {
   TRAINING_SET_COPYABLE_KEYS,
+  buildDuplicatedTrainingSet,
   copyTrainingSetLoadFromPrevious,
   trainingSetHasCopyableLoad,
 } from '../src/lib/trainingSetCopyCore.js'
@@ -80,6 +81,31 @@ const cleared = copyTrainingSetLoadFromPrevious(onlyHrPrev, {
   hr_after: '100',
 })
 ok(cleared.reps === '' && cleared.hr_after === '100', 'пустая нагрузка prev затирает load, не пульс')
+
+const dup = buildDuplicatedTrainingSet({
+  ...emptyTrainingSetRow(),
+  reps: '8',
+  weight_kg: '60',
+  rpe: '7',
+  hr_after: '150',
+})
+ok(dup.reps === '8' && dup.weight_kg === '60' && dup.rpe === '7', 'дубликат — нагрузка')
+ok(dup.hr_after === '', 'дубликат — пульс пустой')
+
+const dupLr = buildDuplicatedTrainingSet(
+  {
+    ...emptyTrainingSetRow(),
+    reps_l: '8',
+    reps_r: '9',
+    weight_kg_l: '20',
+    weight_kg_r: '22',
+    hr_after_l: '130',
+    hr_after_r: '132',
+  },
+  true,
+)
+ok(dupLr.reps_l === '8' && dupLr.weight_kg_r === '22', 'дубликат Л/П нагрузка')
+ok(dupLr.hr_after_l === '' && dupLr.hr_after_r === '', 'дубликат Л/П пульс пустой')
 
 if (failed) {
   console.error(`\n${failed} failed`)

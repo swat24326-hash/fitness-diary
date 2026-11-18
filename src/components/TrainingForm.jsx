@@ -21,7 +21,7 @@ import {
   maybeEnableLateralityFromLast,
 } from '../lib/trainingSetLateralityCore'
 import {
-  copyTrainingSetLoadFromPrevious,
+  buildDuplicatedTrainingSet,
   trainingSetHasCopyableLoad,
 } from '../lib/trainingSetCopyCore'
 import { TrainingExerciseFormatRow } from './TrainingExerciseFormatRow.jsx'
@@ -264,14 +264,14 @@ export function TrainingForm({
     patchExercise(exIdx, { ...ex, sets })
   }
 
-  const copySetFromPrevious = (exIdx, setIdx) => {
-    if (setIdx < 1) return
+  /** Дублировать подход ниже: нагрузка как у этого, пульс пустой. */
+  const duplicateSet = (exIdx, setIdx) => {
     const ex = exercises[exIdx]
-    const prev = ex.sets[setIdx - 1]
-    const cur = ex.sets[setIdx]
-    if (!trainingSetHasCopyableLoad(prev)) return
+    const src = ex.sets[setIdx]
+    if (!trainingSetHasCopyableLoad(src)) return
+    const next = buildDuplicatedTrainingSet(src, exerciseLateralityIsLr(ex))
     const sets = ex.sets.slice()
-    sets[setIdx] = copyTrainingSetLoadFromPrevious(prev, cur)
+    sets.splice(setIdx + 1, 0, next)
     patchExercise(exIdx, { ...ex, sets })
   }
 
@@ -757,15 +757,15 @@ export function TrainingForm({
                     isLr={exerciseLateralityIsLr(ex)}
                     clientId={clientId}
                     canRemove={ex.sets.length >= 2}
-                    showCopy={setIdx > 0}
-                    canCopy={setIdx > 0 && trainingSetHasCopyableLoad(ex.sets[setIdx - 1])}
+                    showCopy
+                    canCopy={trainingSetHasCopyableLoad(st)}
                     onChange={(nextSet) => {
                       const sets = ex.sets.slice()
                       sets[setIdx] = nextSet
                       patchExercise(exIdx, { ...ex, sets })
                     }}
                     onRemove={() => removeSet(exIdx, setIdx)}
-                    onCopy={() => copySetFromPrevious(exIdx, setIdx)}
+                    onCopy={() => duplicateSet(exIdx, setIdx)}
                   />
                 )
               })}

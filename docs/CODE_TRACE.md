@@ -121,7 +121,7 @@
 | Слой | Путь |
 |------|------|
 | Форма | `src/components/TrainingForm.jsx`, `src/lib/trainingFormStepMemory.js` |
-| Строка подхода / копировать нагрузку | `src/components/TrainingSetRow.jsx`, `src/lib/trainingSetCopyCore.js` (пульс не копируется) |
+| Строка подхода / дублировать нагрузку | `src/components/TrainingSetRow.jsx`, `src/lib/trainingSetCopyCore.js` (новый подход ниже, пульс не копируется) |
 | Суперсет (rail / «+» подход) | `src/lib/trainingSuperset.js`; стили `.training-superset-rail` / `.training-add-set-btn` в `src/index.css` — INC **G** 09-07 |
 | Пульс / HR | [TRAINING_HR.md](./TRAINING_HR.md); `hrSessionAgg.js` + `hrSessionInsightCore.js` (цель/график); UI `TrainingHrSessionSummary` / `TrainingHrMinuteChart` |
 | Секундомер шапки | `src/components/HeaderStopwatch.jsx`, `src/lib/headerStopwatchCore.js` — INC **G** 09-29 |

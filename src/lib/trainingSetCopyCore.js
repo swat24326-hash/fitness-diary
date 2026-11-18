@@ -1,9 +1,9 @@
 /**
- * Копирование нагрузки подхода из предыдущего (кг / повторы / RPE / кардио).
+ * Копирование / дублирование нагрузки подхода (кг / повторы / RPE / кардио).
  * Пульс не копируем — у каждого подхода свой (ручной ввод или двойной тап с датчика).
  */
 
-import { emptyTrainingSetRow } from './trainingSetLateralityCore.js'
+import { emptyTrainingSetRow, expandSetToLaterality } from './trainingSetLateralityCore.js'
 
 /** Поля «рецепта» подхода — без пульса. */
 export const TRAINING_SET_COPYABLE_KEYS = [
@@ -53,4 +53,14 @@ export function copyTrainingSetLoadFromPrevious(prev, target) {
   }
 
   return base
+}
+
+/**
+ * Новый подход с нагрузкой как у src; пульс пустой.
+ * @param {object|null|undefined} src
+ * @param {boolean} [isLr]
+ */
+export function buildDuplicatedTrainingSet(src, isLr = false) {
+  const next = copyTrainingSetLoadFromPrevious(src, emptyTrainingSetRow())
+  return isLr ? expandSetToLaterality(next) : next
 }
