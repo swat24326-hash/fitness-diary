@@ -1248,11 +1248,13 @@
 }
 
 /*
- * iPhone зумит страницу, если в поле < 16px — шторка «уезжает в бок» (Анжелика, 17 Pro).
+ * iPhone зумит страницу, если в поле < 16px — шторка «уезжает в бок», галочки режет слева
+ * (INC-2026-11-18-01). Селектор поиска сильнее `.admin-clients-search-cell .admin-clients-search-input`
+ * из index.css (0.95rem ≈ 15.2px) — иначе то правило побеждает и снова зумит.
  * Только форма записи на узком экране; админский поиск на планшете не трогаем.
  */
 @media (max-width: 640px) {
-  .trainer-schedule-modal__search .admin-clients-search-input,
+  .trainer-schedule-modal__search.admin-clients-search-cell .admin-clients-search-input,
   .trainer-schedule-modal__row--compact .trainer-schedule-modal__field input,
   .trainer-schedule-modal__duration input,
   .trainer-schedule-modal__form-foot > .trainer-schedule-modal__field--note-aside .input {

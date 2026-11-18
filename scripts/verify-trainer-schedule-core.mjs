@@ -2,6 +2,9 @@
  * Расписание тренера — чистые правила.
  * node scripts/verify-trainer-schedule-core.mjs
  */
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   SCHEDULE_DAY_END_HOUR,
   SCHEDULE_DAY_FOCUS_HOUR,
@@ -308,6 +311,22 @@ ok(
   )
   const panelFull = scheduleModalPanelFrameStyle({ offsetTop: 40, height: 500, pin: false })
   ok(panelFull.marginTop === '0px' && panelFull.height === '100%', 'modal panel: no keyboard → full')
+
+  /* INC-2026-11-18-01: поиск должен бить 0.95rem из index.css, иначе iPhone зумит и режет галочки. */
+  const scheduleCss = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../src/styles/trainer-schedule.css'),
+    'utf8',
+  )
+  ok(
+    scheduleCss.includes('.trainer-schedule-modal__search.admin-clients-search-cell .admin-clients-search-input'),
+    'modal search: селектор сильнее admin-clients-search (иначе 0.95rem зумит iPhone)',
+  )
+  ok(
+    /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?trainer-schedule-modal__search\.admin-clients-search-cell[\s\S]*?font-size:\s*16px/.test(
+      scheduleCss,
+    ),
+    'modal search: font-size 16px на ≤640px (без zoom / сдвига влево)',
+  )
 }
 
 if (failed) {
