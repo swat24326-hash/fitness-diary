@@ -234,6 +234,7 @@
 | Чат · экран | `src/lib/chat/chatViewportFit.js` (`chatFitViewHeightPx`, `chatFitVisualTopPx`, Honor vs iOS), `ChatThreadView.jsx`, `chat.css` |
 | Чат · АЗ инструктор | `api/_lib/chat/chatContactsStore.js`, `src/lib/chat/chatContactsCore.js`, `api/_lib/coach/coachHandler.js` (`coachChatKind`), `src/lib/push/pushTargetUrlCore.js`, `CoachChatPage.jsx` |
 | Сторис · просмотр iPhone | `src/components/stories/StoryViewer.jsx`, `useStoryReel.js`, `ClubStoryRail.jsx`; `src/lib/stories/storyReelCore.js` (open-guard / ended), `storyFrameWarmCache.js`, `storyWarmTargetsCore.js`, `storyFrameSrcCore.js`, `storyMediaRangeCore.js` |
+| Сторис · запись видео (зум планшета) | `src/lib/stories/storyVideoCameraCore.js`, `storyVideoRecord.js`, `StoryComposeRecord.jsx`; превью `.stories-compose-rec__live` (`object-fit: contain`) |
 | Сторис · Range видео | `api/story-media.js`, `api/_lib/stories/storyMediaHandler.js`, `storyMediaTokenCore.js`; `sendFrame` → JWT URL; `getVoiceSlice` |
 | Verify | `scripts/verify-sales-call-today.mjs`, `scripts/verify-chat-viewport-fit.mjs`, `scripts/verify-chat-contacts.mjs`, `scripts/verify-client-az-chat.mjs`, `scripts/verify-coach-app.mjs`, `scripts/verify-story-reel.mjs`, `scripts/verify-story-media-range.mjs`, `scripts/verify-stories.mjs`; e2e `staffDm` |
 | Docs | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md), [STORIES.md](./STORIES.md), INCIDENTS **O** |

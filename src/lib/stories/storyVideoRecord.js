@@ -12,7 +12,9 @@ import {
   pickVideoRecorderMime,
 } from '../chat/chatVideoCore.js'
 import { isChatVideoSupported } from '../chat/chatVideoRecorder.js'
+import { storyVideoCameraConstraints } from './storyVideoCameraCore.js'
 
+export { storyVideoCameraConstraints } from './storyVideoCameraCore.js'
 export const isStoryVideoSupported = isChatVideoSupported
 
 function cameraErrorRu(e) {
@@ -29,18 +31,9 @@ function cameraErrorRu(e) {
 export async function startStoryVideo(opts = {}) {
   const mime = pickVideoRecorderMime((m) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m))
   if (!mime) throw new Error(CHAT_VIDEO_UNSUPPORTED_RU)
-  const facing = opts.facingMode === 'user' ? 'user' : 'environment'
   let stream
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: facing },
-        width: { ideal: 1080 },
-        height: { ideal: 1920 },
-        aspectRatio: { ideal: 9 / 16 },
-      },
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false },
-    })
+    stream = await navigator.mediaDevices.getUserMedia(storyVideoCameraConstraints(opts.facingMode))
   } catch (e) {
     throw new Error(cameraErrorRu(e))
   }

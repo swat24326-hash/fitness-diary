@@ -61,6 +61,7 @@ import {
 } from '../src/lib/stories/storyGestureCore.js'
 import { storyPublishBatches } from '../src/lib/stories/storyPublishCore.js'
 import { storyVideoPublishBody } from '../api/_lib/stories/storyVideoBody.js'
+import { storyVideoCameraConstraints } from '../src/lib/stories/storyVideoCameraCore.js'
 import {
   STORY_EDIT_ASPECT,
   STORY_EDIT_TONES,
@@ -230,6 +231,17 @@ ok(storyVideoSecOk(STORY_VIDEO_MAX_SEC) && !storyVideoSecOk(0) && !storyVideoSec
 ok(storyMimeIsVideo('video/mp4') && !storyMimeIsVideo('image/jpeg'), 'mime видео')
 ok(typeof STORY_VIDEO_BAD_RU === 'string' && STORY_VIDEO_BAD_RU.includes('60'), 'текст лимита видео')
 ok(typeof STORY_VIDEO_JSON_RU === 'string' && STORY_VIDEO_JSON_RU.includes('Видео'), 'видео не через JSON')
+{
+  const back = storyVideoCameraConstraints('environment')
+  const front = storyVideoCameraConstraints('user')
+  const soft = storyVideoCameraConstraints('other')
+  ok(back.video?.facingMode?.ideal === 'environment', 'камера сторис — задняя')
+  ok(front.video?.facingMode?.ideal === 'user', 'камера сторис — фронт')
+  ok(soft.video?.facingMode?.ideal === 'environment', 'чужой facing → задняя')
+  ok(back.video?.aspectRatio == null, 'камера сторис без aspectRatio 9:16 (иначе зум на планшете)')
+  ok(back.video?.width?.ideal === 1920 && back.video?.height?.ideal === 1080, 'камера сторис — широкий ideal, не 1080×1920')
+  ok(back.audio && front.audio, 'камера сторис с микрофоном')
+}
 ok(
   storyPublishBatches([{ kind: 'photo' }, { kind: 'video' }, { kind: 'photo' }, { kind: 'photo' }]).length === 3,
   'пачки: фото | видео | фото+',
