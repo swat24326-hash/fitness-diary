@@ -74,7 +74,7 @@ export function AdminMessenger({ chatList }) {
     <MessengerLayout
       open={Boolean(dm || group)}
       listLabel="Сотрудники"
-      head={<MessengerHead icon={Mail} title="Сообщения сотрудников" short="Сотрудники" loading={status === 'loading'} onReload={reload} />}
+      head={<MessengerHead icon={Mail} title="Сообщения сотрудников" short="Сотрудники" />}
       folders={
         <>
           <ClubStoryRail clubId={storyUuid(view) ? view : readLastAdminClub(user?.id)} />

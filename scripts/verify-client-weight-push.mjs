@@ -1,5 +1,5 @@
 /**
- * Push веса: FK training_id не блокирует sync.
+ * Push веса: FK training_id не блокирует sync; вес ждёт insert клиента.
  * node scripts/verify-client-weight-push.mjs
  */
 
@@ -10,6 +10,11 @@ import {
   sanitizeWeightEntryTrainingLink,
   pendingTrainingInsertIdsFromQueue,
 } from '../src/lib/clientWeightPushCore.js'
+import {
+  CLIENT_PENDING_IN_CLOUD_PUSH_ERROR,
+  planEnsureClientQueuedForPush,
+  queueHasClientInsert,
+} from '../src/lib/syncClientPendingPushCore.js'
 
 assert.ok(
   isWeightEntryTrainingFkError(
@@ -43,5 +48,49 @@ const deletePlan = planWeightEntryPushPayload(
   },
 )
 assert.equal(deletePlan.payload.training_id, null, 'strip when training delete pending')
+
+const clientQueue = [{ table_name: 'clients', operation: 'insert', data: { id: 'c1' } }]
+assert.ok(queueHasClientInsert(clientQueue, 'c1'), 'client insert detected in queue')
+const deferClient = planWeightEntryPushPayload(
+  { id: 'w2', client_id: 'c1', training_id: null, weight_kg: 70 },
+  { queue: clientQueue },
+)
+assert.equal(deferClient.defer, true, 'defer weight while client insert pending')
+assert.ok(
+  String(deferClient.reason ?? '').includes('облаке'),
+  'defer reason is pending-client',
+)
+
+assert.deepEqual(
+  planEnsureClientQueuedForPush({
+    clientId: 'c1',
+    localClient: { id: 'c1', name: 'Виктория' },
+    queue: [],
+  }),
+  { action: 'enqueue_insert', clientId: 'c1' },
+  'missing cloud → re-queue local client',
+)
+assert.equal(
+  planEnsureClientQueuedForPush({
+    clientId: 'c1',
+    localClient: { id: 'c1' },
+    queue: clientQueue,
+  }).action,
+  'none',
+  'already queued → no duplicate',
+)
+assert.equal(
+  planEnsureClientQueuedForPush({
+    clientId: 'c1',
+    localClient: null,
+    queue: [],
+  }).action,
+  'drop_dependent',
+  'no local client → drop orphan weight',
+)
+assert.ok(
+  CLIENT_PENDING_IN_CLOUD_PUSH_ERROR.toLowerCase().includes('облаке'),
+  'canonical pending-client message',
+)
 
 console.log('verify-client-weight-push: OK')

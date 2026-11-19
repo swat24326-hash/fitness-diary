@@ -4,7 +4,7 @@
  */
 
 import { aggregateTrainings, aggregateClubClientPeriod } from './clubStatsAgg.js'
-import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg.js'
+import { aggregateMembershipTypeStats, filterTrainingsForVolumeStats } from './membershipTypeStatsAgg.js'
 import { CLUB_STATS_MAX_TRAININGS, CLUB_STATS_MAX_CLIENTS, CLUB_STATS_MAX_MEMBERSHIPS } from './apiLimits.js'
 import {
   buildTrainerPayRateMap,
@@ -79,7 +79,9 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
     return d && d >= dateFrom && d <= dateTo
   })
 
-  const trainingAgg = aggregateTrainings(periodTrainings)
+  const membershipRows = memberships.rows
+  const volumeTrainings = filterTrainingsForVolumeStats(periodTrainings, membershipRows, membershipTypes)
+  const trainingAgg = aggregateTrainings(volumeTrainings)
   let noTabletTrainerIds = null
   try {
     const { data: trainerRow } = await supabaseAdmin
@@ -93,13 +95,12 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
   } catch {
     /* колонка ещё не на проде — считаем как с планшетом */
   }
-  const clientAgg = aggregateClubClientPeriod(clients, memberships.rows, dateFrom, dateTo, undefined, {
+  const clientAgg = aggregateClubClientPeriod(clients, membershipRows, dateFrom, dateTo, undefined, {
     noTabletTrainerIds,
   })
-  const membershipRows = memberships.rows
 
   const typeStats = aggregateMembershipTypeStats({
-    trainings: periodTrainings,
+    trainings: volumeTrainings,
     memberships: membershipRows,
     membershipTypes,
     trainerIdFilter: trainerId,

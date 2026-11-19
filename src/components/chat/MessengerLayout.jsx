@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, MessageCircle, RefreshCw } from 'lucide-react'
+import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { messengerColsStyle } from '../../lib/chat/messengerColumnsCore.js'
 import { useMessengerColumns } from '../../hooks/useMessengerColumns.js'
 import { useMessengerMode } from '../../hooks/useMessengerMode.js'
@@ -37,17 +37,14 @@ export function MessengerLayout({ open, head = null, folders, list, thread = nul
   )
 }
 
-/** Заголовок с иконкой и «Обновить». */
-export function MessengerHead({ icon: Icon, title, short = title, loading, onReload }) {
+/** Заголовок с иконкой. Список диалогов сам подтягивается (push / конверт); Sync — только в шапке. */
+export function MessengerHead({ icon: Icon, title, short = title }) {
   return (
     <div className="msgr__head">
       <h1 className="staff-inbox__title" title={title}>
         <Icon size={22} aria-hidden />
         {short}
       </h1>
-      <button type="button" className="btn btn-ghost btn-icon-square btn-touch" onClick={onReload} disabled={loading} title="Обновить" aria-label="Обновить">
-        <RefreshCw size={18} aria-hidden className={loading ? 'icon-spin' : undefined} />
-      </button>
     </div>
   )
 }

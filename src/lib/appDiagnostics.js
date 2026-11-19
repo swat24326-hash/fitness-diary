@@ -84,6 +84,9 @@ export function suggestErrorHint(row) {
   if (status === 401 || /unauthorized|не авториз|jwt|сессия истекла|invalid.?jwt/i.test(text)) {
     return 'Сессия истекла: выйдите из аккаунта и войдите снова.'
   }
+  if (/клиент пока не в облаке/i.test(text)) {
+    return 'Карточка клиента ещё не ушла в облако. Нажмите Sync ещё раз — сначала уйдёт клиент, потом вес.'
+  }
   if (status === 403 || /forbidden|доступ запрещ/i.test(text)) {
     return 'Нет прав на операцию. Проверьте клуб и роль пользователя.'
   }

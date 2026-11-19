@@ -12,7 +12,7 @@ import {
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg'
 import { fetchClubTrainingStatsViaApi, fetchTrainersViaAdminApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
-import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
+import { aggregateMembershipTypeStats, filterTrainingsForVolumeStats } from './membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
 import { buildCoachQualityForScope } from './coachQualityService.js'
 import { collectHoldingTrainerIds } from './holdingClientsCore.js'
@@ -191,16 +191,27 @@ export async function fetchMembershipsForClubRemote(clubId) {
 
 export { aggregateClubClientPeriod } from './clubClientPeriodAgg'
 
-async function membershipTypeStatsSlice(clubId, trainings, memberships, clients, hall) {
+/**
+ * ПЗ: объём без БЗ / «Без типа». ТЗ/АЗ: типы = census абонов, trainings как есть.
+ * @returns {Promise<{ volumeRows: object[], typeStats: object }>}
+ */
+async function volumeAndTypeStatsSlice(clubId, trainings, memberships, clients, hall) {
   const membershipTypes = await listMembershipTypesForClub(clubId)
   if (hall === 'tz' || hall === 'az') {
     const sliced = sliceClubStatsByHall(clients, memberships, hall)
-    return aggregateHallMembershipTypeCensus({
-      memberships: sliced.memberships,
-      membershipTypes,
-    })
+    return {
+      volumeRows: trainings,
+      typeStats: aggregateHallMembershipTypeCensus({
+        memberships: sliced.memberships,
+        membershipTypes,
+      }),
+    }
   }
-  return aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
+  const volumeRows = filterTrainingsForVolumeStats(trainings, memberships, membershipTypes)
+  return {
+    volumeRows,
+    typeStats: aggregateMembershipTypeStats({ trainings: volumeRows, memberships, membershipTypes }),
+  }
 }
 
 async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, trainings, memberships, holdingTrainerIds, noTabletTrainerIds }) {
@@ -336,12 +347,19 @@ export async function loadClubTrainingStats(p) {
       fetchMembershipsForClubLocal(clubId),
     ])
     const hallRows = trainingSlice(rows, memberships, clients)
+    const { volumeRows, typeStats } = await volumeAndTypeStatsSlice(
+      clubId,
+      hallRows,
+      memberships,
+      clients,
+      hall,
+    )
     return maybeAttach(
       {
         ...base,
-        ...aggregateTrainings(hallRows),
+        ...aggregateTrainings(volumeRows),
         ...clientSlice(clients, memberships),
-        ...(await membershipTypeStatsSlice(clubId, hallRows, memberships, clients, hall)),
+        ...typeStats,
         source: 'local',
       },
       { clubId, dateFrom, dateTo, clients, trainings: hallRows, memberships },
@@ -426,12 +444,13 @@ export async function loadClubTrainingStats(p) {
       fetchMembershipsForClubRemote(clubId),
     ])
     const hallRows = trainingSlice(rows, memberships, clients)
+    const remoteSlice = await volumeAndTypeStatsSlice(clubId, hallRows, memberships, clients, hall)
     return maybeAttach(
       {
         ...base,
-        ...aggregateTrainings(hallRows),
+        ...aggregateTrainings(remoteSlice.volumeRows),
         ...clientSlice(clients, memberships),
-        ...(await membershipTypeStatsSlice(clubId, hallRows, memberships, clients, hall)),
+        ...remoteSlice.typeStats,
         source: 'remote',
       },
       { clubId, dateFrom, dateTo, clients, trainings: hallRows, memberships },
@@ -443,12 +462,13 @@ export async function loadClubTrainingStats(p) {
       fetchMembershipsForClubLocal(clubId),
     ])
     const hallRows = trainingSlice(rows, memberships, clients)
+    const localSlice = await volumeAndTypeStatsSlice(clubId, hallRows, memberships, clients, hall)
     return maybeAttach(
       {
         ...base,
-        ...aggregateTrainings(hallRows),
+        ...aggregateTrainings(localSlice.volumeRows),
         ...clientSlice(clients, memberships),
-        ...(await membershipTypeStatsSlice(clubId, hallRows, memberships, clients, hall)),
+        ...localSlice.typeStats,
         source: 'local',
         fallbackReason: e?.message ? String(e.message) : 'Статистика с сервера недоступна',
       },

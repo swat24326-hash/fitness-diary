@@ -1,4 +1,5 @@
 import { sendJson } from '../adminSupabase.js'
+import { filterCompletedTrainingsForVolumeStats } from '../membershipTypeStatsAgg.js'
 import { CLIENT_BRIEF, IN_CHUNK } from './constants.js'
 
 const JOURNAL_CAP = 2000
@@ -86,7 +87,32 @@ export async function handleTrainerSelfJournalGet(authCtx, req, res) {
       from += limit
     }
 
-    const clientIds = [...new Set(rows.map((t) => t.client_id).filter(Boolean))]
+    const memberships = []
+    const clientIdsAll = [...new Set(rows.map((t) => t.client_id).filter(Boolean))]
+    for (let i = 0; i < clientIdsAll.length; i += IN_CHUNK) {
+      const chunk = clientIdsAll.slice(i, i + IN_CHUNK)
+      const { data: mems, error: me } = await supabaseAdmin
+        .from('memberships')
+        .select('id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id')
+        .eq('club_id', effectiveClubId)
+        .in('client_id', chunk)
+      if (me) {
+        sendJson(res, 400, { error: me.message })
+        return
+      }
+      memberships.push(...(mems ?? []))
+    }
+    const { data: types, error: te } = await supabaseAdmin
+      .from('membership_types')
+      .select('id, code, name, is_pnk_trial, is_active')
+      .eq('club_id', effectiveClubId)
+    if (te) {
+      sendJson(res, 400, { error: te.message })
+      return
+    }
+    const volumeRows = filterCompletedTrainingsForVolumeStats(rows, memberships, types ?? [])
+
+    const clientIds = [...new Set(volumeRows.map((t) => t.client_id).filter(Boolean))]
     const clientsById = {}
     for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
       const chunk = clientIds.slice(i, i + IN_CHUNK)
@@ -102,9 +128,9 @@ export async function handleTrainerSelfJournalGet(authCtx, req, res) {
     }
 
     sendJson(res, 200, {
-      trainings: rows,
+      trainings: volumeRows,
       clientsById,
-      totalCount: rows.length,
+      totalCount: volumeRows.length,
       truncated,
       date_from: dateFrom,
       date_to: dateTo,

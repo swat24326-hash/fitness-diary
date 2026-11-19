@@ -9,8 +9,27 @@ import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
 import { cacheCloudTrainingsLocally } from '../cacheCloudTrainingsLocally.js'
 import { loadClubMembershipsWithApiFallback } from '../membershipClubLoad.js'
 import { repairTrainingsMembershipLinks } from '../trainingMembershipLinkCore.js'
+import { filterCompletedTrainingsForVolumeStats } from '../admin/membershipTypeStatsAgg.js'
+import { listMembershipTypesForClub } from '../membershipTypesService.js'
 import { isSupabaseConfigured } from '../supabase'
 import { isAppOnline } from '../syncService'
+
+/** Журнал = те же правила, что «Проведено»: без БЗ и «Без типа». */
+async function keepVolumeCompleted(rows, clubId, trainerId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !rows?.length) return rows ?? []
+  try {
+    const [mems, types] = await Promise.all([
+      loadClubMembershipsWithApiFallback(cid, { trainerId }),
+      listMembershipTypesForClub(cid),
+    ])
+    const linked = repairTrainingsMembershipLinks(rows, mems)
+    return filterCompletedTrainingsForVolumeStats(linked, mems, types)
+  } catch (e) {
+    console.warn('[trainer-journal] volume filter', e)
+    return rows
+  }
+}
 
 const emptyJournal = {
   trainings: [],
@@ -50,16 +69,8 @@ export async function loadTrainerJournalFiltered(p) {
         clubId: p.clubId ?? null,
       })
       const filtered = filterCompletedTrainingsInDateRange(viaApi.trainings, dateFrom, dateTo)
-      let rows = filtered
       const clubId = String(p.clubId ?? '').trim()
-      if (clubId) {
-        try {
-          const mems = await loadClubMembershipsWithApiFallback(clubId, { trainerId })
-          rows = repairTrainingsMembershipLinks(filtered, mems)
-        } catch (e) {
-          console.warn('[trainer-journal] membership link repair', e)
-        }
-      }
+      const rows = await keepVolumeCompleted(filtered, clubId, trainerId)
       try {
         await cacheCloudTrainingsLocally(rows)
       } catch (e) {
@@ -122,7 +133,8 @@ export async function loadTrainerJournalFiltered(p) {
     }
   }
 
-  const filtered = filterCompletedTrainingsInDateRange(trainings, dateFrom, dateTo)
+  const inRange = filterCompletedTrainingsInDateRange(trainings, dateFrom, dateTo)
+  const filtered = await keepVolumeCompleted(inRange, p.clubId, trainerId)
 
   let clientsById = buildJournalClientsById(clients, archivedClients)
   const missingIds = [

@@ -31,6 +31,10 @@ import { stampTrainingUpdatedAt } from './trainingUpdatedAtCore.js'
 import { syncQueueSortKey, splitSyncPushWaves } from './syncQueuePriorityCore.js'
 import { isDeferrablePushFailure, judgeFlushDrain } from './syncFlushResult.js'
 import { promoteTrainingUpdateNotFoundToInsert } from './trainingPersistStatusCore.js'
+import {
+  isClientPendingInCloudPushError,
+  planEnsureClientQueuedForPush,
+} from './syncClientPendingPushCore.js'
 
 export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave, judgeFlushDrain } from './syncFlushResult'
 
@@ -425,6 +429,33 @@ async function flushSyncQueueInner() {
   return flushInFlightPromise
 }
 
+/**
+ * 403 «клиент не в облаке»: вернуть карточку в очередь (часто synced:true без строки в облаке).
+ * @returns {Promise<'queued'|'already'|'drop'>}
+ */
+async function ensureLocalClientQueuedAfterPendingCloud(clientId) {
+  const id = String(clientId ?? '').trim()
+  const db = await getDb()
+  const queue = await listSyncQueue()
+  const localClient = id ? await db.get('clients', id) : null
+  const plan = planEnsureClientQueuedForPush({ clientId: id, localClient, queue })
+  if (plan.action === 'none') return 'already'
+  if (plan.action === 'drop_dependent') return 'drop'
+  const row = {
+    ...localClient,
+    synced: false,
+    __sync: { operation: 'insert', remote_id: null },
+  }
+  await db.put('clients', row)
+  await enqueueSync({
+    table_name: 'clients',
+    operation: 'insert',
+    remote_id: null,
+    data: recordForPush(row),
+  })
+  return 'queued'
+}
+
 async function prepareWeightEntryQueueItem(item) {
   if (item.table_name !== 'client_weight_entries' || !item.data || typeof item.data !== 'object') {
     return item
@@ -527,6 +558,24 @@ async function processOneSyncQueueItem(item) {
     const db = await getDb()
     await db.put('sync_queue', promoted)
     return processOneSyncQueueItem(promoted)
+  }
+
+  if (isClientPendingInCloudPushError(err)) {
+    const cid = String(payload?.client_id ?? '').trim()
+    const ensured = await ensureLocalClientQueuedAfterPendingCloud(cid)
+    if (ensured === 'drop') {
+      await removeSyncItem(item.local_id)
+      try {
+        await markRecordSynced(item.table_name, payload)
+      } catch {
+        /* ignore */
+      }
+      if (item.operation === 'insert') await dropLocalOrphanForSyncItem(item)
+      return { ok: true }
+    }
+    const defer = new Error(err)
+    defer.defer = true
+    throw defer
   }
 
   throw new Error(err)

@@ -68,13 +68,7 @@ export function StaffMessenger({ chats, inbox }) {
       open={Boolean(open)}
       listLabel="Диалоги"
       head={
-        <MessengerHead
-          icon={Mail}
-          title="Сообщения клуба"
-          short="Сообщения"
-          loading={chats.status === 'loading' || inbox.status === 'loading'}
-          onReload={reloadAll}
-        />
+        <MessengerHead icon={Mail} title="Сообщения клуба" short="Сообщения" />
       }
       folders={
         <>

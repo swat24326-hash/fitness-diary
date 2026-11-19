@@ -6,7 +6,7 @@ import {
   HEALTH_CARDS_MAX_BODY_MEASUREMENTS,
 } from '../apiLimits.js'
 import { aggregateTrainings, aggregateClubClientPeriod } from '../clubStatsAgg.js'
-import { aggregateMembershipTypeStats } from '../membershipTypeStatsAgg.js'
+import { aggregateMembershipTypeStats, filterTrainingsForVolumeStats } from '../membershipTypeStatsAgg.js'
 import {
   aggregateHallMembershipTypeCensus,
   filterTrainingsByClubStatsHall,
@@ -55,6 +55,11 @@ export async function handleClubStats(ctx, req, res) {
     const hallTrainings = hall
       ? filterTrainingsByClubStatsHall(raw.trainings, raw.memberships, raw.clients, hall)
       : raw.trainings
+    // ПЗ: объём без БЗ и «Без типа» (личные) — как таблица типов и «Проведено».
+    const volumeTrainings =
+      hall === 'tz' || hall === 'az'
+        ? hallTrainings
+        : filterTrainingsForVolumeStats(hallTrainings, raw.memberships, raw.membershipTypes)
     // ТЗ/АЗ: «По типам» = census абонов зала (не тренировки планшета ПЗ).
     const typeStats =
       hall === 'tz' || hall === 'az'
@@ -64,12 +69,12 @@ export async function handleClubStats(ctx, req, res) {
             membershipTypes: raw.membershipTypes,
           })
         : aggregateMembershipTypeStats({
-            trainings: hallTrainings,
+            trainings: volumeTrainings,
             memberships: raw.memberships,
             membershipTypes: raw.membershipTypes,
           })
     const base = {
-      ...aggregateTrainings(hallTrainings),
+      ...aggregateTrainings(volumeTrainings),
       ...aggregateClubClientPeriod(raw.clients, raw.memberships, dateFrom, dateTo, undefined, periodOpts),
       ...typeStats,
       hall: hall || null,

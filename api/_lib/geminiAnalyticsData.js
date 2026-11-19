@@ -1,5 +1,5 @@
 import { aggregateTrainings, aggregateClubClientPeriod } from './clubStatsAgg.js'
-import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg.js'
+import { aggregateMembershipTypeStats, filterTrainingsForVolumeStats } from './membershipTypeStatsAgg.js'
 import { fetchClubStatsRaw } from './clubStatsFetch.js'
 import { monthDateRange } from '../../src/lib/admin/salesReportCore.js'
 import {
@@ -100,7 +100,8 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
     payrollOptsFromContext(payrollCtx, membershipTypes),
   )
   const aerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
-  const trainingAgg = aggregateTrainings(trainings)
+  const volumeTrainings = filterTrainingsForVolumeStats(trainings, memberships, membershipTypes)
+  const trainingAgg = aggregateTrainings(volumeTrainings)
   const users = usersRows
   const holdingTrainerIds = collectHoldingTrainerIds(users)
   const noTabletTrainerIds = collectNoTabletTrainerIds(users)
@@ -108,7 +109,11 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
     holdingTrainerIds,
     noTabletTrainerIds,
   })
-  const typeStats = aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
+  const typeStats = aggregateMembershipTypeStats({
+    trainings: volumeTrainings,
+    memberships,
+    membershipTypes,
+  })
   const fitCityCompleted = typeStats?.totalCounted ?? trainingAgg.totalCompleted
 
   return {

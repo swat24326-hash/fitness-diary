@@ -70,6 +70,23 @@ assert.ok(
   }).includes('Ctrl+F5'),
   'chunk load hint',
 )
+assert.ok(
+  suggestErrorHint({
+    source: 'sync',
+    status: 403,
+    error: 'Клиент пока не в облаке — повторите Sync',
+    context: 'client_weight_entries · insert',
+  }).includes('Карточка клиента'),
+  'pending-client 403 — не «нет прав»',
+)
+assert.ok(
+  !suggestErrorHint({
+    source: 'sync',
+    status: 403,
+    error: 'Клиент пока не в облаке — повторите Sync',
+  }).includes('Нет прав'),
+  'pending-client not generic forbidden',
+)
 
 const chunkFixes = resolveQuickFixes({
   errors: [

@@ -1,5 +1,5 @@
 import { aggregateTrainings, aggregateClubClientPeriod } from '../admin/adminClubStatsService'
-import { aggregateMembershipTypeStats } from '../admin/membershipTypeStatsAgg'
+import { aggregateMembershipTypeStats, filterTrainingsForVolumeStats } from '../admin/membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
 import { buildCoachQualityForScope } from '../admin/coachQualityService.js'
 import { previousEqualPeriod } from '../admin/coachQualityBriefCore.js'
@@ -82,11 +82,13 @@ export async function buildScopePeriodStats(input) {
     }
   }
 
+  const volumeTrainings = filterTrainingsForVolumeStats(inRange, memberships, membershipTypes)
+
   return {
-    ...aggregateTrainings(inRange),
+    ...aggregateTrainings(volumeTrainings),
     ...aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo, undefined, periodOpts),
     ...aggregateMembershipTypeStats({
-      trainings: inRange,
+      trainings: volumeTrainings,
       memberships,
       membershipTypes,
       trainerIdFilter: trainerIdFilter || null,

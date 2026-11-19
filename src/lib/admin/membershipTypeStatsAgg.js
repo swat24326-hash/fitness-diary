@@ -1,11 +1,42 @@
-/** Статистика тренировок по типу абонемента (дублирует api/_lib/membershipTypeStatsAgg.js). */
+/** Статистика тренировок по типу абонемента (зеркало: api/_lib/membershipTypeStatsAgg.js реэкспорт). */
 
 import { resolveMembershipForDiaryTraining } from '../membershipRules.js'
+import { isPnkTrialMembershipType } from '../membershipTypesCore.js'
 
 export const MEMBERSHIP_TYPE_UNLABELED = '__none__'
 
 export function trainingCountsForMembershipTypeStats(training) {
   return training?.status === 'completed'
+}
+
+/**
+ * @param {object[]|null|undefined} membershipTypes
+ * @returns {Map<string, object>}
+ */
+export function buildMembershipTypeById(membershipTypes) {
+  const typeById = new Map()
+  for (const t of membershipTypes ?? []) {
+    const id = String(t?.id ?? '').trim()
+    if (id) typeById.set(id, t)
+  }
+  return typeById
+}
+
+/**
+ * Учётный тип для объёма / «Проведено» / таблицы типов: не «Без типа» и не БЗ (ПНК).
+ * @param {string} typeKey
+ * @param {Map<string, object>|null|undefined} typeById
+ */
+export function membershipTypeKeyCountsInVolumeStats(typeKey, typeById) {
+  const key = String(typeKey ?? '').trim()
+  if (!key || key === MEMBERSHIP_TYPE_UNLABELED) return false
+  const t = typeById?.get?.(key)
+  if (!t) return true
+  if (isPnkTrialMembershipType(t)) return false
+  const code = String(t.code ?? '').trim().toUpperCase()
+  const name = String(t.name ?? '').trim().toUpperCase()
+  if (code === 'БЗ' || name === 'БЗ' || code === 'BZ' || name === 'BZ') return false
+  return true
 }
 
 /**
@@ -49,6 +80,41 @@ export function resolveTrainingMembershipTypeKey(training, membershipById, membe
   return tid || MEMBERSHIP_TYPE_UNLABELED
 }
 
+/**
+ * Завершённая тренировка входит в объём клуба/тренера (не БЗ, не личная «Без типа»).
+ */
+export function trainingCountsInVolumeStats(training, membershipById, membershipsByClientId, typeById) {
+  if (!trainingCountsForMembershipTypeStats(training)) return false
+  const typeKey = resolveTrainingMembershipTypeKey(training, membershipById, membershipsByClientId)
+  return membershipTypeKeyCountsInVolumeStats(typeKey, typeById)
+}
+
+/**
+ * Оставить completed/draft, которые входят в объём статистики (как «Проведено» / «По дням»).
+ * @param {object[]|null|undefined} trainings
+ * @param {object[]|null|undefined} memberships
+ * @param {object[]|null|undefined} membershipTypes
+ */
+export function filterTrainingsForVolumeStats(trainings, memberships, membershipTypes) {
+  const { membershipById, membershipsByClientId } = buildMembershipStatsIndex(memberships)
+  const typeById = buildMembershipTypeById(membershipTypes)
+  return (trainings ?? []).filter((tr) => {
+    const status = String(tr?.status ?? '')
+    if (status !== 'completed' && status !== 'draft') return false
+    const typeKey = resolveTrainingMembershipTypeKey(tr, membershipById, membershipsByClientId)
+    return membershipTypeKeyCountsInVolumeStats(typeKey, typeById)
+  })
+}
+
+/**
+ * Только завершённые из объёма (журнал «Проведённые»).
+ */
+export function filterCompletedTrainingsForVolumeStats(trainings, memberships, membershipTypes) {
+  return filterTrainingsForVolumeStats(trainings, memberships, membershipTypes).filter(
+    (t) => String(t?.status ?? '') === 'completed',
+  )
+}
+
 function typeLabel(typeKey, typeCodeById) {
   if (typeKey === MEMBERSHIP_TYPE_UNLABELED) return 'Без типа'
   return typeCodeById.get(typeKey) || '—'
@@ -66,6 +132,7 @@ export function aggregateMembershipTypeStats(input) {
   const { trainings, memberships, membershipTypes = [], trainerIdFilter = null } = input
 
   const { membershipById, membershipsByClientId } = buildMembershipStatsIndex(memberships)
+  const typeById = buildMembershipTypeById(membershipTypes)
 
   const typeCodeById = new Map()
   for (const t of membershipTypes ?? []) {
@@ -84,6 +151,7 @@ export function aggregateMembershipTypeStats(input) {
     if (trainerIdFilter && trainerId !== trainerIdFilter) continue
 
     const typeKey = resolveTrainingMembershipTypeKey(tr, membershipById, membershipsByClientId)
+    if (!membershipTypeKeyCountsInVolumeStats(typeKey, typeById)) continue
 
     clubTypeMap.set(typeKey, (clubTypeMap.get(typeKey) || 0) + 1)
 

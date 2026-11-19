@@ -1,5 +1,7 @@
 /** Push/sync веса: связь с тренировкой без FK-ловушек (чистые функции). */
 
+import { queueHasClientInsert } from './syncClientPendingPushCore.js'
+
 /**
  * @param {string} message
  */
@@ -53,10 +55,18 @@ export function isTrainingDeletePendingInQueue(queue, trainingId) {
  */
 export function planWeightEntryPushPayload(payload, ctx = {}) {
   const base = payload && typeof payload === 'object' ? { ...payload } : {}
+  const queue = ctx.queue ?? []
+  const clientId = String(base.client_id ?? '').trim()
+  if (clientId && queueHasClientInsert(queue, clientId)) {
+    return {
+      payload: base,
+      defer: true,
+      reason: 'Клиент пока не в облаке — повторите Sync',
+    }
+  }
   const tid = String(base.training_id ?? '').trim()
   if (!tid) return { payload: base }
 
-  const queue = ctx.queue ?? []
   if (pendingTrainingInsertIdsFromQueue(queue).has(tid)) {
     return {
       payload: base,

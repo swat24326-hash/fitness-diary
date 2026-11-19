@@ -912,8 +912,8 @@ export function AdminClubStatsSection({
               (monthlyYearSummary?.completedInYear ?? 0) > 0 &&
               (monthlyYearSummary?.typedInYear ?? 0) === 0 ? (
                 <p className="muted admin-inline-note" style={{ margin: '0 0 10px', lineHeight: 1.45 }}>
-                  За {monthlyChartYear} год завершено <strong>{monthlyYearSummary.completedInYear}</strong> тренировок, но со <strong>типом карты</strong>{' '}
-                  на абонементе — 0 (как «Без типа» в таблице). Назначьте тип в абонементе клиента или обновите данные (Sync).
+                  За {monthlyChartYear} год завершено <strong>{monthlyYearSummary.completedInYear}</strong> тренировок, но со <strong>типом карты</strong> на
+                  абонементе — 0. В график (как в «Проведено») не входят «Без типа» и БЗ. Назначьте тип в абонементе клиента или обновите данные (Sync).
                 </p>
               ) : null}
               <AdminClubMonthlyChart
