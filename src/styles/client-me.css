@@ -475,7 +475,7 @@ html:has(.client-me) body {
   transition: transform 0.15s ease;
 }
 
-/* Как ось графика веса: первый замер слева, последний справа. */
+/* Как ось графика веса: первый замер слева, последний справа; один замер — дата слева. */
 .client-me-measures__axis {
   display: flex;
   justify-content: space-between;
@@ -515,6 +515,15 @@ html:has(.client-me) body {
   list-style: none;
   font-size: 0.92rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* Один замер (или нет общих полей для дельты): подпись | значение | см. */
+.client-me-deltas.client-me-deltas--latest {
+  grid-template-columns: minmax(0, 1fr) 5.5ch max-content;
+}
+
+.client-me-deltas__unit {
+  padding-left: 2px;
 }
 
 .client-me-deltas li {

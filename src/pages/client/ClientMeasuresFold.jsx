@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { ChevronDown, Ruler } from 'lucide-react'
 import { formatDateRu } from '../../lib/dateRu.js'
-import { formatCmDeltaPartsRu, formatCmPartsRu, measurementDeltas } from '../../lib/client/clientMeUiCore.js'
+import {
+  formatCmDeltaPartsRu,
+  formatCmPartsRu,
+  measurementDeltas,
+  measurementLatestLines,
+} from '../../lib/client/clientMeUiCore.js'
 
 function CmNum({ n }) {
   const { int, frac } = formatCmPartsRu(n)
@@ -28,8 +33,8 @@ function CmDelta({ n }) {
 }
 
 /**
- * Обмеры на /me: как вес — сравнение первого и последнего замера.
- * Свои (source=client) — кнопка «Изменить».
+ * Обмеры на /me: клубные ● и свои ○.
+ * Два+ замера с общими полями — «было — стало» и дельта; один замер (или без общих полей) — абсолютные см.
  * @param {{
  *   measurements?: { date?: string, values?: object, source?: string, id?: string, editable?: boolean }[]
  *   onEditSelf?: (row: object) => void
@@ -38,21 +43,31 @@ function CmDelta({ n }) {
 export function ClientMeasuresFold({ measurements, onEditSelf }) {
   const list = Array.isArray(measurements) ? measurements : []
   const deltas = measurementDeltas(list)
+  const latest = deltas.length ? [] : measurementLatestLines(list)
+  const rows = deltas.length ? deltas : latest
   const [open, setOpen] = useState(false)
   const selfRows = list.filter((m) => m?.source === 'client' && m?.id && onEditSelf)
-  if (!deltas.length && !selfRows.length) return null
+  if (!rows.length && !selfRows.length) return null
 
   const fromDate = formatDateRu(list[0]?.date)
   const toDate = formatDateRu(list.at(-1)?.date)
+  const axisDates = Boolean(fromDate && toDate && rows.length)
+  const singleDate = axisDates && fromDate === toDate
 
   return (
     <div className="client-me-measures">
-      {deltas.length ? (
+      {rows.length ? (
         <button
           type="button"
           className="client-me-measures__btn btn-touch"
           aria-expanded={open}
-          aria-label={fromDate && toDate ? `Обмеры с ${fromDate} по ${toDate}` : 'Обмеры'}
+          aria-label={
+            singleDate
+              ? `Обмеры на ${fromDate}`
+              : fromDate && toDate
+                ? `Обмеры с ${fromDate} по ${toDate}`
+                : 'Обмеры'
+          }
           onClick={() => setOpen((v) => !v)}
         >
           <Ruler size={18} aria-hidden />
@@ -60,10 +75,16 @@ export function ClientMeasuresFold({ measurements, onEditSelf }) {
           <ChevronDown size={18} className={`client-me-measures__chev${open ? ' is-open' : ''}`} aria-hidden />
         </button>
       ) : null}
-      {fromDate && toDate && deltas.length ? (
+      {axisDates ? (
         <div className="client-me-measures__axis" aria-hidden>
-          <span>{fromDate}</span>
-          <span>{toDate}</span>
+          {singleDate ? (
+            <span>{fromDate}</span>
+          ) : (
+            <>
+              <span>{fromDate}</span>
+              <span>{toDate}</span>
+            </>
+          )}
         </div>
       ) : null}
       {open && deltas.length ? (
@@ -77,6 +98,17 @@ export function ClientMeasuresFold({ measurements, onEditSelf }) {
               </span>
               <CmNum n={d.to} />
               <CmDelta n={d.diff} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {open && latest.length ? (
+        <ul className="client-me-deltas client-me-deltas--latest">
+          {latest.map((d) => (
+            <li key={d.id}>
+              <span className="client-me-deltas__label">{d.label}</span>
+              <CmNum n={d.value} />
+              <span className="client-me-muted client-me-deltas__unit">см</span>
             </li>
           ))}
         </ul>

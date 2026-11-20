@@ -86,6 +86,7 @@ export function membershipStatusLineRu(m, todayIso) {
 
 /**
  * Изменение замеров: первый и последний замер, только поля из обоих.
+ * Один замер → [] (тогда UI показывает абсолютные значения через measurementLatestLines).
  * @returns {{ id: string, label: string, from: number, to: number, diff: number }[]}
  */
 export function measurementDeltas(measurements) {
@@ -97,6 +98,23 @@ export function measurementDeltas(measurements) {
   for (const f of BODY_MEASURE_FIELDS) {
     if (first[f.id] == null || last[f.id] == null) continue
     out.push({ id: f.id, label: f.label, from: first[f.id], to: last[f.id], diff: Math.round((last[f.id] - first[f.id]) * 10) / 10 })
+  }
+  return out
+}
+
+/**
+ * Последний замер целиком — когда ещё нет пары дат или нет общих полей для дельты.
+ * Без этого один клубный замер тренера на /me пропадал (складка «Обмеры» не рисовалась).
+ * @returns {{ id: string, label: string, value: number }[]}
+ */
+export function measurementLatestLines(measurements) {
+  const list = Array.isArray(measurements) ? measurements : []
+  if (!list.length) return []
+  const last = list.at(-1)?.values ?? {}
+  const out = []
+  for (const f of BODY_MEASURE_FIELDS) {
+    if (last[f.id] == null) continue
+    out.push({ id: f.id, label: f.label, value: last[f.id] })
   }
   return out
 }

@@ -20,6 +20,7 @@ import {
   formatSessionDayRu,
   formatSignedRu,
   measurementDeltas,
+  measurementLatestLines,
   membershipStatusLineRu,
   pointsWord,
   trainingsWord,
@@ -223,6 +224,17 @@ ok(membershipStatusLineRu(upcoming, TODAY).startsWith('Начнётся'), 'жд
 const deltas = measurementDeltas([{ values: { neck: 36, chest: 100 } }, { values: { neck: 35, glutes: 98 } }])
 ok(deltas.length === 1 && deltas[0].id === 'neck' && deltas[0].diff === -1, 'дельта только по полям из обоих замеров')
 ok(measurementDeltas([{ values: { neck: 1 } }]).length === 0, 'один замер — без дельты')
+const oneClub = measurementLatestLines([{ date: '2026-11-20', values: { neck: 39.5, chest: 97.5, waist_upper: 83 } }])
+ok(
+  oneClub.length === 3 && oneClub[0].id === 'neck' && oneClub[0].value === 39.5 && oneClub[1].id === 'chest',
+  'один клубный замер — абсолютные см для складки /me',
+)
+ok(measurementLatestLines([]).length === 0, 'пустой список обмеров — без строк')
+ok(
+  measurementLatestLines([{ values: { neck: 36 } }, { values: { chest: 100 } }]).length === 1 &&
+    measurementLatestLines([{ values: { neck: 36 } }, { values: { chest: 100 } }])[0].id === 'chest',
+  'latest — только последний замер (fallback без общих полей)',
+)
 ok(formatSignedRu(-1.25, 'кг') === '−1,3 кг' && formatSignedRu(2, 'см') === '+2 см' && formatSignedRu(0, 'см') === '0 см', 'знак и запятая')
 ok(formatCmPartsRu(81).int === '81' && formatCmPartsRu(81).frac === '' && formatCmPartsRu(85.5).frac === ',5', 'обмеры: целое без ,0, десятые с запятой')
 ok(
