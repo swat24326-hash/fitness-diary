@@ -1,9 +1,10 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { ClipboardList, House, ListChecks, MessageCircle } from 'lucide-react'
+import { Apple, ClipboardList, House, ListChecks, MessageCircle } from 'lucide-react'
 import { clientShowsFromTrainerTab } from '../../lib/chat/clientAzChatCore.js'
 import { liveHallsFromMembershipViews } from '../../lib/client/clientHomeHallCore.js'
 import { inboxBadgeText, inboxButtonLabelRu } from '../../lib/client/clientInboxUiCore.js'
 import { CLIENT_PLAN_ROUTES, clientPlanFresh, clientPlanTabTarget } from '../../lib/client/clientPlanUiCore.js'
+import { clubFoodDiaryEnabled, FOOD_DIARY_ROUTE } from '../../lib/client/foodDiaryClubCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
 import { CLIENT_HOME } from '../../lib/pwa/appHomePath.js'
 import { useClientChatAttention } from './useClientChatAttention.js'
@@ -52,18 +53,38 @@ export function ClientTabs({ attention, showFromTrainer: showFromTrainerProp }) 
     : null
   const showFromTrainer =
     showFromTrainerProp ?? clientShowsFromTrainerTab(cached?.client, { liveHalls })
-  const fresh = showFromTrainer && (clientPlanFresh(cached?.plans, 'homework') || clientPlanFresh(cached?.plans, 'nutrition'))
+  const onFoodDiary = pathname.startsWith('/me/food-diary')
+  const showFoodDiary = clubFoodDiaryEnabled(cached?.club) || onFoodDiary
+  const foodDiaryTo = pathname.includes('food-diary-preview') ? '/me/food-diary-preview' : FOOD_DIARY_ROUTE
+  /* При дневнике рацион в Еде — точка «Новое» только по заданию. */
+  const fresh = showFromTrainer
+    ? clientPlanFresh(cached?.plans, 'homework') ||
+      (!showFoodDiary && clientPlanFresh(cached?.plans, 'nutrition'))
+    : false
   return (
-    <nav className="coach-tabs" aria-label="Разделы">
+    <nav className={`coach-tabs${showFoodDiary && showFromTrainer ? ' coach-tabs--five' : ''}`} aria-label="Разделы">
       <Tab to={CLIENT_HOME} end icon={House} label="Главная" />
       <Tab to="/me/trainings" icon={ListChecks} label="Тренировки" />
+      {showFoodDiary ? (
+        <Tab
+          to={foodDiaryTo}
+          active={onFoodDiary}
+          icon={Apple}
+          label="Еда"
+          ariaLabel="Дневник калорий"
+        />
+      ) : null}
       {showFromTrainer ? (
         <Tab
-          to={clientPlanTabTarget(cached?.plans)}
+          to={clientPlanTabTarget(cached?.plans, { foodDiaryEnabled: showFoodDiary })}
           active={PLAN_PATHS.includes(pathname)}
           icon={ClipboardList}
           label="От тренера"
-          ariaLabel={`Задание и питание от тренера${fresh ? ', новое' : ''}`}
+          ariaLabel={
+            showFoodDiary
+              ? `Задание от тренера${fresh ? ', новое' : ''}`
+              : `Задание и питание от тренера${fresh ? ', новое' : ''}`
+          }
           dot={fresh}
         />
       ) : null}

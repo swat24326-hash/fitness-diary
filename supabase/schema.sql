@@ -14,6 +14,7 @@ CREATE TABLE clubs (
   address TEXT,
   phone TEXT,
   is_active BOOLEAN DEFAULT TRUE,
+  food_diary_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -321,6 +322,43 @@ CREATE TABLE client_weight_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_client_weight_entries_client_date ON client_weight_entries (client_id, date DESC, created_at DESC);
+
+-- Дневник калорий /me (факт; не рацион тренера). Пишет /api/client-me при food_diary_enabled.
+CREATE TABLE IF NOT EXISTS client_food_diary_entries (
+  id UUID PRIMARY KEY,
+  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  entry_date DATE NOT NULL,
+  meal_key TEXT NOT NULL CHECK (meal_key IN ('breakfast', 'lunch', 'dinner', 'snack')),
+  name TEXT NOT NULL,
+  grams NUMERIC(8, 1),
+  kcal NUMERIC(8, 1) NOT NULL DEFAULT 0,
+  protein_g NUMERIC(8, 1) NOT NULL DEFAULT 0,
+  fat_g NUMERIC(8, 1) NOT NULL DEFAULT 0,
+  carbs_g NUMERIC(8, 1) NOT NULL DEFAULT 0,
+  fiber_g NUMERIC(8, 1) NOT NULL DEFAULT 0,
+  sugar_g NUMERIC(8, 1) NOT NULL DEFAULT 0,
+  sodium_mg NUMERIC(10, 1) NOT NULL DEFAULT 0,
+  catalog_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT client_food_diary_entries_name_len CHECK (char_length(name) BETWEEN 1 AND 120)
+);
+
+CREATE INDEX IF NOT EXISTS client_food_diary_entries_client_date_idx
+  ON client_food_diary_entries (client_id, entry_date DESC);
+
+CREATE TABLE IF NOT EXISTS client_food_diary_water (
+  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  entry_date DATE NOT NULL,
+  ml INTEGER NOT NULL DEFAULT 0 CHECK (ml >= 0 AND ml <= 8000),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (client_id, entry_date)
+);
+
+CREATE INDEX IF NOT EXISTS client_food_diary_water_club_date_idx
+  ON client_food_diary_water (club_id, entry_date DESC);
 
 -- ------------------------------------------------------------
 -- Челленджи клуба (рейтинг считается на клиенте из trainings.data)

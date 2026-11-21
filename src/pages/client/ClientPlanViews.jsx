@@ -65,17 +65,19 @@ export function ClientHomeworkView({ item }) {
 }
 
 /** Питание: итог выбранного дня крупно, затем приёмы. Неделя — кнопки дней, один день — без них. */
-export function ClientNutritionView({ item }) {
+export function ClientNutritionView({ item, onDayIndexChange = null }) {
   const p = item.payload
   const [dayIndex, setDayIndex] = useState(0)
   const daysRef = useRef(null)
   const planId = item?.id
   useEffect(() => {
     setDayIndex(0)
+    onDayIndexChange?.(0)
   }, [planId])
   const day = clientNutritionDayView(p, dayIndex)
   const pickDay = (index, el) => {
     setDayIndex(index)
+    onDayIndexChange?.(index)
     const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
     daysRef.current?.scrollIntoView({ block: 'start', behavior })
     el?.scrollIntoView({ inline: 'center', block: 'nearest', behavior })

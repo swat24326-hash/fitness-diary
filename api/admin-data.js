@@ -33,6 +33,10 @@ import {
   handleDeleteTrainerPost,
 } from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
+import {
+  handleFoodDiaryClientGet,
+  handleFoodDiaryRosterGet,
+} from './_lib/adminData/foodDiaryTrainerHandler.js'
 import { handleHomeworkLibraryGet } from './_lib/homeworkLibrary/homeworkLibraryHandler.js'
 import { handleTrainerSelfJournalGet } from './_lib/adminData/trainerSelfJournalHandler.js'
 import { handleTrainerScheduleGet } from './_lib/adminData/trainerScheduleHandler.js'
@@ -446,6 +450,8 @@ async function handler(req, res) {
     'coach-quality',
     'client-retention',
     'client-attendance',
+    'food-diary-client',
+    'food-diary-roster',
   ])
 
   if (trainerActions.has(action)) {
@@ -482,6 +488,20 @@ async function handler(req, res) {
     if (action === 'client-attendance') {
       if (authCtx.isAdmin || authCtx.isTrainer || authCtx.isSupervisor) {
         return handleClientAttendance(authCtx, req, res)
+      }
+      sendJson(res, 403, { error: 'Нет доступа' })
+      return
+    }
+    if (action === 'food-diary-client') {
+      if (authCtx.isAdmin || authCtx.isTrainer || authCtx.isSupervisor) {
+        return handleFoodDiaryClientGet(authCtx, req, res)
+      }
+      sendJson(res, 403, { error: 'Нет доступа' })
+      return
+    }
+    if (action === 'food-diary-roster') {
+      if (authCtx.isAdmin || authCtx.isTrainer || authCtx.isSupervisor) {
+        return handleFoodDiaryRosterGet(authCtx, req, res)
       }
       sendJson(res, 403, { error: 'Нет доступа' })
       return

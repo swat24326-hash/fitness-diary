@@ -17,7 +17,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `exercises` | `id` | Справочник |
 | `body_measurements` | `id` | обмеры |
 | `health_cards` | **`client_id`** | Не путать с `id` строки в Postgres |
-| `clubs` | `id` | Кэш клубов |
+| `clubs` | `id` | Кэш клубов (в т.ч. `food_diary_enabled` — дневник калорий в `/me`, default false; [FOOD_DIARY.md](./FOOD_DIARY.md)) |
 | `sync_queue` | `local_id` | Очередь push |
 | `challenges` | `id` | Челленджи |
 | `membership_types` | `id` | Типы карт: **ПЗ** (`trainer_assignable≠false`) и **АЗ** (`trainer_assignable=false`); также БЗ / `is_pnk_trial`. Поле `code` (до 40 символов) — отображаемое название; уникально в клубе без учёта регистра; **переименование** через админ «Типы абон.» не отвязывает абонементы (`membership_type_id`). ПЗ: ставки тренеру `trainer_pay_l1/l2/l3` (₽ за тренировку; `trainer_pay_per_session` = l1 для совместимости ЗП); галочка `counts_toward_pay_plan` — участие в порогах плана ЗП. Менеджер продаж читает все типы своего клуба (RLS `fit_membership_types_sales_manager_read`) |
@@ -128,6 +128,10 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 - `public.users.uses_tablet` — тренер с планшетом (`true`, default) или без (`false` → lite-ПЗ клиентов ведёт админ). Миграция `db:migrate:users-uses-tablet`. См. [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md).
 - `public.users.linked_user_id` — совмещённые роли: тренерская учётка и учётка управляющего одного человека ссылаются друг на друга. Действует только целиком (взаимно, тренер + управляющий, один клуб, обе активны — `src/lib/chat/linkedStaffCore.js`); влияет только на переписку ([CHAT.md](./CHAT.md) «Совмещённые роли»). Ставит главный админ (`admin-data?action=staff-link`), пишет только сервер. Миграция `20261014120000_users_linked_user.sql`.
 - `club_iskra_settings.moizvonki` — jsonb аккаунта Мои Звонки на клуб (не в IDB-смысле секрета для клиента).
+- `clubs.food_diary_enabled` — дневник калорий в `/me` (default false); миграция `20261121120000_clubs_food_diary_enabled.sql` — [FOOD_DIARY.md](./FOOD_DIARY.md).
+- `client_food_diary_entries` — записи дня (meal_key, name, grams, КБЖУ, fiber_g, sugar_g, sodium_mg); пишет `/api/client-me`; RLS без политик; миграции `20261121130000_…` + `20261121140000_…_extras.sql`.
+- `client_food_diary_water` — вода мл за день (PK client_id+entry_date); миграция `20261121150000_client_food_diary_water.sql`.
+- `client_food_diary_targets` — свои цели КБЖУ клиента (kcal, protein_g, fat_g, carbs_g); пишет `/api/client-me`; миграция `20261121160000_client_food_diary_targets.sql`.
 - Прайс ПЗ: `club_price_lists` (один JSON-документ на `club_id`) — [PRICE_LIST.md](./PRICE_LIST.md).
 - Прайс ТЗ: `club_tz_price_lists` — [PRICE_LIST.md](./PRICE_LIST.md).
 - Прайс АЗ: `club_az_price_lists` — [PRICE_LIST.md](./PRICE_LIST.md).

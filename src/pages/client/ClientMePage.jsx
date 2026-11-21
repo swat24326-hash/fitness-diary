@@ -25,6 +25,7 @@ import { ClientTrainingCalendarSheet } from './ClientTrainingCalendarSheet.jsx'
 import { useClientMe } from './useClientMe.js'
 import { useSparkRebuild } from './useSparkRebuild.js'
 import { ClubStoryRail } from '../../components/stories/ClubStoryRail.jsx'
+import { ClientFoodDiaryEntry } from './ClientFoodDiaryEntry.jsx'
 
 /** /me — приложение клиента: данные клуба; установка и напоминания — баннеры первого входа и меню. */
 export function ClientMePage() {
@@ -132,6 +133,7 @@ export function ClientMePage() {
         {sessionFirst ? null : (
           <ClientNextSessionCard session={data.next_session} today={today} onOpenCalendar={openCalendar} />
         )}
+        <ClientFoodDiaryEntry club={data.club} />
       </div>
       <ClientMembershipNote memberships={data.memberships} />
       <ClientLoyaltyCard loyalty={data.loyalty} memberships={data.memberships} />

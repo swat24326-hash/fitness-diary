@@ -7,6 +7,7 @@ import {
   Settings,
   Trophy,
   TrendingUp,
+  Salad,
   UserCircle,
 } from 'lucide-react'
 import { SalesHeaderMenuNav } from './SalesHeaderNav.jsx'
@@ -97,6 +98,9 @@ export function HeaderMenuNav({ role, adminQs = '', supabaseReady = false, onNav
       </NavLink>
       <NavLink to="/trainer/clients" className={menuNavClass} onClick={close}>
         <MenuRow icon={UserCircle}>Клиенты</MenuRow>
+      </NavLink>
+      <NavLink to="/trainer/nutrition" className={menuNavClass} onClick={close}>
+        <MenuRow icon={Salad}>Питание</MenuRow>
       </NavLink>
     </div>
   )

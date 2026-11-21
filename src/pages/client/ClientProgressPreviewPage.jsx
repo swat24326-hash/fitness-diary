@@ -26,6 +26,7 @@ import {
 import { ClientProgressSection } from './ClientProgressSection.jsx'
 import { ClientTrainingCalendarSheet } from './ClientTrainingCalendarSheet.jsx'
 import { ClientCycleSettingsSheet } from './ClientCycleSettingsSheet.jsx'
+import { ClientFoodDiaryEntry } from './ClientFoodDiaryEntry.jsx'
 
 function previewSample(pureAz, mixed) {
   if (pureAz) return clientMeHomeAzPreviewSample()
@@ -139,6 +140,7 @@ function ClientHomePreviewBody({ initial, note, showFromTrainer }) {
             onOpenCalendar={() => setCalendarOpen(true)}
           />
         )}
+        <ClientFoodDiaryEntry club={data.club} to="/me/food-diary-preview" />
       </div>
       <ClientMembershipNote memberships={data.memberships} />
       <ClientLoyaltyCard loyalty={data.loyalty} memberships={data.memberships} />

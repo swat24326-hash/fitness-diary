@@ -10,7 +10,7 @@ export function clientMeHomePreviewSample() {
   return {
     as_of: asOf,
     client: { name: 'Мария Иванова', has_trainer: true, sex: 'female' },
-    club: { name: 'Fit City' },
+    club: { name: 'Fit City', food_diary_enabled: true },
     next_session: {
       date: '2026-10-20',
       time: '13:00–14:00',

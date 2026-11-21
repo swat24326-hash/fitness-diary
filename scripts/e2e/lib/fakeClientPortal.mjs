@@ -19,10 +19,12 @@ import {
   parseSelfWeightKg,
 } from '../../../src/lib/client/clientProgressSelfCore.js'
 import { parseCycleSettingsInput, publicClientCycle } from '../../../src/lib/client/clientCycleCalendarCore.js'
+import { clubFoodDiaryEnabled } from '../../../src/lib/client/foodDiaryClubCore.js'
 import { normalizeHealthSex } from '../../../src/lib/healthCardCore.js'
 import { sanitizeClientPlanPayload, summarizeClientPlan } from '../../../src/lib/clientPlans/clientPlanCore.js'
 import { fakeJwt } from './fakeBackend.mjs'
 import { handleClientStoryAction } from './fakeClientStories.mjs'
+import { createFakeFoodDiaryClient } from './fakeFoodDiary.mjs'
 
 /**
  * @param {object} state состояние fakeBackend
@@ -30,6 +32,7 @@ import { handleClientStoryAction } from './fakeClientStories.mjs'
  */
 export function createFakeClientPortal(state, { clientId, inviteToken, today, schedule = [] }) {
   let redeemed = false
+  const foodDiary = createFakeFoodDiaryClient(state, { clientId, today })
   const session = () => ({
     access_token: fakeJwt({ sub: clientId, aud: 'client', typ: 'client' }),
     refresh_token: `client-refresh-${clientId}`,
@@ -193,6 +196,10 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
       })
     }
 
+    if (method !== 'GET' && String(body?.action ?? '').startsWith('food-diary-')) {
+      return foodDiary(body)
+    }
+
     if (method !== 'GET') return { status: 200, json: { ok: true } }
 
     const client = state.clients.find((c) => c.id === clientId)
@@ -203,8 +210,16 @@ export function createFakeClientPortal(state, { clientId, inviteToken, today, sc
       status: 200,
       json: {
         as_of: today,
-        client: { name: client.name, sex: normalizeHealthSex(health?.sex) },
-        club: { name: cleanClubName(club?.name), manifest_url: clientManifestUrl(client.club_id) },
+        client: {
+          name: client.name,
+          has_trainer: Boolean(String(client.trainer_id ?? '').trim()),
+          sex: normalizeHealthSex(health?.sex),
+        },
+        club: {
+          name: cleanClubName(club?.name),
+          manifest_url: clientManifestUrl(client.club_id),
+          food_diary_enabled: clubFoodDiaryEnabled(club),
+        },
         memberships: buildClientMemberships(
           memberships(),
           state.membership_types,

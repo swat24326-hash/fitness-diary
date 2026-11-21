@@ -154,6 +154,10 @@ ok(planFootRu(brief, TZ) === 'от 08.10 · Анна', 'подпись «от 08
 const freshFood = { homework: { ...brief, seen: true }, nutrition: { ...brief, id: 'n1', kind: 'nutrition' } }
 ok(clientPlanTabTarget(freshFood) === '/me/nutrition', 'вкладка «От тренера»: новый только рацион — сразу питание')
 ok(clientPlanTabTarget(plans) === '/me/task' && clientPlanTabTarget(undefined) === '/me/task', 'иначе — задание')
+ok(
+  clientPlanTabTarget(freshFood, { foodDiaryEnabled: true }) === '/me/task',
+  'при дневнике рацион в Еде — «От тренера» на задание',
+)
 ok(clientHomeworkTitle('Домашнее задание') === 'Упражнения' && clientHomeworkTitle('') === 'Упражнения', 'клиенту не пишем «Домашнее задание»')
 ok(clientHomeworkTitle('Спина и пресс') === 'Спина и пресс', 'свой заголовок тренера остаётся')
 

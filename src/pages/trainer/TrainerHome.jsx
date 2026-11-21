@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3, Users, Trophy, Swords, CalendarDays, WifiOff } from 'lucide-react'
+import { BarChart3, Users, Trophy, Swords, CalendarDays, Salad, WifiOff } from 'lucide-react'
 import { TrainerHomeDumbbell } from '../../components/trainer/TrainerHomeDumbbell.jsx'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { TrainerHomeTodayStrip } from '../../components/trainer/TrainerHomeTodayStrip.jsx'
@@ -450,6 +450,13 @@ export function TrainerHome() {
               <Users size={36} aria-hidden />
             </div>
             <p className="feature-tile__title">Клиенты</p>
+          </Link>
+
+          <Link to="/trainer/nutrition" className="feature-tile u-no-decoration">
+            <div className="feature-tile__icon">
+              <Salad size={36} aria-hidden />
+            </div>
+            <p className="feature-tile__title">Питание</p>
           </Link>
 
           <Link to="/trainer/profile" className="feature-tile u-no-decoration">

@@ -3,6 +3,7 @@ import { ChevronRight, Dumbbell, RefreshCw, Salad, WifiOff } from 'lucide-react'
 import { clientShowsFromTrainerTab } from '../../lib/chat/clientAzChatCore.js'
 import { liveHallsFromMembershipViews } from '../../lib/client/clientHomeHallCore.js'
 import { clientHomeworkTitle, planFootRu } from '../../lib/client/clientPlanUiCore.js'
+import { clubFoodDiaryEnabled, FOOD_DIARY_ROUTE } from '../../lib/client/foodDiaryClubCore.js'
 import { readClientMeCache } from '../../lib/client/clientSession.js'
 import { ClientPageActions, ClientPageTitle } from './ClientPageNav.jsx'
 import { ClientMeShell } from './ClientMeShell.jsx'
@@ -55,6 +56,10 @@ export function ClientPlanPage({ kind }) {
   /* Solo АЗ/ТЗ: вкладки нет — прямой URL и push не открывают ДЗ/рацион. */
   if (!clientShowsFromTrainerTab(cached?.client, { liveHalls })) {
     return <Navigate to={CLIENT_HOME} replace />
+  }
+  /* Дневник включён: рацион только во вкладке Еда → Рацион. */
+  if (kind === 'nutrition' && clubFoodDiaryEnabled(cached?.club)) {
+    return <Navigate to={`${FOOD_DIARY_ROUTE}?tab=ration`} replace />
   }
   const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 

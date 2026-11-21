@@ -53,6 +53,7 @@ import { TrainerClients } from './pages/trainer/TrainerClients'
 import { TrainerProfile } from './pages/trainer/TrainerProfile'
 import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
 import { TrainerCalendarPage } from './pages/trainer/TrainerCalendarPage'
+import { TrainerNutritionReportsPage } from './pages/trainer/TrainerNutritionReportsPage.jsx'
 import { TrainingPage } from './pages/trainer/TrainingPage'
 import { ClientMeStatus } from './pages/client/ClientMeStatus.jsx'
 
@@ -109,6 +110,12 @@ const ClientTrainingsPreviewPage = lazy(() =>
 const ClientPlanPage = lazy(() => import('./pages/client/ClientPlanPage.jsx').then((m) => ({ default: m.ClientPlanPage })))
 const ClientNutritionPreviewPage = lazy(() =>
   import('./pages/client/ClientNutritionPreviewPage.jsx').then((m) => ({ default: m.ClientNutritionPreviewPage })),
+)
+const ClientFoodDiaryPage = lazy(() =>
+  import('./pages/client/ClientFoodDiaryPage.jsx').then((m) => ({ default: m.ClientFoodDiaryPage })),
+)
+const ClientFoodDiaryPreviewPage = lazy(() =>
+  import('./pages/client/ClientFoodDiaryPage.jsx').then((m) => ({ default: m.ClientFoodDiaryPreviewPage })),
 )
 const ClientNotificationsPage = lazy(() =>
   import('./pages/client/ClientNotificationsPage.jsx').then((m) => ({ default: m.ClientNotificationsPage })),
@@ -193,6 +200,8 @@ function ClientAppRoutes() {
           <Route path="task" element={<ClientPlanPage key="homework" kind="homework" />} />
           <Route path="nutrition" element={<ClientPlanPage key="nutrition" kind="nutrition" />} />
           <Route path="nutrition-preview" element={<ClientNutritionPreviewPage />} />
+          <Route path="food-diary" element={<ClientFoodDiaryPage />} />
+          <Route path="food-diary-preview" element={<ClientFoodDiaryPreviewPage />} />
           <Route path="notifications" element={<ClientNotificationsPage />} />
           <Route path="notifications-preview" element={<ClientNotificationsPreviewPage />} />
           <Route path="notifications-preview/:id" element={<ClientNotificationsPreviewDetailPage />} />
@@ -378,6 +387,7 @@ export default function App() {
               <Route path="/trainer/profile" element={<TrainerProfile />} />
               <Route path="/trainer/clients/:id" element={<ClientCard />} />
               <Route path="/trainer/calendar" element={<TrainerCalendarPage />} />
+              <Route path="/trainer/nutrition" element={<TrainerNutritionReportsPage />} />
               <Route path="/trainer/workouts/:id" element={<TrainingPage />} />
               <Route path="/trainer/challenges/:challengeId" element={<TrainerChallengeDetail />} />
             </Route>

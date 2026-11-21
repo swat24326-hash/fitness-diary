@@ -15,6 +15,7 @@
  * POST /api/client-me { action: 'story-list' | 'story-frame' | 'story-seen' | 'story-react' } — сторис сети (все клубы).
  * POST /api/client-me { action: 'progress-weight-*' | 'progress-measure-*' } — свой вес/обмеры (○).
  * POST /api/client-me { action: 'cycle-get' | 'cycle-upsert' | 'cycle-disable' } — упрощённый цикл (только себе).
+ * POST /api/client-me { action: 'food-diary-*' } — дневник калорий: день, upsert, цели КБЖУ и др. (при флаге клуба).
  */
 import { sendJson, setCors } from '../adminSupabase.js'
 import { createServiceDataClient } from '../pgRest/serviceClient.js'
@@ -35,6 +36,7 @@ import {
 } from './clientMembershipNoticeHandler.js'
 import { handleClientProgressSelfPost, isProgressSelfAction } from './clientProgressSelfHandler.js'
 import { handleClientCyclePost, isCycleAction } from './clientCycleHandler.js'
+import { handleFoodDiaryClientPost, isFoodDiaryAction } from './foodDiaryClientHandler.js'
 import { isAvatarAction, sendAvatarOp } from '../profile/avatarHandler.js'
 import { loadClientMe } from './clientMeQuery.js'
 import { requireClientUser } from './requireClientUser.js'
@@ -100,6 +102,8 @@ export async function clientMeHandler(req, res) {
       await handleClientProgressSelfPost(createServiceDataClient(), ctx, body, res)
     } else if (isCycleAction(body?.action)) {
       await handleClientCyclePost(createServiceDataClient(), ctx, body, res)
+    } else if (isFoodDiaryAction(body?.action)) {
+      await handleFoodDiaryClientPost(createServiceDataClient(), ctx, body, res)
     } else await handleClientPushPost(createServiceDataClient(), ctx, body, res)
     return
   }

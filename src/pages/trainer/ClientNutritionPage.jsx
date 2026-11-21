@@ -36,6 +36,7 @@ import {
   toggleProductId,
 } from '../../lib/nutrition/nutritionPlanService.js'
 import { NutritionAutoScheduleCard } from './NutritionAutoScheduleCard.jsx'
+import { ClientFoodDiaryTrainerGlance } from './ClientFoodDiaryTrainerGlance.jsx'
 import {
   nutritionAgeFromClient,
   seedNutritionSurveyFromClientHealth,
@@ -778,6 +779,8 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
           ) : null}
         </section>
       ) : null}
+
+      {client?.id ? <ClientFoodDiaryTrainerGlance clientId={client.id} readOnly={readOnly} /> : null}
 
       {!healthReady ? (
         <section className="card nutrition-health-banner">

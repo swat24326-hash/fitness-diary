@@ -21,6 +21,7 @@ import {
 } from './clientMeCore.js'
 import { clientAzInstructorPeerIds } from '../../../src/lib/chat/clientAzChatCore.js'
 import { SCHEDULE_KIND_GROUP, resolveScheduleEntryKind } from '../../../src/lib/trainer/trainerScheduleKindCore.js'
+import { clubFoodDiaryEnabled } from '../../../src/lib/client/foodDiaryClubCore.js'
 import { cleanClubName, clientManifestUrl } from './clientManifestCore.js'
 import { membershipVisitTrainerIds } from './clientMembershipVisitsCore.js'
 import { clubOpsMinutesNow } from './clientReminderCore.js'
@@ -213,7 +214,7 @@ export async function loadClientMe(db, client) {
   ])
   const visible = visibleClientMemberships(memberships, today)
   const [club, trainerNames] = await Promise.all([
-    db.from('clubs').select('name').eq('id', client.club_id).maybeSingle(),
+    db.from('clubs').select('name, food_diary_enabled').eq('id', client.club_id).maybeSingle(),
     loadTrainerNames(db, membershipVisitTrainerIds([...visible.current, visible.last_ended].filter(Boolean), trainings)),
   ])
   return {
@@ -225,7 +226,11 @@ export async function loadClientMe(db, client) {
       /** Из карты здоровья; для цикла в /me. male | female | null */
       sex,
     },
-    club: { name: cleanClubName(club.data?.name), manifest_url: clientManifestUrl(client.club_id) },
+    club: {
+      name: cleanClubName(club.data?.name),
+      manifest_url: clientManifestUrl(client.club_id),
+      food_diary_enabled: clubFoodDiaryEnabled(club.data),
+    },
     memberships: buildClientMemberships(memberships, types, trainings, today, trainerNames),
     next_session: schedule.next_session,
     upcoming_sessions: schedule.upcoming_sessions,

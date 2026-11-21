@@ -43,6 +43,8 @@ import { AdminTrainerNameEditModal } from '../../components/admin/AdminTrainerNa
 import { AdminTrainerPayOfficeModal } from '../../components/admin/AdminTrainerPayOfficeModal.jsx'
 import { humanizeNetworkError } from '../../lib/supabaseRetry'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
+import { clubFoodDiaryEnabled, foodDiaryClubStatusRu, patchClubFoodDiary } from '../../lib/client/foodDiaryClubCore.js'
+import { AdminClubFoodDiaryToggle } from './AdminClubFoodDiaryToggle.jsx'
 
 const CREATE_TRAINER_TIMEOUT_MS = 55_000
 const CLUB_SAVE_TIMEOUT_MS = 55_000
@@ -79,6 +81,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
 
   const [clubs, setClubs] = useState([])
   const [clubForm, setClubForm] = useState({ name: '', address: '', phone: '' })
+  const [foodDiaryBusyId, setFoodDiaryBusyId] = useState('')
   const [clubEdit, setClubEdit] = useState(null)
   const [clubMsg, setClubMsg] = useState('')
   const [clubPullBusy, setClubPullBusy] = useState(false)
@@ -222,6 +225,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           address: clubForm.address.trim() || null,
           phone: clubForm.phone.trim() || null,
           is_active: true,
+          food_diary_enabled: false,
           created_at: now,
         }
       }
@@ -262,6 +266,35 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const startClubEdit = (c) => {
     setClubEdit(c)
     setClubForm({ name: c.name ?? '', address: c.address ?? '', phone: c.phone ?? '' })
+  }
+
+  const onFoodDiaryToggle = async (club, enabled) => {
+    if (!club?.id || foodDiaryBusyId) return
+    setFoodDiaryBusyId(club.id)
+    setClubMsg('')
+    const row = patchClubFoodDiary(club, enabled)
+    try {
+      let { remoteOk, recoveredAfterNetwork } = await raceWithTimeout(
+        saveClubForAdmin(row, { isNew: false }),
+        CLUB_SAVE_TIMEOUT_MS,
+        'Сохранение флага заняло слишком долго — проверьте интернет.',
+      )
+      ;({ remoteOk, recoveredAfterNetwork } = await reconcileClubSaveForAdmin(row.id, { remoteOk, recoveredAfterNetwork }))
+      setClubs(await listClubsLocal())
+      if (remoteOk) {
+        setClubMsg(
+          recoveredAfterNetwork
+            ? `«${row.name}»: ${foodDiaryClubStatusRu(enabled)} (ответ сервера задержался).`
+            : `«${row.name}»: ${foodDiaryClubStatusRu(enabled)}.`,
+        )
+      } else {
+        setClubMsg(`«${row.name}»: флаг пока только на этом устройстве. Проверьте интернет и ↻.`)
+      }
+    } catch (err) {
+      setClubMsg(err?.message ?? 'Не удалось сохранить флаг дневника калорий.')
+    } finally {
+      setFoodDiaryBusyId('')
+    }
   }
 
   const onReassignClub = async (trainerId, newClubIdStr) => {
@@ -870,8 +903,15 @@ export function AdminOrganization({ mode = 'both' } = {}) {
               <div>
                 <strong>{c.name}</strong>
                 <div className="muted" style={{ fontSize: 13 }}>
-                  {c.address ?? '—'} · {c.phone ?? '—'} · {c.is_active === false ? 'неактивен' : 'активен'}
+                  {c.address ?? '—'} · {c.phone ?? '—'} · {c.is_active === false ? 'неактивен' : 'активен'} ·{' '}
+                  {foodDiaryClubStatusRu(clubFoodDiaryEnabled(c))}
                 </div>
+                <AdminClubFoodDiaryToggle
+                  clubId={c.id}
+                  enabled={clubFoodDiaryEnabled(c)}
+                  busy={foodDiaryBusyId === c.id || clubSaveBusy}
+                  onChange={(next) => void onFoodDiaryToggle(c, next)}
+                />
               </div>
               <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" className="btn btn-ghost btn-icon-square btn-touch" aria-label="Редактировать клуб" title="Редактировать" onClick={() => startClubEdit(c)}>

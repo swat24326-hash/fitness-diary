@@ -23,6 +23,10 @@ export function useClientPlans(kind) {
   }, [])
 
   const reload = useCallback(async () => {
+    if (!kind) {
+      setState({ status: 'empty', items: [], item: null, offline: false, error: '', openingId: '' })
+      return
+    }
     setState((s) => ({ ...s, status: s.items.length ? s.status : 'loading', error: '' }))
     try {
       const { items, offline } = await fetchClientPlanList(kind)

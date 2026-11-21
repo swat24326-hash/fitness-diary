@@ -70,6 +70,13 @@ html:has(.client-me) body {
 }
 
 /* Табы той же ширины, что шапка/контент (560) — иначе при узком масштабе «плывут» относительно шапки. */
+/* 5 вкладок (с «Еда»): чуть плотнее подписи на узком телефоне */
+.client-me .coach-tabs.coach-tabs--five .coach-tabs__tab {
+  font-size: 0.7rem;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
 .client-me .coach-tabs {
   box-sizing: border-box;
   left: 50%;

@@ -7,9 +7,16 @@ import { formatPlanMomentRu } from '../clientPlans/clientPlanCore.js'
 export const CLIENT_PLAN_TITLES = Object.freeze({ homework: 'Задание', nutrition: 'Питание' })
 export const CLIENT_PLAN_ROUTES = Object.freeze({ homework: '/me/task', nutrition: '/me/nutrition' })
 
-/** Вкладка «От тренера» открывает новое: свежий только рацион — сразу питание, иначе задание. */
-export function clientPlanTabTarget(plans) {
-  return clientPlanFresh(plans, 'nutrition') && !clientPlanFresh(plans, 'homework') ? CLIENT_PLAN_ROUTES.nutrition : CLIENT_PLAN_ROUTES.homework
+/**
+ * Вкладка «От тренера» открывает новое.
+ * При включённом дневнике рацион живёт в Еде — всегда ведём на задание.
+ * Иначе: свежий только рацион — сразу питание, иначе задание.
+ */
+export function clientPlanTabTarget(plans, { foodDiaryEnabled = false } = {}) {
+  if (foodDiaryEnabled) return CLIENT_PLAN_ROUTES.homework
+  return clientPlanFresh(plans, 'nutrition') && !clientPlanFresh(plans, 'homework')
+    ? CLIENT_PLAN_ROUTES.nutrition
+    : CLIENT_PLAN_ROUTES.homework
 }
 
 /** «08.10» по часам устройства. */

@@ -1,0 +1,1315 @@
+/* Дневник калорий: клиент /me + переключатель в Организации.
+   Плитка и empty — кирпичи client-me / os-empty; здесь только зона. */
+
+.food-diary-club-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  min-height: 44px;
+  padding: 6px 0 2px;
+}
+
+.food-diary-club-toggle__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.food-diary-club-toggle__label {
+  font-size: 0.95rem;
+  font-weight: 560;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.food-diary-club-toggle__hint {
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+/* Полная ширина под двумя плитками — те же слоты, что у абона / «следующей». */
+a.food-diary-entry.client-me-tile {
+  grid-column: 1 / -1;
+  width: 100%;
+  text-decoration: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s var(--ease-out, ease);
+}
+
+a.food-diary-entry.client-me-tile:hover {
+  border-color: color-mix(in srgb, var(--accent-bright) 35%, var(--border));
+}
+
+a.food-diary-entry.client-me-tile:active {
+  transform: scale(0.985);
+}
+
+a.food-diary-entry.client-me-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.food-diary-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+/* «Назад» — зона тапа ≥44px (на телефоне btn-icon-square иногда 42). */
+.food-diary-page .client-page-title .btn-icon-square {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Empty на вложенном экране — не уезжать в «середину пустоты» как на логине. */
+.food-diary-page .client-me-card--center {
+  margin-top: clamp(24px, 8vh, 64px);
+}
+
+/* ——— День ——— */
+
+.food-diary-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  padding-bottom: 12px;
+}
+
+.food-diary-day__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.food-diary-day__nav .btn-icon-square {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.food-diary-day__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  text-align: center;
+}
+
+.food-diary-day__date-label {
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-transform: capitalize;
+}
+
+.food-diary-day__today {
+  font-size: 0.75rem;
+}
+
+.food-diary-day__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+/* ——— Сводка (уровень FatSecret Premium) ——— */
+
+.food-diary-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 16px;
+}
+
+.food-diary-summary__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.food-diary-summary__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.food-diary-summary__sub {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.food-diary-summary__kcal-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.food-diary-summary__kcal-value {
+  font-size: clamp(1.55rem, 7cqi, 1.95rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--accent-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.food-diary-summary__kcal-of {
+  font-size: 0.9rem;
+}
+
+.food-diary-summary__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-muted) 80%, transparent);
+  overflow: hidden;
+}
+
+.food-diary-summary__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  min-width: 0;
+  transition: width 0.2s var(--ease-out, ease);
+}
+
+.food-diary-summary__bar-fill--protein {
+  background: color-mix(in srgb, var(--accent-bright) 70%, var(--text));
+}
+.food-diary-summary__bar-fill--fat {
+  background: color-mix(in srgb, var(--warning) 75%, var(--accent));
+}
+.food-diary-summary__bar-fill--carb {
+  background: color-mix(in srgb, var(--accent) 65%, var(--accent-bright));
+}
+.food-diary-summary__bar-fill--extra {
+  background: color-mix(in srgb, var(--text-muted) 55%, var(--accent));
+}
+
+/* Капсула Б · Ж · У — референс пользователя */
+.food-diary-bju {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent-bright) 18%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 70%),
+    color-mix(in srgb, var(--bg-card) 88%, transparent);
+  backdrop-filter: blur(var(--glass-blur, 12px));
+}
+
+.food-diary-bju__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.food-diary-bju__letter {
+  font-size: 0.85rem;
+  font-weight: 560;
+  color: var(--text-muted);
+}
+
+.food-diary-bju__num {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.food-diary-summary__macros,
+.food-diary-summary__extras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-diary-summary__macro-top,
+.food-diary-summary__extra-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.food-diary-summary__macro-val,
+.food-diary-summary__extra-top > span:last-child {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.food-diary-add__more {
+  width: 100%;
+  min-height: 44px;
+  margin: 4px 0 0;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  color: var(--accent-bright);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 560;
+  text-align: left;
+  cursor: pointer;
+}
+
+.food-diary-meals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-diary-meal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+}
+
+.food-diary-meal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.food-diary-meal__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.food-diary-meal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.food-diary-entry-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-muted) 55%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.food-diary-entry-row:active {
+  transform: scale(0.99);
+}
+
+.food-diary-entry-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.food-diary-entry-row__name {
+  font-weight: 560;
+  line-height: 1.3;
+}
+
+.food-diary-entry-row__meta {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.food-diary-day__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+}
+
+/* Приём уже выбран на дне — на экране добавления только подпись в шапке */
+.food-diary-add-page .food-diary-add__modes {
+  flex-shrink: 0;
+}
+
+.food-diary-add__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* Режимы Поиск / Часто / Вручную — как текстовые вкладки FatSecret */
+.food-diary-add__modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  width: 100%;
+  margin: 0 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.food-diary-add__mode {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.food-diary-add__mode--on {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.food-diary-add__mode--on::after {
+  content: '';
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent-bright, var(--accent));
+}
+
+.food-diary-add__more {
+  margin: 4px 0 8px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--accent-bright);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.food-diary-catalog__scan-bar {
+  flex-shrink: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.food-diary-catalog__scan-cta {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.food-diary-catalog--portion {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.food-diary-catalog__portion-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.food-diary-catalog__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.food-diary-catalog__chip {
+  min-height: 44px;
+  min-width: 64px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.food-diary-catalog__chip--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-bright, var(--accent));
+}
+
+.food-diary-catalog__portion-kcal {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.food-diary-catalog__portion-bar {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.food-diary-catalog__portion-bar .btn-primary {
+  width: 100%;
+  min-height: 48px;
+}
+
+/* Рамка скана: широкий «коридор» под EAN на упаковке */
+.food-diary-barcode-scan {
+  z-index: 95;
+}
+
+.food-diary-barcode-scan__reticle {
+  width: min(88%, 340px);
+  height: min(28%, 120px);
+  border-radius: 12px;
+}
+
+.food-diary-catalog__hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.food-diary-catalog__hits--fill {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.food-diary-catalog__hit {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 52px;
+  padding: 12px 4px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.food-diary-catalog__hit:active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.food-diary-catalog__hit-name {
+  font-weight: 560;
+}
+
+.food-diary-catalog__hit-meta,
+.food-diary-catalog__hint {
+  font-size: 0.8rem;
+}
+
+
+.food-diary-water__head,
+.food-diary-week__toggle,
+.food-diary-trainer-glance__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.food-diary-water__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.food-diary-water__bar {
+  height: 8px;
+  margin: 8px 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  overflow: hidden;
+}
+
+.food-diary-water__fill {
+  height: 100%;
+  background: color-mix(in srgb, var(--accent-bright) 70%, var(--accent));
+  border-radius: inherit;
+}
+
+.food-diary-water__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.food-diary-habits {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.food-diary-habits__label {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+}
+
+.food-diary-habits__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.food-diary-habits__chip {
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.food-diary-habits__copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.food-diary-habits__meal-copy select {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface, transparent);
+  color: inherit;
+  font: inherit;
+  padding: 0 10px;
+}
+
+.food-diary-week__toggle {
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.food-diary-week__days {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.food-diary-week__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.75rem;
+}
+
+.food-diary-trainer-glance {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.food-diary-trainer-glance__kcal {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.food-diary-trainer-glance__bju,
+.food-diary-trainer-glance__status {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* ——— Телефон: День · Отчёты · (Рацион у ПЗ) · Ещё ——— */
+.food-diary-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.food-diary-tabs--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.food-diary-tabs--four .food-diary-tabs__item {
+  font-size: 0.88rem;
+  padding: 0 2px;
+}
+
+.food-diary-tabs__item {
+  position: relative;
+  min-height: 44px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.food-diary-tabs__item--on {
+  background: transparent;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.food-diary-tabs__item--on::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent-bright, var(--accent));
+}
+
+.food-diary-water--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 10px;
+  margin: 0 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.food-diary-water--row .food-diary-water__ml {
+  font-size: 0.9rem;
+  font-weight: 560;
+  min-width: 0;
+}
+
+.food-diary-water--row .food-diary-water__actions {
+  flex-shrink: 0;
+}
+
+.food-diary-water__step {
+  min-width: 48px;
+  min-height: 44px;
+  padding: 0 10px;
+}
+
+.food-diary-summary--compact {
+  padding: 12px;
+}
+
+.food-diary-summary__remain {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+
+.food-diary-week__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.food-diary-week__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.food-diary-week__day-btn {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.food-diary-reports {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-diary-more {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-diary-more__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.food-diary-more__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.food-diary-more__lead {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.food-diary-targets__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.food-diary-targets__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 560;
+}
+
+.food-diary-targets__input {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* без зума iOS */
+}
+
+.food-diary-targets__save {
+  min-height: 48px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Шторка добавления: между шапкой клуба и нижними вкладками — хром /me не ломаем */
+.food-diary-add-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.food-diary-add-sheet__backdrop {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+.food-diary-add-page {
+  pointer-events: auto;
+  position: absolute;
+  /* без transform — иначе fixed-сканер штрихкода запирается в рамке шторки */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  box-sizing: border-box;
+  width: min(560px, calc(100% - 16px));
+  /* Шапка клуба ≈ 52px; низ — как padding .client-me--tabs */
+  top: calc(52px + env(safe-area-inset-top, 0px));
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--border);
+  /* Все углы одинаково — карточка над вкладками, не «пузо сверху / нож снизу» */
+  border-radius: var(--radius);
+  background: var(--bg-elevated, var(--bg));
+  box-shadow: var(--shadow-soft, 0 8px 28px color-mix(in srgb, #000 35%, transparent));
+  min-height: 0;
+}
+
+.food-diary-add-page__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.food-diary-add-page__back {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text);
+}
+
+.food-diary-add-page__back svg {
+  display: block;
+}
+
+.food-diary-add-page__titles {
+  min-width: 0;
+  flex: 1;
+  padding-top: 4px;
+}
+
+.food-diary-add-page__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.food-diary-add-page__meal-label {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.food-diary-add-page__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.food-diary-add-page__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.food-diary-add-page__form {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 10px;
+}
+
+.food-diary-add-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 560;
+}
+
+.food-diary-add-page__field input {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.food-diary-add-page__field input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.food-diary-add-page__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-bottom: 4px;
+}
+
+.food-diary-add-page__actions .btn {
+  min-height: 48px;
+}
+
+.food-diary-add-page__error {
+  margin: 8px 0 0;
+  color: var(--danger, #b00020);
+  font-size: 0.9rem;
+}
+
+.food-diary-add-page__empty {
+  margin: 16px 4px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.food-diary-catalog--fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.food-diary-catalog__search {
+  display: block;
+  flex-shrink: 0;
+}
+
+.food-diary-catalog__search-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.food-diary-catalog__search-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.food-diary-catalog__search-input::placeholder {
+  color: var(--text-muted);
+}
+
+
+.food-diary-habits__chip {
+  min-height: 44px;
+}
+
+/* День: кнопка «Добавить» не прячется под нижнюю навигацию /me */
+.food-diary-page .food-diary-day__add {
+  margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+
+.food-diary-toast {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  font-size: 0.9rem;
+}
+
+.food-diary-ration {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-diary-ration__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.food-diary-ration__to-diary {
+  min-height: 48px;
+  width: 100%;
+}
+
+.food-diary-ration__hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Поверх рациона: Пн–Вс и список не кликаются, пока выбирают приёмы */
+.food-diary-ration-import {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  pointer-events: auto;
+}
+
+.food-diary-ration-import__backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  cursor: pointer;
+}
+
+.food-diary-ration-import__panel {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(180deg, var(--premium-glass-highlight) 0%, transparent 28%),
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-soft);
+}
+
+.food-diary-ration__conflict-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.food-diary-ration-import__day {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.food-diary-ration__conflict p,
+.food-diary-ration-import__panel .food-diary-ration__hint {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.food-diary-ration__meal-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.food-diary-ration__meal-pick {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.food-diary-ration__meal-pick--on {
+  border-color: color-mix(in srgb, var(--accent-bright, var(--accent)) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.food-diary-ration__conflict-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.food-diary-ration__conflict-actions .btn {
+  min-height: 48px;
+}
+
+/* Тренер: список питания за день */
+.food-diary-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px calc(16px + env(safe-area-inset-bottom, 0px));
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.food-diary-roster__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.food-diary-roster__lead {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.food-diary-roster__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.food-diary-roster__date {
+  font-weight: 600;
+  text-align: center;
+}
+
+.food-diary-roster__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.food-diary-roster__chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.food-diary-roster__chip--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-weight: 600;
+}
+
+.food-diary-roster__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.food-diary-roster__row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface, #fff);
+  color: inherit;
+  text-align: left;
+}
+
+.food-diary-roster__name {
+  font-weight: 650;
+  font-size: 1.05rem;
+}
+
+.food-diary-roster__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.food-diary-roster__status--ok {
+  color: var(--success, #1a7f4a);
+}
+
+.food-diary-roster__status--miss {
+  color: var(--warning, #b26a00);
+}
+
+.food-diary-roster__status--empty,
+.food-diary-roster__status--other {
+  color: var(--text-muted);
+}
+
+.food-diary-roster__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--danger, #b00020);
+}
