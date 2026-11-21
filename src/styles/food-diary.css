@@ -1275,14 +1275,20 @@ a.food-diary-entry.client-me-tile:focus-visible {
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface, #fff);
-  color: inherit;
+  background: var(--bg-card);
+  color: var(--text);
   text-align: left;
+  text-decoration: none;
+}
+
+.food-diary-roster__row:visited {
+  color: var(--text);
 }
 
 .food-diary-roster__name {
   font-weight: 650;
   font-size: 1.05rem;
+  color: var(--text);
 }
 
 .food-diary-roster__meta {

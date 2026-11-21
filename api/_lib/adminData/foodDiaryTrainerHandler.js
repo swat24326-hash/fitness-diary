@@ -71,7 +71,7 @@ export async function handleFoodDiaryClientGet(authCtx, req, res) {
   const db = authCtx.supabaseAdmin
   const { data: client, error: clientErr } = await db
     .from('clients')
-    .select('id, club_id, full_name')
+    .select('id, club_id, name')
     .eq('id', clientId)
     .maybeSingle()
   if (clientErr) {
