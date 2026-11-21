@@ -4,6 +4,7 @@ import {
   chartMaxValue,
   currentMonthKeyFromTodayIso,
   monthLabelAxis,
+  monthLabelAxisShort,
 } from '../src/lib/admin/adminClubMonthlyChartCore.js'
 
 function ok(cond, msg) {
@@ -41,5 +42,6 @@ ok(model.avgBottomPct != null && model.avgBottomPct > 40 && model.avgBottomPct <
 
 ok(monthLabelAxis('2026-10', 2026) === 'октябрь', 'full month')
 ok(monthLabelAxis('2025-01', 2026).includes('январ'), 'other year month')
+ok(monthLabelAxisShort('2026-10', 2026).toLowerCase().startsWith('окт'), 'short month')
 
 console.log('verify-admin-club-monthly-chart: ok')

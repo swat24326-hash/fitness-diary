@@ -182,6 +182,8 @@ export async function loadClubMonthlyStatsForYear({ clubId, year }) {
           months: via.months,
           years: Array.isArray(via.years)?.length ? via.years : [y],
           yearSummary: via.yearSummary ?? { completedInYear: 0, typedInYear: 0 },
+          attendance: Array.isArray(via.attendance) ? via.attendance : [],
+          retentionM3: Array.isArray(via.retentionM3) ? via.retentionM3 : [],
         }
       }
     } catch {
@@ -208,9 +210,17 @@ export async function loadClubMonthlyStatsForYear({ clubId, year }) {
       }),
       years: discoverMonthlyChartYears(clubTrainings, { anchorYear: y }),
       yearSummary,
+      attendance: [],
+      retentionM3: [],
     }
   } catch {
-    return { months: [], years: [y], yearSummary: { completedInYear: 0, typedInYear: 0 } }
+    return {
+      months: [],
+      years: [y],
+      yearSummary: { completedInYear: 0, typedInYear: 0 },
+      attendance: [],
+      retentionM3: [],
+    }
   }
 }
 

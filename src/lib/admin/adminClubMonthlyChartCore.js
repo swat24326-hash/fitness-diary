@@ -2,6 +2,22 @@
  * Чистая логика графика «Итог» по месяцам.
  */
 
+/**
+ * Нормализация строки: count (объём) или value (серии).
+ * @param {{ month?: string, count?: number, value?: number | null }|null|undefined} row
+ * @returns {{ month: string, value: number | null }}
+ */
+export function normalizeMonthlyChartRow(row) {
+  const month = String(row?.month ?? '')
+  if (row && Object.prototype.hasOwnProperty.call(row, 'value')) {
+    const v = row.value
+    if (v == null || !Number.isFinite(Number(v))) return { month, value: null }
+    return { month, value: Number(v) }
+  }
+  const c = Number(row?.count ?? 0) || 0
+  return { month, value: c }
+}
+
 /** Верх шкалы Y с «красивым» шагом (плотнее к реальному пику). */
 export function chartMaxValue(maxCount) {
   const n = Number(maxCount) || 0
@@ -16,27 +32,35 @@ export function chartMaxValue(maxCount) {
   else if (f <= 2.5) nice = 2.5
   else if (f <= 5) nice = 5
   const raw = nice * exp
-  return Number.isInteger(raw) ? raw : Math.round(raw)
+  return Number.isInteger(raw) ? raw : Math.round(raw * 1000) / 1000
 }
 
 export function yTicks(chartMax, steps = 5) {
   const out = []
   const max = Number(chartMax) || 0
   for (let i = steps; i >= 0; i--) {
-    out.push(Math.round((max * i) / steps))
+    const raw = (max * i) / steps
+    out.push(Number.isInteger(max) && Number.isInteger(raw) ? raw : Math.round(raw * 10) / 10)
   }
   return out
 }
 
-/** Среднее по месяцам с ненулевым count (1 знак), null если пусто. */
-export function averageMonthlyCount(rows) {
+/**
+ * Среднее по месяцам с числовым value (null/нечисло пропускаем).
+ * Для объёма нули не входят (как раньше); для прочих — нули входят.
+ * @param {Array<{ month?: string, count?: number, value?: number | null }>|null|undefined} rows
+ * @param {{ includeZero?: boolean }} [opts]
+ */
+export function averageMonthlyCount(rows, opts = {}) {
   const list = Array.isArray(rows) ? rows : []
+  const includeZero = opts.includeZero === true
   let sum = 0
   let n = 0
   for (const r of list) {
-    const c = Number(r?.count ?? 0) || 0
-    if (c <= 0) continue
-    sum += c
+    const { value } = normalizeMonthlyChartRow(r)
+    if (value == null || !Number.isFinite(value)) continue
+    if (!includeZero && value <= 0) continue
+    sum += value
     n += 1
   }
   if (!n) return null
@@ -52,36 +76,45 @@ export function currentMonthKeyFromTodayIso(todayIso) {
 }
 
 /**
- * @param {Array<{ month?: string, count?: number }>|null|undefined} rows
- * @param {{ todayIso?: string }} [opts]
+ * @param {Array<{ month?: string, count?: number, value?: number | null }>|null|undefined} rows
+ * @param {{ todayIso?: string, includeZeroInAvg?: boolean, forceMax?: number | null }} [opts]
  */
 export function buildAdminClubMonthlyChartModel(rows, opts = {}) {
-  const list = Array.isArray(rows) ? rows : []
+  const list = (Array.isArray(rows) ? rows : []).map(normalizeMonthlyChartRow)
   const currentMonth = currentMonthKeyFromTodayIso(opts.todayIso)
+  const includeZeroInAvg = opts.includeZeroInAvg === true
   let max = 0
   let sum = 0
   let peak = null
-  let peakN = 0
+  let peakN = -Infinity
+  let hasNumeric = false
   for (const r of list) {
-    const n = Number(r?.count ?? 0) || 0
+    const n = r.value
+    if (n == null || !Number.isFinite(n)) continue
+    hasNumeric = true
     sum += n
     if (n > max) max = n
     if (n > peakN) {
       peakN = n
-      peak = String(r?.month ?? '')
+      peak = String(r.month ?? '')
     }
   }
-  const avgCount = averageMonthlyCount(list)
-  const cm = chartMaxValue(Math.max(max, avgCount != null ? avgCount : 0))
+  const avgCount = averageMonthlyCount(list, { includeZero: includeZeroInAvg })
+  const forced = Number(opts.forceMax)
+  const cm =
+    Number.isFinite(forced) && forced > 0
+      ? forced
+      : chartMaxValue(Math.max(max, avgCount != null ? avgCount : 0))
   return {
     chartMax: cm,
     ticks: yTicks(cm),
     total: sum,
-    hasAny: sum > 0,
-    peakMonth: peakN > 0 ? peak : null,
+    hasAny: hasNumeric && list.some((r) => r.value != null && Number(r.value) > 0),
+    peakMonth: peakN > -Infinity && peakN > 0 ? peak : null,
     avgCount,
     currentMonth,
     avgBottomPct: cm > 0 && avgCount != null ? Math.min(100, (avgCount / cm) * 100) : null,
+    rows: list,
   }
 }
 
@@ -104,6 +137,20 @@ export function monthLabelAxis(ym, chartYear) {
   if (!Number.isFinite(yy) || !Number.isFinite(mm) || mm < 1 || mm > 12) return s
   const d = new Date(yy, mm - 1, 1)
   const mon = new Intl.DateTimeFormat('ru-RU', { month: 'long' }).format(d)
+  if (chartYear && yy === chartYear) return mon
+  const yr = String(yy).slice(-2)
+  return `${mon} ’${yr}`
+}
+
+/** Короткое имя на оси графика (окт.); полное — в title. */
+export function monthLabelAxisShort(ym, chartYear) {
+  const s = String(ym ?? '')
+  const [y, m] = s.split('-')
+  const yy = Number(y)
+  const mm = Number(m)
+  if (!Number.isFinite(yy) || !Number.isFinite(mm) || mm < 1 || mm > 12) return s
+  const d = new Date(yy, mm - 1, 1)
+  const mon = new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(d).replace(/\.$/, '')
   if (chartYear && yy === chartYear) return mon
   const yr = String(yy).slice(-2)
   return `${mon} ’${yr}`

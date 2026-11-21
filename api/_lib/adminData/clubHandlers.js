@@ -28,6 +28,7 @@ import {
 import { fetchClubTrainerModeIds } from '../clubTrainerModeIds.js'
 import { buildClubClientRetentionPayload } from '../clubClientRetentionCore.js'
 import { buildClubClientAttendancePayload } from '../clubClientAttendanceCore.js'
+import { buildClubMonthlyYearHealthSeries } from '../clubMonthlyYearSeriesBuild.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
@@ -324,10 +325,11 @@ export async function handleClubMonthly(ctx, req, res) {
       const { supabaseAdmin } = ctx
       const yearStart = `${y}-01-01`
       const yearEnd = `${y}-12-31`
-      const [trainings, memberships, yearBounds] = await Promise.all([
+      const [trainings, memberships, yearBounds, health] = await Promise.all([
         fetchPaged(supabaseAdmin, 'trainings', 'id, date, status, data', clubId, yearStart, yearEnd),
         fetchPaged(supabaseAdmin, 'memberships', 'id, membership_type_id', clubId, null, null),
         fetchCompletedTrainingYearBounds(supabaseAdmin, clubId),
+        buildClubMonthlyYearHealthSeries(supabaseAdmin, { clubId, year: y }),
       ])
       sendJson(res, 200, {
         months: aggregateMonthlyForCalendarYear({
@@ -341,6 +343,9 @@ export async function handleClubMonthly(ctx, req, res) {
           memberships,
           year: y,
         }),
+        attendance: health.attendance ?? [],
+        retentionM3: health.retentionM3 ?? [],
+        seriesTruncated: Boolean(health.truncated),
         club_id: clubId,
         year: y,
       })

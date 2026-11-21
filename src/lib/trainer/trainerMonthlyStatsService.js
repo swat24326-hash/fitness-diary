@@ -4,6 +4,12 @@ import {
   discoverMonthlyChartYears,
   summarizeCalendarYearMonthlyEligibility,
 } from '../admin/adminClubMonthlyService'
+import {
+  aggregateMonthlyAttendanceSeries,
+  aggregateMonthlyRetentionM3Series,
+} from '../admin/clubMonthlyYearSeriesCore.js'
+import { todayInTimeZoneIso } from '../dateRu.js'
+import { listMembershipTypesForClub } from '../membershipTypesService.js'
 
 function flattenMemberships(memByClient) {
   const out = []
@@ -27,11 +33,15 @@ export async function loadTrainerMonthlyStatsForYear(p) {
   const trainerId = String(p.trainerId ?? '').trim()
   const clubId = String(p.clubId ?? '').trim()
   const year = Number(p.year)
-  if (!trainerId || !Number.isFinite(year)) return { months: [], years: [] }
+  if (!trainerId || !Number.isFinite(year)) {
+    return { months: [], years: [], attendance: [], retentionM3: [] }
+  }
 
-  const { trainings, memByClient } = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
+  const { clients, archivedClients, trainings, memByClient, lifecycleRows } =
+    await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
   const memberships = flattenMemberships(memByClient)
   const mine = trainerTrainings(trainings, trainerId)
+  const todayIso = todayInTimeZoneIso()
 
   const yearStart = `${year}-01-01`
   const yearEnd = `${year}-12-31`
@@ -39,6 +49,27 @@ export async function loadTrainerMonthlyStatsForYear(p) {
     const d = String(t?.date ?? '').slice(0, 10)
     return d && d >= yearStart && d <= yearEnd
   })
+
+  let membershipTypes = []
+  if (clubId) {
+    try {
+      membershipTypes = (await listMembershipTypesForClub(clubId)) ?? []
+    } catch {
+      membershipTypes = []
+    }
+  }
+
+  const allClients = [...(clients ?? []), ...(archivedClients ?? [])]
+  const seriesInput = {
+    clients: allClients,
+    memberships,
+    trainings: mine,
+    membershipTypes,
+    lifecycleRows: lifecycleRows ?? [],
+    year,
+    todayIso,
+    trainerIdFilter: trainerId,
+  }
 
   return {
     months: aggregateMonthlyForCalendarYear({
@@ -52,6 +83,8 @@ export async function loadTrainerMonthlyStatsForYear(p) {
       memberships,
       year,
     }),
+    attendance: aggregateMonthlyAttendanceSeries(seriesInput),
+    retentionM3: aggregateMonthlyRetentionM3Series(seriesInput),
   }
 }
 

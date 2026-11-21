@@ -86,6 +86,8 @@ export function AdminClubStatsSection({
   /** @type {[AdminStatsInlinePanel, Function]} */
   const [inlinePanel, setInlinePanel] = useState(/** @type {AdminStatsInlinePanel} */ ('completed'))
   const [clubMonthly, setClubMonthly] = useState([])
+  const [clubMonthlyAttendance, setClubMonthlyAttendance] = useState([])
+  const [clubMonthlyRetentionM3, setClubMonthlyRetentionM3] = useState([])
   const [clubMonthlyBusy, setClubMonthlyBusy] = useState(false)
   const [monthlyChartYear, setMonthlyChartYear] = useState(() => new Date().getFullYear())
   const [monthlyYears, setMonthlyYears] = useState(() => [new Date().getFullYear()])
@@ -277,6 +279,8 @@ export function AdminClubStatsSection({
     // Сброс кэша итога при смене клуба/скоупа. Панель не в null —
     // иначе при повторном входе в статистику все отчёты «закрыты».
     setClubMonthly([])
+    setClubMonthlyAttendance([])
+    setClubMonthlyRetentionM3([])
     setClubMonthlyBusy(false)
     setMonthlyChartYear(defaultChartYear)
     setMonthlyYears([defaultChartYear])
@@ -306,6 +310,8 @@ export function AdminClubStatsSection({
     const cached = monthlyCacheRef.current.get(cacheKey)
     if (cached) {
       setClubMonthly(cached.months)
+      setClubMonthlyAttendance(cached.attendance ?? [])
+      setClubMonthlyRetentionM3(cached.retentionM3 ?? [])
       setMonthlyYears(cached.years)
       setMonthlyYearSummary(cached.yearSummary ?? null)
       setClubMonthlyBusy(false)
@@ -315,6 +321,8 @@ export function AdminClubStatsSection({
     let cancelled = false
     const run = async () => {
       setClubMonthly([])
+      setClubMonthlyAttendance([])
+      setClubMonthlyRetentionM3([])
       setClubMonthlyBusy(true)
       try {
         const res = isTrainerScope
@@ -329,15 +337,21 @@ export function AdminClubStatsSection({
             })
         if (cancelled) return
         const months = Array.isArray(res?.months) ? res.months : []
+        const attendance = Array.isArray(res?.attendance) ? res.attendance : []
+        const retentionM3 = Array.isArray(res?.retentionM3) ? res.retentionM3 : []
         const years = Array.isArray(res?.years)?.length ? res.years : [monthlyChartYear]
         const yearSummary = res?.yearSummary ?? null
-        monthlyCacheRef.current.set(cacheKey, { months, years, yearSummary })
+        monthlyCacheRef.current.set(cacheKey, { months, attendance, retentionM3, years, yearSummary })
         setClubMonthly(months)
+        setClubMonthlyAttendance(attendance)
+        setClubMonthlyRetentionM3(retentionM3)
         setMonthlyYears(years)
         setMonthlyYearSummary(yearSummary)
       } catch {
         if (!cancelled) {
           setClubMonthly([])
+          setClubMonthlyAttendance([])
+          setClubMonthlyRetentionM3([])
           setMonthlyYearSummary(null)
         }
       } finally {
@@ -918,6 +932,8 @@ export function AdminClubStatsSection({
               ) : null}
               <AdminClubMonthlyChart
                 rows={clubMonthly}
+                attendance={clubMonthlyAttendance}
+                retentionM3={clubMonthlyRetentionM3}
                 year={monthlyChartYear}
                 yearPicker={
                   monthlyYears.length ? (
