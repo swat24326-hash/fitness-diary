@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Brush, ChevronDown, ChevronUp, ClipboardCopy, LogOut, RefreshCw, Share2, Wrench } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCopy, Eraser, LogOut, RefreshCw, Share2, Wrench } from 'lucide-react'
 import { CloseButton } from './CloseButton'
 import { getDb, listSyncQueue } from '../lib/localDb'
 import {
@@ -729,7 +729,7 @@ export function DiagnosticsPanel({
           aria-label="Очистить журнал"
           title="Очистить журнал"
         >
-          <Brush size={18} aria-hidden />
+          <Eraser size={18} aria-hidden />
         </button>
         {onClose ? <CloseButton onClick={onClose} /> : null}
       </div>
